@@ -1,0 +1,3 @@
+2026-08-09T07:36:22Z	rv64-architecture-elaboration-d3f3	PASS	npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json
+2026-08-09T07:36:27Z	bpu-fp-physical-visibility	GAP	npc/rv64/ARCHITECTURE.md
+2026-08-09T08:12:33Z	architecture-registry-fail-closed-delta	PASS	npc/rv64/ARCHITECTURE.md

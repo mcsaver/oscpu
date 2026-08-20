@@ -46,8 +46,9 @@
 
 - `ysyx-coordinator` 负责把用户目标映射到图任务和 domain agent。
 - `agent-system` 负责 inspector 职责：检查三层边界、policy、report matrix、e2e profile、task-run 证据和 memory 写回。
-- 有落盘实现、跨模块结论、长跑或 release 时执行实现者/审查者双角色复核；纯代码 review/analysis
-  不追加同构二次审查。冲突记录为“已由证据关闭”或“剩余风险/下一步”。
+- 只有 `risk=high`、release、migration、难恢复的破坏性操作、正式 Architecture/Pareto promotion、
+  对外发布或用户明确要求时执行实现者/审查者风险触发双角色复核；落盘、跨模块或长跑本身不触发，
+  reviewer 也不机械重跑同一确定性命令。冲突记录为“已由证据关闭”或“剩余风险/下一步”。
 - domain agents 只负责各自模块执行，不负责关闭整个 AI 环境重做目标。
 - `agent-system` profile 必须执行 `state-machine-traceback` 节点，验证状态机和 `state_traceback` 字段进入 task-run 证据。
 - `agent-system` profile 必须执行 `reviewer-inspector-gate` 节点，验证 R7 被 review routing 映射到 `agent-layer`，且 `ysyx-coordinator`/`agent-system` 的 reviewer/inspector 关系不是只停留在文档。

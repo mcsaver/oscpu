@@ -1,0 +1,91 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-inline-configurable-sta-tool-fix-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 current d3f3 NpcTop 的 mapped-5ns-bpu-inline-v1 三宏 STA 工具修复：确认 OooBranchDirectionPredictor 已由 Yosys 映射为标准单元后，runner、production-owned Tcl、parser 与 architecture registry 只消费当前 physical configuration 的三项 macro Liberty 和 unknown-macro 投影，不再继承历史四宏常量，同时保留 A1 原始 GAP 与 A2 冻结基线。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/driver/opensta-v15p-exact5ns.tcl",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/driver/v15p_mapped_sta.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-inline-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-inline-configurable-sta-tool-fix-v1.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-mapped-macro-boundary-baseline-a2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-inline-configurable-sta-tool-fix-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-inline-configurable-sta-tool-fix-v1.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RETAIN/FIX/BLOCK 独立裁决；逐项核对 runner 从 registry 投影导出 macro_libs 与 blackbox_modules，Tcl 对实际 Liberty 数量执行投影比较，parser 对 completion macro_lib_count 和 raw synth_stat unknown-macro 集合执行投影校验，production manifest 绑定新 Tcl/parser，旧 task-run 驱动与 A1/A2 evidence 未被改写；审查三宏正向、错误四宏集合负向和 runner/tool marker mutation，并保留 unknowns、counterexamples、alternative_hypotheses、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有当 mapped-5ns-bpu-inline-v1 精确接受三个 Liberty/三个 unknown macro module、mapped-5ns-four-placeholder-v1 仍可接受四项投影、固定四宏常量和固定 unknown 集合被静态合同拒绝、runner/parser/Tcl 参数及 production manifest 调用链闭合、19 项定向 unittest 原始观测与 A1 综合切片 GAP 边界一致时才可 RETAIN；不得运行综合、OpenSTA、parser、trace 或测试，不得写文件，不得把缺失 WNS/TNS/Top40 的 A1 升级为 PPA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

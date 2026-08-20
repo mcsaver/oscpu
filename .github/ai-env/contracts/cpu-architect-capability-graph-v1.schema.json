@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ysyx.local/schemas/cpu-architect-capability-graph-v1.schema.json",
+  "title": "CPU Architect CapabilityGraph v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "graph_id", "design_scope", "nodes", "updated_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "graph_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+    "design_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_id", "source_manifest", "configuration"],
+      "properties": {
+        "design_id": {"type": "string", "minLength": 1},
+        "source_manifest": {"type": "string", "minLength": 1},
+        "configuration": {"type": "string", "minLength": 1}
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/capability_node"}
+    },
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "score": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "capability_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_id", "domain", "applicability", "scores", "sample_counts",
+        "calibration", "prerequisites", "status", "evidence_refs", "last_updated"
+      ],
+      "properties": {
+        "capability_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+        "domain": {
+          "enum": [
+            "frontend", "rename_dispatch", "scheduler_issue", "execution_bypass",
+            "memory_ordering", "cache_mmu_interconnect", "commit_trap_control",
+            "performance_modeling", "physical_design", "experimental_method", "tooling"
+          ]
+        },
+        "applicability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "workspace_claim", "evidence_refs"],
+          "properties": {
+            "status": {"enum": ["unknown", "candidate", "confirmed", "not_present"]},
+            "workspace_claim": {"type": "string"},
+            "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+          }
+        },
+        "scores": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["knowledge", "reasoning", "prediction_accuracy", "confidence_calibration"],
+          "properties": {
+            "knowledge": {"$ref": "#/$defs/score"},
+            "reasoning": {"$ref": "#/$defs/score"},
+            "prediction_accuracy": {"$ref": "#/$defs/score"},
+            "confidence_calibration": {"$ref": "#/$defs/score"}
+          }
+        },
+        "sample_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["experiments", "successes", "failures", "unseen_exams"],
+          "properties": {
+            "experiments": {"type": "integer", "minimum": 0},
+            "successes": {"type": "integer", "minimum": 0},
+            "failures": {"type": "integer", "minimum": 0},
+            "unseen_exams": {"type": "integer", "minimum": 0}
+          }
+        },
+        "calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["prediction_count", "interval_coverage", "mean_absolute_error"],
+          "properties": {
+            "prediction_count": {"type": "integer", "minimum": 0},
+            "interval_coverage": {"$ref": "#/$defs/score"},
+            "mean_absolute_error": {"type": ["number", "null"], "minimum": 0}
+          }
+        },
+        "prerequisites": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "status": {"enum": ["unknown", "learning", "calibrating", "validated", "stale"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "last_updated": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

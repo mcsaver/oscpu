@@ -639,6 +639,7 @@ def audit_elaborated(
     manifest_path: Path,
     yosys_json_path: Path,
     *,
+    allow_manifest_design_rebind: bool = False,
     elaborator: dict[str, Any] | None = None,
     elaboration_sources: list[dict[str, str]] | None = None,
     elaborator_full_json_sha256: str | None = None,
@@ -693,7 +694,10 @@ def audit_elaborated(
         prefix="bindings.elaborator",
     )
     design_id = f"sha256:{source_sha}"
-    if manifest.get("design_id") != design_id:
+    if (
+        manifest.get("design_id") != design_id
+        and not allow_manifest_design_rebind
+    ):
         errors.append("census design_id differs from live RTL source binding")
     holder_rows = sorted(
         (
@@ -1318,6 +1322,15 @@ def main() -> int:
     mode.add_argument("--yosys-json", type=Path)
     mode.add_argument("--check-frozen", action="store_true")
     parser.add_argument("--yosys")
+    parser.add_argument(
+        "--allow-manifest-design-rebind",
+        action="store_true",
+        help=(
+            "allow --elaborate to bootstrap a live graph when only the "
+            "census design_id is stale; frozen and imported-JSON audits "
+            "remain strict"
+        ),
+    )
     parser.add_argument("--timeout-seconds", type=int, default=180)
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--receipt-out", type=Path)
@@ -1325,6 +1338,11 @@ def main() -> int:
     parser.add_argument("--script-out", type=Path)
     parser.add_argument("--log-out", type=Path)
     args = parser.parse_args()
+
+    if args.allow_manifest_design_rebind and not args.elaborate:
+        parser.error(
+            "--allow-manifest-design-rebind is valid only with --elaborate"
+        )
 
     repo_root = args.repo_root.resolve()
     manifest_path = args.manifest.resolve()
@@ -1376,6 +1394,9 @@ def main() -> int:
                     repo_root,
                     manifest_path,
                     json_path,
+                    allow_manifest_design_rebind=(
+                        args.allow_manifest_design_rebind
+                    ),
                     elaborator=metadata,
                     elaboration_sources=source_records,
                     elaborator_full_json_sha256=sha256_bytes(

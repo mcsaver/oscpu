@@ -1,0 +1,122 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-source-domain-split-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 NpcTop FP OOC composite A3 的source domain混淆：Registry五个child source_closure为身份哈希包含filelist.mk，fp_ooc_composite与runner却把整个closure作为Yosys VERILOG_FILES，导致Make注释中的裸ifdef在首个child预处理失败。Architecture Registry必须为每个child显式增加compile_sources，严格为source_closure的Verilog子集且包含child RTL；source_closure继续绑定filelist.mk，runner分别封存closure与compile manifest并只把compile_sources送入Yosys。不得修改FP RTL，不运行production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/filelist.mk",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/evidence/fp-ooc-composite-source-domain-split-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/subagent-contracts/fp-ooc-composite-source-domain-split-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/evidence/fp-ooc-composite-source-domain-split-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "Registry child_contracts新增compile_sources并由schema强制：非空唯一、仅npc/rv64/vsrc下.v或.sv、严格属于source_closure、包含rtl；source_closure继续包含define/helpers/rtl/filelist.mk。architecture_registry期望投影与validation拒绝缺字段、非Verilog、越界和缺rtl。",
+    "fp_ooc_composite新增emit-child-compile-sources，保留emit-child-sources作为身份闭包；runner生成source-closure.sha256与compile-sources.sha256两个确定清单，只把compile列表传给child Yosys，production/tool manifest继续绑定Registry、tool、runner。不得用后缀临时过滤替代Registry显式字段。",
+    "更新spec与ARCH单一入口说明，扩展Registry/tool合同及定向mutation覆盖compile_sources含filelist、不是closure子集、缺child RTL、runner复用closure、缺compile manifest。单次执行受影响unittest、Registry render/check、clean-env emit命令、runner bash-n、scoped diff/text audit；不运行production EDA，不修改或重跑A3。"
+  ],
+  "success_criteria": [
+    "五child的compile_sources均为各自source_closure精确Verilog子集且filelist.mk仅在source_closure；clean-env emit输出与Registry一致，runner源码顺序为读取closure→hash closure→读取compile→hash compile→Yosys仅consume compile；所有负向mutation被拒绝，受影响tests/render/check/bash-n/diff均rc0。A3 status/hash保持原样；修复后只允许全新run-id一次production diagnostic。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

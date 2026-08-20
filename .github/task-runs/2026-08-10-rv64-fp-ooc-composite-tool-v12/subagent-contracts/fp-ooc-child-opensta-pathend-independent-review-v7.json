@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-pathend-independent-review-v7",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核本地 RV64 OooFpAddSubPipe 5.0ns OOC PathEnd measurement 修复。攻击生产opensta-fp-ooc-child.tcl、真实OpenSTA v4收据、v6 closure与Architecture Registry单一入口：确认每批PathEnd在下一次find_timing_paths前完全转成普通值，PropertyValue arrival仅处于UI纳秒域，input-to-D用零seed末减首，clock-to-Q在显式零clock origin/latency且未传播时钟下用末点累计arrival而不丢寄存器弧，max/min角色与端点集合fail-closed。查找任何能导致fresh production run误接受、误拒绝或面积/时序身份漂移的确定反例，并裁决RETAIN或BLOCK；不运行测试/EDA，不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-arrival-api-research-v1/result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-lifetime-official-review-v1.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/pathend-lifetime-root-cause-v1.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-arrival-v3",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_path_arrival_harness.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v6/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/subagent-contracts/fp-ooc-child-opensta-pathend-independent-review-v7.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-lifetime-official-review-v1.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v6/result.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出PathEnd生命周期、UI/raw单位域、input-to-D和clock-to-Q测量定义的独立数据流裁决；逐项列出本地源码、Registry字段、真实harness数值与收据哈希是否闭合。",
+    "主动寻找跨查询悬空PathEnd/points、二次单位转换、Q-to-output差分漏clk-to-Q、非零clock origin、错误min_max/check_role、错误from/to集合、弃用group_count、Registry投影或证据重放等承重反例。",
+    "结论必须为RETAIN或BLOCK，并明确是否仅授权一个全新run-id的单次5.0ns diagnostic。保留A6 FAIL与PPA GAP，不运行Python/bash/test/OpenSTA/Yosys/RTL sim，不写文件。"
+  ],
+  "success_criteria": [
+    "合同内只读rg/sed/sha256sum/git diff完成后归还唯一shell；只有未发现静态确定假绿/误拒且v4/v6/A6/Registry/current source hashes闭合时才能RETAIN。任何影响真实production timing/identity的反例必须BLOCK并给出精确路径、字段与scope_extension_request。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

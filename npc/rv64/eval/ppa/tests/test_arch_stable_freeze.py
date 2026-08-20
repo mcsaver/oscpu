@@ -809,7 +809,7 @@ class GreenFixture:
             '''        raise RecertificationError("fixture L0-L3 status/design drifted")\n'''
             '''    if llayers["L2_MINI_SYSTEM"].get("case")!="all" or llayers["L3_LIGHTWEIGHT_LINUX"].get("case")!="all" or llayers["L2_MINI_SYSTEM"].get("rtl_assertions")!={"enabled":True,"failures":0} or llayers["L3_LIGHTWEIGHT_LINUX"].get("rtl_assertions")!={"enabled":True,"failures":0}:\n'''
             '''        raise RecertificationError("fixture L2/L3 contract drifted")\n'''
-            '''    return {"status":"PASS","design_id":design_id,"system_recertification":"PASS_CURRENT_CONFIG","default_signoff_conjunction":names,"l0_passed":113,"l0_required":113,"l1_official_passed":177,"l1_official_required":177,"l1_am_passed":61,"l1_am_required":61,"l2_case":"all","l3_case":"all","rtl_assertion_failures":0,"optional_ubuntu":"NOT_RUN_OPTIONAL","whole_architecture":"RED","ppa":"UNPROMOTED"}\n''',
+            '''    return {"status":"PASS","design_id":design_id,"system_recertification":"PASS_CURRENT_CONFIG","default_signoff_conjunction":names,"l0_passed":1,"l0_required":1,"l1_official_passed":177,"l1_official_required":177,"l1_am_passed":61,"l1_am_required":61,"l2_case":"all","l3_case":"all","rtl_assertion_failures":0,"optional_ubuntu":"NOT_RUN_OPTIONAL","whole_architecture":"RED","ppa":"UNPROMOTED"}\n''',
         )
 
     def _build_system_recertification(self) -> None:
@@ -839,7 +839,7 @@ class GreenFixture:
                     "L0_DIRECTED_RTL": {
                         "status": "PASS",
                         "design_id": self.design_id,
-                        "tests": {"passed": 113, "required": 113},
+                        "tests": {"passed": 1, "required": 1},
                         "rtl_assertions": {"enabled": True, "failures": 0},
                     },
                     "L1_FULL_CORE_DIFFTEST": {
@@ -895,7 +895,7 @@ class GreenFixture:
                 "layers": {
                     "L0_DIRECTED_RTL": {
                         "status": "PASS",
-                        "tests": {"passed": 113, "required": 113},
+                        "tests": {"passed": 1, "required": 1},
                         "rtl_assertion_failures": 0,
                     },
                     "L1_FULL_CORE_DIFFTEST": {

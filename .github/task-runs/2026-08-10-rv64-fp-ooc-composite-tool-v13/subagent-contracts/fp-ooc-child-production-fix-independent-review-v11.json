@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-production-fix-independent-review-v11",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooFpAddSubPipe 5.0ns OOC production collect_arc_family 与 arc inventory parser：直接检查 Search-owned PathEnd 是否在下一次 find_timing_paths 前完全物化为普通 startpoint endpoint delay slack，A6 family_N_端口是否按单一style canonical连续索引被严格接受，真实2-bit非末次最差路径oracle与v8/v10封存收据是否支持只授权一个fresh run-id。若存在生产误接受误拒或证据身份漂移则BLOCK；不得运行测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-pathend-parser-fix-v8.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-fix-audit-closure-v10.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-lifetime-official-review-v1.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/pathend-lifetime-root-cause-v1.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_pathend_multibit_harness.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v10/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-fix-independent-review-v11.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v10/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出RETAIN或BLOCK独立裁决，逐项闭合production PathEnd生命周期、候选选择键、普通值物化、underscore parser的canonical索引和A6真实命名、2-bit OpenSTA oracle、Registry状态与v8/v10/A6哈希；列出所有承重反例、未知项、替代解释及fresh run授权边界。"
+  ],
+  "success_criteria": [
+    "只读命令全部结束且无写入；不存在确定生产误接受或误拒、v8/v10/A6身份漂移时才可RETAIN并仅授权一个全新run-id的单次5.0ns diagnostic；任何承重反例均BLOCK，PPA始终保持GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fp-mapped-artifact-profile-tool-result-v1.schema.json",
+  "title": "NPC RV64 FP mapped artifact profile tool identity result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "scope",
+    "design_id",
+    "configuration_id",
+    "profile",
+    "clock",
+    "lifecycle",
+    "measurement_status",
+    "physical_status",
+    "canonical",
+    "champion",
+    "registry_projection",
+    "source_receipts",
+    "superseded_result",
+    "superseded_v2_result",
+    "undispatched_v3_contract",
+    "execution_boundary",
+    "unknowns",
+    "scope_extension_request",
+    "confidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-fp-mapped-artifact-profile-tool-result-v1"
+    },
+    "status": {
+      "const": "PASS"
+    },
+    "scope": {
+      "const": "TOOL_DEPENDENCY_HARDLINK_PASS_PPA_GAP"
+    },
+    "design_id": {
+      "const": "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d"
+    },
+    "configuration_id": {
+      "const": "mapped-5ns-fp-arith-production-children-inline-v1"
+    },
+    "profile": {
+      "const": "fp-arith-children-v1"
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "period_ns"
+      ],
+      "properties": {
+        "name": {
+          "const": "core_clock"
+        },
+        "period_ns": {
+          "const": 5.0
+        }
+      }
+    },
+    "lifecycle": {
+      "const": "development"
+    },
+    "measurement_status": {
+      "const": "UNMEASURED"
+    },
+    "physical_status": {
+      "const": "GAP"
+    },
+    "canonical": {
+      "const": false
+    },
+    "champion": {
+      "const": false
+    },
+    "registry_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physical_configuration_sha256",
+        "configuration_profile_identity_sha256",
+        "artifact_family",
+        "inline_modules",
+        "expected_unknown_macro_instances"
+      ],
+      "properties": {
+        "physical_configuration_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "configuration_profile_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifact_family": {
+          "const": [
+            "opensta-fp-negative-slack.tsv",
+            "opensta-fp-internal-paths.rpt"
+          ]
+        },
+        "inline_modules": {
+          "const": [
+            "OooFpArithGate",
+            "OooFpAddSubPipe",
+            "OooFpMulProductPipe",
+            "OooFpMulNormRoundPipe",
+            "OooFpFmaAlignAddPipe",
+            "OooFpFmaNormRoundPipe"
+          ]
+        },
+        "expected_unknown_macro_instances": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "Sram4096x199",
+            "Sram4096x113",
+            "OooBranchDirectionPredictor"
+          ],
+          "properties": {
+            "Sram4096x199": {
+              "const": 1
+            },
+            "Sram4096x113": {
+              "const": 2
+            },
+            "OooBranchDirectionPredictor": {
+              "const": 1
+            }
+          }
+        }
+      }
+    },
+    "source_receipts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture_registry",
+        "architecture_registry_schema",
+        "architecture_registry_tool",
+        "result_schema",
+        "generator",
+        "v4_contract"
+      ],
+      "properties": {
+        "architecture_registry": {
+          "$ref": "#/$defs/artifact_receipt"
+        },
+        "architecture_registry_schema": {
+          "$ref": "#/$defs/artifact_receipt"
+        },
+        "architecture_registry_tool": {
+          "$ref": "#/$defs/artifact_receipt"
+        },
+        "result_schema": {
+          "$ref": "#/$defs/artifact_receipt"
+        },
+        "generator": {
+          "$ref": "#/$defs/artifact_receipt"
+        },
+        "v4_contract": {
+          "$ref": "#/$defs/artifact_receipt"
+        }
+      }
+    },
+    "superseded_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes",
+        "qualification",
+        "identity_error_field",
+        "recorded_value",
+        "expected_value"
+      ],
+      "properties": {
+        "path": {
+          "const": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result.json"
+        },
+        "sha256": {
+          "const": "d1edadb0b273c1937acc482a119dbfd93b167d1647450ccd5f41b5b415ce58f3"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "qualification": {
+          "const": "SUPERSEDED_IDENTITY_ERROR"
+        },
+        "identity_error_field": {
+          "const": "physical_configuration.configuration_id"
+        },
+        "recorded_value": {
+          "const": "fp-arith-children-v1"
+        },
+        "expected_value": {
+          "const": "mapped-5ns-fp-arith-production-children-inline-v1"
+        }
+      }
+    },
+    "superseded_v2_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualification",
+        "result",
+        "validation_receipt",
+        "receipt_id"
+      ],
+      "properties": {
+        "qualification": {
+          "const": "SUPERSEDED_DEPENDENCY_HARDLINK_GAP"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "path": {
+              "const": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v2.json"
+            },
+            "sha256": {
+              "const": "bf64542a3b4a3e54cebe8e7f96aaf53e1aa96a25a05091fba72b2d91700de4d0"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "validation_receipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "size_bytes"
+          ],
+          "properties": {
+            "path": {
+              "const": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v2.validation-receipt.json"
+            },
+            "sha256": {
+              "const": "572e5f0d8be3e9254ac14ae60f91d4d7a4f5fa392829ea6cdb3313aebeaeda1a"
+            },
+            "size_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "receipt_id": {
+          "const": "sha256:5fec56b10128a7e7fae2ed9ad1a29ac062d493a8667113aa8966d848e315941a"
+        }
+      }
+    },
+    "undispatched_v3_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes",
+        "qualification",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "const": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-v3.json"
+        },
+        "sha256": {
+          "const": "90e49ceb7ae95f4cd85d081eefed9a6359afc42620edb127dbb519d87cc8a87d"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "qualification": {
+          "const": "UNDISPATCHED_SEMANTIC_DISTORTION"
+        },
+        "reason": {
+          "const": "shell command-substitution removed architecture_registry.py and --out-dir tokens from deliverables"
+        }
+      }
+    },
+    "execution_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_path_unittest",
+        "canonical_identity_gate",
+        "scoped_audit",
+        "v2_gate",
+        "prior_39_test_batch",
+        "runner_bash_n",
+        "production_synthesis",
+        "production_opensta",
+        "production_sta",
+        "production_parser_main",
+        "rtl_simulation"
+      ],
+      "properties": {
+        "identity_path_unittest": {
+          "const": "TARGETED_ONLY"
+        },
+        "canonical_identity_gate": {
+          "const": "GENERATE_VALIDATE_VERIFY"
+        },
+        "scoped_audit": {
+          "const": "NEW_AND_MODIFIED_PATHS_ONLY"
+        },
+        "v2_gate": {
+          "const": "NOT_RERUN"
+        },
+        "prior_39_test_batch": {
+          "const": "NOT_RERUN"
+        },
+        "runner_bash_n": {
+          "const": "NOT_RERUN"
+        },
+        "production_synthesis": {
+          "const": "NOT_RUN"
+        },
+        "production_opensta": {
+          "const": "NOT_RUN"
+        },
+        "production_sta": {
+          "const": "NOT_RUN"
+        },
+        "production_parser_main": {
+          "const": "NOT_RUN"
+        },
+        "rtl_simulation": {
+          "const": "NOT_RUN"
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "scope_extension_request": {
+      "type": "null"
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_identity",
+        "physical_ppa",
+        "basis"
+      ],
+      "properties": {
+        "tool_identity": {
+          "const": "high"
+        },
+        "physical_ppa": {
+          "const": "none"
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

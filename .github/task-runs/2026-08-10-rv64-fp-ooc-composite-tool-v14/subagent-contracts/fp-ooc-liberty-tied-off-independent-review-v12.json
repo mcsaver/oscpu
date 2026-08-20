@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-liberty-tied-off-independent-review-v12",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核本地RV64 OooFpAddSubPipe OOC constant-output量具：攻击结构化Liberty literal timing parser是否会误拒合法isolated tied_off SI组或误接受timing空白/注释/ordinary related-pin语义；确认A7 138-bit driver分类与generated AddSub Liberty真实OpenSTA harness确实观察nested constant=0、相连top port=0、无SDC seed、相邻dynamic非literal且存在Reg Clk to Q edge/arc；机械核对v10 FAIL/v11 PASS收据、Registry单入口及A7冻结。发现确定production假绿/合法误拒即BLOCK且fresh-run=0，否则RETAIN但PPA仍GAP，仅授权一个全新run-id单次diagnostic。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/liberty-constant-output-primary-sources-v1.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-liberty-tied-off-parser-fix-v10.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-liberty-tied-off-source-marker-closure-v11.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-source-marker-closure-v11",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-marker-audit-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_constant_output_harness.v",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_constant_macro_harness.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/include/define.v",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-source-marker-closure-v11/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/targeted-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-liberty-tied-off-independent-review-v12.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-source-marker-closure-v11/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/targeted-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/liberty-constant-output-primary-sources-v1.md",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项给出literal nested timing解析、SI allowlist、ordinary timing拒绝、A7结构分类、generated-macro OpenSTA constant/dynamic同构与v10/v11收据身份的反例裁决。",
+    "明确RETAIN或BLOCK、fresh-run授权数、PPA范围、unknowns与最小修复；只读，不运行Python/Tcl/OpenSTA/Yosys/STA/RTL sim，不写文件。"
+  ],
+  "success_criteria": [
+    "合同内只读证据足以排除或坐实production级假绿/合法误拒；所有命令结束并归还唯一WSL shell ownership。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

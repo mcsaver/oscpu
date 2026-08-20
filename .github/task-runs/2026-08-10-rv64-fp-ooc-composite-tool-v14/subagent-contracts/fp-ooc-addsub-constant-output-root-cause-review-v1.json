@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-addsub-constant-output-root-cause-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核A7本地RV64 OooFpAddSubPipe 5.0ns mapped证据，逐bit重建addsub_d_fflags_q_o[4:0]从RTL语义到synth-design net与唯一leaf driver、stdlib function及OpenSTA register-Q集合/collect_arc_family查询的链路。必须挑战bit3 TIELO足以解释整个family无路径的假设，区分常量位、真实Q路径位、组合驱动位、未约束或查询错误；冻结最小fail-closed常量输出证据与Liberty表达边界，不运行测试或EDA、不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/include/OooFpPredicates.v",
+      "npc/rv64/vsrc/include/OooFpRound.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/syn/macro-lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/netlist-manifest.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-addsub-constant-output-root-cause-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/netlist-manifest.json",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出逐bit driver表：canonical/raw port、net id、unique driver cell/type/pin、stdlib function、是否register-Q可达、RTL flag语义及为何OpenSTA有/无真实路径；明确A7首个失败的充分根因或替代根因。",
+    "冻结实现建议：常量输出若允许，必须绑定的netlist/whitelist/stdlib receipts、constant 0/1分类、动态与常量bit覆盖、Tcl inventory字段、Python parser/Liberty验证及负向反例；禁止用无路径本身推断常量。报告是否触发CPU Architect及后续fresh-run授权数。"
+  ],
+  "success_criteria": [
+    "只读命令结束且无写入/测试/EDA；逐bit链路和A7失败解释有本地证据。若bit3常量不能充分解释family无路径，必须BLOCK常量模型并给出其它根因；无论结论如何fresh-run授权数为0、PPA为GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -50,6 +50,9 @@ ARCH_BINDING_TOOL = ROOT / "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
 CSR_MUX = VSRCDIR / "control/OooCsrTrapRequestMux.v"
 ARBITER = VSRCDIR / "control/OooPendingDispatchArbiter.v"
 DRAIN = VSRCDIR / "control/OooPendingDrainResolveGate.v"
+SERIALIZED_MEM_TERMINAL_PERMIT = (
+    VSRCDIR / "control/OooSerializedMemTerminalPermit.v"
+)
 LANE1 = VSRCDIR / "control/OooPendingLane1CaptureGate.v"
 SYSTEM_SEQ = VSRCDIR / "control/OooPendingSystemSequencer.v"
 TRAP_SEQ = VSRCDIR / "control/OooPendingTrapExitSequencer.v"
@@ -63,6 +66,7 @@ RTL_SOURCES = (
     CSR_MUX,
     ARBITER,
     DRAIN,
+    SERIALIZED_MEM_TERMINAL_PERMIT,
     LANE1,
     SYSTEM_SEQ,
     TRAP_SEQ,
@@ -73,9 +77,15 @@ RTL_SOURCES = (
     RUN_GATE,
 )
 
-TERMINAL_BLOCK = """  wire pending_serialized_mem_terminal_w =
-      !(pending_system_i || pending_arch_trap_i || pending_exit_i) ||
-      mem_owner_terminalized_i;"""
+SERIALIZED_OWNER_BLOCK = """  wire pending_serialized_owner_w =
+      (pending_system_i && !pending_system_csr_i) ||
+      pending_arch_trap_i || pending_exit_i;"""
+
+SERIALIZED_TERMINAL_BLOCK = """  wire pending_serialized_mem_terminal_w =
+      !pending_serialized_owner_w || serialized_mem_terminal_ready_i;"""
+
+EXIT_DRAIN_TERM = """  assign exit_o =
+      drain_reached_w &&"""
 
 CLEAR_EXIT_BLOCK = """  assign pending_trap_exit_clear_exit_o =
       trap_exit_clear_resolve_w ||
@@ -96,24 +106,20 @@ EXIT_KIND_BLOCK = """  assign pending_trap_exit_capture_exit_ecall_o =
       trap_exit_capture_exit0_w ? dispatch0_ebreak_w :
                                   trap_exit_lane1_exit_ebreak_w;"""
 
-TRAP_PRIORITY_TERM = """      !terminal_trap_w &&
-      !pending_arch_trap_i &&"""
-
 MUTATIONS: tuple[dict[str, Any], ...] = (
     {
         "name": "drop-exit-memory-terminal-term",
         "assertions": True,
-        "edits": ((DRAIN, TERMINAL_BLOCK, """  wire pending_serialized_mem_terminal_w =
-      !(pending_system_i || pending_arch_trap_i) ||
-      mem_owner_terminalized_i;"""),),
+        "edits": ((DRAIN, SERIALIZED_OWNER_BLOCK, """  wire pending_serialized_owner_w =
+      (pending_system_i && !pending_system_csr_i) ||
+      pending_arch_trap_i;"""),),
         "marker": "[CHECK-FAIL] V10D active memory holder blocks drain",
     },
     {
         "name": "replace-exact-terminal-with-full-mem-idle",
         "assertions": True,
-        "edits": ((DRAIN, TERMINAL_BLOCK, """  wire pending_serialized_mem_terminal_w =
-      !(pending_system_i || pending_arch_trap_i || pending_exit_i) ||
-      mem_idle_i;"""),),
+        "edits": ((DRAIN, SERIALIZED_TERMINAL_BLOCK, """  wire pending_serialized_mem_terminal_w =
+      !pending_serialized_owner_w || mem_idle_i;"""),),
         "marker": "[CHECK-FAIL] V10D active memory holder blocks drain",
     },
     {
@@ -147,10 +153,10 @@ MUTATIONS: tuple[dict[str, Any], ...] = (
         "marker": "[CHECK-FAIL] V10D exit capture ecall kind",
     },
     {
-        "name": "drop-trap-over-exit-priority",
+        "name": "drop-exit-event-drain-gate",
         "assertions": True,
-        "edits": ((EVENT_MUX, TRAP_PRIORITY_TERM, "      !pending_arch_trap_i &&"),),
-        "marker": "[CHECK-FAIL] V10D older branch recovery excludes raw exit",
+        "edits": ((EVENT_MUX, EXIT_DRAIN_TERM, "  assign exit_o ="),),
+        "marker": "[CHECK-FAIL] V10D active memory holder blocks raw exit",
     },
     {
         "name": "extend-raw-exit-beyond-terminal-cycle",

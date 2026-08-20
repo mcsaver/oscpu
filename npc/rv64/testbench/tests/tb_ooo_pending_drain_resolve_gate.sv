@@ -30,6 +30,7 @@ module tb_ooo_pending_drain_resolve_gate;
   reg mem_retire_quiet;
   reg mem_idle;
   reg mem_owner_terminalized;
+  reg serialized_mem_terminal_ready;
   reg pending_system;
   reg pending_system_fence;
   reg pending_system_csr;
@@ -78,6 +79,7 @@ module tb_ooo_pending_drain_resolve_gate;
     .mem_retire_quiet_i(mem_retire_quiet),
     .mem_idle_i(mem_idle),
     .mem_owner_terminalized_i(mem_owner_terminalized),
+    .serialized_mem_terminal_ready_i(serialized_mem_terminal_ready),
     .pending_system_i(pending_system),
     .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(pending_system_csr),
@@ -119,6 +121,7 @@ module tb_ooo_pending_drain_resolve_gate;
       mem_retire_quiet = 1'b1;
       mem_idle = 1'b1;
       mem_owner_terminalized = 1'b1;
+      serialized_mem_terminal_ready = 1'b1;
       pending_system = 1'b0;
       pending_system_fence = 1'b0;
       pending_system_csr = 1'b0;
@@ -236,10 +239,12 @@ module tb_ooo_pending_drain_resolve_gate;
     pending_system = 1'b1;
     mem_idle = 1'b0;
     mem_owner_terminalized = 1'b0;
+    serialized_mem_terminal_ready = 1'b0;
     #1;
     tb_check1("non-fence system blocks active memory holder",
               drain_complete, 1'b0);
     mem_owner_terminalized = 1'b1;
+    serialized_mem_terminal_ready = 1'b1;
     #1;
     tb_check1("non-fence system admits terminal-pending-only owner",
               drain_complete, 1'b1);
@@ -253,10 +258,12 @@ module tb_ooo_pending_drain_resolve_gate;
     pending_arch_trap = 1'b1;
     mem_idle = 1'b0;
     mem_owner_terminalized = 1'b0;
+    serialized_mem_terminal_ready = 1'b0;
     #1;
     tb_check1("pending arch trap blocks active memory holder",
               drain_complete, 1'b0);
     mem_owner_terminalized = 1'b1;
+    serialized_mem_terminal_ready = 1'b1;
     #1;
     tb_check1("pending arch trap admits exact terminal or pending-only owner",
               drain_complete, 1'b1);
@@ -271,10 +278,12 @@ module tb_ooo_pending_drain_resolve_gate;
     pending_exit = 1'b1;
     mem_idle = 1'b0;
     mem_owner_terminalized = 1'b0;
+    serialized_mem_terminal_ready = 1'b0;
     #1;
     tb_check1("pending exit blocks active memory holder",
               drain_complete, 1'b0);
     mem_owner_terminalized = 1'b1;
+    serialized_mem_terminal_ready = 1'b1;
     #1;
     tb_check1("pending exit admits exact terminal or pending-only owner",
               drain_complete, 1'b1);

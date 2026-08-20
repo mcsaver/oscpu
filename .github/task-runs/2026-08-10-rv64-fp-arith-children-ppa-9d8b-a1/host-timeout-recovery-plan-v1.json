@@ -1,0 +1,299 @@
+{
+  "ambiguity_reasons": [],
+  "bound_inputs": {
+    "original_contract": {
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1.json",
+      "sha256": "843577761a20694d24ef411ee6a86262ae6eaee95b3176239d9d89ecc4f1d6c1",
+      "size_bytes": 7581
+    },
+    "recovery_contract": {
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1-host-timeout-recovery-v1.json",
+      "sha256": "ee6988b5dfae7688fa86fa7d97a47256bbfa74217685a3f56ee620845f3dff51",
+      "size_bytes": 5417
+    },
+    "recovery_script": {
+      "path": ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/host-timeout-recovery-v1.py",
+      "sha256": "b2c6f7d556d7efbe511b01291d7de2fcb131b11ef5978993ce12fb23cf130bea",
+      "size_bytes": 33353
+    },
+    "recovery_wrapper": {
+      "path": ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/host-timeout-recovery-v1.sh",
+      "sha256": "25f777aa141908dadfe2c9cbe717d9f08bce70c9157e26ca58232d37307d42e7",
+      "size_bytes": 693
+    },
+    "runner": {
+      "path": "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "sha256": "295a8b13c382989d652502dba42c044a1e05adef1b27ba87588cda250b9e6e7d",
+      "size_bytes": 22002
+    },
+    "status_helper": {
+      "path": "scripts/task-run-status.sh",
+      "sha256": "43977d9787cb41cc541eafa68f1c98f5e4504684b1104398274b07bc8155b7c6",
+      "size_bytes": 3357
+    }
+  },
+  "destructive_actions_executed": false,
+  "evidence_id": "traceable-9d8b-fp-arith-children-a1",
+  "original_status": "RUNNING",
+  "outer_host_timeout_rc": 124,
+  "ownership_ambiguous": false,
+  "partial_artifact_candidates": [
+    {
+      "complete": false,
+      "destination_path": ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/host-timeout-partial-diagnostic-v1/run.zJX0co/traceable/synth-console.full.log",
+      "ppa_eligible": false,
+      "preservation_mode": "complete-small-copy",
+      "qualification": "HOST_TIMEOUT_PARTIAL_DIAGNOSTIC",
+      "source_device": 2096,
+      "source_inode": 34555776,
+      "source_mtime_ns": 1786330379081206490,
+      "source_path": "/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/synth-console.full.log",
+      "source_relative_to_runtime": "run.zJX0co/traceable/synth-console.full.log",
+      "source_sha256": "a5f562a52c8da33a16449a5dba4352928015356d239a762ee6de0964322c38c1",
+      "source_size_bytes": 22953
+    }
+  ],
+  "plan_id": "sha256:35fddf11b9954b5e173c9ab4ee3f3d06ab6b760cf0c2f2391482d4329b108285",
+  "process_before": {
+    "path": ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/host-timeout-process-before-v1.json",
+    "sha256": "3791f55a3e32e4cd5ed68a2d7c9f1cf6f575d910ddfbe887d94a13effce1f8e8",
+    "size_bytes": 38971
+  },
+  "run_id": "2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+  "runtime_size_bytes_at_plan": 43474,
+  "schema": "npc-rv64-host-timeout-recovery-plan-v1",
+  "status": "READY",
+  "target_processes": [
+    {
+      "argv": [
+        "bash",
+        "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+        "--run-dir",
+        ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+        "--evidence-id",
+        "traceable-9d8b-fp-arith-children-a1",
+        "--physical-configuration",
+        "mapped-5ns-fp-arith-production-children-inline-v1",
+        "--expected-rtl-design-id",
+        "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d"
+      ],
+      "comm": "bash",
+      "cwd": "/home/lyg/PA/ysyx-workbench",
+      "executable": "/usr/bin/bash",
+      "ownership": "exact-seed",
+      "pgrp": 486317,
+      "pid": 486317,
+      "ppid": 486315,
+      "seed_reasons": [
+        "exact-run-dir-token",
+        "exact-runner-path-token",
+        "exact-runner-run-dir-argument"
+      ],
+      "session": 486317,
+      "start_ticks": 7839769
+    },
+    {
+      "argv": [
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=30s",
+        "5400s",
+        "nice",
+        "-n",
+        "10",
+        "make",
+        "-C",
+        "/home/lyg/PA/ysyx-workbench/npc/rv64",
+        "syn",
+        "STA_RESULT_ROOT=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/sta",
+        "STA_DESIGN=NpcTop",
+        "STA_PDK=icsprout55",
+        "STA_CLK_PORT_NAME=clk",
+        "STA_CLK_FREQ_MHZ=200",
+        "STA_SDC_FILE=/home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc",
+        "STA_VERILOG_INCLUDE_DIRS=/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include",
+        "STA_VERILOG_DEFINES=",
+        "STA_SYNTH_FLATTEN=0",
+        "STA_SYNTH_SHARE=0",
+        "STA_SYNTH_STOP_AFTER_COARSE=0",
+        "STA_SYNTH_PUBLIC_AUTONAME=1",
+        "STA_SYNTH_DFF_AUTONAME=0",
+        "STA_SYNTH_STA_FLATTEN_EXPORT=1",
+        "STA_SYNTH_BLACKBOX_MODULES=Sram4096x199 Sram4096x113 OooBranchDirectionPredictor",
+        "STA_KEEP_HIERARCHY_MODULES=OooIntBackend OooFpBackend OooFrontend OooFetchAxiBridge OooMemAxiBridge OooRob OooIntIssueQueue OooFpArithGate OooFpAddSubPipe OooFpMulProductPipe OooFpMulNormRoundPipe OooFpFmaAlignAddPipe OooFpFmaNormRoundPipe",
+        "STA_EXTRA_LIB_FILES=/home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x199.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x113.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+        "YOSYS_ARGS=-q -Q -T",
+        "YOSYS_LOG_ARGS="
+      ],
+      "comm": "timeout",
+      "cwd": "/home/lyg/PA/ysyx-workbench",
+      "executable": "/usr/bin/timeout",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486362,
+      "ppid": 486317,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839852
+    },
+    {
+      "argv": [
+        "make",
+        "-C",
+        "/home/lyg/PA/ysyx-workbench/npc/rv64",
+        "syn",
+        "STA_RESULT_ROOT=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/sta",
+        "STA_DESIGN=NpcTop",
+        "STA_PDK=icsprout55",
+        "STA_CLK_PORT_NAME=clk",
+        "STA_CLK_FREQ_MHZ=200",
+        "STA_SDC_FILE=/home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc",
+        "STA_VERILOG_INCLUDE_DIRS=/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include",
+        "STA_VERILOG_DEFINES=",
+        "STA_SYNTH_FLATTEN=0",
+        "STA_SYNTH_SHARE=0",
+        "STA_SYNTH_STOP_AFTER_COARSE=0",
+        "STA_SYNTH_PUBLIC_AUTONAME=1",
+        "STA_SYNTH_DFF_AUTONAME=0",
+        "STA_SYNTH_STA_FLATTEN_EXPORT=1",
+        "STA_SYNTH_BLACKBOX_MODULES=Sram4096x199 Sram4096x113 OooBranchDirectionPredictor",
+        "STA_KEEP_HIERARCHY_MODULES=OooIntBackend OooFpBackend OooFrontend OooFetchAxiBridge OooMemAxiBridge OooRob OooIntIssueQueue OooFpArithGate OooFpAddSubPipe OooFpMulProductPipe OooFpMulNormRoundPipe OooFpFmaAlignAddPipe OooFpFmaNormRoundPipe",
+        "STA_EXTRA_LIB_FILES=/home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x199.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x113.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+        "YOSYS_ARGS=-q -Q -T",
+        "YOSYS_LOG_ARGS="
+      ],
+      "comm": "make",
+      "cwd": "/home/lyg/PA/ysyx-workbench/npc/rv64",
+      "executable": "/usr/bin/make",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486363,
+      "ppid": 486362,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839853
+    },
+    {
+      "argv": [
+        "/bin/sh",
+        "-c",
+        "PATH=\"/home/lyg/PA/ysyx-workbench/oss-cad-suite/bin:$PATH\" make -C /home/lyg/PA/ysyx-workbench/yosys-sta syn DESIGN=NpcTop PDK=icsprout55 CLK_PORT_NAME=clk CLK_FREQ_MHZ=200 SDC_FILE=/home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc O=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/sta VERILOG_INCLUDE_DIRS=\"/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include\" VERILOG_DEFINES=\"\" SYNTH_FLATTEN=0 SYNTH_SHARE=0 SYNTH_STOP_AFTER_COARSE=0 SYNTH_PUBLIC_AUTONAME=1 SYNTH_DFF_AUTONAME=0 SYNTH_STA_FLATTEN_EXPORT=1 SYNTH_STAGE_SCC=0 SYNTH_BLACKBOX_MODULES=\"Sram4096x199 Sram4096x113 OooBranchDirectionPredictor\" KEEP_HIERARCHY_MODULES=\"OooIntBackend OooFpBackend OooFrontend OooFetchAxiBridge OooMemAxiBridge OooRob OooIntIssueQueue OooFpArithGate OooFpAddSubPipe OooFpMulProductPipe OooFpMulNormRoundPipe OooFpFmaAlignAddPipe OooFpFmaNormRoundPipe\" EXTRA_LIB_FILES=\"/home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x199.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x113.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib\" RTL_FILES=\"/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiDefaultSlave.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiResetSyscon.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiClint.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiPlic.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiCrossbar.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiToUart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/NpcAxiBus.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooSv39Tlb.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooFetchPacketCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x199.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x113.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/pipeline/PipeStageReg.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcCoreTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooRvcDecompressor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchStaticClassify.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSgnjGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpCompareGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpConvertGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpAddSubPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulProductPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpArithGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpLongOpGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasStack.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchSpecTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooCommitOutputMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlFlushSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlEventApplySequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooRedirectArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooStopPendingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreObservableOutputGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreSliceControlGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrAccessRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrTrapRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDispatchArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDrainResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitEventMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooWriteback.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooExecuteBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlPlane.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryRequestGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryAccess.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendUopSafety.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchLocalPht.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendRunGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendActionGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchWaitBuffer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBackendDrainTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchBranchTarget.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchFlowControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooCoreTopGlue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAluCoreSlice.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooAluDecodeBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooArchRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLoadQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMmuEpochOwner.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooBitmanipGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v\""
+      ],
+      "comm": "sh",
+      "cwd": "/home/lyg/PA/ysyx-workbench/npc/rv64",
+      "executable": "/usr/bin/dash",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486379,
+      "ppid": 486363,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839854
+    },
+    {
+      "argv": [
+        "make",
+        "-C",
+        "/home/lyg/PA/ysyx-workbench/yosys-sta",
+        "syn",
+        "DESIGN=NpcTop",
+        "PDK=icsprout55",
+        "CLK_PORT_NAME=clk",
+        "CLK_FREQ_MHZ=200",
+        "SDC_FILE=/home/lyg/PA/ysyx-workbench/yosys-sta/scripts/default.sdc",
+        "O=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/sta",
+        "VERILOG_INCLUDE_DIRS=/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include",
+        "VERILOG_DEFINES=",
+        "SYNTH_FLATTEN=0",
+        "SYNTH_SHARE=0",
+        "SYNTH_STOP_AFTER_COARSE=0",
+        "SYNTH_PUBLIC_AUTONAME=1",
+        "SYNTH_DFF_AUTONAME=0",
+        "SYNTH_STA_FLATTEN_EXPORT=1",
+        "SYNTH_STAGE_SCC=0",
+        "SYNTH_BLACKBOX_MODULES=Sram4096x199 Sram4096x113 OooBranchDirectionPredictor",
+        "KEEP_HIERARCHY_MODULES=OooIntBackend OooFpBackend OooFrontend OooFetchAxiBridge OooMemAxiBridge OooRob OooIntIssueQueue OooFpArithGate OooFpAddSubPipe OooFpMulProductPipe OooFpMulNormRoundPipe OooFpFmaAlignAddPipe OooFpFmaNormRoundPipe",
+        "EXTRA_LIB_FILES=/home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x199.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/Sram4096x113.lib /home/lyg/PA/ysyx-workbench/npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+        "RTL_FILES=/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiDefaultSlave.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiResetSyscon.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiClint.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiPlic.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiCrossbar.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiToUart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/NpcAxiBus.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooSv39Tlb.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooFetchPacketCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x199.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x113.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/pipeline/PipeStageReg.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcCoreTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooRvcDecompressor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchStaticClassify.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSgnjGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpCompareGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpConvertGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpAddSubPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulProductPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpArithGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpLongOpGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasStack.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchSpecTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooCommitOutputMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlFlushSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlEventApplySequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooRedirectArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooStopPendingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreObservableOutputGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreSliceControlGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrAccessRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrTrapRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDispatchArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDrainResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitEventMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooWriteback.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooExecuteBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlPlane.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryRequestGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryAccess.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendUopSafety.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchLocalPht.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendRunGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendActionGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchWaitBuffer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBackendDrainTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchBranchTarget.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchFlowControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooCoreTopGlue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAluCoreSlice.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooAluDecodeBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooArchRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLoadQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMmuEpochOwner.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooBitmanipGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v"
+      ],
+      "comm": "make",
+      "cwd": "/home/lyg/PA/ysyx-workbench/yosys-sta",
+      "executable": "/usr/bin/make",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486380,
+      "ppid": 486379,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839854
+    },
+    {
+      "argv": [
+        "/bin/bash",
+        "-c",
+        "echo tcl /home/lyg/PA/ysyx-workbench/yosys-sta/scripts/yosys.tcl NpcTop icsprout55 \\\"/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/ALU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiDefaultSlave.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiResetSyscon.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiClint.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiPlic.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiCrossbar.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/Uart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/AxiToUart.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/CompareUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeStage.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/DecodeUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/ImmGen.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSUDataPath.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/LSU.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/bus/NpcAxiBus.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/PmpChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPmaChecker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooTypedMemoryClassifier.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooSv39Tlb.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooFetchPacketCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/cache/OooDataWordCache.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x199.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/sram/Sram4096x113.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/pipeline/PipeStageReg.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcCoreTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/NpcTop.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemAxiBridge.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooRvcDecompressor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooFpDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchStaticClassify.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpClassifyGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSgnjGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpCompareGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpConvertGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpAddSubPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulProductPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpArithGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpLongOpGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPendingOperandReadGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasStack.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectRasCandidateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooRasUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchSpecTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooControlCommitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooCommitOutputMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlFlushSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlEventApplySequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooRedirectArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooStopPendingSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreObservableOutputGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCoreSliceControlGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrIllegalProbeGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrAccessRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooCsrTrapRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDispatchArbiter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingDrainResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingSystemSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitEventMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooTrapExitOutputSequencer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooWriteback.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooExecuteBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/control/OooControlPlane.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryRequestGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemoryAccess.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendUopSafety.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchResolveGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchResolveRecoveryGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchLocalPht.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendRunGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFrontendActionGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchRequestMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooDirectBranchWaitBuffer.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBackendDrainTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketHeadMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketSeedMux.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchBranchTarget.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchPacketFifo.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooFetchFlowControl.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpDivIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpSqrtIter.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/OooCoreTopGlue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAluCoreSlice.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/decode/OooAluDecodeBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooArchRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooBusyTable.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooFreeList.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooMulDivUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooClmulUnit.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooIntBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooStoreQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooLoadQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemInflightQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMmuEpochOwner.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTracker.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooBitmanipGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooAmoGate.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooIntIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/scheduling/OooFpIssueQueue.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/execute/OooFpBackend.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/regread_bypass/OooPhysRegFile.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/rename_allocate/OooRenameMap.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/OooRob.v /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/writeback/WBU.v\\\" /home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/run.zJX0co/traceable/sta/NpcTop-200MHz/NpcTop.netlist.v \\\"/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc /home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/include\\\" \\\"\\\" | yosys -q -Q -T  -s -"
+      ],
+      "comm": "bash",
+      "cwd": "/home/lyg/PA/ysyx-workbench/yosys-sta",
+      "executable": "/usr/bin/bash",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486385,
+      "ppid": 486380,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839857
+    },
+    {
+      "argv": [
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+        "--inhibit-cache",
+        "--inhibit-rpath",
+        "--library-path",
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib",
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/libexec/yosys",
+        "-q",
+        "-Q",
+        "-T",
+        "-s",
+        "-"
+      ],
+      "comm": "ld-linux-x86-64",
+      "cwd": "/home/lyg/PA/ysyx-workbench/yosys-sta",
+      "executable": "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 486387,
+      "ppid": 486385,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7839857
+    },
+    {
+      "argv": [
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+        "--inhibit-cache",
+        "--inhibit-rpath",
+        "--library-path",
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib",
+        "/home/lyg/PA/ysyx-workbench/oss-cad-suite/libexec/yosys-abc",
+        "-s"
+      ],
+      "comm": "ld-linux-x86-64",
+      "cwd": "/home/lyg/PA/ysyx-workbench/yosys-sta",
+      "executable": "/home/lyg/PA/ysyx-workbench/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+      "ownership": "seed-descendant",
+      "pgrp": 486362,
+      "pid": 491800,
+      "ppid": 486387,
+      "seed_reasons": [],
+      "session": 486362,
+      "start_ticks": 7889724
+    }
+  ],
+  "target_root_pids": [
+    486317
+  ],
+  "target_runtime_base": "/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+  "target_runtime_parent": "/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts"
+}

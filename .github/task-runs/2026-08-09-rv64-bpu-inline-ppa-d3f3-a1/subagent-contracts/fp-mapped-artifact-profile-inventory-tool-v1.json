@@ -1,0 +1,130 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-mapped-artifact-profile-inventory-tool-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "为当前 sha256:9d8bb6af NpcTop 5.0ns mapped 流程建立按 physical configuration 选择的 mapped artifact profile：Registry 单源投影 none、bpu-local-pht-v1、fp-arith-children-v1，runner、OpenSTA Tcl、parser 与最终 binding 共用同一 profile；保留既有 BPU 证据语义，并为 OooFpArithGate 与五个 production child 生成可机器审计的层级结构、非零 mapped cells/area、FP placeholder 消失、FP 层级负 slack 与至少一条真实内部 timing path 证据。仅实现和定向测试工具，不运行 production synthesis/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/filelist.mk",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "在 Registry schema/catalog/tool 中加入严格枚举的 mapped_artifact_profile，并使 projection、emit、run-parameters、parameter/binding hash 与 runner 实参使用同一值；四 placeholder/whole-inline、BPU child、FP child 各自只要求自己的 artifact family，配置漂移 fail closed。",
+    "扩展同一个 linked NpcTop/5.0ns OpenSTA 流程和 parser：FP profile 生成并严格解析 FP 层级负 slack inventory 与真实内部 timing-path artifact；从 synth_stat 精确证明 1×OooFpArithGate、五 child 各1、各自 cells/area 非零、FP 不再是 unknown macro、unknown 集合仍仅为两 SRAM 加 BPU，并把逐 artifact SHA/计数/结构 census 写入 summary 与 Registry stamp。既有 bpu-local-pht-v1 的 source/fanout/forbidden-D 语义不得弱化。",
+    "新增 FP/BPU/Registry 定向负向测试，覆盖 profile 漂移、错误 artifact family、缺失/重复/非有限数据、无真实内部路径、child 缺失/重复/零面积、FP placeholder 残留、runner/Tcl/parser/binding 绕过；在新 evidence 目录封存单次 targeted unittest、runner bash -n、scoped diff 结果。"
+  ],
+  "success_criteria": [
+    "最终工具输入只执行一次受影响 Python unittest 批次、一次 runner bash -n、一次 scoped git diff/text audit且全部通过；不得运行 production synthesis、OpenSTA、STA、RTL 仿真或修改任何 FP/BPU RTL、既有 A1/A2 证据。Registry 当前 design_id 保持 sha256:9d8bb6af，FP physical configuration 保持 development/UNMEASURED/GAP/noncanonical/nonchampion，工具只能授权随后一个全新 run-id 的单次 5.0ns NpcTop mapped 运行，不能把定向工具测试表述为 PPA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

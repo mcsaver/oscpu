@@ -1,0 +1,134 @@
+{
+  "assertion_failures": 0,
+  "binding_sha256": "e7d7bea3b44e01988ec7d414d19cfb57f837389e579238439cf0ee94f0775172",
+  "claim": "L2_MINI_SYSTEM_PASS_CURRENT_IDENTITY",
+  "commits": 6095067,
+  "console_sha256": "8e20897e5fc9de977008586f6ffa0b75f66d494405a32c72bbfd8b4d1421666e",
+  "cpi": 1.6238059401151783,
+  "cycles": 9897206,
+  "l2_case": "all",
+  "non_claims": [
+    "Linux",
+    "Ubuntu userland",
+    "systemd",
+    "virtio rootfs"
+  ],
+  "npc_log_sha256": "bce59fd9c3a724207e8b8ee4422c382b204caa740c4666d3f0feba0cbfbadf43",
+  "phase_observations": {
+    "__RV64_L2_AD_UPDATE_PASS__": {
+      "commit": 5962467,
+      "cycle": 9346445,
+      "tx_ordinal": 2970
+    },
+    "__RV64_L2_AMO_LRSC_FENCE_PASS__": {
+      "commit": 5998056,
+      "cycle": 9505656,
+      "tx_ordinal": 3066
+    },
+    "__RV64_L2_BEGIN__": {
+      "commit": 5893215,
+      "cycle": 9043860,
+      "tx_ordinal": 2799
+    },
+    "__RV64_L2_CASE_ALL__": {
+      "commit": 5937316,
+      "cycle": 9241427,
+      "tx_ordinal": 2919
+    },
+    "__RV64_L2_CASE_SELECT__": {
+      "commit": 5929240,
+      "cycle": 9205161,
+      "tx_ordinal": 2897
+    },
+    "__RV64_L2_FDT_PASS__": {
+      "commit": 5920041,
+      "cycle": 9163957,
+      "tx_ordinal": 2872
+    },
+    "__RV64_L2_MINI_SYSTEM_PASS__": {
+      "commit": 6093569,
+      "cycle": 9888662,
+      "tx_ordinal": 3235
+    },
+    "__RV64_L2_MMIO_PASS__": {
+      "commit": 6060545,
+      "cycle": 9740284,
+      "tx_ordinal": 3146
+    },
+    "__RV64_L2_M_TO_S_PASS__": {
+      "commit": 5911988,
+      "cycle": 9127915,
+      "tx_ordinal": 2850
+    },
+    "__RV64_L2_OPENSBI_PASS__": {
+      "commit": 5902792,
+      "cycle": 9086761,
+      "tx_ordinal": 2825
+    },
+    "__RV64_L2_PERMISSION_RECOVERY_PASS__": {
+      "commit": 5976616,
+      "cycle": 9409753,
+      "tx_ordinal": 3008
+    },
+    "__RV64_L2_PLIC_UART_IRQ_PASS__": {
+      "commit": 6072507,
+      "cycle": 9794393,
+      "tx_ordinal": 3178
+    },
+    "__RV64_L2_POWERDOWN_ARM__": {
+      "commit": 6082468,
+      "cycle": 9838991,
+      "tx_ordinal": 3205
+    },
+    "__RV64_L2_SFENCE_VMA_PASS__": {
+      "commit": 6008807,
+      "cycle": 9555440,
+      "tx_ordinal": 3095
+    },
+    "__RV64_L2_SV39_PASS__": {
+      "commit": 5952015,
+      "cycle": 9296932,
+      "tx_ordinal": 2942
+    },
+    "__RV64_L2_S_TO_U_PASS__": {
+      "commit": 5985812,
+      "cycle": 9450881,
+      "tx_ordinal": 3033
+    },
+    "__RV64_L2_TIMER_IRQ_PASS__": {
+      "commit": 6052094,
+      "cycle": 9702386,
+      "tx_ordinal": 3123
+    }
+  },
+  "plic_irq_observations": [
+    {
+      "commit": 6061131,
+      "cycle": 9742982,
+      "ordinal": 2,
+      "plic_irq": 1,
+      "uart_irq": 1
+    }
+  ],
+  "production_rtl_file_count": 147,
+  "rtl_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+  "schema": "npc-rv64-l2-mini-system-execution-v1",
+  "selector_rx": {
+    "commit": 5929430,
+    "cycle": 9206162,
+    "data": 120
+  },
+  "signoff_scope": "full-l2",
+  "status": "PASS",
+  "syscon_poweroff_observation": {
+    "commit": 6095067,
+    "cycle": 9897205
+  },
+  "terminal_counts": {
+    "good_trap": 1,
+    "stats_cycles": 1,
+    "stats_instructions": 1,
+    "syscon_poweroff": 1,
+    "system_reset": 1
+  }
+}

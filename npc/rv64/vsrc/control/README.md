@@ -26,8 +26,13 @@ CSR 边界、terminal trap/exit 输出、PMU、power/clock gating 和未来 SMT 
   owner；不持有 pending payload、fetch PC/outstanding、CSR 状态或 FPR 写回。
 - `OooPendingDrainResolveGate.v`：stop-pending 后的 backend drained、pending replay
   wait、drain complete、branch commit resolve/match clear、jump/system/mem dispatch
-  valid/fire 组合中枢（FP start 臂已随 pending-FP 拆除）；不持有 pending payload
-  或状态寄存器。
+  valid/fire 组合中枢（FP start 臂已随 pending-FP 拆除）；non-CSR serialized owner
+  消费 owner-bound terminal permit，仍在消费拍重查 raw backend drain 与普通 FENCE
+  current `mem_idle`；不持有 pending payload 或状态寄存器。
+- `OooSerializedMemTerminalPermit.v`：V16A/V16B non-CSR system/architectural-trap/exit
+  exact-one owner 的 memory-terminal permit owner；只保存 valid + 3-bit owner，
+  feedback-free cancel 当拍封住 ready 且 state clear-dominant，既不拥有 memory token，
+  也不替代 CSR current eligibility、raw drain 或普通 FENCE current-idle。
 - `OooCoreObservableOutputGate.v`：最终对外 trap/exit/halt、CSR state passthrough、
   debug PC/state/GPR 和 exit code 的纯组合输出选择；不写 CSR/trap sticky 状态。
 - `OooCoreSliceControlGate.v`：branch checkpoint capture/restore/quiesce、branch-spec

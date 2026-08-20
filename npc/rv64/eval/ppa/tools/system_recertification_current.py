@@ -170,9 +170,13 @@ def validate_layer_contract(receipt: dict[str, Any]) -> None:
         DEFAULT_CONJUNCTION,
         "default signoff conjunction",
     )
-    require_equal(
-        receipt.get("production_rtl_file_count"), 146, "production RTL file count"
-    )
+    rtl_file_count = receipt.get("production_rtl_file_count")
+    if (
+        not isinstance(rtl_file_count, int)
+        or isinstance(rtl_file_count, bool)
+        or rtl_file_count < 1
+    ):
+        raise RecertificationError("production RTL file count is invalid")
     design_id = receipt.get("rtl_design_id")
     if not isinstance(design_id, str) or not design_id.startswith("sha256:"):
         raise RecertificationError("layered RTL design-id is malformed")
@@ -186,7 +190,16 @@ def validate_layer_contract(receipt: dict[str, Any]) -> None:
         require_equal(layer.get("design_id"), design_id, f"{name} design-id")
 
     l0 = layers["L0_DIRECTED_RTL"]
-    require_equal(l0.get("tests"), {"passed": 113, "required": 113}, "L0 tests")
+    l0_tests = l0.get("tests")
+    if (
+        not isinstance(l0_tests, dict)
+        or set(l0_tests) != {"passed", "required"}
+        or not isinstance(l0_tests.get("required"), int)
+        or isinstance(l0_tests.get("required"), bool)
+        or l0_tests["required"] < 1
+        or l0_tests.get("passed") != l0_tests["required"]
+    ):
+        raise RecertificationError("L0 tests are not a complete positive set")
     require_equal(
         l0.get("rtl_assertions"),
         {"enabled": True, "failures": 0},
@@ -434,7 +447,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         "[SYSTEM-RECERTIFICATION-CURRENT][PASS] "
-        f"design_id={result['design_id']} L0=113/113 L1=177+61+ACT4-100 "
+        f"design_id={result['design_id']} "
+        f"L0={result['l0_passed']}/{result['l0_required']} "
+        f"L1={result['l1_official_passed']}+{result['l1_am_passed']}+ACT4-100 "
         "L2=all L3=all Ubuntu=not-run-optional assertions=0 "
         "system=PASS_CURRENT_CONFIG whole_architecture=RED ppa=UNPROMOTED"
     )

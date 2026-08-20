@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Executable state-machine, rollback, reviewer, and inspector contract for the three-layer AI development environment.",
+  "purpose": "Executable state-machine, rollback, and risk-triggered reviewer/inspector contract for the three-layer AI development environment.",
   "state_machine_doc": ".github/instructions/agent-env-state-machine.instructions.md",
   "profile": ".github/e2e/profiles/agent-system.tsv",
   "audit_command": "python3 scripts/github_index_db.py state-audit",
@@ -43,8 +43,9 @@
       "checks": [
         "review routing maps R7 to agent-layer",
         "agent-layer has ysyx-coordinator reviewer and agent-system inspector",
-        "implementer/reviewer adversarial personas are required before delivery",
-        "unresolved conflicts are reported as remaining risk",
+        "implementer/reviewer adversarial personas are activated only by declared risk triggers",
+        "ordinary deterministic delivery permits implementer self-critique and direct finish",
+        "triggered unresolved conflicts are reported as remaining risk",
         "agent-system profile executes the reviewer/inspector gate"
       ]
     }

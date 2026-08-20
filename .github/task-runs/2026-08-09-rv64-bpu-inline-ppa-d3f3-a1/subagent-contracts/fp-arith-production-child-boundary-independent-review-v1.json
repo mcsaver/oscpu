@@ -1,0 +1,62 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-production-child-boundary-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooFpArithGate 五级 short-arithmetic production child split 是否是当前唯一可逆首动作，并攻击 child state owner、cycle 对齐、kill/flush、fflags、fused FMA 与 mapped visibility 门；只裁决冻结方案，不提出并行实验。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-physical-strategy-architect-route-v1.result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-child-boundary-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": []
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md"
+    ],
+    "material_mode": "prompt-supplied-self-contained",
+    "supplied_material": [
+      "cpu_architect classifier 对本地 f5f2 FP 结构取舍输出 ARCHITECT；execution=SINGLE_PASS，review=INDEPENDENT。",
+      "当前 Registry snapshot=sha256:1ceb6d96f16a864be17565f2110c9ed2315889670623984f125cca4fa2a99599，live design=sha256:f5f2a00a34a25262f9913abda384a197f751afc94cf424e896c7414a65b92eb8；FP overall=GAP，OooFpArithGate mapped=placeholder blackbox，Liberty area=0。",
+      "当前事务链为 decode→rename/free/busy→FP IQ→u_fp_issue_stage→OooFpArithGate S1-S5→result query/result_authorized→done FIFO→fpwb/ROB→非异常 commit/FPR+CSR fflags；stage5 与 speculative PRF/wakeup 不等于 architectural visibility。",
+      "OooFpArithGate 固定 launch→out 5 cycles、launch throughput 1/cycle；meta_valid/ProducerId/pdest/double/kind 由 wrapper S1-S5 唯一拥有，kill 按 ROB age 在 launch、逐级推进与 out 组合复核，flush/reset 清全链。",
+      "拟定 OooFpAddSubPipe 独占 single/double add/sub S1 对齐与特殊值、S2 加减/规格化、S3 round/pack 全部数值与 fflags 状态，并分别输出 single/double value+fflags；wrapper 不复制这些 Q。",
+      "拟定 OooFpMulProductPipe 独占 single/double S1 特殊值、尾数积、exp/sign/rm Q；OooFpMulNormRoundPipe 独占 S2 normalize Q 与 S3 subnormal/round/pack 输出，二者边界完整传递 special/spval/spff/product/exp/sign/rm，wrapper 不拥有数值 Q。",
+      "拟定 OooFpFmaAlignAddPipe 独占 single/double S1 product+special+ep/ec、S2 ref/shift、S3 128-bit align/add-sub+res_sign Q；OooFpFmaNormRoundPipe 独占 S4 LZC/normalize/subnormal Q 与 S5 fused single-round value+fflags，边界传递 mag/ref/sign/rm/special/spval/spff。",
+      "OooFpArithGate wrapper 仅保留 OooFpPredicates/OooFpRound helper include 连接、旧 start/done latency counter、五级 meta/kill/owner chain、addsub/mul stage5 alignment chain、kind/double output mux 和 ProducerId assertions；child 均无 valid/ROB/commit owner。",
+      "物理配置候选为 mapped-5ns-fp-arith-production-children-inline-v1：NpcTop 5.0ns；blackbox 仅 Sram4096x199、Sram4096x113、OooBranchDirectionPredictor；OooFpArithGate 与五个 FP children inline/stdcell 且 keep-hierarchy；不得用 OooFpArithGate placeholder Liberty。",
+      "whole OooFpArithGate full stdcell 旧实验在 ABC extraction 超时；AddSub full-pass，Mul product/norm 与 FMA align-add/norm standalone probes 均 full-pass，但这些旧 probe 非当前 design identity、非生产 module、非顶层 PPA。",
+      "whole-inline 只作 BLOCK：已知完整 cone 累计 ABC 长尾且边界归因差；同身份 OOC macro 为 FIX/GAP：缺完整 netlist/Liberty/LEF/area/power/arcs；继续 placeholder 为 BLOCK：永久隐藏内部 PPA；production child split 为唯一 RETAIN 候选。",
+      "focused oracle 必须覆盖 legacy start/done、连续 mixed add/sub/mul/FMA、single/double、stage5 ProducerId/pdest/kind/value/fflags、kill 在 S1-S5、same-cycle launch kill、flush、NaN/Inf/subnormal/rounding、fused FMA；compile-success mutants 必须唯一拒绝 cycle、kill、kind/double、alignment、fflags、special/round、fused、state-owner 破坏。",
+      "首次 mapped run 是 visibility experiment：RETAIN 只要求同身份 manifest/binding、综合/STA/parser完整、1×wrapper+精确五 child census、child 非零 stdcell area、OooFpArithGate 不再 unknown、finite internal paths/loops=0、functional/mutation PASS；它不因 WNS/TNS/area 数值存在而自动 promotion。",
+      "ROLLBACK 条件包括任一 cycle/kill/value/fflags/fused oracle 失败，child 缺失/重复/被 blackbox，OooFpArithGate 仍 unknown，综合/STA evidence incomplete，manifest/config 漂移，或只有顶层 Top40 而无可归因 FP internal path；正式 PPA 仍需 WNS>=+0.10ns、TNS=0、violations=0、loops=0、完整 area 与 qualified power。"
+    ]
+  },
+  "deliverables": [
+    "给出 RETAIN/FIX/BLOCK 裁决；若 production child split 可保留，冻结五个 child 的确切状态所有权、wrapper 边界、物理配置、focused/mutation/dynamic/mapped 证据门，并指出任何会让它降为 FIX/BLOCK 的反例。保留 unknowns、alternative_hypotheses、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "不得把旧 placeholder、旧 standalone probe 或 Top40 无 FP 当成内部 PPA；不得改变 5-cycle/1-per-cycle/kill/flush/value+fflags+ProducerId 对齐，也不得把 div/sqrt/convert/load/store 归入 short arithmetic。必须只选择一个首动作并明确 visibility RETAIN 不等于 PPA promotion。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

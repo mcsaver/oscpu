@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-production-children-ppa-9d8b-a1-host-timeout-recovery-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "对唯一 FP production mapped run 的 outer host timeout rc=124 做 fail-closed 恢复，不重跑 EDA：仅定位命令行或后代关系精确归属于 run-id 2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1 的残留 runner/make/yosys/OpenSTA 进程，保留有界小型诊断，终止残留进程，删除该 run-id 的 ephemeral runtime base，并把顶层 RUNNING 原子封存为 FAIL stage=host-shell-timeout。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "scripts/task-run-status.sh",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/traceable-9d8b-fp-arith-children-a1.status",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1-host-timeout-recovery-v1.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/runtime-artifacts/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "scripts/task-run-status.sh",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/traceable-9d8b-fp-arith-children-a1.status",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "在 run-dir 新增 versioned recovery Python/shell：严格验证 repo/task-run/runtime roots 与 exact run-id；枚举 process snapshot，以 exact run-id/runtime-base/runner argument 为 seed 并只递归其 descendants，排除 recovery 自身及 ancestors；先记录 before JSON，再 TERM、限时等待、必要时 KILL，只允许命中该集合，记录 after JSON。若归属不唯一则不杀并 FAIL。",
+    "在删除 runtime 前仅复制或截取该 exact runtime-base 内已存在的小型 synth-console/yosys/synth_stat/检查日志为 HOST_TIMEOUT_PARTIAL_DIAGNOSTIC，并记录 source path/size/SHA/complete=false；不得保留或复制大型 netlist。确认无匹配进程后验证 runtime-base canonical parent，删除该 run 的 ephemeral runtime 目录并记录删除字节数、runtime_absent 与 cleanup_rc。",
+    "使用 scripts/task-run-status.sh 对原 status 原子写入 FAIL rc=124 stage=host-shell-timeout evidence_complete=0 cleanup_rc=N signal=HOST_TIMEOUT；生成 host-timeout-recovery.json、process before/after、partial artifact manifest 和 recovery marker。不得创建 summary/binding/command-status PASS，不得重新执行 runner、make、yosys、OpenSTA、parser 或测试。"
+  ],
+  "success_criteria": [
+    "recovery invocation 精确一次。PASS recovery 仅表示恢复动作完成：before/after process 集合可审计，after 无该 run-id 进程，exact runtime base absent，cleanup_rc=0，status 精确为 FAIL rc=124 stage=host-shell-timeout evidence_complete=0 cleanup_rc=0 signal=HOST_TIMEOUT，且所有 partial artifacts 标记 incomplete/non-PPA。任何归属歧义、杀进程或删除失败都保留 FAIL 与非零 cleanup，不扩大目标、不重试 production。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

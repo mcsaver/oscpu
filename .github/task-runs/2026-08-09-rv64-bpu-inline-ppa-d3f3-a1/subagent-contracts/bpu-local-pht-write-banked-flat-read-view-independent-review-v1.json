@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-write-banked-flat-read-view-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核 live f5f2 OooBranchLocalPht write-banked/read-flat-view 实现是否精确保持双路0-cycle lookup、bank-major index映射、16×256唯一state/write owner、update S1→S2、read-before-write/RAW no-forward/clear/mispredict语义，并审查12项compile-success mutation、七项sealed gate与registry development/UNMEASURED/GAP/stale predecessor绑定是否足以授权且仅授权一次同design 5 ns PPA；不重跑任何测试、仿真、综合或STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-write-banked-flat-read-view-implementation-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-view-reviewer-route-v1.result.json",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1/gate-summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-write-banked-flat-read-view-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1/gate-summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出RETAIN/FIX/BLOCK独立裁决：逐bit核对flat_valid_view_w[bank*256+row]与flat_counter_view_w[2*(bank*256+row)+:2]等价于12-bit {bank,row} index，确认bank只读view无写owner/重复state、wrapper无clocked状态、bank-local update_old_ctr/counter_train/S1/S2不变；沿parent接口复核0-cycle、mispredict train/no-restore、clear和collision不变量。审计12个mutant实际源码变换、编译成功/唯一marker/无PASS/source unchanged及新增public-flat-write-owner是否真正反证公共write；逐项重算或核对sealed gate hashes/rc并检查旧b279 receipt与新f5f2 live/config的stale fail-closed。检查registry/schema/tool/tests/ARCHITECTURE单一入口能区分execution PASS、frozen ROLLBACK/GAP、new development UNMEASURED，且PPA runner投影精确接受新config。列出counterexamples、unknowns、alternative_hypotheses、scope_extension_request、confidence_and_basis；只允许read-only命令，不运行任何测试。"
+  ],
+  "success_criteria": [
+    "只有在RTL端口/packing/时序语义、mutation oracle、evidence identity与registry fail-closed均无承重反例时才RETAIN并授权一次新run-id的f5f2 traceable mapped PPA；任何public write回归、bank-major位序错误、多驱动/不可综合view、外部lookup周期变化、mutation伪拒绝、old b279 receipt误绑定或new config伪造measurement均FIX/BLOCK。不得把focused PASS提升为PPA PASS，不得重跑门禁/仿真/综合/STA/parser/test，不得修改文件；Top40/面积收益继续UNKNOWN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

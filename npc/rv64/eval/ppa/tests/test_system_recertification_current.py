@@ -47,7 +47,11 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             result["default_signoff_conjunction"], TOOL.DEFAULT_CONJUNCTION
         )
-        self.assertEqual((result["l0_passed"], result["l0_required"]), (113, 113))
+        expected_l0 = self.receipt["layers"]["L0_DIRECTED_RTL"]["tests"]
+        self.assertEqual(
+            (result["l0_passed"], result["l0_required"]),
+            (expected_l0["passed"], expected_l0["required"]),
+        )
         self.assertEqual(
             (result["l1_official_passed"], result["l1_official_required"]),
             (177, 177),

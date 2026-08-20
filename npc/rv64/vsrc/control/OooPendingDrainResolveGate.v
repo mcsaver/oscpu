@@ -37,8 +37,12 @@ module OooPendingDrainResolveGate #(
   // but rejects every still-active memory holder without an exact terminal
   // edge.  Pending system controls, pending architectural traps and
   // simulation-exit owners all use this boundary before their serialized
-  // control transaction can complete.
+  // control transaction can arm the owner-bound registered permit.
   input mem_owner_terminalized_i,
+  // V16A: registered exact-one owner permit for non-CSR system, architectural
+  // trap and simulation exit.  It never replaces raw backend drain or the
+  // ordinary FENCE current mem_idle check below.
+  input serialized_mem_terminal_ready_i,
   input pending_system_i,
   input pending_system_fence_i,
   input pending_system_csr_i,
@@ -99,9 +103,11 @@ module OooPendingDrainResolveGate #(
       (pending_system_i && pending_system_csr_i);
   wire pending_fence_mem_quiet_w =
       !pending_system_fence_i || mem_idle_i;
+  wire pending_serialized_owner_w =
+      (pending_system_i && !pending_system_csr_i) ||
+      pending_arch_trap_i || pending_exit_i;
   wire pending_serialized_mem_terminal_w =
-      !(pending_system_i || pending_arch_trap_i || pending_exit_i) ||
-      mem_owner_terminalized_i;
+      !pending_serialized_owner_w || serialized_mem_terminal_ready_i;
   assign drain_complete_o =
       stop_pending_i && backend_drained_o && pending_control_ready_i &&
       !pending_replay_wait_o && pending_serialized_mem_terminal_w &&

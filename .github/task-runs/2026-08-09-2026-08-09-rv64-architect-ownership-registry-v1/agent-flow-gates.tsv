@@ -1,0 +1,7 @@
+2	rv64-optimization-slice-selector	FAIL	5010	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/rv64-optimization-slice-selector.log
+2	profile-bindings	PASS	452	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/profile-bindings.log
+2	flow-self-test	PASS	3108	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/flow-self-test.log
+2	rv64-architecture-registry	PASS	201	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/rv64-architecture-registry.log
+3	rv64-architecture-registry	PASS	251	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/rv64-architecture-registry.log
+3	profile-bindings	PASS	401	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/profile-bindings.log
+3	flow-self-test	PASS	2955	.github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates/flow-self-test.log

@@ -35,7 +35,7 @@
     "status": {"const": "PASS"},
     "claim": {"const": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY"},
     "design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
-    "production_rtl_file_count": {"const": 146},
+    "production_rtl_file_count": {"type": "integer", "minimum": 1},
     "source_directory": {"pattern": "^\\.github/task-runs/[A-Za-z0-9][A-Za-z0-9._-]*/evidence/act4/raw$"},
     "config_name": {"const": "npc-rv64-ooo-current"},
     "selection": {

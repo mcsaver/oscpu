@@ -858,8 +858,8 @@
       "id": "v11u-pending-system-producer-current-closure",
       "binding_kind": "v11u_pending_system_producer",
       "scope": "COMPLETE",
-      "summary": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/summary.json",
-      "artifact_cleanup": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/artifact-cleanup.json",
+      "summary": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/summary.json",
+      "artifact_cleanup": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/artifact-cleanup.json",
       "semantic_closure": true,
       "current_selected_bindings": [
         {
@@ -986,7 +986,7 @@
       "id": "v14r-memory-request-hold-current-closure",
       "binding_kind": "v14r_memory_request_hold",
       "scope": "COMPLETE",
-      "summary": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/result.txt",
+      "summary": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/result.txt",
       "semantic_closure": true,
       "current_selected_bindings": [
         {

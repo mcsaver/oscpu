@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-banked-child-ppa-b279-a1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "ppa-analysis",
+  "goal": "对live b279 NpcTop的mapped-5ns-bpu-local-pht-banked-child-inline-v1执行且仅执行一次固定5ns traceable synthesis/OpenSTA，机器绑定129-source、三类placeholder、predictor/child/bank inline与合并keep-hierarchy；取得16-bank mapped结构、Top40、WNS/TNS、area/cells/power并与d3f3 whole-inline及four-placeholder基线作因果delta，按retain/rollback门裁决，不预设改善、不重跑。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/traceable_path_inventory.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/syn/macro-lib",
+      "yosys-sta",
+      "scripts/task-run-status.sh",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-a2/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-ppa-b279-a1.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-a2/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "前置核验合同SHA、输出目录不存在、registry expected/live design均为sha256:b279d4bc209013144ea4075aa7102119a28ee2b77f797a98717401bc9272697e后，且仅执行一次：npc/rv64/eval/ppa/run-traceable-mapped-current.sh --run-dir .github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1 --evidence-id traceable-b279-bpu-local-pht-banked-child-a1 --physical-configuration mapped-5ns-bpu-local-pht-banked-child-inline-v1 --expected-rtl-design-id sha256:b279d4bc209013144ea4075aa7102119a28ee2b77f797a98717401bc9272697e。任何exit/signal/timeout/GAP均不重跑；等待runner fail-closed cleanup后只读核验status/command-status/summary/binding/manifest/synth_stat/OpenSTA/Top40/traceability。报告source count、unknown macros、parameters中的10项keep hierarchy、synth_stat中predictor/child及16 bank结构、Top40按bank/start/end分类、旧集中update_taken族是否消失或由等价大负载替代、WNS/TNS/violations/loops、cells/logic/sequential area/relative power，以及对d3f3 whole-inline与four-placeholder的精确delta；保留raw marker、hash、unknowns与cleanup。"
+  ],
+  "success_criteria": [
+    "runner只能启动一次；只有status=evidence-complete PASS、所有command rc=0、before/after production manifest一致、summary/binding精确为live b279和新config、source count=129、unknown宏精确Sram4096x199×1/Sram4096x113×2/OooFpArithGate×1、parameters/绑定包含基础7项加predictor/child/bank的10项keep hierarchy、synth_stat可审计地显示1个predictor/1个child/16个bank且内部非零area时，evidence才PASS。实验RETAIN还要求A2功能门已PASS、旧40/40 public update_taken→4096-entry路径族消失且无等价跨bank替代、WNS和TNS均严格优于-50.241458893ns/-719693.1875ns、logic area严格低于2465601.32且相对four-placeholder增量低于283823.40；否则ROLLBACK/GAP。正式PPA仍需WNS>=+0.10、TNS=0、violations=0、loops=0、macro-inclusive area和qualified power；固定toggle power只能relative。任一证据/清理失败均GAP，不修改输入、不重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

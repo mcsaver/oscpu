@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-pythonpath-status-fix-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 NpcTop FP OOC composite production runner 的两个确定性执行证据错误：以脚本路径启动 fp_ooc_composite.py 时未绑定仓库根 PYTHONPATH、在任何 child Yosys/OpenSTA 前 ModuleNotFoundError: npc；以及 EXIT trap cleanup 时把真实 run-identity 失败 stage 覆盖成 exit-trap。runner 必须在 canonical repo_root 解析后固定仓库模块根，保留原始 failure stage 并单独记录 cleanup rc；Registry 工具合同和定向负向测试锁住环境绑定顺序与状态语义。不得修改 FP RTL，不运行 production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/subagent-contracts/fp-ooc-composite-pythonpath-fix-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/subagent-contracts/fp-ooc-composite-pythonpath-status-fix-v2.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "在 run-fp-ooc-composite-current.sh 的 canonical repo_root 解析之后、首个 architecture_registry.py 或 fp_ooc_composite.py 调用之前设置确定性仓库模块根；不得继承或拼接任意外部 PYTHONPATH，且 production_manifest/tool-inputs 继续绑定 runner 与 imported architecture_registry.py。",
+    "finalize_on_exit 必须先冻结真实 stage，完成 cleanup 后仍以该真实 stage 写 RESULT=FAIL/RETURN_CODE，并在同一 gate-status.txt 显式写 CLEANUP_RC；signal 路径也必须保留 signal stage 与 cleanup rc。不得因为 status 修复产生假 PASS 或改变唯一 completion marker。",
+    "扩展 fp_ooc_composite_tool_contract_errors 与定向测试：真实 runner PASS；删除绑定、改成错误目录、把绑定移动到首个 composite tool 调用之后、删除 failure-stage 冻结或 cleanup 字段必须被拒绝。执行 clean environment 直接脚本 import smoke、受影响 unittest、runner bash -n 与 scoped diff；所有证据封存在 v2 evidence，不运行 production EDA，不修改失败 run-id。"
+  ],
+  "success_criteria": [
+    "clean-env import smoke 返回0且没有 ModuleNotFoundError；受影响工具合同正向和环境/status 负向 mutation 全部通过；runner bash -n 与 scoped diff check 返回0；FP RTL SHA 不变，旧 run 保持 FAILED_INCOMPLETE/GAP/ROLLBACK 原样。修复后才可另建全新 run-id，禁止原目录重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

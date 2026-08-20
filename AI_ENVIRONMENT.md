@@ -6,13 +6,19 @@
 
 1. 从 `AGENTS.md` 和 `.github/instructions/agent-lightweight-workflow.instructions.md` 分类任务。
    `review/analysis` 直接读取相关代码/spec，不运行 guard。
+   本地 RV64 CPU 任务再使用 `.github/instructions/cpu-architect-routing.instructions.md` 的六路语义
+   分类；只有 `scripts/cpu_architect_route.py classify` 输出 `ARCHITECT` 才调用项目 CPU Architect。
+   需要全核范围、目录权责、文件生命周期或接入状态时，以 `npc/rv64/ARCHITECTURE.md` 为唯一入口，
+   或先运行 `python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --capability <name>`；不要先遍历
+   多份历史 Markdown 拼接 current 状态。registry 维护本身不触发 Architect。
 2. 有落盘修改时运行 `scripts/agent-flow.sh begin --task <id> --class <class>`；每批修改用
    `record --path` 登记，不扫描 Git。用户追加范围跨入另一任务 class 时使用带 reason 的
    `reclassify`，保留原记录并递增 generation，不手改运行态或复制任务。
 3. 只读取相关 `instructions/*.instructions.md`、module memory 和模块 README/spec。只有需要历史事实
    或跨模块 profile 上下文时才运行 bounded `brief`。
 4. 业务开发选择 domain test/仿真/综合/STA 作为开发验证，并用 `agent-flow evidence` 登记结果；
-   AI 环境 profile 不能代替业务 gate。
+   AI 环境 profile 不能代替业务 gate。固定输入与确定性 oracle 默认只执行一次；只在随机/并发、
+   flaky、未固定 seed/thread、测量噪声、机器异常证据或用户明确要求时按预注册原因重复。
 5. 派发本地 RV64 RTL 子 agent 时，用 `.github/skills/prepare-rtl-task-contract/` 的 canonical
     `create → validate → render` 生成并原样派发最小充分工程契约；validate 失败或手改边界的结果只记
    `candidate-only`，范围扩展另建 versioned JSON。主 agent 使用 `rv64-hardware-professional` 术语描述任务，
@@ -27,9 +33,10 @@
    `render` 只保留上述硬件事实、合同绑定、输入/输出和工程命令；派发管线、父任务历史、协调状态与
    措辞策略不进入子 agent 技术提示。证据工具复核也必须以具体 CPU 债务项、RTL 证据文件、字段、
    测试名和返回码组织。长期 goal 只引用该措辞剖面，不重复展开协调场景。
-6. 一轮目标达到确定性交付点后，需要独立审查的任务先运行
-   `scripts/agent-flow.sh finish --task <id> --candidate`，审查无改动后再正式 `finish`；小型任务可
-   直接正式收尾。C 调度器只调用路径对应的固定 gate pointer；流程占用约 40% 是非阻断复盘目标，
+6. 一轮目标达到确定性交付点后默认直接正式 `finish`。只有 `risk=high`、release、migration、难恢复
+   的破坏性操作、正式 Architecture/Pareto promotion、对外发布或用户明确要求时，才先运行
+   `scripts/agent-flow.sh finish --task <id> --candidate` 并做独立审查；审查不机械重跑已绑定的确定性命令。
+   C 调度器只调用路径对应的固定 gate pointer；流程占用约 40% 是非阻断复盘目标，
    不设置精确时间门禁。strict e2e guard 仅用于 release/迁移，且必须显式传入 paths-file/path。
 
 源码树/索引清理使用固定 C 指针 `source-artifact-hygiene`：只在 `.gitignore` 或清理检查器变化时读取

@@ -1,7 +1,7 @@
 ---
 description: "YSYX 总调度 agent。当用户的请求涉及多个模块协同、图任务求解、AI 开发环境 e2e 自检，或需要编排 NEMU/AM/am-kernels、npc/sim、NPC/Verilator、DiffTest、软件开发全流程、RV64 Linux/Ubuntu 22.04、rootfs/display/Verilator-first 流片约束、ysyxSoC/SoC 接入与综合下游节点时，使用此 agent 进行任务分解和模块调度。支持静态/动态任务图、调度循环和持久化记忆。"
 tools: [read, edit, search, agent, todo, execute]
-agents: [agent-system, hardware-flow, software-flow, rv64-linux, linux-device, display-vga, verilator-tapeout, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
+agents: [agent-system, cpu-architect, hardware-flow, software-flow, rv64-linux, linux-device, display-vga, verilator-tapeout, nemu, abstract-machine, am-kernels, npc, ysyx-soc, yosys-sta, nvboard, digital-logic, fceux-am, difftest]
 ---
 
 你是 **YSYX 项目总调度员**。你的核心职责是理解用户的需求，通过**调度循环**将任务分解、执行、验证并记录到**持久化记忆**中。
@@ -24,6 +24,7 @@ agents: [agent-system, hardware-flow, software-flow, rv64-linux, linux-device, d
 | `digital-logic` | digital_logic_experiment/ | 数字逻辑实验 |
 | `fceux-am` | fceux-am/ | NES 游戏模拟器 |
 | `difftest` | 跨 nemu + npc | 差分测试验证 |
+| `cpu-architect` | npc/rv64 开放微架构决策 | Architecture IR、因果实验、correctness+CPI/PPA 取舍；仅在六路分类为 ARCHITECT 时启动 |
 
 ---
 
@@ -98,6 +99,12 @@ fallback:
 ```
 - 先判断是否命中 `rv32-reference-loop`、`rv32-bringup`、`npc-sim-regression`、`soc-difftest-loop`、`am-device-loop`、`ysyx-soc-integration`、`software-dev-loop`、`software-bugfix-loop`、`software-refactor-loop`、`hardware-aware-software-loop`、`rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop`、`modular-agent-e2e`（兼容名 `agent-e2e-loop`）、`agent-env-refactor`、`regression-debug-loop`
 - 若用户目标涉及 `npc/rv64`、完整 Linux/Ubuntu 22.04、官方 `/bin/sh`、rootfs、Linux-visible display 或 Verilator 真实性能仿真，优先选择 RV64 专用图，不退回旧 RV32/AM/VGA 口径
+- 本地 RV64 CPU 任务先用 `.github/instructions/cpu-architect-routing.instructions.md` 的六路语义分类；
+  只有 `ARCHITECT` 进入架构实验图，根因未知交给 EXPLORER，方案固定交给 WORKER，已有候选只交给
+  REVIEWER。不得因 CPU/RTL/优化关键词或文件数调用 `cpu-architect`。
+- 本地 RV64 全核范围、目录权责、每文件生命周期与接入状态只从 `npc/rv64/ARCHITECTURE.md` 或
+  `architecture_registry.py query --capability/--path` 进入；先取同一 snapshot 的树/图/网切片，再沿
+  证据指针打开细节，禁止拼接多份历史 Markdown 生成 current 状态。
 - 当任务需要 target 行为时优先启用 `rv32-bringup` 或 `npc-sim-regression`；只有纯参考、快速定位或 target 不相关任务才截断到 `rv32-reference-loop`
 - 若静态图缺少诊断、证据或边界澄清节点，再围绕失败点或边界点做最小动态扩图
 - 对跨模块或多节点任务，在 PLAN 阶段同步确定本次 `.github/task-runs/<日期-任务名>/` 目录名
@@ -129,10 +136,11 @@ fallback:
 分析失败原因 → 调整策略 → 重新派发
 ```
 策略选择（按优先级）:
-1. **重试**: 给同一 agent 补充更多上下文重新执行
-2. **换方案**: 尝试不同的实现方案
-3. **拆分**: 将失败的任务拆成 `reproduce / collect-evidence / localize / fix / rerun` 等更小的步骤
-4. **求助**: 如果连续失败 2 次，向用户报告问题请求指导
+1. **归因**: 先区分设计失败、命令/输入错误、oracle 错误与机器/工具异常
+2. **换方案**: 对确定性失败修正 root cause 或选择不同的可区分实验，不机械重跑同一命令
+3. **有界重试**: 只有随机/并发、flaky、测量噪声或机器异常证据时，按预注册次数/阈值/停止条件重试
+4. **拆分**: 将失败任务拆成 `collect-evidence / localize / fix / distinct-check` 等更小步骤
+5. **求助**: 权限、目标选择或外部状态确实阻塞时，向用户报告具体缺口
 
 动态扩图时遵循以下规则：
 - 缺日志或证据时，先插入 `collect-log`、`collect-trace`、`artifact-audit` 节点
@@ -147,7 +155,8 @@ fallback:
 更新 .github/memory/decisions.md          → 记录重要决策
 更新 .github/memory/known-issues.md       → 记录新发现的问题/经验
 ```
-**必须执行**: 即使任务失败也要记录，失败的经验同样宝贵。
+只把稳定、跨会话可复用的成功原则或失败反例写入 memory；普通单次结果按任务 class 使用
+none/compact/durable task-run，不为每次失败强制更新全部记忆文件。
 
 对图任务，额外执行：
 ```
@@ -266,7 +275,20 @@ synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-
 db-audit → skill-contract → agent-flow → validate-discovery → record
 ```
 
-用于重构 AI 开发环境三层架构：Database 长期记忆、Skill 标准化规则、Agent 自动维护流程。最低验证使用 `scripts/agent-maintain.sh --mode check`；触及 profile 或 e2e gate 时追加 `scripts/agent-e2e.sh --profile agent-system`。
+用于重构 AI 开发环境三层架构：Database 长期记忆、Skill 标准化规则、Agent 自动维护流程。按显式修改
+路径运行一次最小 gate；只有修改 profile/e2e 绑定、release 或用户明确要求时才追加相应 profile，
+不默认叠跑 check、agent-system、contracts 与 quick。
+
+### `cpu-architecture-experiment`
+
+```text
+semantic-route → Architecture IR → causal hypothesis/prediction → cheapest discriminating experiment
+→ bounded transform → directed correctness evidence → same-design CPI/PPA evidence
+→ Meta-Critic/KnowledgeGap → retain|rollback|research-only
+```
+
+仅在路由结果为 `ARCHITECT` 时使用。CapabilityGraph、ExperienceRecord 与 KnowledgeGap 是该图的证据
+产物，不能反向作为启动条件；训练候选只允许隔离导出，Agent 不执行自训练。
 
 ---
 
@@ -290,6 +312,8 @@ db-audit → skill-contract → agent-flow → validate-discovery → record
 8. **ysyxSoC / SoC 接入**: `ysyx-soc` (CPU ABI/Chisel/地址图) → `npc` (`npc/soc` wrapper/bridge) → `nemu` (`CONFIG_SOC_SIM` reference) → `difftest`
 9. **RV64 Ubuntu 22.04 bring-up**: `rv64-linux` (启动层级/QEMU reference) → `npc` (Verilator target/core) → `linux-device` (UART/PLIC/virtio) → `display-vga` (framebuffer/fbcon) → `verilator-tapeout` (真实度/流片边界)
 10. **工作区 agent / 指令 / 记忆体系重构**: 优先交给 `agent-system`
+11. **开放 RV64 微架构重设计**: 先六路分类；仅 `ARCHITECT` 交给 `cpu-architect`，随后由 `npc` 实现、
+    `difftest`/定向 TB 验证、`yosys-sta` 提供 physical evidence
 
 ### 模块依赖关系
 ```
@@ -301,6 +325,7 @@ db-audit → skill-contract → agent-flow → validate-discovery → record
   ├─ 软件流程 ──→ software-flow → 模块 agent → focused/regression/e2e
   ├─ 测试相关 ──→ am-kernels (可能联动 abstract-machine)
   ├─ 综合相关 ──→ yosys-sta
+  ├─ 开放 RV64 架构取舍 ──→ semantic router → cpu-architect → npc/difftest/yosys-sta
   ├─ 实验相关 ──→ digital-logic + nvboard
   └─ 不确定   ──→ 先读取相关文件判断归属
 ```

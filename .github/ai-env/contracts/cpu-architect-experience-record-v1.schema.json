@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ysyx.local/schemas/cpu-architect-experience-record-v1.schema.json",
+  "title": "CPU Architect ExperienceRecord v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "experience_id", "state", "design_context", "objective",
+    "observation", "hypothesis", "prediction", "proposal", "experiment", "result",
+    "comparison", "meta_critic", "corrected_strategy", "training", "timestamps"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "experience_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+    "state": {"enum": ["planned", "measured", "diagnosed", "consolidated"]},
+    "design_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_id", "source_manifest", "workload", "configuration", "toolchain"],
+      "properties": {
+        "design_id": {"type": "string", "minLength": 1},
+        "source_manifest": {"type": "string", "minLength": 1},
+        "workload": {"type": "string", "minLength": 1},
+        "configuration": {"type": "string", "minLength": 1},
+        "toolchain": {"type": "string", "minLength": 1}
+      }
+    },
+    "objective": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["correctness", "cpi", "timing", "area", "power", "complexity"]}},
+    "observation": {"$ref": "#/$defs/claim_with_evidence"},
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "mechanism_chain", "competing_explanations", "falsifier"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1},
+        "mechanism_chain": {"type": "array", "minItems": 4, "items": {"type": "string", "minLength": 1}},
+        "competing_explanations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "falsifier": {"type": "string", "minLength": 1}
+      }
+    },
+    "prediction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "expected", "lower", "upper", "unit", "confidence"],
+      "properties": {
+        "metric": {"type": "string", "minLength": 1},
+        "expected": {"type": "number"},
+        "lower": {"type": "number"},
+        "upper": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "confidence": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transform_id", "architectural_diff", "preserved_invariants", "rollback"],
+      "properties": {
+        "transform_id": {"type": "string", "minLength": 1},
+        "architectural_diff": {"type": "string", "minLength": 1},
+        "preserved_invariants": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "rollback": {"type": "string", "minLength": 1}
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "input_refs", "determinism", "repeat_reason", "evidence_refs"],
+      "properties": {
+        "command": {"type": "string", "minLength": 1},
+        "input_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "determinism": {"enum": ["deterministic", "concurrent", "flaky", "variable_ppa", "stochastic", "unknown"]},
+        "repeat_reason": {"type": ["string", "null"]},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "actual", "unit", "evidence_refs"],
+      "properties": {
+        "status": {"enum": ["planned", "pass", "fail", "inconclusive", "tool_error"]},
+        "actual": {"type": ["number", "null"]},
+        "unit": {"type": "string", "minLength": 1},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prediction_error", "interval_hit", "causal_conclusion"],
+      "properties": {
+        "prediction_error": {"type": ["number", "null"]},
+        "interval_hit": {"type": ["boolean", "null"]},
+        "causal_conclusion": {"type": "string"}
+      }
+    },
+    "meta_critic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "error_classes", "knowledge_gap_ids", "diagnosis"],
+      "properties": {
+        "complete": {"type": "boolean"},
+        "error_classes": {"type": "array", "uniqueItems": true, "items": {"enum": ["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10"]}},
+        "knowledge_gap_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "diagnosis": {"type": "string"}
+      }
+    },
+    "corrected_strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "scope", "exceptions"],
+      "properties": {
+        "action": {"type": "string"},
+        "scope": {"type": "string"},
+        "exceptions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "training": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible", "ground_truth_level", "unseen_exam_passed", "reasons"],
+      "properties": {
+        "eligible": {"type": "boolean"},
+        "ground_truth_level": {"enum": ["silicon_measurement", "fpga_measurement", "rtl_simulation", "eda_report", "cycle_simulation", "analytical_model", "human_review", "llm_opinion"]},
+        "unseen_exam_passed": {"type": "boolean"},
+        "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predicted_at", "measured_at", "updated_at"],
+      "properties": {
+        "predicted_at": {"type": "string", "format": "date-time"},
+        "measured_at": {"type": ["string", "null"], "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  },
+  "$defs": {
+    "claim_with_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim", "evidence_refs"],
+      "properties": {
+        "claim": {"type": "string", "minLength": 1},
+        "evidence_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

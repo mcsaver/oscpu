@@ -1,0 +1,143 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-production-child-split-implementation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "按冻结 Architecture IR 将 OooFpArithGate 的 short-arithmetic 数值流水机械分解为 OooFpAddSubPipe、OooFpMulProductPipe、OooFpMulNormRoundPipe、OooFpFmaAlignAddPipe、OooFpFmaNormRoundPipe 五个 production children；不改变任何算术表达式、寄存级数、端口协议或 backend 调用链，保持 launch→out 5 cycles、1/cycle、legacy start/done、ProducerId/pdest/kind/double/value/fflags、ROB-age kill/flush 与 fused single-round 语义，并把新 RTL、生命周期与 mapped-5ns-fp-arith-production-children-inline-v1 配置纳入单一 Architecture Registry。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-physical-strategy-architect-route-v1.result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-production-child-split-decision-v1.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-child-boundary-independent-review-v1.result.md",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/testbench/scripts/run_ooo_fp_arith_child_mutations.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-production-child-split-implementation-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-child-split-implementation-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/testbench/scripts/run_ooo_fp_arith_child_mutations.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-production-child-split-implementation-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "make",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-production-child-split-decision-v1.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-child-boundary-independent-review-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "仅用 apply_patch 实现固定五-child 边界。AddSub child 独占 single/double S1-S3；MulProduct child 独占 S1 Q，MulNormRound 直接消费这些 Q且独占 S2-S3；FmaAlignAdd 独占 S1-S3，FmaNormRound 直接消费完整 mag/ref/sign/rm/special/spval/spff Q且独占 S4-S5，mag[0] 原样保留现有 jam。每个使用 helper 的 child 在自身 module lexical scope include OooFpPredicates.v/OooFpRound.v；wrapper 删除数值 Q 与 helper ownership，只保留 start/done、meta/kill/owner、AddSub/Mul S4-S5 原子 {value,fflags} 对齐、S5 kind/double mux/assertion。filelist/Makefile 接入五 child；focused TB 新增逐拍 5-cycle、连续 mixed-precision、kill S1-S5、same-cycle launch kill、flush、NaN/Inf/subnormal/fflags/fused oracle；新增 compile-success mutation runner，静态审计单一 state owner 并动态拒绝 extra/missing cycle、current double/kind、value/fflags 分离、alignment、kill、helper/round/special、jam/fused、重复 owner 破坏。Registry 登记五文件 ownership/lifecycle=development、更新 inventory identity 和新 physical config：5.0ns、blackbox 仅两 SRAM+BPU、FP wrapper/五 child inline+keep hierarchy、measurement=UNMEASURED、PPA=GAP、noncanonical。用 evidence/run-final-gates.sh 在最终源码状态各执行一次 focused TB、mutation、registry unittest、render、check、scoped diff check并写 gate-status/summary/result；不运行综合、STA、全量回归或系统回放。"
+  ],
+  "success_criteria": [
+    "focused TB 与所有 compile-success mutants 必须在最终输入上各一次完成，mutation 必须编译成功、唯一命中预期功能 marker、拒绝且 production source before/after 不变；结构审计必须证明 wrapper 不再拥有 short-arithmetic 数值/fflags Q、五 child 各自唯一拥有冻结阶段、跨 child 边界无额外寄存级、FMA full mag[127:0] 不截断且 mag[0] jam 不丢。Registry unittest/render/check 与 scoped diff check 返回 0，live design/inventory/snapshot 更新且旧 mapped receipt fail-closed stale；新配置只能是 development/UNMEASURED/GAP，不得宣称 PPA。若最终门禁失败，保留首次失败；只有明确修改输入后才允许一次 new-input gate，不得原样重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

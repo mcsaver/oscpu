@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-opensta-query-budget-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地RV64 FP OOC OpenSTA query-budget实现。沿五个production child的Registry port/DFF runtime census、opensta-fp-ooc-child.tcl、runner、parser/schema与v16 focused evidence，攻击AddSub 273/2364预算被错误硬编码到其余child、bulk endpoint/group cap不足、max/min arrival±slack符号与单位、worst-slack/raw-delay前提、Search-owned PathEnd跨query生命周期、timeout progress留存、测试自报假绿和A9/FP RTL漂移。不给定预期结论；只读给出RETAIN或BLOCK与fresh-run授权数，不运行测试/EDA、不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/opensta-bulk-query-primary-sources-v1.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_bulk_query_budget_harness.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "yosys-sta",
+      "oss-cad-suite",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/evidence/fp-ooc-opensta-query-budget-fix-v1/gate-summary.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/evidence/fp-ooc-opensta-query-budget-fix-v1/implementation-evidence.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/subagent-contracts/fp-ooc-opensta-query-budget-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/opensta-bulk-query-primary-sources-v1.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/evidence/fp-ooc-opensta-query-budget-fix-v1/gate-summary.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/evidence/fp-ooc-opensta-query-budget-fix-v1/implementation-evidence.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/gate-status.txt",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐production调用点重建五child的find_timing_paths公式、group/endpoint caps、PathEnd/validation bound与progress状态机，确认AddSub精确预算不会被错误泛化且其它child以Registry/runtime cardinality fail-closed。",
+    "复核bulk output按endpoint名完整join、136 dynamic和2 constant的结构分流、input逐bit覆盖、max/min required-context与raw delay极值前提、live-query guard和每个PathEnd一次物化；寻找合法设计误拒和伪造progress/COMPLETE假绿。",
+    "复核focused fixture确实执行production proc且绑定binary/stdlib，五次不同revision首败与最终PASS计数真实，54-test revision、Registry/render/bash/scoped收据不越级；报告A9/RTL哈希、unknowns、替代解释、scope_extension_request及原始marker。"
+  ],
+  "success_criteria": [
+    "只读证据足以给出RETAIN或BLOCK。只有未发现确定production假绿/误拒、五child预算可表达、A9/FP RTL冻结且工具证据闭合时才授权一个全新run-id单次5.0ns diagnostic；PPA始终GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

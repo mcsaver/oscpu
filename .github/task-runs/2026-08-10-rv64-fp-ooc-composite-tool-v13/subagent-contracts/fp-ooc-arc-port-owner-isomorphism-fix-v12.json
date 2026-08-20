@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-arc-port-owner-isomorphism-fix-v12",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复本地 RV64 OooFpAddSubPipe 5.0ns OOC arc inventory 的顶层端口所有权同构性：production Tcl 的 exact_port_family 只从锚定 get_ports 产生无层级前缀的直接顶层端口；Python parser不得用rsplit丢弃owner后接受跨层级连续索引。仅对PORT family保留完整对象身份并拒绝任何slash owner、混合owner或前缀重放，同时保持A6真实family_N_ 0..63与scalar/bracket/__v/underscore canonical单style正例；startpoint/endpoint的合法层次pin语义不得被误伤。新增直接命中不同owner不同连续index的负向门禁，并在Registry单一入口锁定该Tcl/parser合同；不运行production EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-fix-independent-review-v11.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/children/OooFpAddSubPipe/netlist-manifest.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-isomorphism-fix-v12.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/children/OooFpAddSubPipe/netlist-manifest.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "实现PORT family完整对象名校验且不修改Tcl已闭合的PathEnd生命周期；以A6真实64位underscore集合为正例，以跨owner连续索引、统一伪owner、slash alias、mixed style、leading zero、missing/duplicate/out-of-range为负例；Registry源合同与spec明确PORT对象必须是无层级前缀的linked child顶层port。新增独立v12证据runner，冻结v8/v10/A6与当前输入并只跑受影响门禁。"
+  ],
+  "success_criteria": [
+    "受影响parser与Registry定向单测单次PASS，A6真实family_N_正例通过且所有owner-prefix反例被拒，Registry check与scoped diff/text audit PASS；production Yosys/OpenSTA/STA/RTL sim与A6 rerun均为0。结果仅为工具修复PASS且PPA GAP，仍需新独立只读review才可授权fresh run-id。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

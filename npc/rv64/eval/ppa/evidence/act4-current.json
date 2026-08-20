@@ -1,7 +1,7 @@
 {
   "case_status": {
     "kind": "act4_case_status",
-    "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/status.txt",
+    "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/status.txt",
     "sha256": "680a9f60ccc5e9139267c7c5d4fbf0888701b9beef7f8230a643a05d8d91452c",
     "size_bytes": 9974
   },
@@ -9,7 +9,7 @@
     {
       "case_id": "rv64i/I/I-add-00",
       "commits": 5724,
-      "cycles": 52659,
+      "cycles": 52692,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-add-00.elf",
@@ -18,9 +18,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-add-00.log",
-        "sha256": "175b2808eb4fb0b745961f8d36bfe906dfd053b2a20d0c1ae2f963d41a9c0e61",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-add-00.log",
+        "sha256": "4f91fb0ac2f6fe2473db571d03a8e855b2b0b7cff9da7a7a4975d716fba2f72e",
+        "size_bytes": 5966
       },
       "name": "I-add-00",
       "return_code": 0,
@@ -34,7 +34,7 @@
     {
       "case_id": "rv64i/I/I-addi-00",
       "commits": 4312,
-      "cycles": 38383,
+      "cycles": 38416,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-addi-00.elf",
@@ -43,9 +43,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-addi-00.log",
-        "sha256": "43aed3aa661fbe4fd5bc4da1826c9ee15812dc22828cc61c14aa305b4ec8637d",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-addi-00.log",
+        "sha256": "0d6c01e2e2ef8a52f711211c38a6a43bfecfb1f569bc5d1ea1927f5f22e40e08",
+        "size_bytes": 5964
       },
       "name": "I-addi-00",
       "return_code": 0,
@@ -59,7 +59,7 @@
     {
       "case_id": "rv64i/I/I-addiw-00",
       "commits": 4312,
-      "cycles": 38315,
+      "cycles": 38348,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-addiw-00.elf",
@@ -68,9 +68,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-addiw-00.log",
-        "sha256": "c3d1473470cb24bdcc382ab81667de293bf1f07a113411c38707e431c8391d73",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-addiw-00.log",
+        "sha256": "bd84e286f33d091cec58f802a1b350d8b2767d6aa76fe0f6e996423825c243d4",
+        "size_bytes": 5965
       },
       "name": "I-addiw-00",
       "return_code": 0,
@@ -84,7 +84,7 @@
     {
       "case_id": "rv64i/I/I-addw-00",
       "commits": 5724,
-      "cycles": 52642,
+      "cycles": 52675,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-addw-00.elf",
@@ -93,9 +93,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-addw-00.log",
-        "sha256": "3aacb0a13e2af88f43f3e14ff9cfb197e66f1f7552d7eb65a56f9012ff1dc9a9",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-addw-00.log",
+        "sha256": "58c512dc448ad0d2e0d4ea5821902474a7ba865f3509b33699e3f902b6bf9364",
+        "size_bytes": 5966
       },
       "name": "I-addw-00",
       "return_code": 0,
@@ -109,7 +109,7 @@
     {
       "case_id": "rv64i/I/I-and-00",
       "commits": 5724,
-      "cycles": 52643,
+      "cycles": 52676,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-and-00.elf",
@@ -118,9 +118,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-and-00.log",
-        "sha256": "f1702864e27fbd35afc002d8b4a178e531e89d88397ffbb154a008c1a9951b08",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-and-00.log",
+        "sha256": "b5e3c8c5af949002b205b9a66bf7e9f18057ffb8d41c66e75a79a3d77ad1fe42",
+        "size_bytes": 5965
       },
       "name": "I-and-00",
       "return_code": 0,
@@ -134,7 +134,7 @@
     {
       "case_id": "rv64i/I/I-andi-00",
       "commits": 4312,
-      "cycles": 38239,
+      "cycles": 38272,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-andi-00.elf",
@@ -143,9 +143,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-andi-00.log",
-        "sha256": "ea8216466be0243943091ead2878ddd795a8bce0010d8927d858b4623f63039b",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-andi-00.log",
+        "sha256": "3562e0a60fbb103dc1ef79aed7efa6ff4a18a5d784310c29f0885f25a5d75353",
+        "size_bytes": 5964
       },
       "name": "I-andi-00",
       "return_code": 0,
@@ -159,7 +159,7 @@
     {
       "case_id": "rv64i/I/I-auipc-00",
       "commits": 1821,
-      "cycles": 13532,
+      "cycles": 13565,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-auipc-00.elf",
@@ -168,9 +168,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-auipc-00.log",
-        "sha256": "7fe235942ff8db59afa7250b25304fab726cf48e4de26ec93de79af828edf8af",
-        "size_bytes": 5954
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-auipc-00.log",
+        "sha256": "9b24d6ba731300b034dbdccdab1bd05f14c37e35cddfe3acb6986f78cd759a7f",
+        "size_bytes": 5956
       },
       "name": "I-auipc-00",
       "return_code": 0,
@@ -184,7 +184,7 @@
     {
       "case_id": "rv64i/I/I-beq-00",
       "commits": 6549,
-      "cycles": 64363,
+      "cycles": 64397,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-beq-00.elf",
@@ -193,9 +193,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-beq-00.log",
-        "sha256": "75763cca169c7efde89e7bf7a45a175145e3e603ae72deb64f83c001f99fb823",
-        "size_bytes": 5981
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-beq-00.log",
+        "sha256": "28ead55dfc8767e65f62f560574e3717fd1e1e4f05cf8d0f7baecb4212e10800",
+        "size_bytes": 5983
       },
       "name": "I-beq-00",
       "return_code": 0,
@@ -209,7 +209,7 @@
     {
       "case_id": "rv64i/I/I-bge-00",
       "commits": 6628,
-      "cycles": 70570,
+      "cycles": 70604,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-bge-00.elf",
@@ -218,9 +218,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-bge-00.log",
-        "sha256": "f98a1bc33cb8c761fe1607617d7ae2dc0c4d67b74883b516a98d32269062a4ca",
-        "size_bytes": 5982
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-bge-00.log",
+        "sha256": "a70ec60c01e94b706e5d888aa55131e0f4f6cc984a23b0bdb0a9da5ca5cc0aad",
+        "size_bytes": 5984
       },
       "name": "I-bge-00",
       "return_code": 0,
@@ -234,7 +234,7 @@
     {
       "case_id": "rv64i/I/I-bgeu-00",
       "commits": 6624,
-      "cycles": 70319,
+      "cycles": 70352,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-bgeu-00.elf",
@@ -243,9 +243,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-bgeu-00.log",
-        "sha256": "7b65d8400ce28dedab4716456b5b331c0f62558618db96dcc91bea6aedd311f6",
-        "size_bytes": 5983
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-bgeu-00.log",
+        "sha256": "39ec66a5791a07b7914b084b21479b15951fb42be4f478c87171a9e876723c4c",
+        "size_bytes": 5985
       },
       "name": "I-bgeu-00",
       "return_code": 0,
@@ -259,7 +259,7 @@
     {
       "case_id": "rv64i/I/I-blt-00",
       "commits": 6637,
-      "cycles": 70545,
+      "cycles": 70578,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-blt-00.elf",
@@ -268,9 +268,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-blt-00.log",
-        "sha256": "a26702a8530b6c18f253a8fc6c51ac15de8ea1ab7db4d4edf54eb83a10e83054",
-        "size_bytes": 5982
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-blt-00.log",
+        "sha256": "91312bf886979f1d615c71b3b87e0dd4831f79669fab510fa61e658cd8011ef2",
+        "size_bytes": 5984
       },
       "name": "I-blt-00",
       "return_code": 0,
@@ -284,7 +284,7 @@
     {
       "case_id": "rv64i/I/I-bltu-00",
       "commits": 6639,
-      "cycles": 70432,
+      "cycles": 70465,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-bltu-00.elf",
@@ -293,9 +293,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-bltu-00.log",
-        "sha256": "2a9224c4bc05057474c92a7a18d5ea6b7f4b0ee13e7cf1e498c60553dd61f89d",
-        "size_bytes": 5983
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-bltu-00.log",
+        "sha256": "beda79101ac4dacdae87c30149ca971bf990e1b8730140bea20f90c09c0bcd5a",
+        "size_bytes": 5985
       },
       "name": "I-bltu-00",
       "return_code": 0,
@@ -309,7 +309,7 @@
     {
       "case_id": "rv64i/I/I-bne-00",
       "commits": 6710,
-      "cycles": 70003,
+      "cycles": 70036,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-bne-00.elf",
@@ -318,9 +318,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-bne-00.log",
-        "sha256": "23484f51da228fef0ab1d01307198032422eed630f513b1dcf274892eacf3fb5",
-        "size_bytes": 5985
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-bne-00.log",
+        "sha256": "52070bac551ac10b1facab7b97c34c524c4953bc574861285174d9d74725ea16",
+        "size_bytes": 5987
       },
       "name": "I-bne-00",
       "return_code": 0,
@@ -334,7 +334,7 @@
     {
       "case_id": "rv64i/I/I-fence-00",
       "commits": 1580,
-      "cycles": 11162,
+      "cycles": 11195,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-fence-00.elf",
@@ -343,9 +343,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-fence-00.log",
-        "sha256": "e023250e3a02495e37dd99236c1a8d3b429d2eb8aa2d40ede0a430474b2c2a60",
-        "size_bytes": 5947
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-fence-00.log",
+        "sha256": "58fddfacb89a46774bd03c9b710e3d94850e2db5378c712ce999d911de146a2d",
+        "size_bytes": 5949
       },
       "name": "I-fence-00",
       "return_code": 0,
@@ -359,7 +359,7 @@
     {
       "case_id": "rv64i/I/I-jal-00",
       "commits": 17405,
-      "cycles": 155043,
+      "cycles": 155076,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-jal-00.elf",
@@ -368,9 +368,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-jal-00.log",
-        "sha256": "a28e66c2754abb7af130e45c54dfbf4b57e037a58afabd283612185d99548b97",
-        "size_bytes": 5976
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-jal-00.log",
+        "sha256": "e37a781f366f2a99d590bb6b1fac90b20c0e4dbae8bfff2f2d4d221f46b084db",
+        "size_bytes": 5978
       },
       "name": "I-jal-00",
       "return_code": 0,
@@ -384,7 +384,7 @@
     {
       "case_id": "rv64i/I/I-jalr-00",
       "commits": 4231,
-      "cycles": 41640,
+      "cycles": 41673,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-jalr-00.elf",
@@ -393,9 +393,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-jalr-00.log",
-        "sha256": "109b7d604f1604be7fe8e6626b9e43924356aa06b7718458e5b3b6bffeff6f1c",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-jalr-00.log",
+        "sha256": "49cab1fb99c03c47c911dab620137f4abfafd403cdfbb480624c98ef0101652f",
+        "size_bytes": 5965
       },
       "name": "I-jalr-00",
       "return_code": 0,
@@ -409,7 +409,7 @@
     {
       "case_id": "rv64i/I/I-lb-00",
       "commits": 2457,
-      "cycles": 19961,
+      "cycles": 19994,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lb-00.elf",
@@ -418,9 +418,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lb-00.log",
-        "sha256": "e29d0d8398f2acc5b911904481d76a31c3f7fc8ec0dbd4016bea011880fce9dc",
-        "size_bytes": 5952
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lb-00.log",
+        "sha256": "545acc2bfa7c0fa99a185de271b03dc1a31494f2941cadc3e00bc7e9900c5c86",
+        "size_bytes": 5954
       },
       "name": "I-lb-00",
       "return_code": 0,
@@ -434,7 +434,7 @@
     {
       "case_id": "rv64i/I/I-lbu-00",
       "commits": 2457,
-      "cycles": 19839,
+      "cycles": 19873,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lbu-00.elf",
@@ -443,9 +443,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lbu-00.log",
-        "sha256": "e0f7c8a3eaf016eb0577c30f42af16cdca798a491c5dd5d632a281bc979df066",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lbu-00.log",
+        "sha256": "c84cf4b524e5107b00c9287c81683393702020488e6c41f5e6fb2216a157d503",
+        "size_bytes": 5955
       },
       "name": "I-lbu-00",
       "return_code": 0,
@@ -459,7 +459,7 @@
     {
       "case_id": "rv64i/I/I-ld-00",
       "commits": 2313,
-      "cycles": 18390,
+      "cycles": 18424,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-ld-00.elf",
@@ -468,9 +468,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-ld-00.log",
-        "sha256": "4661c4a2669c1d40aabb87e8eb59c56806f7b0f74bb8973d0d8fc9713ceda143",
-        "size_bytes": 5952
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-ld-00.log",
+        "sha256": "45e34c1cc9e62957254eb2d32bfa49f141a01ed448e59507566ebabe4cfd76ba",
+        "size_bytes": 5954
       },
       "name": "I-ld-00",
       "return_code": 0,
@@ -484,7 +484,7 @@
     {
       "case_id": "rv64i/I/I-lh-00",
       "commits": 2381,
-      "cycles": 19154,
+      "cycles": 19188,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lh-00.elf",
@@ -493,9 +493,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lh-00.log",
-        "sha256": "bc07f193a44a3ec28f0bf69baec79818b1281116b1bfab79ca1d68b4da909412",
-        "size_bytes": 5952
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lh-00.log",
+        "sha256": "1374515d0fe1665e7eb651526238442a87fca579c8bba20245b327a3a1507345",
+        "size_bytes": 5954
       },
       "name": "I-lh-00",
       "return_code": 0,
@@ -509,7 +509,7 @@
     {
       "case_id": "rv64i/I/I-lhu-00",
       "commits": 2381,
-      "cycles": 19184,
+      "cycles": 19218,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lhu-00.elf",
@@ -518,9 +518,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lhu-00.log",
-        "sha256": "81fbdbd7fbfd1368d681a842712187ca79b611a2a9865a097205ce5e6356bf27",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lhu-00.log",
+        "sha256": "03f5b55a42b3d483f1a91b1e91b7a71ac1e62db2c316c6e73dc7e4e51210bc3e",
+        "size_bytes": 5955
       },
       "name": "I-lhu-00",
       "return_code": 0,
@@ -534,7 +534,7 @@
     {
       "case_id": "rv64i/I/I-lui-00",
       "commits": 1821,
-      "cycles": 13501,
+      "cycles": 13534,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lui-00.elf",
@@ -543,9 +543,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lui-00.log",
-        "sha256": "68031087e6d09baa4a9e921545aa77d5781004a1c11f1f8c55c8fdf25fb8bf20",
-        "size_bytes": 5952
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lui-00.log",
+        "sha256": "626e27f4cb7083758b8e2775270b4b1c0625027aa7f884039d5299cd8a0e11e3",
+        "size_bytes": 5954
       },
       "name": "I-lui-00",
       "return_code": 0,
@@ -559,7 +559,7 @@
     {
       "case_id": "rv64i/I/I-lw-00",
       "commits": 2351,
-      "cycles": 18815,
+      "cycles": 18849,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lw-00.elf",
@@ -568,9 +568,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lw-00.log",
-        "sha256": "567376cf308fe828ce7d05a0616107cd5f6783df2dfe2e376e888d43fef7c2bc",
-        "size_bytes": 5952
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lw-00.log",
+        "sha256": "2c4cf4ce51cca1797fa75ec18c476f981fd0833b31321f370368e8cf909f848b",
+        "size_bytes": 5954
       },
       "name": "I-lw-00",
       "return_code": 0,
@@ -584,7 +584,7 @@
     {
       "case_id": "rv64i/I/I-lwu-00",
       "commits": 2351,
-      "cycles": 18820,
+      "cycles": 18854,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-lwu-00.elf",
@@ -593,9 +593,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-lwu-00.log",
-        "sha256": "acdd67554a809d8cdf8a2f32a9f121142e548052bb2026fd0a03a150844c97a4",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-lwu-00.log",
+        "sha256": "c736758f07aa433ecd84e96abaf072a5162b613edf49500b002ceb605ffd1022",
+        "size_bytes": 5955
       },
       "name": "I-lwu-00",
       "return_code": 0,
@@ -609,7 +609,7 @@
     {
       "case_id": "rv64i/I/I-nop-00",
       "commits": 1572,
-      "cycles": 10920,
+      "cycles": 10954,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-nop-00.elf",
@@ -618,9 +618,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-nop-00.log",
-        "sha256": "dacd3c38caa2ae8ef7f325e79255a854df19cf9373c9626072ec74b4415ddc42",
-        "size_bytes": 5943
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-nop-00.log",
+        "sha256": "4d17ee26e3f2207badbbf4a9fc28bf81ce4fac1b2e0fca2c4eb90bb57db456f9",
+        "size_bytes": 5945
       },
       "name": "I-nop-00",
       "return_code": 0,
@@ -634,7 +634,7 @@
     {
       "case_id": "rv64i/I/I-or-00",
       "commits": 5724,
-      "cycles": 52606,
+      "cycles": 52639,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-or-00.elf",
@@ -643,9 +643,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-or-00.log",
-        "sha256": "258fbcdd6fee8add1214ec2561c53b33c9381aae445cb98acb8e75a064bd09fe",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-or-00.log",
+        "sha256": "eab4b6b3c60621d2869329beb70706536f60c1ea7fc1e2255846ed1a03c69da1",
+        "size_bytes": 5964
       },
       "name": "I-or-00",
       "return_code": 0,
@@ -659,7 +659,7 @@
     {
       "case_id": "rv64i/I/I-ori-00",
       "commits": 4304,
-      "cycles": 38231,
+      "cycles": 38264,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-ori-00.elf",
@@ -668,9 +668,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-ori-00.log",
-        "sha256": "32222b462f3427b12b58305814151da043e506cc61da7fd526f8ce2621f3d942",
-        "size_bytes": 5961
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-ori-00.log",
+        "sha256": "78c737f2e72371cc2ecade63646a6d8596f7c1f2bb34ffba8076bcbab31d26e3",
+        "size_bytes": 5963
       },
       "name": "I-ori-00",
       "return_code": 0,
@@ -684,7 +684,7 @@
     {
       "case_id": "rv64i/I/I-sb-00",
       "commits": 2733,
-      "cycles": 23083,
+      "cycles": 23116,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sb-00.elf",
@@ -693,9 +693,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sb-00.log",
-        "sha256": "be088793019cc8372af706e909489991af0835c49ce3f4628068daa58b6af985",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sb-00.log",
+        "sha256": "5ed6ed8823b20eb0dfe9c413e300b0770107d884f345610c073fdf7b99aeab1b",
+        "size_bytes": 5955
       },
       "name": "I-sb-00",
       "return_code": 0,
@@ -709,7 +709,7 @@
     {
       "case_id": "rv64i/I/I-sd-00",
       "commits": 2677,
-      "cycles": 22504,
+      "cycles": 22537,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sd-00.elf",
@@ -718,9 +718,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sd-00.log",
-        "sha256": "8e9c1ab72dc8724593723eecf29a60ce1eeadaff85342eaeea5f1de1699e24bb",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sd-00.log",
+        "sha256": "39ae3e87269e1879b176a5cc148e5ad5f73c7662d723b5d9d6cc5440b61dabe6",
+        "size_bytes": 5955
       },
       "name": "I-sd-00",
       "return_code": 0,
@@ -734,7 +734,7 @@
     {
       "case_id": "rv64i/I/I-sh-00",
       "commits": 2705,
-      "cycles": 22785,
+      "cycles": 22818,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sh-00.elf",
@@ -743,9 +743,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sh-00.log",
-        "sha256": "0126863a3b1ba7cfadbef3e0ae65fb4cf853b1694af8079e134cd28a2d7e8546",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sh-00.log",
+        "sha256": "7d3ae0a938881cafb494b1771c8e5bac00e83c71660979dc65e701429f0b0a8b",
+        "size_bytes": 5955
       },
       "name": "I-sh-00",
       "return_code": 0,
@@ -759,7 +759,7 @@
     {
       "case_id": "rv64i/I/I-sll-00",
       "commits": 5724,
-      "cycles": 52642,
+      "cycles": 52675,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sll-00.elf",
@@ -768,9 +768,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sll-00.log",
-        "sha256": "a21472f64f9655839d088cbf38c2a90835b1532d387d868becada00bd4647890",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sll-00.log",
+        "sha256": "bcbcefc33e78dbea6cf556077edb65e5435067c652d584c6a87e76be36ab5aea",
+        "size_bytes": 5965
       },
       "name": "I-sll-00",
       "return_code": 0,
@@ -784,7 +784,7 @@
     {
       "case_id": "rv64i/I/I-slli-00",
       "commits": 3612,
-      "cycles": 31297,
+      "cycles": 31330,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-slli-00.elf",
@@ -793,9 +793,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-slli-00.log",
-        "sha256": "40d1c6d5cd1759b435171674c09e1eaaba0072caa7d06c2e54603d7ef92796ba",
-        "size_bytes": 5960
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-slli-00.log",
+        "sha256": "23818a5e7ce04c06a8f9ca2c00b2acb2a59eb97b96952c830d90aa9a68631b3c",
+        "size_bytes": 5962
       },
       "name": "I-slli-00",
       "return_code": 0,
@@ -809,7 +809,7 @@
     {
       "case_id": "rv64i/I/I-slliw-00",
       "commits": 2940,
-      "cycles": 24708,
+      "cycles": 24741,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-slliw-00.elf",
@@ -818,9 +818,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-slliw-00.log",
-        "sha256": "aafe35a6fec53444b7fbcc09ed078dc36b6db34f2b02bb997d31f8112f38019e",
-        "size_bytes": 5957
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-slliw-00.log",
+        "sha256": "f25de684cc23728c490e403a99e82479bd4e076157a0c7288b090a43ef0e71f5",
+        "size_bytes": 5959
       },
       "name": "I-slliw-00",
       "return_code": 0,
@@ -834,7 +834,7 @@
     {
       "case_id": "rv64i/I/I-sllw-00",
       "commits": 5724,
-      "cycles": 52695,
+      "cycles": 52728,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sllw-00.elf",
@@ -843,9 +843,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sllw-00.log",
-        "sha256": "b82bd94de8c59c809518b75582d68a977e30be62b852155bb45e5384117afd48",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sllw-00.log",
+        "sha256": "686d426789b119bdc8cea5a9d376ce01f06b0fa9fcdd436ed7acedbf89a752d1",
+        "size_bytes": 5966
       },
       "name": "I-sllw-00",
       "return_code": 0,
@@ -859,7 +859,7 @@
     {
       "case_id": "rv64i/I/I-slt-00",
       "commits": 5724,
-      "cycles": 52574,
+      "cycles": 52607,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-slt-00.elf",
@@ -868,9 +868,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-slt-00.log",
-        "sha256": "209cdd01c397db4ad331a15fb707def1d36fcff20389fb840d7eac6f4dc4810d",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-slt-00.log",
+        "sha256": "5a51835ad920d96cf71700562ed6354c96ec8e46638c9774d0fc813daf058a35",
+        "size_bytes": 5965
       },
       "name": "I-slt-00",
       "return_code": 0,
@@ -884,7 +884,7 @@
     {
       "case_id": "rv64i/I/I-slti-00",
       "commits": 4304,
-      "cycles": 38202,
+      "cycles": 38236,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-slti-00.elf",
@@ -893,9 +893,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-slti-00.log",
-        "sha256": "060d9b515e1672775d779ca76cb96862fafb0f3148095edc9664c64e82457843",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-slti-00.log",
+        "sha256": "4d622a439700dd2725fa7ad07a41b7c63321eb1768e958d75361d5e9f2770c07",
+        "size_bytes": 5964
       },
       "name": "I-slti-00",
       "return_code": 0,
@@ -909,7 +909,7 @@
     {
       "case_id": "rv64i/I/I-sltiu-00",
       "commits": 4312,
-      "cycles": 38332,
+      "cycles": 38365,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sltiu-00.elf",
@@ -918,9 +918,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sltiu-00.log",
-        "sha256": "c7bdf228de1e8f3463435e84d2d81688ca26b6afe02ff2d03db2a642dfc35f9b",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sltiu-00.log",
+        "sha256": "174b9f400165a758e4cca9bea332d230041fe2d6dd5696e26ee8531e63927426",
+        "size_bytes": 5965
       },
       "name": "I-sltiu-00",
       "return_code": 0,
@@ -934,7 +934,7 @@
     {
       "case_id": "rv64i/I/I-sltu-00",
       "commits": 5724,
-      "cycles": 52458,
+      "cycles": 52491,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sltu-00.elf",
@@ -943,9 +943,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sltu-00.log",
-        "sha256": "3ad3220d250864850677f06a4e1767a8feec295746d76e45182fa9185921998d",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sltu-00.log",
+        "sha256": "d31030a9a2e0b74b5e7adc5be1dc7e067fbc9cd78684372bb85e73660c395325",
+        "size_bytes": 5966
       },
       "name": "I-sltu-00",
       "return_code": 0,
@@ -959,7 +959,7 @@
     {
       "case_id": "rv64i/I/I-sra-00",
       "commits": 5732,
-      "cycles": 52671,
+      "cycles": 52704,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sra-00.elf",
@@ -968,9 +968,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sra-00.log",
-        "sha256": "7e5cf2194de9c7c5ecf4b765506ad0c643bfac5542b6e8a73b2e3ec9bc163ba3",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sra-00.log",
+        "sha256": "fc9c898c9cd8d1757ee3990a749ec2815389822a9a448400a8e085834074397c",
+        "size_bytes": 5965
       },
       "name": "I-sra-00",
       "return_code": 0,
@@ -984,7 +984,7 @@
     {
       "case_id": "rv64i/I/I-srai-00",
       "commits": 3612,
-      "cycles": 31216,
+      "cycles": 31250,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-srai-00.elf",
@@ -993,9 +993,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-srai-00.log",
-        "sha256": "cc0e2dd0366906b84ac234f06dc8ec7965666808ffdcc38954cd8650883d1924",
-        "size_bytes": 5960
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-srai-00.log",
+        "sha256": "92ad2750c81997d966da8fbb4a6f4d3eab1756563a4e270ec2ad245496680939",
+        "size_bytes": 5962
       },
       "name": "I-srai-00",
       "return_code": 0,
@@ -1009,7 +1009,7 @@
     {
       "case_id": "rv64i/I/I-sraiw-00",
       "commits": 2940,
-      "cycles": 24705,
+      "cycles": 24738,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sraiw-00.elf",
@@ -1018,9 +1018,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sraiw-00.log",
-        "sha256": "d2d842848c7869dba037371561fc9c158206e8beeebafeacfd6f078960204653",
-        "size_bytes": 5957
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sraiw-00.log",
+        "sha256": "1d5c6b200834d202eb7af2597fe606d4defe79ad1dd63523bf945790a868d583",
+        "size_bytes": 5959
       },
       "name": "I-sraiw-00",
       "return_code": 0,
@@ -1034,7 +1034,7 @@
     {
       "case_id": "rv64i/I/I-sraw-00",
       "commits": 5724,
-      "cycles": 52641,
+      "cycles": 52674,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sraw-00.elf",
@@ -1043,9 +1043,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sraw-00.log",
-        "sha256": "b36c9e0cdc61961f7fe3247b7d5de48f205dfdb89aa350829a89a798ced92246",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sraw-00.log",
+        "sha256": "99430cf5efaa16b90697a41ac206ddf56368e2a508d5e4af481a05194e836060",
+        "size_bytes": 5966
       },
       "name": "I-sraw-00",
       "return_code": 0,
@@ -1059,7 +1059,7 @@
     {
       "case_id": "rv64i/I/I-srl-00",
       "commits": 5716,
-      "cycles": 52494,
+      "cycles": 52527,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-srl-00.elf",
@@ -1068,9 +1068,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-srl-00.log",
-        "sha256": "127a4b591e92e09e7782450cb585daf0b0254f5909ae5bff5555ca2eb7978c2a",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-srl-00.log",
+        "sha256": "77b5cc5c493c687cc530f2246d3e9dac98ea27db0b554a0a31e009fa0e44d2c5",
+        "size_bytes": 5965
       },
       "name": "I-srl-00",
       "return_code": 0,
@@ -1084,7 +1084,7 @@
     {
       "case_id": "rv64i/I/I-srli-00",
       "commits": 3612,
-      "cycles": 31323,
+      "cycles": 31356,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-srli-00.elf",
@@ -1093,9 +1093,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-srli-00.log",
-        "sha256": "47a13119131ff1344bbe0860cdff862330076932a3c9c7cfafa6d9065a3f8706",
-        "size_bytes": 5960
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-srli-00.log",
+        "sha256": "be21430803acf481b78ed8ecd36104c3c78c6b8e9f35dc915f36e1554684efb4",
+        "size_bytes": 5962
       },
       "name": "I-srli-00",
       "return_code": 0,
@@ -1109,7 +1109,7 @@
     {
       "case_id": "rv64i/I/I-srliw-00",
       "commits": 2940,
-      "cycles": 24647,
+      "cycles": 24680,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-srliw-00.elf",
@@ -1118,9 +1118,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-srliw-00.log",
-        "sha256": "f5aace84fd2fa2ae032e963dd66af3de3a01a7359625331dd90aea6fcc57bf47",
-        "size_bytes": 5957
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-srliw-00.log",
+        "sha256": "e767f66a62c230e1ee016a50b905fb8f94a631f5325a0001a73a078e688fee93",
+        "size_bytes": 5959
       },
       "name": "I-srliw-00",
       "return_code": 0,
@@ -1134,7 +1134,7 @@
     {
       "case_id": "rv64i/I/I-srlw-00",
       "commits": 5724,
-      "cycles": 52546,
+      "cycles": 52579,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-srlw-00.elf",
@@ -1143,9 +1143,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-srlw-00.log",
-        "sha256": "0c53f63815366ab8b5c58efc7ec833f08a087b226792a552c19e215c28defa3a",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-srlw-00.log",
+        "sha256": "b49c494332662e6389f0c80cd06f4eeaae6f9ac838f5f701fa3b32743324a9e1",
+        "size_bytes": 5966
       },
       "name": "I-srlw-00",
       "return_code": 0,
@@ -1159,7 +1159,7 @@
     {
       "case_id": "rv64i/I/I-sub-00",
       "commits": 5716,
-      "cycles": 52416,
+      "cycles": 52449,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sub-00.elf",
@@ -1168,9 +1168,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sub-00.log",
-        "sha256": "f3f9061e01055cb8715eb585bc23e34bec90693b68245251eea0a56deb382261",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sub-00.log",
+        "sha256": "353811a447c6dc9a7977800463abe1294e560eddf35337b5502d9ce4753f3897",
+        "size_bytes": 5965
       },
       "name": "I-sub-00",
       "return_code": 0,
@@ -1184,7 +1184,7 @@
     {
       "case_id": "rv64i/I/I-subw-00",
       "commits": 5724,
-      "cycles": 52481,
+      "cycles": 52514,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-subw-00.elf",
@@ -1193,9 +1193,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-subw-00.log",
-        "sha256": "a2d7d337f386c0f63fa609580cb956f2058838c96754edd82691a0629f77e7f7",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-subw-00.log",
+        "sha256": "510a85ea959dcc435cbf14fd68517d135220fa55296c2b634973e1d851cfa91d",
+        "size_bytes": 5966
       },
       "name": "I-subw-00",
       "return_code": 0,
@@ -1209,7 +1209,7 @@
     {
       "case_id": "rv64i/I/I-sw-00",
       "commits": 2691,
-      "cycles": 22686,
+      "cycles": 22719,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-sw-00.elf",
@@ -1218,9 +1218,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-sw-00.log",
-        "sha256": "6fa7c43d9e447a00643a116738967bc5c981e2a543a5ab31182085d8fd227fa1",
-        "size_bytes": 5953
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-sw-00.log",
+        "sha256": "3cd85c266892272ab006259baaa083ee480a01f5dbd740fba2a441b079f592d3",
+        "size_bytes": 5955
       },
       "name": "I-sw-00",
       "return_code": 0,
@@ -1234,7 +1234,7 @@
     {
       "case_id": "rv64i/I/I-xor-00",
       "commits": 5724,
-      "cycles": 52543,
+      "cycles": 52576,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-xor-00.elf",
@@ -1243,9 +1243,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-xor-00.log",
-        "sha256": "859057e9ee33a5efdd0254ba0a9093ab9af83dce853503dad596517209cee234",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-xor-00.log",
+        "sha256": "1f6622c62848e761adbb041d94f290518e3f20f06c5a4d5d5f72f089e7a54259",
+        "size_bytes": 5965
       },
       "name": "I-xor-00",
       "return_code": 0,
@@ -1259,7 +1259,7 @@
     {
       "case_id": "rv64i/I/I-xori-00",
       "commits": 4312,
-      "cycles": 38322,
+      "cycles": 38355,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/I/I-xori-00.elf",
@@ -1268,9 +1268,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__I__I-xori-00.log",
-        "sha256": "2d20fb7c9909a5de3bb172f633ea5190b5c9598dc3e3cf6b49b67eade02cebad",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__I__I-xori-00.log",
+        "sha256": "f65e7e78c2814816b6f132b71415dc1210b11d2b7f5696d5be1f927cff2031e6",
+        "size_bytes": 5964
       },
       "name": "I-xori-00",
       "return_code": 0,
@@ -1284,7 +1284,7 @@
     {
       "case_id": "rv64i/M/M-div-00",
       "commits": 5732,
-      "cycles": 52818,
+      "cycles": 52851,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-div-00.elf",
@@ -1293,9 +1293,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-div-00.log",
-        "sha256": "ff546967b1aeac2f0b82dc01849261e4531c25ee919693f276e8225223c1835e",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-div-00.log",
+        "sha256": "eed29e17dd9edc310c5fd6863c549e0145132290b6351855524f3de51abf078f",
+        "size_bytes": 5965
       },
       "name": "M-div-00",
       "return_code": 0,
@@ -1309,7 +1309,7 @@
     {
       "case_id": "rv64i/M/M-divu-00",
       "commits": 5724,
-      "cycles": 52826,
+      "cycles": 52859,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-divu-00.elf",
@@ -1318,9 +1318,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-divu-00.log",
-        "sha256": "cf6fb3476836d784090fea712ef166fc618119e94bb0cc232c187dbe8cb6ec74",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-divu-00.log",
+        "sha256": "7349482a593534137335c8a10260bc2b8f00782531f6ccc66f187de83d962be1",
+        "size_bytes": 5966
       },
       "name": "M-divu-00",
       "return_code": 0,
@@ -1334,7 +1334,7 @@
     {
       "case_id": "rv64i/M/M-divuw-00",
       "commits": 5716,
-      "cycles": 52583,
+      "cycles": 52616,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-divuw-00.elf",
@@ -1343,9 +1343,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-divuw-00.log",
-        "sha256": "3a62e2d5bd2365e6ea7b6b72342a9a6111db9db5bcaaabae118500b819145023",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-divuw-00.log",
+        "sha256": "f7fcc9f87140580220d75ebeb56b8c2c774445968aec8a8ca1fae9bc52d9f17e",
+        "size_bytes": 5967
       },
       "name": "M-divuw-00",
       "return_code": 0,
@@ -1359,7 +1359,7 @@
     {
       "case_id": "rv64i/M/M-divw-00",
       "commits": 5724,
-      "cycles": 52550,
+      "cycles": 52583,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-divw-00.elf",
@@ -1368,9 +1368,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-divw-00.log",
-        "sha256": "7fd6f20b0ec8ad701417a63b4c04ef0ea86615c4641616cefe7561259c887b08",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-divw-00.log",
+        "sha256": "92e6bc9a9141abb02331ea770ae7733d87f3ff7d8365bcce65ef330943aafd87",
+        "size_bytes": 5966
       },
       "name": "M-divw-00",
       "return_code": 0,
@@ -1384,7 +1384,7 @@
     {
       "case_id": "rv64i/M/M-mul-00",
       "commits": 5724,
-      "cycles": 52770,
+      "cycles": 52803,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-mul-00.elf",
@@ -1393,9 +1393,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-mul-00.log",
-        "sha256": "861477d16a43f54c3aa5d30485b746d7bb713b423cf95bb4a6ffdb7e94ddcdc0",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-mul-00.log",
+        "sha256": "3727f2659be992b9134bcd3d6dc68b95bfd6a65792d54e45f50aed294890ebba",
+        "size_bytes": 5965
       },
       "name": "M-mul-00",
       "return_code": 0,
@@ -1409,7 +1409,7 @@
     {
       "case_id": "rv64i/M/M-mulh-00",
       "commits": 5724,
-      "cycles": 52610,
+      "cycles": 52643,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-mulh-00.elf",
@@ -1418,9 +1418,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-mulh-00.log",
-        "sha256": "501452b436afb5b8cb04f901b550d1b44f81ed745ac61747758920008b8bd597",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-mulh-00.log",
+        "sha256": "9df57997289b40d876418478a58e1d394c64119a2821701d40522c6f74d556cc",
+        "size_bytes": 5966
       },
       "name": "M-mulh-00",
       "return_code": 0,
@@ -1434,7 +1434,7 @@
     {
       "case_id": "rv64i/M/M-mulhsu-00",
       "commits": 5732,
-      "cycles": 52806,
+      "cycles": 52839,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-mulhsu-00.elf",
@@ -1443,9 +1443,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-mulhsu-00.log",
-        "sha256": "1f55867be2fef514b5ccd05082d4ee5de4ecc29016af1f96fc1f4004c774998b",
-        "size_bytes": 5966
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-mulhsu-00.log",
+        "sha256": "105bf6d67657ec3f2e1bd5e074fd28a5c28a713b4b3f1c051cfefb6067bd67ce",
+        "size_bytes": 5968
       },
       "name": "M-mulhsu-00",
       "return_code": 0,
@@ -1459,7 +1459,7 @@
     {
       "case_id": "rv64i/M/M-mulhu-00",
       "commits": 5724,
-      "cycles": 52786,
+      "cycles": 52819,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-mulhu-00.elf",
@@ -1468,9 +1468,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-mulhu-00.log",
-        "sha256": "a8b13a40ef6ce949bb3828e0d72910126b8f568ae12e870e983944e1f7ddf835",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-mulhu-00.log",
+        "sha256": "66bccd16f3b46d9dd9f6469ce427b3312ac312a7899e1ff55ab2d2314b39c8de",
+        "size_bytes": 5967
       },
       "name": "M-mulhu-00",
       "return_code": 0,
@@ -1484,7 +1484,7 @@
     {
       "case_id": "rv64i/M/M-mulw-00",
       "commits": 5724,
-      "cycles": 52676,
+      "cycles": 52709,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-mulw-00.elf",
@@ -1493,9 +1493,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-mulw-00.log",
-        "sha256": "dea74584fb9891d8b6fd90c778f5d58f87a68d7410e003de78315d0f3f24df5a",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-mulw-00.log",
+        "sha256": "6403d924e3a147b1789b2531e3533ec9b2d835e9e8105f9d943989c6ad8711cb",
+        "size_bytes": 5966
       },
       "name": "M-mulw-00",
       "return_code": 0,
@@ -1509,7 +1509,7 @@
     {
       "case_id": "rv64i/M/M-rem-00",
       "commits": 5732,
-      "cycles": 52874,
+      "cycles": 52907,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-rem-00.elf",
@@ -1518,9 +1518,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-rem-00.log",
-        "sha256": "4ee5950b459252284aca82509eea20524e2fdeaafe2e63027eacbbf30e68a3b6",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-rem-00.log",
+        "sha256": "751318df4daf6510024d1ae9384adc6d327c33d4c11f5042848615e81748faf7",
+        "size_bytes": 5965
       },
       "name": "M-rem-00",
       "return_code": 0,
@@ -1534,7 +1534,7 @@
     {
       "case_id": "rv64i/M/M-remu-00",
       "commits": 5724,
-      "cycles": 52795,
+      "cycles": 52828,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-remu-00.elf",
@@ -1543,9 +1543,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-remu-00.log",
-        "sha256": "18901171e2b301f925f7544e565abaae35be7b85fb831a3b153c7d06d37b29ad",
-        "size_bytes": 5964
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-remu-00.log",
+        "sha256": "a21492f82a734ec3676458dbe1f1d6d383bb78cf5f6d91bd3836c76022517179",
+        "size_bytes": 5966
       },
       "name": "M-remu-00",
       "return_code": 0,
@@ -1559,7 +1559,7 @@
     {
       "case_id": "rv64i/M/M-remuw-00",
       "commits": 5724,
-      "cycles": 52584,
+      "cycles": 52617,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-remuw-00.elf",
@@ -1568,9 +1568,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-remuw-00.log",
-        "sha256": "c1ce11a4064d0727e6c6311ede4eefa3446db38043caddcbf0279fd657034cd9",
-        "size_bytes": 5966
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-remuw-00.log",
+        "sha256": "d8d447ca978cb19e76aa5aaa6c06122d5cd04b6efaedd84583af768657ea37c5",
+        "size_bytes": 5967
       },
       "name": "M-remuw-00",
       "return_code": 0,
@@ -1584,7 +1584,7 @@
     {
       "case_id": "rv64i/M/M-remw-00",
       "commits": 5732,
-      "cycles": 52742,
+      "cycles": 52775,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/rv64i/M/M-remw-00.elf",
@@ -1593,9 +1593,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/rv64i__M__M-remw-00.log",
-        "sha256": "23723cf10c79691c4085da7f252ffcb5f91840dab94792bf3d71e9992e008e41",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/rv64i__M__M-remw-00.log",
+        "sha256": "2b2816e887dd0a1b07e52aacee6d98db31c48d04c943621b2cbe75fce0fb2109",
+        "size_bytes": 5966
       },
       "name": "M-remw-00",
       "return_code": 0,
@@ -1609,7 +1609,7 @@
     {
       "case_id": "priv/Sv/sv39_VA_all_ones_Smode",
       "commits": 2008,
-      "cycles": 15730,
+      "cycles": 15776,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_VA_all_ones_Smode.elf",
@@ -1618,9 +1618,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_VA_all_ones_Smode.log",
-        "sha256": "6eab4eb6b51482f63e956250474f5033808b397e043dc216e9e59fec1074315e",
-        "size_bytes": 5962
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_VA_all_ones_Smode.log",
+        "sha256": "d68a93749c8ec13ac28d566fc18c2cc55c479b7c5054477b418d20a662cb0702",
+        "size_bytes": 5964
       },
       "name": "sv39_VA_all_ones_Smode",
       "return_code": 0,
@@ -1634,7 +1634,7 @@
     {
       "case_id": "priv/Sv/sv39_VA_all_zeros_Smode",
       "commits": 2002,
-      "cycles": 15683,
+      "cycles": 15729,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_VA_all_zeros_Smode.elf",
@@ -1643,9 +1643,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_VA_all_zeros_Smode.log",
-        "sha256": "a62cc96d601eb87aaa7cc14caca269bdb81524ff7f4c785958bb6342595d861a",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_VA_all_zeros_Smode.log",
+        "sha256": "7e872094d1367716809f79c846e57c7a96e67b2e01260621dcac4e754ce58558",
+        "size_bytes": 5965
       },
       "name": "sv39_VA_all_zeros_Smode",
       "return_code": 0,
@@ -1659,7 +1659,7 @@
     {
       "case_id": "priv/Sv/sv39_canonical_Smode",
       "commits": 3198,
-      "cycles": 24670,
+      "cycles": 24741,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_canonical_Smode.elf",
@@ -1668,9 +1668,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_canonical_Smode.log",
-        "sha256": "24ed8bb7b096f4396048ecc248b7c2409727c74785d473448f223cd8bf030fdc",
-        "size_bytes": 5966
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_canonical_Smode.log",
+        "sha256": "bfc1bf51818c1d3234ca509e9124c392f30504663edcee7c434150b6eac71930",
+        "size_bytes": 5968
       },
       "name": "sv39_canonical_Smode",
       "return_code": 0,
@@ -1684,7 +1684,7 @@
     {
       "case_id": "priv/Sv/sv39_canonical_Umode",
       "commits": 3182,
-      "cycles": 24376,
+      "cycles": 24449,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_canonical_Umode.elf",
@@ -1693,9 +1693,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_canonical_Umode.log",
-        "sha256": "3fdba796b4d3e9945670cb8df2acc0c890d9b1edc859359ba10816de283f078d",
-        "size_bytes": 5966
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_canonical_Umode.log",
+        "sha256": "673eef5a7ade9259bde8be40f6d0474195124cda6aee7593f01745679332d6f9",
+        "size_bytes": 5968
       },
       "name": "sv39_canonical_Umode",
       "return_code": 0,
@@ -1709,7 +1709,7 @@
     {
       "case_id": "priv/Sv/sv39_global_pte_Smode",
       "commits": 2514,
-      "cycles": 22607,
+      "cycles": 22672,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_global_pte_Smode.elf",
@@ -1718,9 +1718,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_global_pte_Smode.log",
-        "sha256": "28c0ad6dfd6e5198d6183f390c2a8bfff3f333434ae2597e8c7689321091c8c1",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_global_pte_Smode.log",
+        "sha256": "0c656500f9b00cebb70cf21085dcde1d265718b5ab264b7d8d0e28dda8c3c68b",
+        "size_bytes": 5967
       },
       "name": "sv39_global_pte_Smode",
       "return_code": 0,
@@ -1734,7 +1734,7 @@
     {
       "case_id": "priv/Sv/sv39_global_pte_Umode",
       "commits": 2474,
-      "cycles": 21604,
+      "cycles": 21671,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_global_pte_Umode.elf",
@@ -1743,9 +1743,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_global_pte_Umode.log",
-        "sha256": "e12321aacee21201e98583507de14707e29c25d3b47ce16a2c3e4c5188c66c11",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_global_pte_Umode.log",
+        "sha256": "3172967a4a29d69a546b8ddef0c10dc365a5a7d0755f43b7043643eb160870a3",
+        "size_bytes": 5967
       },
       "name": "sv39_global_pte_Umode",
       "return_code": 0,
@@ -1759,7 +1759,7 @@
     {
       "case_id": "priv/Sv/sv39_invalid_pte_Smode",
       "commits": 3174,
-      "cycles": 24510,
+      "cycles": 24581,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_invalid_pte_Smode.elf",
@@ -1768,9 +1768,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_invalid_pte_Smode.log",
-        "sha256": "b945b42819a4038f8d435c02de45901907059a3edb66b24a0eaa3104a5c2aacf",
-        "size_bytes": 5968
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_invalid_pte_Smode.log",
+        "sha256": "da26ad23b7445ddc2cc65e00d48c7fb6236f532c05c4bbecc290e384c8ab2349",
+        "size_bytes": 5970
       },
       "name": "sv39_invalid_pte_Smode",
       "return_code": 0,
@@ -1784,7 +1784,7 @@
     {
       "case_id": "priv/Sv/sv39_invalid_pte_Umode",
       "commits": 3158,
-      "cycles": 24176,
+      "cycles": 24249,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_invalid_pte_Umode.elf",
@@ -1793,9 +1793,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_invalid_pte_Umode.log",
-        "sha256": "bf96fc18e4634b0ce6054fdc02574edaed570eb2ca41afeca83b9a5f2fea9416",
-        "size_bytes": 5968
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_invalid_pte_Umode.log",
+        "sha256": "0dad581c814491a41bf9958f7533dbc8bb8f5b714f4315900461a81eb76e17b4",
+        "size_bytes": 5970
       },
       "name": "sv39_invalid_pte_Umode",
       "return_code": 0,
@@ -1809,7 +1809,7 @@
     {
       "case_id": "priv/Sv/sv39_misaligned_page_Smode",
       "commits": 2600,
-      "cycles": 19668,
+      "cycles": 19729,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_misaligned_page_Smode.elf",
@@ -1818,9 +1818,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_misaligned_page_Smode.log",
-        "sha256": "a0c0d185a2b84e7a1e871405c68902c72ef708e880ef65b32c2cf0ab663f8af7",
-        "size_bytes": 5971
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_misaligned_page_Smode.log",
+        "sha256": "bf515c1c0a0a6b2e558ad7af936bed9909c605a503f4a0709b2de81f138afc1a",
+        "size_bytes": 5973
       },
       "name": "sv39_misaligned_page_Smode",
       "return_code": 0,
@@ -1834,7 +1834,7 @@
     {
       "case_id": "priv/Sv/sv39_misaligned_page_Umode",
       "commits": 2600,
-      "cycles": 19735,
+      "cycles": 19795,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_misaligned_page_Umode.elf",
@@ -1843,9 +1843,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_misaligned_page_Umode.log",
-        "sha256": "5fa154fd1bfcbd29f7fce3fd0fc611df9d6b5740b19ccca2ebfeaabc687b1aeb",
-        "size_bytes": 5971
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_misaligned_page_Umode.log",
+        "sha256": "1e2360250c0462deb95ac85da24453a12f0fbd223bcfc768ecc71907a5055a42",
+        "size_bytes": 5973
       },
       "name": "sv39_misaligned_page_Umode",
       "return_code": 0,
@@ -1859,7 +1859,7 @@
     {
       "case_id": "priv/Sv/sv39_mstatus_mprv_Smode",
       "commits": 2040,
-      "cycles": 15954,
+      "cycles": 15997,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_mstatus_mprv_Smode.elf",
@@ -1868,9 +1868,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mprv_Smode.log",
-        "sha256": "04dc99a55a925c37f937b67f613efbd2acf37421c2060b2d1ab24a7055381085",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mprv_Smode.log",
+        "sha256": "f4768a525e9b485d97cef07ec935069c66194d5206af7135f037e41c20650be1",
+        "size_bytes": 5965
       },
       "name": "sv39_mstatus_mprv_Smode",
       "return_code": 0,
@@ -1884,7 +1884,7 @@
     {
       "case_id": "priv/Sv/sv39_mstatus_mprv_Umode",
       "commits": 2040,
-      "cycles": 15921,
+      "cycles": 15964,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_mstatus_mprv_Umode.elf",
@@ -1893,9 +1893,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mprv_Umode.log",
-        "sha256": "1b246f699cb062fcc0e5e4fdab5bf75c76905e83cb0cb937c3cf79c112bb423e",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mprv_Umode.log",
+        "sha256": "5c48d3653dc387b58892b94c69ab9b2a49f4d77a7f22ce9c4f356b18c4ac4796",
+        "size_bytes": 5965
       },
       "name": "sv39_mstatus_mprv_Umode",
       "return_code": 0,
@@ -1909,7 +1909,7 @@
     {
       "case_id": "priv/Sv/sv39_mstatus_mxr_Smode",
       "commits": 3738,
-      "cycles": 34022,
+      "cycles": 34102,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_mstatus_mxr_Smode.elf",
@@ -1918,9 +1918,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mxr_Smode.log",
-        "sha256": "ee092a088f1943faf42e9f0c92b0af47421d90700e8268299cd280efb76a6a69",
-        "size_bytes": 5977
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mxr_Smode.log",
+        "sha256": "a834a5c484b4714c7a681c6badbb4533644019ef22ef6e62f8ed6be21cbfa172",
+        "size_bytes": 5979
       },
       "name": "sv39_mstatus_mxr_Smode",
       "return_code": 0,
@@ -1934,7 +1934,7 @@
     {
       "case_id": "priv/Sv/sv39_mstatus_mxr_Umode",
       "commits": 3698,
-      "cycles": 33488,
+      "cycles": 33573,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_mstatus_mxr_Umode.elf",
@@ -1943,9 +1943,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mxr_Umode.log",
-        "sha256": "d40d14e3d737152ddeea273597368da8ebc52100f9d872a3bacffdf3b147ebfb",
-        "size_bytes": 5977
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_mstatus_mxr_Umode.log",
+        "sha256": "09ddb4cfc1b30f2b27b3dc1b703aea1803430ae217a12a115777abedb0f2ebd5",
+        "size_bytes": 5979
       },
       "name": "sv39_mstatus_mxr_Umode",
       "return_code": 0,
@@ -1959,7 +1959,7 @@
     {
       "case_id": "priv/Sv/sv39_nleaf_pte_DAU_Smode",
       "commits": 4896,
-      "cycles": 38717,
+      "cycles": 38821,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_nleaf_pte_DAU_Smode.elf",
@@ -1968,9 +1968,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_DAU_Smode.log",
-        "sha256": "bf911d8bdb15b5562e7d3eaf8857edce52857aadb381522d9360550ee75752a8",
-        "size_bytes": 5983
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_DAU_Smode.log",
+        "sha256": "7367eeaf85d41607b16856e61148329bf256a5fb678fb784228b3434b684b130",
+        "size_bytes": 5987
       },
       "name": "sv39_nleaf_pte_DAU_Smode",
       "return_code": 0,
@@ -1984,7 +1984,7 @@
     {
       "case_id": "priv/Sv/sv39_nleaf_pte_DAU_Umode",
       "commits": 4856,
-      "cycles": 37945,
+      "cycles": 38054,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_nleaf_pte_DAU_Umode.elf",
@@ -1993,9 +1993,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_DAU_Umode.log",
-        "sha256": "36efa480206f3ef7ed421ed37834f23d1376c39789a97a8d6ed000314cec9fde",
-        "size_bytes": 5982
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_DAU_Umode.log",
+        "sha256": "223e7c774751bcfda0348e2976469a45a7dc5c9c2155584123365129274a657b",
+        "size_bytes": 5986
       },
       "name": "sv39_nleaf_pte_DAU_Umode",
       "return_code": 0,
@@ -2009,7 +2009,7 @@
     {
       "case_id": "priv/Sv/sv39_nleaf_pte_level0_Smode",
       "commits": 2170,
-      "cycles": 16208,
+      "cycles": 16257,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_nleaf_pte_level0_Smode.elf",
@@ -2018,9 +2018,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_level0_Smode.log",
-        "sha256": "4bac074d94fbc5e4da4bbc29785a2489785baac4dba498835fe444870039c2a9",
-        "size_bytes": 5971
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_level0_Smode.log",
+        "sha256": "c24b3081f51da0534ea6fe137a40f1e5d82ddd45bc80afe6b9ba77dcf7f88f87",
+        "size_bytes": 5973
       },
       "name": "sv39_nleaf_pte_level0_Smode",
       "return_code": 0,
@@ -2034,7 +2034,7 @@
     {
       "case_id": "priv/Sv/sv39_nleaf_pte_level0_Umode",
       "commits": 2170,
-      "cycles": 16185,
+      "cycles": 16234,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_nleaf_pte_level0_Umode.elf",
@@ -2043,9 +2043,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_level0_Umode.log",
-        "sha256": "707b9503fdcacfd1e478947ea1f3d879fda5e17ce97095267c391037529375b3",
-        "size_bytes": 5971
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_nleaf_pte_level0_Umode.log",
+        "sha256": "205dd4f8436f3178e36072542a331b1bff26933dca11a9505910018cc8d99da0",
+        "size_bytes": 5973
       },
       "name": "sv39_nleaf_pte_level0_Umode",
       "return_code": 0,
@@ -2059,7 +2059,7 @@
     {
       "case_id": "priv/Sv/sv39_pte_reserved_field_Smode",
       "commits": 4372,
-      "cycles": 35191,
+      "cycles": 35292,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_pte_reserved_field_Smode.elf",
@@ -2068,9 +2068,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_field_Smode.log",
-        "sha256": "294708a0011ed9496b61c3cda186e83500fba4ee798ad8672335d31bdb02a6c8",
-        "size_bytes": 5984
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_field_Smode.log",
+        "sha256": "77f77bbe091ac737fc397150cc6773985e3beec0968e44e82b12b7afe2f5bb27",
+        "size_bytes": 5988
       },
       "name": "sv39_pte_reserved_field_Smode",
       "return_code": 0,
@@ -2084,7 +2084,7 @@
     {
       "case_id": "priv/Sv/sv39_pte_reserved_rwx_Smode",
       "commits": 4704,
-      "cycles": 37009,
+      "cycles": 37113,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_pte_reserved_rwx_Smode.elf",
@@ -2093,9 +2093,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_rwx_Smode.log",
-        "sha256": "63e3881fb4c90d7709fe5faeceae32d1267eb9a14920a174b145ebc44049864f",
-        "size_bytes": 5984
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_rwx_Smode.log",
+        "sha256": "4dc5d4dd52b37ff5fc02f17e395a8785a95deb99cf1d2fae2fd955fbb79910d0",
+        "size_bytes": 5988
       },
       "name": "sv39_pte_reserved_rwx_Smode",
       "return_code": 0,
@@ -2109,7 +2109,7 @@
     {
       "case_id": "priv/Sv/sv39_pte_reserved_rwx_Umode",
       "commits": 4664,
-      "cycles": 36246,
+      "cycles": 36355,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_pte_reserved_rwx_Umode.elf",
@@ -2118,9 +2118,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_rwx_Umode.log",
-        "sha256": "2138cc90969842512bc40ee2fabdf5e7b7668a5edb5ca11a0dc415903bcff775",
-        "size_bytes": 5984
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_reserved_rwx_Umode.log",
+        "sha256": "022ee60c1c51e4c79dbe515fa690def87f30a1f6dc4a9dd13740ca8b684faa9b",
+        "size_bytes": 5988
       },
       "name": "sv39_pte_reserved_rwx_Umode",
       "return_code": 0,
@@ -2134,7 +2134,7 @@
     {
       "case_id": "priv/Sv/sv39_pte_rsw_Smode",
       "commits": 3372,
-      "cycles": 31213,
+      "cycles": 31295,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_pte_rsw_Smode.elf",
@@ -2143,9 +2143,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_rsw_Smode.log",
-        "sha256": "7f894839f94ce71eef176d9d220fe88e5db09b34f5e6d72fc7f4bd82c84ea20c",
-        "size_bytes": 5970
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_rsw_Smode.log",
+        "sha256": "698318d4d044ea93482e5b7dcd1e01eaaa99975bdc6a56c696d2e5fa65ed3a2b",
+        "size_bytes": 5972
       },
       "name": "sv39_pte_rsw_Smode",
       "return_code": 0,
@@ -2159,7 +2159,7 @@
     {
       "case_id": "priv/Sv/sv39_pte_rsw_Umode",
       "commits": 3300,
-      "cycles": 30342,
+      "cycles": 30424,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_pte_rsw_Umode.elf",
@@ -2168,9 +2168,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_rsw_Umode.log",
-        "sha256": "cd20dcc4943723a3444732b92b7ec3758456569cad50d8b839d35576cb2b4378",
-        "size_bytes": 5970
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_pte_rsw_Umode.log",
+        "sha256": "dc18cb2d7bd0f1368861a64b6bd70aa1cc3dccce24770d735f5d336eb3fd0457",
+        "size_bytes": 5972
       },
       "name": "sv39_pte_rsw_Umode",
       "return_code": 0,
@@ -2184,7 +2184,7 @@
     {
       "case_id": "priv/Sv/sv39_satp_access_test",
       "commits": 2727,
-      "cycles": 23869,
+      "cycles": 23919,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_satp_access_test.elf",
@@ -2193,9 +2193,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_satp_access_test.log",
-        "sha256": "32b583be5097a1d264803b7c70049f5a3d232f857891171858484c26525bf7b7",
-        "size_bytes": 5966
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_satp_access_test.log",
+        "sha256": "d349d5f7d717890503969c045fcb73f83c1802839f7447ea396a3b88be8be6a5",
+        "size_bytes": 5968
       },
       "name": "sv39_satp_access_test",
       "return_code": 0,
@@ -2209,7 +2209,7 @@
     {
       "case_id": "priv/Sv/sv39_spage_access_Umode",
       "commits": 3158,
-      "cycles": 24176,
+      "cycles": 24249,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_spage_access_Umode.elf",
@@ -2218,9 +2218,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_spage_access_Umode.log",
-        "sha256": "e83dfac6cd022d84571661f41e1d46e2b355724bf98edc060ad29272ab0539cd",
-        "size_bytes": 5969
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_spage_access_Umode.log",
+        "sha256": "4c30225e9f85a42b9ba18d2446daf13ef433f334688ec216504e714a39aa69d7",
+        "size_bytes": 5971
       },
       "name": "sv39_spage_access_Umode",
       "return_code": 0,
@@ -2234,7 +2234,7 @@
     {
       "case_id": "priv/Sv/sv39_spage_mstatus_sum_set_Smode",
       "commits": 4620,
-      "cycles": 41508,
+      "cycles": 41609,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_spage_mstatus_sum_set_Smode.elf",
@@ -2243,9 +2243,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_spage_mstatus_sum_set_Smode.log",
-        "sha256": "ba0367310e285f79ed2280b2fe9ad824176967b17df1280572bdac3324ec4e0f",
-        "size_bytes": 5987
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_spage_mstatus_sum_set_Smode.log",
+        "sha256": "548a006f41d07e136558049b57fcf1c3ec899cab0f4b8ea873fc264ce71d3d29",
+        "size_bytes": 5989
       },
       "name": "sv39_spage_mstatus_sum_set_Smode",
       "return_code": 0,
@@ -2259,7 +2259,7 @@
     {
       "case_id": "priv/Sv/sv39_svpbmt_disabled_Smode",
       "commits": 3110,
-      "cycles": 24165,
+      "cycles": 24235,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_svpbmt_disabled_Smode.elf",
@@ -2268,9 +2268,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_svpbmt_disabled_Smode.log",
-        "sha256": "63d97ff6d9e86acdc0cf434b68ec6f31bf510ab9f4fc3b189828b7f4cde1f97c",
-        "size_bytes": 5972
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_svpbmt_disabled_Smode.log",
+        "sha256": "7198d0f0a09f40a89c19d9125f4001bcc502a2408472d4c10ab45d27383eb982",
+        "size_bytes": 5974
       },
       "name": "sv39_svpbmt_disabled_Smode",
       "return_code": 0,
@@ -2284,7 +2284,7 @@
     {
       "case_id": "priv/Sv/sv39_upage_mprv_set_sum_set_Smode",
       "commits": 2064,
-      "cycles": 16165,
+      "cycles": 16208,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_upage_mprv_set_sum_set_Smode.elf",
@@ -2293,9 +2293,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mprv_set_sum_set_Smode.log",
-        "sha256": "948cef6be96539381662a47fded57649445f94bcc20d790a1e336ac7c9d41426",
-        "size_bytes": 5904
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mprv_set_sum_set_Smode.log",
+        "sha256": "006a10f3d49a7298d88008424c2bf020a06125ca0cc3b5d72c263db3841bd6a6",
+        "size_bytes": 5906
       },
       "name": "sv39_upage_mprv_set_sum_set_Smode",
       "return_code": 0,
@@ -2309,7 +2309,7 @@
     {
       "case_id": "priv/Sv/sv39_upage_mprv_set_sum_unset_Smode",
       "commits": 2898,
-      "cycles": 22875,
+      "cycles": 22930,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_upage_mprv_set_sum_unset_Smode.elf",
@@ -2318,9 +2318,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mprv_set_sum_unset_Smode.log",
-        "sha256": "09580c12b466e3a4edce92fdce62e3deed8b579abedf83a12e943e6108b0cf7f",
-        "size_bytes": 5980
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mprv_set_sum_unset_Smode.log",
+        "sha256": "1368686b193afe3212ddafd0c1e41b32bac8e02e3fb461367f4fd2822a482e4f",
+        "size_bytes": 5982
       },
       "name": "sv39_upage_mprv_set_sum_unset_Smode",
       "return_code": 0,
@@ -2334,7 +2334,7 @@
     {
       "case_id": "priv/Sv/sv39_upage_mstatus_sum_set_Smode",
       "commits": 7398,
-      "cycles": 69084,
+      "cycles": 69251,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_upage_mstatus_sum_set_Smode.elf",
@@ -2343,9 +2343,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mstatus_sum_set_Smode.log",
-        "sha256": "1fa39b37fe76b01ae05db34396507d40a5d89461e3acdf56176739c70cc588eb",
-        "size_bytes": 6000
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mstatus_sum_set_Smode.log",
+        "sha256": "899411f737213ec2c527b8d364d645d0c886e3fa44b7923b30d2599d5ba35581",
+        "size_bytes": 6004
       },
       "name": "sv39_upage_mstatus_sum_set_Smode",
       "return_code": 0,
@@ -2359,7 +2359,7 @@
     {
       "case_id": "priv/Sv/sv39_upage_mstatus_sum_unset_Smode",
       "commits": 9294,
-      "cycles": 74203,
+      "cycles": 74406,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv39_upage_mstatus_sum_unset_Smode.elf",
@@ -2368,9 +2368,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mstatus_sum_unset_Smode.log",
-        "sha256": "bfa4a64c57461eab2f17164e58e282e361db5ed4c38bc186279d7003f962e538",
-        "size_bytes": 6011
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv39_upage_mstatus_sum_unset_Smode.log",
+        "sha256": "2a4d0ea1e7c1e36f8fe00201f71e2ab7b27993ffdbd0b3b21c3df1c431436197",
+        "size_bytes": 6013
       },
       "name": "sv39_upage_mstatus_sum_unset_Smode",
       "return_code": 0,
@@ -2384,7 +2384,7 @@
     {
       "case_id": "priv/Sv/sv_mstatus_tvm_test",
       "commits": 2245,
-      "cycles": 15026,
+      "cycles": 15076,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Sv/sv_mstatus_tvm_test.elf",
@@ -2393,9 +2393,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Sv__sv_mstatus_tvm_test.log",
-        "sha256": "1fded85c32fda7eb9a4f4fe7618e3c9be442a5aa10cf247126b016e3ce2e04bb",
-        "size_bytes": 5963
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Sv__sv_mstatus_tvm_test.log",
+        "sha256": "3261f470cbc8161081ae157000987eb60de078abbea8d242f8caa56ae6152722",
+        "size_bytes": 5965
       },
       "name": "sv_mstatus_tvm_test",
       "return_code": 0,
@@ -2409,7 +2409,7 @@
     {
       "case_id": "priv/Svnapot/sv39_Svnapot_Smode",
       "commits": 2635,
-      "cycles": 21002,
+      "cycles": 21050,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Svnapot/sv39_Svnapot_Smode.elf",
@@ -2418,9 +2418,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_Smode.log",
-        "sha256": "4aaec2fda401951b7f6cef638f4cbd91fe94727e34bc121667c3761d54f25362",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_Smode.log",
+        "sha256": "074bfb73a49702e5dd637e945167e8945e7e42e02dbebdc4d56800af892ddebc",
+        "size_bytes": 5967
       },
       "name": "sv39_Svnapot_Smode",
       "return_code": 0,
@@ -2434,7 +2434,7 @@
     {
       "case_id": "priv/Svnapot/sv39_Svnapot_Umode",
       "commits": 2627,
-      "cycles": 20859,
+      "cycles": 20907,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Svnapot/sv39_Svnapot_Umode.elf",
@@ -2443,9 +2443,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_Umode.log",
-        "sha256": "336651b2df04c77e559a4eb47ba4ba39ec0ac8fa708f9779c41ed38ee65df400",
-        "size_bytes": 5965
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_Umode.log",
+        "sha256": "b6b15b45a93c87b717ade83acf818786bb3bc5ecb8fb5f746dbaee74a9c4e1a5",
+        "size_bytes": 5967
       },
       "name": "sv39_Svnapot_Umode",
       "return_code": 0,
@@ -2459,7 +2459,7 @@
     {
       "case_id": "priv/Svnapot/sv39_Svnapot_reserved_enc_Smode",
       "commits": 4888,
-      "cycles": 38703,
+      "cycles": 38807,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Svnapot/sv39_Svnapot_reserved_enc_Smode.elf",
@@ -2468,9 +2468,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_reserved_enc_Smode.log",
-        "sha256": "ed439f36529b8b9184e961741371cc8903f25e93026ff4ec863cb90fbee1319b",
-        "size_bytes": 5994
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_reserved_enc_Smode.log",
+        "sha256": "eb1c52bba8f41ea1c55d214759d6734c2625e71722b868f8d926fd72c63cf1d6",
+        "size_bytes": 5998
       },
       "name": "sv39_Svnapot_reserved_enc_Smode",
       "return_code": 0,
@@ -2484,7 +2484,7 @@
     {
       "case_id": "priv/Svnapot/sv39_Svnapot_reserved_enc_Umode",
       "commits": 4848,
-      "cycles": 37913,
+      "cycles": 38022,
       "elf": {
         "kind": "act4_self_checking_elf",
         "path": "am-kernels/arch-test/work/npc-rv64-ooo-current/elfs/priv/Svnapot/sv39_Svnapot_reserved_enc_Umode.elf",
@@ -2493,9 +2493,9 @@
       },
       "log": {
         "kind": "act4_case_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_reserved_enc_Umode.log",
-        "sha256": "a08339ddf9c3f582c49ff15a175701c2cd425b20696710f97577302747bb37fd",
-        "size_bytes": 5994
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/act4-log/priv__Svnapot__sv39_Svnapot_reserved_enc_Umode.log",
+        "sha256": "11db19fc9a6ead765839bb02d6cc98894d786afd497e786290a840b78b47fced",
+        "size_bytes": 5998
       },
       "name": "sv39_Svnapot_reserved_enc_Umode",
       "return_code": 0,
@@ -2510,13 +2510,13 @@
   "checker": {
     "kind": "act4_current_checker",
     "path": "npc/rv64/eval/ppa/tools/act4_current.py",
-    "sha256": "d66f6abdc779f889b3d68292db0f3974dd59e4a2c0ebabff840a5ff53019ed92",
-    "size_bytes": 32655
+    "sha256": "debdd9197792f402db5291e6921daba49c4c56cff441f246917f5365d3389b52",
+    "size_bytes": 34422
   },
   "claim": "ACT4_ARCH_TEST_PASS_CURRENT_IDENTITY",
   "cleanup": {
     "kind": "act4_runtime_cleanup",
-    "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/runtime-cleanup.json",
+    "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/runtime-cleanup.json",
     "sha256": "8dec5722abea855812b493b4d3fbfa543348389dcf23723d9b54f3eeb74ec529",
     "size_bytes": 163
   },
@@ -2531,25 +2531,25 @@
     "terminal_fail_markers": 0,
     "terminal_pass_markers": 100
   },
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "execution_manifest": {
     "kind": "act4_execution_manifest",
-    "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/elf-manifest.txt",
+    "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/elf-manifest.txt",
     "sha256": "4fd288aab27f9c25a3430b3e59414c4409b6a71926217eff7c97ec3beda8c6a6",
     "size_bytes": 10755
   },
   "inputs": {
     "after": {
       "kind": "act4_input_binding_after",
-      "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/inputs.after.json",
-      "sha256": "26e7f54ef3e83c3c902a172a8ff5caaef6d9731d1de2cf7a5dbaf55824109eea",
-      "size_bytes": 62339
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/inputs.after.json",
+      "sha256": "ae3dba19cc36bd9825d203a81f58eee2903df35b22c4cd10633e136042690d28",
+      "size_bytes": 62437
     },
     "before": {
       "kind": "act4_input_binding_before",
-      "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/inputs.before.json",
-      "sha256": "26e7f54ef3e83c3c902a172a8ff5caaef6d9731d1de2cf7a5dbaf55824109eea",
-      "size_bytes": 62339
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/inputs.before.json",
+      "sha256": "ae3dba19cc36bd9825d203a81f58eee2903df35b22c4cd10633e136042690d28",
+      "size_bytes": 62437
     },
     "unchanged": true
   },
@@ -2566,7 +2566,7 @@
     "sha256": "a823f46719c24719e87099c938b4c1e2f939dcfc9551077a2d85fc7062aa3504",
     "size_bytes": 2957
   },
-  "production_rtl_file_count": 146,
+  "production_rtl_file_count": 147,
   "rtl_assertions": {
     "enabled": true,
     "failures": 0
@@ -2574,27 +2574,27 @@
   "runner": {
     "kind": "act4_current_runner",
     "path": "npc/rv64/eval/ppa/run-act4-current.sh",
-    "sha256": "a81f4ff686470f3e49ee53346029bb6e0b74d2d0970eaa543c3bd8d6d69efe6f",
-    "size_bytes": 8661
+    "sha256": "a91d423d5dc31df320141e19f6a6d57b72bbf0ff8db2efc55116151a684daf6b",
+    "size_bytes": 8820
   },
   "runner_status": {
     "kind": "act4_backend_status",
-    "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/overall.status",
+    "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/overall.status",
     "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
     "size_bytes": 5
   },
   "runner_summary": {
     "kind": "act4_backend_summary",
-    "path": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw/summary.txt",
-    "sha256": "df11a0ffc64fde132ec7ac38fb8c3c322fbd176113cbab0b42462b7c4d85fea4",
-    "size_bytes": 8019
+    "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw/summary.txt",
+    "sha256": "90f6bb18b7df17f2d134b8741f9667ed3665a9314a480f749938e13db9979eb4",
+    "size_bytes": 8025
   },
   "schema": "npc-rv64-act4-current-v1",
   "schema_contract": {
     "kind": "act4_current_schema",
     "path": "npc/rv64/eval/ppa/schemas/act4-current-v1.schema.json",
-    "sha256": "296d5268deb0a221326464258d8884e36fa389c2181cb99040099c18d23bd362",
-    "size_bytes": 5506
+    "sha256": "27634959fd8cfb3940e9b8dc1df9d7724a2259d4988fe0167642864346f2fdce",
+    "size_bytes": 5525
   },
   "selection": {
     "excluded": [
@@ -2617,26 +2617,26 @@
   "simulator": {
     "binary": {
       "kind": "simulator_binary",
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/NpcSimTop",
-      "sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
-      "size_bytes": 3246944
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1/evidence/functional/frozen/NpcSimTop",
+      "sha256": "c5248d6ea21eeb75c184fa4e491326a9e89368c765fbc61b30695208ebf82965",
+      "size_bytes": 3242752
     },
     "l1_build_log": {
       "kind": "l1_simulator_build_log",
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/raw/build.log",
-      "sha256": "5d3dddfe42d890e3fd332bb093ddc7454cc49dda833ab2db3605c2b30f80f3a9",
-      "size_bytes": 67098
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1/evidence/functional/raw/build.log",
+      "sha256": "29c812d3ed3ba1b4f0ec48c0950a9ec7cd8889d0af51dfef91580ba2b8569c36",
+      "size_bytes": 66682
     },
     "l1_result": {
       "kind": "full_core_functional_current_result",
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/run-result.json",
-      "sha256": "f038be6db2711c13df264e5353c87b163db9520360deb69694f7eb55fc29a4db",
-      "size_bytes": 3561
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1/evidence/functional/run-result.json",
+      "sha256": "75068fe7f5e9e42ea872a81a7446a8fb5b217b9da06a47713a45f126cb1599e1",
+      "size_bytes": 3489
     },
     "ooo_assert_define": true,
     "reused": true
   },
-  "source_directory": ".github/task-runs/2026-08-08-rv64-v15z-act4-current-f72e-a3/evidence/act4/raw",
+  "source_directory": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2/evidence/act4/raw",
   "status": "PASS",
   "suites": [
     {

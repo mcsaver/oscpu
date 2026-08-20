@@ -1,0 +1,105 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-production-fix-audit-closure-v9",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "本地 RV64 OooFpAddSubPipe 5.0ns OOC v8的真实2-bit production collector、A6 underscore parser、Registry门禁已PASS；唯一FAIL是evidence脚本用selected_startpoint模糊首匹配命中初始化。仅做一次依赖裁剪closure：绑定v8原始FAIL/PASS哈希与当前生产输入，按完整候选赋值语句验证path_startpoint/path_endpoint在有效PathEnd作用域内生成，selected_startpoint/selected_endpoint只接普通值，且无selected_path；保留parser四style与连续索引检查。不改生产文件，不重跑任何功能/Registry/OpenSTA/EDA门禁。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-pathend-parser-fix-v8.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_pathend_multibit_harness.v",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v9",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-child-production-fix-audit-closure-v9.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v9"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8/affected-unittest.log",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增独立v9 closure runner且不修改v8 evidence或生产文件；逐项验证v8 gate-status、3-test/OpenSTA/A6 parser/Registry/diff-check收据固定SHA与当前输入/A6 before-after身份。",
+    "在collect_arc_family方法边界内精确检查set path_startpoint [dict get  startpoint]、set path_endpoint [dict get  endpoint]先于set selected_startpoint  selected_endpoint ，且selected_path字面量为0；避免初始化模糊锚点。",
+    "唯一执行v9 closure批次1次；unittest、OpenSTA harness、Registry render/check、runner、Yosys/OpenSTA/STA/RTL sim、A6 rerun全部0次。若仍发生非承重审计字符串问题则停止递归，由独立review直接裁决。"
+  ],
+  "success_criteria": [
+    "v9 closure rc0并输出唯一PASS marker；v8/A6/current production hashes不漂移，结果范围明确为工具修复PASS/PPA GAP。之后必须独立只读review production Tcl与parser，未发现确定反例方可授权fresh run-id。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

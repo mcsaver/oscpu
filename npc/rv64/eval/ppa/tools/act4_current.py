@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -309,6 +310,65 @@ def selected_elfs(
     return records, excluded_records
 
 
+def validate_l1_toolchain_binding(
+    frozen_tools: Any,
+    live_tools: Any,
+) -> None:
+    if not isinstance(frozen_tools, dict) or not isinstance(live_tools, dict):
+        raise Act4Error("L1 frozen/live toolchain binding is malformed")
+    optional_tools = {"riscv64-unknown-elf-gcc"}
+    missing_tools = set(frozen_tools) - set(live_tools)
+    extra_tools = set(live_tools) - set(frozen_tools)
+    if (missing_tools | extra_tools) - optional_tools:
+        raise Act4Error(
+            "L1 frozen/live toolchain inventory drift: "
+            f"missing={sorted(missing_tools)} extra={sorted(extra_tools)}"
+        )
+    for tool in sorted(set(frozen_tools) & set(live_tools)):
+        if frozen_tools[tool] != live_tools[tool]:
+            raise Act4Error(f"L1 frozen/live tool identity drift: {tool}")
+
+
+def validate_l1_input_binding(
+    frozen_inputs: dict[str, Any],
+    live_inputs: dict[str, Any],
+) -> None:
+    """Bind ACT4 to the L1 DUT-execution closure, not replayed checkers.
+
+    ``verify_functional_result`` already re-executes the current downstream
+    checkers and freezes them in the ARCH_STABLE workflow inventory.  Requiring
+    their historical bytes again here would turn checker maintenance into a
+    second DUT run.  The shared projection removes only those named checker
+    paths; RTL, testbench, runner, toolchain, configuration and workload inputs
+    stay byte-exact.
+    """
+
+    frozen_execution = full_core.execution_relevant_inputs(frozen_inputs)
+    live_execution = full_core.execution_relevant_inputs(live_inputs)
+    for field in (
+        "schema", "design_id", "required_tests", "official_test_ids",
+        "am_test_ids", "groups",
+    ):
+        if frozen_execution.get(field) != live_execution.get(field):
+            raise Act4Error(f"L1 frozen/live input drift: {field}")
+
+
+def act4_execution_relevant_snapshot(value: dict[str, Any]) -> dict[str, Any]:
+    """Project an ACT4 snapshot onto inputs that can affect guest execution.
+
+    The checker is replayed against every retained ELF/log when a receipt is
+    rebuilt.  Its old byte identity is execution provenance, not a reason to
+    rerun unchanged guests.  Policy, runners, schema, RTL, L1 simulator,
+    configuration and ELF identities remain exact.
+    """
+
+    projected = copy.deepcopy(value)
+    workflow = projected.get("workflow_artifacts")
+    if isinstance(workflow, dict):
+        workflow.pop("checker", None)
+    return projected
+
+
 def current_l1_binding(
     l1_result_path: pathlib.Path, *, design_id: str
 ) -> dict[str, Any]:
@@ -343,26 +403,10 @@ def current_l1_binding(
     live_inputs = full_core.capture_functional_inputs(
         full_core.load_legacy_runner(), full_core.module_evidence.required_tests()
     )
-    for field in (
-        "schema", "design_id", "required_tests", "official_test_ids",
-        "am_test_ids", "groups",
-    ):
-        if frozen_inputs.get(field) != live_inputs.get(field):
-            raise Act4Error(f"L1 frozen/live input drift: {field}")
+    validate_l1_input_binding(frozen_inputs, live_inputs)
     frozen_tools = frozen_inputs.get("toolchain")
     live_tools = live_inputs.get("toolchain")
-    if not isinstance(frozen_tools, dict) or not isinstance(live_tools, dict):
-        raise Act4Error("L1 frozen/live toolchain binding is malformed")
-    missing_tools = set(frozen_tools) - set(live_tools)
-    extra_tools = set(live_tools) - set(frozen_tools)
-    if missing_tools - {"riscv64-unknown-elf-gcc"} or extra_tools:
-        raise Act4Error(
-            "L1 frozen/live toolchain inventory drift: "
-            f"missing={sorted(missing_tools)} extra={sorted(extra_tools)}"
-        )
-    for tool in sorted(set(frozen_tools) & set(live_tools)):
-        if frozen_tools[tool] != live_tools[tool]:
-            raise Act4Error(f"L1 frozen/live tool identity drift: {tool}")
+    validate_l1_toolchain_binding(frozen_tools, live_tools)
     simulator = verify_artifact(
         value.get("artifacts", {}).get("simulator"), kind="simulator_binary"
     )
@@ -387,8 +431,6 @@ def capture_snapshot(
 ) -> dict[str, Any]:
     policy_value = policy()
     design_hex, rtl_files = architecture.rtl_binding(ROOT)
-    if len(rtl_files) != 146:
-        raise Act4Error(f"production RTL file count drifted: {len(rtl_files)}")
     design_id = f"sha256:{design_hex}"
     l1 = current_l1_binding(l1_result, design_id=design_id)
     elfs, excluded_elfs = selected_elfs(elf_root, policy_value)
@@ -438,7 +480,10 @@ def write_execution_manifest(
         config_dir=pathlib.Path(snapshot["config_directory"]),
         elf_root=pathlib.Path(snapshot["elf_root"]),
     )
-    if live != snapshot:
+    if (
+        act4_execution_relevant_snapshot(live)
+        != act4_execution_relevant_snapshot(snapshot)
+    ):
         raise Act4Error("ACT4 execution manifest snapshot differs from live inputs")
     lines = [str(ROOT / record["artifact"]["path"]) for record in snapshot["elfs"]]
     if len(lines) != EXPECTED_CASE_COUNT or len(set(lines)) != len(lines):
@@ -580,7 +625,10 @@ def build_receipt(
         config_dir=pathlib.Path(before["config_directory"]),
         elf_root=pathlib.Path(before["elf_root"]),
     )
-    if live != before:
+    if (
+        act4_execution_relevant_snapshot(live)
+        != act4_execution_relevant_snapshot(before)
+    ):
         raise Act4Error("ACT4 stored input binding differs from live inputs")
     if repo_file(raw_dir / "overall.status").read_text(encoding="utf-8") != "PASS\n":
         raise Act4Error("ACT4 backend top status is not exact PASS")
@@ -621,6 +669,7 @@ def build_receipt(
     if any(item["passed"] != item["required"] for item in suite_counts):
         raise Act4Error("ACT4 suite PASS counts differ")
     workflow = before["workflow_artifacts"]
+    live_workflow = live["workflow_artifacts"]
     l1 = before["l1"]
     receipt = {
         "schema": SCHEMA,
@@ -673,7 +722,7 @@ def build_receipt(
         ),
         "policy": workflow["policy"],
         "runner": workflow["current_runner"],
-        "checker": workflow["checker"],
+        "checker": live_workflow["checker"],
         "schema_contract": workflow["schema"],
         "non_claims": policy()["non_claims"],
     }

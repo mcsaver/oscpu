@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-addsub-constant-output-root-cause-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核A7本地RV64 OooFpAddSubPipe 5.0ns mapped证据，逐bit重建addsub_d_fflags_q_o[4:0]从真实execute helper中的RTL flag语义，到synth-design net与唯一leaf driver、绑定ics55 stdlib function及OpenSTA register-Q/collect_arc_family查询。v1已初证201/202/203/205由DFFQX1H7L.Q、204由TIELOH7L.Z且d/s bit3共网；v2必须确认exact function、bit顺序、collect_paths空路径行为及一位常量是否充分解释family错误，并冻结fail-closed常量输出/Liberty边界。只读、不运行测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-addsub-constant-output-root-cause-review-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/netlist-manifest.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-addsub-constant-output-root-cause-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/netlist-manifest.json",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出逐bit driver表：canonical/raw port、net id、unique driver cell/type/pin、stdlib function、register-Q可达性、RTL flag语义与OpenSTA空路径行为；给出A7错误由常量bit触发的充分/不充分裁决及所有替代解释。",
+    "冻结常量输出实现合同：必须绑定的netlist/whitelist/stdlib receipts、constant 0/1唯一driver分类、动态与常量bit完整覆盖、Tcl inventory字段、Python parser与逐bitLiberty function/timing验证、top回接含义及负向反例；禁止以无路径本身推断常量。报告Architect触发与fresh-run授权数。"
+  ],
+  "success_criteria": [
+    "只读命令结束且无写入/测试/EDA；helper bit顺序、DFF/tie-cell driver、stdlib function与collect_paths失败传播有直接本地证据。若不能证明常量bit充分触发A7错误则BLOCK对应模型；无论结论fresh-run=0、PPA=GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Agent review routing for the three-layer AI development environment.",
+  "purpose": "Risk-triggered agent review routing for the three-layer AI development environment.",
   "review_routes": [
     {
       "id": "database-layer",
@@ -42,6 +42,7 @@
       "primary_agent": "ysyx-coordinator",
       "inspector": "agent-system",
       "paths": [
+        ".codex/agents",
         ".github/agents",
         ".github/e2e",
         ".github/workflows",
@@ -50,8 +51,12 @@
         ".github/ai-env/contracts/agent-env-state-traceability.json",
         ".github/ai-env/contracts/agent-env-branch-health.json",
         ".github/ai-env/contracts/agent-env-review-routing.json",
+        ".github/ai-env/contracts/cpu-architect-routing-v1.json",
+        ".github/ai-env/contracts/cpu-architect-learning-v1.json",
         "scripts/agent-e2e.sh",
         "scripts/agent-maintain.sh",
+        "scripts/cpu_architect_route.py",
+        "scripts/cpu_architect_learning.py",
         "scripts/e2e"
       ],
       "required_checks": [
@@ -64,6 +69,24 @@
     }
   ],
   "adversarial_personas": {
+    "activation": "risk-triggered",
+    "default_required": false,
+    "triggers": [
+      "risk_high",
+      "release",
+      "migration",
+      "hard_to_recover_destructive_action",
+      "formal_architecture_or_pareto_promotion",
+      "external_publication",
+      "user_explicit_request"
+    ],
+    "non_triggers": [
+      "workspace_write_by_itself",
+      "cross_file_change_by_itself",
+      "long_runtime_by_itself",
+      "non_trivial_label",
+      "file_count"
+    ],
     "implementer_persona": {
       "role": "deliver",
       "must_provide": [
@@ -99,8 +122,9 @@
   },
   "review_rules": [
     "Every cross-layer change must identify at least one review route before final reporting.",
-    "Every non-trivial delivery must run implementer_persona and reviewer_persona in opposition before final reporting.",
-    "Unresolved implementer/reviewer conflicts must be reported as remaining risk or next action, not hidden behind a completed claim.",
+    "Implementer/reviewer opposition is required only when a declared risk trigger is present; ordinary deterministic delivery uses implementer self-critique and direct finish.",
+    "An independent reviewer challenges identity, counterexamples, coverage and claim boundaries without mechanically rerunning an already bound deterministic command.",
+    "When independent review is triggered, unresolved implementer/reviewer conflicts must be reported as remaining risk or next action, not hidden behind a completed claim.",
     "Database-layer changes must keep stored ownership limited to retained memory/log documents and preserve backup/snapshot consistency.",
     "Skill-layer changes must keep SKILL.md live and under audit.",
     "Agent-layer changes must leave task-run evidence when profile or workflow behavior changes."

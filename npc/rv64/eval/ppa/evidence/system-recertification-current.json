@@ -8,19 +8,19 @@
     "L2_MINI_SYSTEM",
     "L3_LIGHTWEIGHT_LINUX"
   ],
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "layered_signoff_receipt": {
     "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-    "sha256": "27bd975f4e30dd6397df9755b00caac5f651a32395de8f7ad6e69ee695a5afdf",
-    "size_bytes": 18320
+    "sha256": "d4b3f5c710defed75d1903c2f18305a357a166093f65a334eb7014145a56ff84",
+    "size_bytes": 16506
   },
   "layers": {
     "L0_DIRECTED_RTL": {
       "rtl_assertion_failures": 0,
       "status": "PASS",
       "tests": {
-        "passed": 113,
-        "required": 113
+        "passed": 114,
+        "required": 114
       }
     },
     "L1_FULL_CORE_DIFFTEST": {
@@ -37,8 +37,8 @@
     },
     "L2_MINI_SYSTEM": {
       "case": "all",
-      "commits": 6098497,
-      "cycles": 9882568,
+      "commits": 6095067,
+      "cycles": 9897206,
       "rtl_assertion_failures": 0,
       "status": "PASS",
       "terminal_counts": {
@@ -51,8 +51,8 @@
     },
     "L3_LIGHTWEIGHT_LINUX": {
       "case": "all",
-      "commits": 24460280,
-      "cycles": 57129353,
+      "commits": 24432533,
+      "cycles": 57143074,
       "rtl_assertion_failures": 0,
       "status": "PASS",
       "terminal_counts": {

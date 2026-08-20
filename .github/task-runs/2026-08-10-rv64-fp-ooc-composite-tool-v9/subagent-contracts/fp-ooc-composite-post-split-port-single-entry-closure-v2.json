@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-post-split-port-single-entry-closure-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "在post-split port canonicalization revision-3 已由4个定向methods、12个port mutations与8个tool-contract mutations证明PASS，唯一剩余失败为generated single entry stale的前提下，仅授权一次Architecture Registry render→check与限定diff/text audit，使npc/rv64/ARCHITECTURE.md重新同步；保留attempt-1/2失败与revision-3功能PASS/Registry FAIL，不重跑unittest、不修改parser/schema/tests/Registry catalog、FP RTL或A4。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/subagent-contracts/fp-ooc-composite-post-split-port-single-entry-closure-v2.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/affected-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/affected-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "先按revision-3 gate-status/log与functional dependency manifest确认4-method/12-port/8-tool mutation PASS且parser/schema/tests/A4冻结输入未变；保留attempt-1/2与revision-3原始收据，不修改它们。",
+    "仅执行一次 python3 npc/rv64/eval/ppa/tools/architecture_registry.py render，随后一次check，并对ARCHITECTURE.md及post-split canonicalization声明路径执行一次scoped git diff/text audit；生成独立v2 evidence。不得执行unittest、production runner、Yosys、OpenSTA、STA或RTL sim。"
+  ],
+  "success_criteria": [
+    "Registry render/check与scoped audit均rc0，ARCHITECTURE.md成为当前catalog/tool的确定单一入口；revision-3功能PASS及A4冻结hash保持不变，unittest/production EDA/A4 rerun均0次。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

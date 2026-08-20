@@ -16,6 +16,10 @@ ARCH_GATE_RESULT ?= $(abspath $(BUILD_DIR)/arch-gates/result.json)
 ARCH_GATE_TEST_DIR := $(NPC_SINGLE_HOME)/eval/ppa/tests
 VECTORED_TRAP_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/vectored-trap-mutations)
 VECTORED_TRAP_MUTATION_RUNNER := scripts/run_csr_vectored_trap_mutations.py
+BPU_LOCAL_PHT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/bpu-local-pht-flat-read-view-mutations)
+BPU_LOCAL_PHT_MUTATION_RUNNER := scripts/run_ooo_branch_local_pht_mutations.py
+FP_ARITH_CHILD_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/fp-arith-production-child-mutations)
+FP_ARITH_CHILD_MUTATION_RUNNER := scripts/run_ooo_fp_arith_child_mutations.py
 V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(RESULT_DIR)/v11i-terminal-lifecycle)
 V11I_TERMINAL_LIFECYCLE_RUNNER := scripts/run_v11i_terminal_lifecycle.py
 V11J_BRIDGE_HOLDER_RESULT ?= $(abspath $(RESULT_DIR)/v11j-bridge-holder-semantic)
@@ -48,6 +52,8 @@ V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15w-h
 V15W_HEAD0_CSR_PERMIT_DISJOINT_MUTATION_RUNNER := scripts/run_v15w_head0_csr_permit_disjoint_mutation.sh
 V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15x-trap-c0-dispatch-closure-mutation)
 V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RUNNER := scripts/run_v15x_trap_c0_dispatch_closure_mutation.sh
+V16A_SERIALIZED_MEM_TERMINAL_PERMIT_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v16a-serialized-mem-terminal-permit-mutation)
+V16A_SERIALIZED_MEM_TERMINAL_PERMIT_MUTATION_RUNNER := scripts/run_v16a_serialized_mem_terminal_permit_mutation.sh
 V11Q_INT_LANE0_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11q-int-lane0-packet-semantic)
 V11Q_INT_LANE0_PACKET_RUNNER := scripts/run_v11q_int_lane0_packet_semantic.py
 V11R_INT_LANE1_PACKET_RESULT ?= $(abspath $(RESULT_DIR)/v11r-int-lane1-packet-semantic)
@@ -130,6 +136,7 @@ TESTS := \
   tb_ooo_pending_lane1_capture_gate \
   tb_ooo_pending_dispatch_arbiter \
   tb_ooo_pending_drain_resolve_gate \
+  tb_ooo_serialized_mem_terminal_permit \
   tb_ooo_pending_arch_trap_memory_terminal \
   tb_ooo_serialized_owner_exactly_once \
   tb_ooo_pending_system_admission_cancel_gate \
@@ -145,6 +152,7 @@ TESTS := \
   tb_ooo_branch_resolve_recovery_gate \
   tb_ooo_branch_append_dispatch_gate \
   tb_ooo_branch_bpu_update_gate \
+  tb_ooo_branch_local_pht \
   tb_ooo_branch_direction_predictor \
   tb_ooo_memory_request_gate \
   tb_ooo_frontend_run_gate \
@@ -257,7 +265,7 @@ TB_SRCS_tb_ooo_fp_issue_queue := tests/tb_ooo_fp_issue_queue.sv $(RTL_OOO_FP_ISS
 TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE)
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
-TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
+TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_CHILDREN) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
 TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_LOAD_QUEUE) $(RTL_OOO_MEM_OWNER_TRACKER) $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_int_backend_hist_ser_qh_younger_store := $(TB_SRCS_tb_ooo_int_backend)
@@ -350,7 +358,7 @@ TB_SRCS_tb_ooo_fp_classify_gate := tests/tb_ooo_fp_classify_gate.sv $(RTL_OOO_FP
 TB_SRCS_tb_ooo_fp_sgnj_gate := tests/tb_ooo_fp_sgnj_gate.sv $(RTL_OOO_FP_SGNJ_GATE)
 TB_SRCS_tb_ooo_fp_compare_gate := tests/tb_ooo_fp_compare_gate.sv $(RTL_OOO_FP_COMPARE_GATE)
 TB_SRCS_tb_ooo_fp_convert_gate := tests/tb_ooo_fp_convert_gate.sv $(RTL_OOO_FP_CONVERT_GATE)
-TB_SRCS_tb_ooo_fp_arith_gate := tests/tb_ooo_fp_arith_gate.sv $(RTL_OOO_FP_ARITH_GATE)
+TB_SRCS_tb_ooo_fp_arith_gate := tests/tb_ooo_fp_arith_gate.sv $(RTL_OOO_FP_ARITH_CHILDREN) $(RTL_OOO_FP_ARITH_GATE)
 TB_SRCS_tb_ooo_fp_long_op_gate := tests/tb_ooo_fp_long_op_gate.sv $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER)
 TB_SRCS_tb_ooo_direct_ras_candidate_gate := tests/tb_ooo_direct_ras_candidate_gate.sv $(RTL_OOO_DIRECT_RAS_CANDIDATE_GATE)
 TB_SRCS_tb_ooo_ras_update_gate := tests/tb_ooo_ras_update_gate.sv $(RTL_OOO_RAS_UPDATE_GATE)
@@ -367,8 +375,9 @@ TB_SRCS_tb_ooo_csr_trap_request_mux := tests/tb_ooo_csr_trap_request_mux.sv $(RT
 TB_SRCS_tb_ooo_pending_lane1_capture_gate := tests/tb_ooo_pending_lane1_capture_gate.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE)
 TB_SRCS_tb_ooo_pending_dispatch_arbiter := tests/tb_ooo_pending_dispatch_arbiter.sv $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER)
 TB_SRCS_tb_ooo_pending_drain_resolve_gate := tests/tb_ooo_pending_drain_resolve_gate.sv $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE)
+TB_SRCS_tb_ooo_serialized_mem_terminal_permit := tests/tb_ooo_serialized_mem_terminal_permit.sv $(RTL_OOO_SERIALIZED_MEM_TERMINAL_PERMIT) $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE)
 TB_SRCS_tb_ooo_pending_arch_trap_memory_terminal := tests/tb_ooo_pending_arch_trap_memory_terminal.sv $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
-TB_SRCS_tb_ooo_serialized_owner_exactly_once := tests/tb_ooo_serialized_owner_exactly_once.sv $(RTL_OOO_FRONTEND_RUN_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_PENDING_SYSTEM_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX) $(RTL_OOO_TRAP_EXIT_EVENT_MUX) $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER) $(RTL_CSR_FILE)
+TB_SRCS_tb_ooo_serialized_owner_exactly_once := tests/tb_ooo_serialized_owner_exactly_once.sv $(RTL_OOO_FRONTEND_RUN_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_PENDING_SYSTEM_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_SERIALIZED_MEM_TERMINAL_PERMIT) $(RTL_OOO_PENDING_DRAIN_RESOLVE_GATE) $(RTL_OOO_CSR_TRAP_REQUEST_MUX) $(RTL_OOO_TRAP_EXIT_EVENT_MUX) $(RTL_OOO_TRAP_EXIT_OUTPUT_SEQUENCER) $(RTL_CSR_FILE)
 TB_SRCS_tb_ooo_pending_system_admission_cancel_gate := tests/tb_ooo_pending_system_admission_cancel_gate.sv $(RTL_OOO_PENDING_SYSTEM_ADMISSION_CANCEL_GATE)
 TB_SRCS_tb_ooo_pending_system_sequencer := tests/tb_ooo_pending_system_sequencer.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)
 TB_SRCS_tb_ooo_pending_system_lease_probe := tests/tb_ooo_pending_system_lease_probe.sv $(RTL_OOO_PENDING_SYSTEM_SEQUENCER)
@@ -384,7 +393,8 @@ TB_SRCS_tb_ooo_branch_resolve_recovery_gate := tests/tb_ooo_branch_resolve_recov
 # [wave5b 死硅拆除] tb_ooo_pending_control_resolve_gate / _branch_sequencer / _jump_sequencer 已删（模块退休）
 TB_SRCS_tb_ooo_branch_append_dispatch_gate := tests/tb_ooo_branch_append_dispatch_gate.sv $(RTL_OOO_BRANCH_APPEND_DISPATCH_GATE)
 TB_SRCS_tb_ooo_branch_bpu_update_gate := tests/tb_ooo_branch_bpu_update_gate.sv $(RTL_OOO_BRANCH_BPU_UPDATE_GATE)
-TB_SRCS_tb_ooo_branch_direction_predictor := tests/tb_ooo_branch_direction_predictor.sv $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR) $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR_CHECKER)
+TB_SRCS_tb_ooo_branch_local_pht := tests/tb_ooo_branch_local_pht.sv $(RTL_OOO_BRANCH_LOCAL_PHT)
+TB_SRCS_tb_ooo_branch_direction_predictor := tests/tb_ooo_branch_direction_predictor.sv $(RTL_OOO_BRANCH_LOCAL_PHT) $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR) $(RTL_OOO_BRANCH_DIRECTION_PREDICTOR_CHECKER)
 TB_SRCS_tb_ooo_memory_request_gate := tests/tb_ooo_memory_request_gate.sv $(RTL_OOO_MEMORY_REQUEST_GATE)
 TB_SRCS_tb_ooo_frontend_run_gate := tests/tb_ooo_frontend_run_gate.sv $(RTL_OOO_FRONTEND_RUN_GATE)
 TB_SRCS_tb_ooo_frontend_action_gate := tests/tb_ooo_frontend_action_gate.sv $(RTL_OOO_FRONTEND_ACTION_GATE)
@@ -433,7 +443,10 @@ TB_IVFLAGS_tb_ooo_dual_mem_bridge_holder_semantic := -DV11J_BRIDGE_HOLDER_FOCUSE
 
 .PHONY: axi-dpi-sized ifu-access-assert-negative ifu-icache-coherence-contract \
         arch-gates arch-gates-self-test print-tests vectored-trap \
-        vectored-trap-mutations print-v11i-terminal-lifecycle-context \
+        vectored-trap-mutations bpu-local-pht-flat-read-view-mutations \
+        bpu-local-pht-banked-child-mutations \
+        fp-arith-production-child-mutations \
+        print-v11i-terminal-lifecycle-context \
         v11i-terminal-lifecycle-self-test v11i-terminal-lifecycle \
         print-v11j-bridge-holder-context \
         v11j-bridge-holder-self-test v11j-bridge-holder-semantic \
@@ -467,6 +480,17 @@ vectored-trap: $(LOG_DIR)/tb_csr_file_vectored_trap.log
 vectored-trap-mutations:
 	@$(PYTHON) $(VECTORED_TRAP_MUTATION_RUNNER) \
 	  --result-dir "$(VECTORED_TRAP_MUTATION_RESULT)"
+
+bpu-local-pht-flat-read-view-mutations:
+	@$(PYTHON) $(BPU_LOCAL_PHT_MUTATION_RUNNER) \
+	  --result-dir "$(BPU_LOCAL_PHT_MUTATION_RESULT)"
+
+# 旧入口仅作兼容别名；新证据目录和 oracle 身份统一使用 flat-read-view。
+bpu-local-pht-banked-child-mutations: bpu-local-pht-flat-read-view-mutations
+
+fp-arith-production-child-mutations:
+	@$(PYTHON) $(FP_ARITH_CHILD_MUTATION_RUNNER) \
+	  --result-dir "$(FP_ARITH_CHILD_MUTATION_RESULT)"
 
 print-v11i-terminal-lifecycle-context:
 	@printf '%s\n' "RTL_INCLUDE_DIR=$(abspath $(RTL_INCLUDE_DIR))"
@@ -837,6 +861,16 @@ v15x-trap-c0-dispatch-closure-focused: \
 v15x-trap-c0-dispatch-closure-mutation:
 	@$(abspath $(V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RUNNER)) \
 	  "$(V15X_TRAP_C0_DISPATCH_CLOSURE_MUTATION_RESULT)"
+
+.PHONY: v16a-serialized-mem-terminal-permit-focused
+v16a-serialized-mem-terminal-permit-focused: \
+  $(LOG_DIR)/tb_ooo_serialized_mem_terminal_permit.log
+	@grep -E '\[V16[AB]-SERIALIZED-PERMIT-|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: v16a-serialized-mem-terminal-permit-mutation
+v16a-serialized-mem-terminal-permit-mutation:
+	@$(abspath $(V16A_SERIALIZED_MEM_TERMINAL_PERMIT_MUTATION_RUNNER)) \
+	  "$(V16A_SERIALIZED_MEM_TERMINAL_PERMIT_MUTATION_RESULT)"
 
 v8y-speculation-recovery: $(LOG_DIR)/tb_ooo_int_backend_v8y_speculation_recovery.log
 	@grep -E '\[V8Y-|\[V8D-|\[V8X-|\[PASS\]|\[RESULT\]' $<

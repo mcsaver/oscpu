@@ -30,6 +30,26 @@ SOURCE = REPO_ROOT / "npc/rv64/vsrc/memory/OooLoadQueue.v"
 TB_DIR = REPO_ROOT / "npc/rv64/testbench"
 
 
+def is_safe_output_dir(path: Path, task_runs: Path) -> bool:
+    relative_parts = (
+        path.relative_to(task_runs).parts
+        if path.is_relative_to(task_runs)
+        else ()
+    )
+    canonical_shape = (
+        len(relative_parts) == 3
+        and relative_parts[1] == "evidence"
+        and relative_parts[2] == "lq-mutations"
+    )
+    versioned_shape = (
+        len(relative_parts) == 4
+        and relative_parts[1] == "evidence"
+        and relative_parts[2] not in ("", ".", "..")
+        and relative_parts[3] == "lq-mutations"
+    )
+    return canonical_shape or versioned_shape
+
+
 def output_dir() -> Path:
     raw = os.environ.get("V8V_MUTATION_OUTPUT_DIR")
     if not raw:
@@ -37,11 +57,7 @@ def output_dir() -> Path:
     path = Path(raw)
     path = (path if path.is_absolute() else REPO_ROOT / path).resolve()
     task_runs = (REPO_ROOT / ".github/task-runs").resolve()
-    if (
-        not path.is_relative_to(task_runs)
-        or path.name != "lq-mutations"
-        or path.parent.name != "evidence"
-    ):
+    if not is_safe_output_dir(path, task_runs):
         raise RuntimeError(f"unsafe mutation output directory: {path}")
     path.mkdir(parents=True, exist_ok=True)
     return path

@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "arch-stable-d3f3-v11-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 d3f3 NpcTop 全核 ARCH_STABLE v11 候选：确认 147 个 production RTL 的架构清单包含 BPU 与 FP 可达实例，当前 TESTS 清单精确为 114/114，L1 official 177/177、AM 61/61、ACT4 100/100、L2/L3 all PASS，16 项架构债务关闭加 4 项 cohort exclusion、V9P 路径投影与 checker-only 重绑定均没有伪造 DUT 重跑或越级 PPA 结论；候选 SHA-256 必须为 8322170c192f133f2e93f55e69635c13ce6eb84398e74825cbe37769f4a29e2b。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-act4-a2",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1",
+      "npc/rv64/eval/ppa",
+      "npc/rv64/design/arch",
+      "npc/rv64/design/specs",
+      "npc/rv64/testbench",
+      "npc/rv64/vsrc",
+      "npc/rv64/include",
+      "npc/rv64/.config",
+      "npc/rv64/Makefile",
+      "npc/rv64/build/obj_dir/VNpcSimTop",
+      "am-kernels/arch-test",
+      "am-kernels/benchmarks",
+      "am-kernels/tests",
+      "abstract-machine",
+      "nemu",
+      "scripts/task-run-status.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/candidate.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/pre-review-audit.json",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/act4-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/arch-stable-d3f3-v11-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/candidate.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/pre-review-audit.json",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/act4-current.json",
+      "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "返回 ARCH_STABLE v11 的 APPROVE_ARCH_STABLE 或 GAP 裁决；逐项说明 NpcTop 的 BPU/FP reachability、147 RTL inventory、114 个模块 TB、L1/L2/L3/ACT4、architecture debt、V9P projection、checker-only 投影和 PPA=UNQUALIFIED 边界，并保留反例、unknowns、alternative_hypotheses、scope_extension_request 与 confidence_and_basis。若且仅若全部前置证据与候选精确一致且不存在 blocker/unknown，报告中原样且只出现一次 [ARCH-STABLE-INDEPENDENT-REVIEW][APPROVE] design_id=sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af candidate_sha256=8322170c192f133f2e93f55e69635c13ce6eb84398e74825cbe37769f4a29e2b。"
+  ],
+  "success_criteria": [
+    "只有候选 SHA、design-id、147 个 production RTL、当前 114 项 TESTS 清单、全部 L0-L3/ACT4/architecture debt/historical receipt 指针与 live 文件一致，BPU/FP 不再从功能综合身份中遗漏，checker-only 投影只排除被当前审计重放的两个审计器而任何 RTL、TB、runner、toolchain、config、workload 漂移仍 fail-closed，且候选保持 PPA=UNQUALIFIED、promotion_eligible=false 时才允许 APPROVE_ARCH_STABLE；发现任何伪闭环、隐藏模块、陈旧哈希、未解释投影或开放未知项必须输出 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

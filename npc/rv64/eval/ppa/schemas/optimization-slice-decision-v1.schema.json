@@ -127,7 +127,8 @@
             "current_reference_ppa",
             "current_timing_path_analysis",
             "owner_timing",
-            "ppa_checker"
+            "ppa_checker",
+            "serialized_drain_owner_lifetime"
           ],
           "properties": {
             "b_latency_sensitivity": {
@@ -149,6 +150,9 @@
               "$ref": "#/$defs/artifactReference"
             },
             "ppa_checker": {
+              "$ref": "#/$defs/artifactReference"
+            },
+            "serialized_drain_owner_lifetime": {
               "$ref": "#/$defs/artifactReference"
             }
           },

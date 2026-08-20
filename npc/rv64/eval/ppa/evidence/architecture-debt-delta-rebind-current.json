@@ -2,6 +2,7 @@
   "baseline_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
   "changed_source_coverage": {
     "historical_negative_sources": [
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
       "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
       "npc/rv64/vsrc/execute/OooIntBackend.v",
       "npc/rv64/vsrc/frontend/OooFrontend.v",
@@ -11,6 +12,8 @@
     "positive_only_changed_files": [
       "npc/rv64/vsrc/control/OooControlPlane.v",
       "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
+      "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v",
+      "npc/rv64/vsrc/filelist.mk",
       "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
       "npc/rv64/vsrc/sim/NpcSimTop.sv"
     ],
@@ -18,17 +21,17 @@
   },
   "claim_boundary": "This receipt rebinds the 16 architecture-debt closures from immutable 093c historical executions to the exact live RTL identity by per-file hash projection plus exact-current-source changed-cone counterexamples and current L0+L1+L2+L3 positives. Changed files outside the historical negative cones are listed as positive-only coverage. It does not promote whole-architecture, synthesis, STA, power, CPI, or PPA state.",
   "current_changed_cone": {
-    "passed": 29,
-    "replacement_sha256": "8a59d5059bedbdeeafcd91cc01e49450af8dc9126053d93f4ad769ce1b7604fb",
+    "passed": 31,
+    "replacement_sha256": "a76e1f8d55eaf677154358c5f9886eb373042167ad1353e8182178ec4dc945cd",
     "replacements": {
       "CONTROL-EVENT-G1:RTL_MUTATION:backend-bank0-ready-open": {
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -47,10 +50,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -69,10 +72,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -91,10 +94,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -113,10 +116,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -135,10 +138,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -157,10 +160,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -179,10 +182,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -201,10 +204,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -223,10 +226,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -245,10 +248,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -267,10 +270,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -289,10 +292,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -307,14 +310,37 @@
         "test_name": "tb_ooo_fp_legality_dispatch_path",
         "variant_sha256": "3856588cd8444f881e2cd5ceb905865f77a64fce13f11af108f3970500688ba0"
       },
+      "FENCE-G1:RTL_MUTATION:fence_full_memory_idle_removed": {
+        "compile_success": true,
+        "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_DESIGN",
+          "recorded_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "whole_design_reexecuted": true
+        },
+        "evidence_set": "current_d3f3_fence_relocation",
+        "historical_source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "log": {
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/architecture-delta-mutations-d3f3-fence-v2/logs/pending-fence-mem-idle-removed.log",
+          "sha256": "1189a1e234534db0bbfbf70111e751fd1e277f9245cd1522b4658aad12436900",
+          "size_bytes": 1212
+        },
+        "name": "pending-fence-mem-idle-removed",
+        "replacement_kind": "EXACT_MUTATION_REPLAY",
+        "source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "source_sha256": "02b499e7f790be0edeba4ae0292f567dacc7d963235bc50ff1e929969d3b4fdd",
+        "test_name": "tb_ooo_pending_drain_resolve_gate",
+        "variant_sha256": "2d70469fb422fbb92990013f353c6c0d80a914c08c6d56611522e2d2515d5212"
+      },
       "IFU-ACCESS-G1:RTL_MUTATION:dispatch_barrier_ignores_lane1_fetch_fault": {
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -333,10 +359,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -355,10 +381,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -377,7 +403,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -398,7 +424,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -419,7 +445,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -440,7 +466,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -461,7 +487,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -482,7 +508,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -503,7 +529,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -524,7 +550,7 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "mode": "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
           "recorded_design_id": null,
           "whole_design_reexecuted": false
@@ -545,10 +571,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -563,14 +589,37 @@
         "test_name": "tb_ooo_priv_system",
         "variant_sha256": "fc173cb19b6a56eb5a4283c84ec952f8cbc2e571c0ff5f20a13b5293bf557dcb"
       },
+      "SERIALIZE-G1:RTL_MUTATION:remove-fence-mem-idle": {
+        "compile_success": true,
+        "dynamic_rejected": true,
+        "evidence_design_projection": {
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_DESIGN",
+          "recorded_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "whole_design_reexecuted": true
+        },
+        "evidence_set": "current_d3f3_fence_relocation",
+        "historical_source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "log": {
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/architecture-delta-mutations-d3f3-fence-v2/logs/pending-fence-mem-idle-removed.log",
+          "sha256": "1189a1e234534db0bbfbf70111e751fd1e277f9245cd1522b4658aad12436900",
+          "size_bytes": 1212
+        },
+        "name": "pending-fence-mem-idle-removed",
+        "replacement_kind": "EXACT_MUTATION_REPLAY",
+        "source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "source_sha256": "02b499e7f790be0edeba4ae0292f567dacc7d963235bc50ff1e929969d3b4fdd",
+        "test_name": "tb_ooo_pending_drain_resolve_gate",
+        "variant_sha256": "2d70469fb422fbb92990013f353c6c0d80a914c08c6d56611522e2d2515d5212"
+      },
       "SERIALIZE-G1:RTL_MUTATION:retain-noncsr-holder-after-terminal": {
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -589,10 +638,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -611,10 +660,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -633,10 +682,10 @@
         "compile_success": true,
         "dynamic_rejected": true,
         "evidence_design_projection": {
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "mode": "EXACT_CURRENT_DESIGN",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+          "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
           "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-          "whole_design_reexecuted": true
+          "whole_design_reexecuted": false
         },
         "evidence_set": "current_supplemental",
         "log": {
@@ -652,28 +701,28 @@
         "variant_sha256": "3d768fd118a3ee1a17b95ddbfc29d921433c2b62edebf8b2775bf548d745103b"
       }
     },
-    "required": 29,
+    "required": 31,
     "supplemental_input_replay": {
       "classification": "exact_current_input",
       "current_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274",
       "evidence_design_projection": {
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-        "mode": "EXACT_CURRENT_DESIGN",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+        "mode": "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
         "recorded_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-        "whole_design_reexecuted": true
+        "whole_design_reexecuted": false
       },
       "path": "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
       "production_rtl_reexecuted": false,
       "recorded_sha256": "4f0b3a55f8ccaef525ef3fc3e8ca4e5bc2d7ee71c885168e5f185f6b5749d274"
     }
   },
-  "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "current_positive": {
     "artifact_records": 35,
     "l0": {
-      "artifact_records": 117,
+      "artifact_records": 118,
       "rtl_assertion_failures": 0,
-      "tests": "113/113"
+      "tests": "114/114"
     },
     "l1": {
       "am": "61/61",
@@ -692,6 +741,7 @@
     "optional_ubuntu": "NOT_RUN_OPTIONAL"
   },
   "evidence_contract": {
+    "added_rtl": "CURRENT_L0_L1_L2_L3_POSITIVE_COVERAGE_REQUIRED",
     "changed_rtl": "CURRENT_COMPILE_SUCCESS_REJECTED_VARIANT_REQUIRED",
     "historical_status": "IMMUTABLE",
     "retained_negative_projection": "EXACT_CURRENT_SOURCE_HASH_WITH_EXPLICIT_PRIOR_DESIGN_ID",
@@ -701,7 +751,7 @@
     "unchanged_rtl": "EXACT_PER_FILE_SHA_REUSE"
   },
   "historical_negative": {
-    "classification_sha256": "8b7bc88a8be4058af8597d1ec33c4911546ffcfdb096e0c899d0d82ac7c7646e",
+    "classification_sha256": "daffb471e1027cd86101da49f9295c65f778d310552f016818dae19047006e63",
     "items": [
       {
         "debt_id": "CONTROL-EVENT-G1",
@@ -1037,7 +1087,7 @@
           "sha256": "2034ae6293196a6ddb7e014be204bd5e56f7a4051b9bee59243bdaf74276318a"
         },
         "item_id": "FENCE-G1:RTL_MUTATION:fence_full_memory_idle_removed",
-        "projection_mode": "UNCHANGED_RTL_REUSED",
+        "projection_mode": "CHANGED_RTL_REPLAY_REQUIRED",
         "source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
         "source_sha256": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
         "variant_sha256": "ccdab2bbf1c229ec6dc97c7a7860483054fe82659a4bc8d275598c1c422bac9e"
@@ -2477,7 +2527,7 @@
           "size_bytes": 704526
         },
         "item_id": "SERIALIZE-G1:RTL_MUTATION:remove-fence-mem-idle",
-        "projection_mode": "UNCHANGED_RTL_REUSED",
+        "projection_mode": "CHANGED_RTL_REPLAY_REQUIRED",
         "source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
         "source_sha256": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
         "variant_sha256": "4ec1c8edccafc165f907eb3a0f761381ad0816d16c5347a556ed7cd0098037d2"
@@ -2826,9 +2876,9 @@
       }
     ],
     "mode_counts": {
-      "CHANGED_RTL_REPLAY_REQUIRED": 29,
+      "CHANGED_RTL_REPLAY_REQUIRED": 31,
       "CHECKER_ONLY_REUSED": 3,
-      "UNCHANGED_RTL_REUSED": 142,
+      "UNCHANGED_RTL_REUSED": 140,
       "VERIFICATION_SOURCE_REUSED": 1
     },
     "per_debt": {
@@ -2862,15 +2912,20 @@
       "sha256": "72a2db1ebc680a903b9f7281865f77f50ac66ce02f666dd10d1fd5841b964bf1",
       "size_bytes": 17298
     },
+    "current_d3f3_fence": {
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/architecture-delta-mutations-d3f3-fence-v2/summary.json",
+      "sha256": "bf2378c140a0615cbca056b3658fad813e99c33a02efbf8e41aa69310b986d09",
+      "size_bytes": 3122
+    },
     "current_l0": {
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/result.json",
-      "sha256": "b652214d6fd31408d2c1ad7f2564c4a41a062d30c610bde93afb3f8bb8105af1",
-      "size_bytes": 43558
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1/evidence/module/result.json",
+      "sha256": "9b03a5e7c93ca769598c69b603fa34f6892b84d1c9df3cbce8f9c069c64fb4dc",
+      "size_bytes": 43024
     },
     "current_manifest": {
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/module/inputs.pre.json",
-      "sha256": "c73cc7f4e6c28d77717389d6bbd93afc1f60445b8a4b03b21e5d28f4c2e53507",
-      "size_bytes": 53064
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-full-core-a1/evidence/module/inputs.pre.json",
+      "sha256": "945aa8f0f32f802596d7131181fd3c2559eae107835341594e28d98695954592",
+      "size_bytes": 53540
     },
     "current_supplemental": {
       "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/architecture-delta-mutations-f72e-v1/summary.json",
@@ -2909,18 +2964,18 @@
     },
     "layered_signoff": {
       "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-      "sha256": "27bd975f4e30dd6397df9755b00caac5f651a32395de8f7ad6e69ee695a5afdf",
-      "size_bytes": 18320
+      "sha256": "d4b3f5c710defed75d1903c2f18305a357a166093f65a334eb7014145a56ff84",
+      "size_bytes": 16506
     },
     "receipt_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
-      "sha256": "efe061ddfef95ec482a4449398f2cfa45f81305d1c0f80876f070594f0a500ad",
-      "size_bytes": 38004
+      "sha256": "c4989e67e199919cce2f11c7081645872729daf820d1c52ab5b32b3ed8b62d2e",
+      "size_bytes": 41425
     },
     "selected_binding_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-      "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-      "size_bytes": 132299
+      "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+      "size_bytes": 131892
     },
     "selected_binding_tool": {
       "path": "npc/rv64/eval/ppa/tools/selected_binding_rtl_delta_projection.py",
@@ -2970,12 +3025,26 @@
     "whole_architecture": "RED"
   },
   "rtl_delta": {
-    "changed_file_count": 9,
+    "added_file_count": 1,
+    "added_files": [
+      {
+        "current_sha256": "1aa1ef88affd615544d2cd8faa4a6a6cbc86c716ac0dc9ec762a41838d5ec95b",
+        "path": "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v"
+      }
+    ],
+    "baseline_file_count": 146,
+    "baseline_membership_preserved": true,
+    "changed_file_count": 11,
     "changed_files": [
       {
         "baseline_sha256": "97c4b94c04f0c7eed09e8586e3ebac2dd4abcbf9f1ec7f7c2a00abc7f4636012",
-        "current_sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
+        "current_sha256": "fedcc5cec97e26b9a7667450c5a2604376d012b776a9b7212a94a47b76f40dc1",
         "path": "npc/rv64/vsrc/control/OooControlPlane.v"
+      },
+      {
+        "baseline_sha256": "e03a605438483bfba7e81a02647189d5500e6ed348fd582873676fd1ef6a2729",
+        "current_sha256": "02b499e7f790be0edeba4ae0292f567dacc7d963235bc50ff1e929969d3b4fdd",
+        "path": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
       },
       {
         "baseline_sha256": "b4e7b4342ac6133e394aace7c07b2615e6eb95433f70c702ff258d168d89ea20",
@@ -2991,6 +3060,11 @@
         "baseline_sha256": "49ec3d7eff22e4146be35bf1a0e56e7c57c7a3418ae4bc6fa0e65d34d83cca5a",
         "current_sha256": "bf07ac64ff59cf24bace41c17139704d2198406db194d5fcc42903e9a7f6a07e",
         "path": "npc/rv64/vsrc/execute/OooIntBackend.v"
+      },
+      {
+        "baseline_sha256": "6529498bf0538122f5f22034e11166cec014306ac0e67966ccd512bf04f4067b",
+        "current_sha256": "879a7b99a7e26814c74906591355d4594590fffde842eba26bb6cf79c91f42a8",
+        "path": "npc/rv64/vsrc/filelist.mk"
       },
       {
         "baseline_sha256": "cf146eb2d8a1a007bb876420c1243ad3500b0a7e4b20aa51769521ac7cbcd1d9",
@@ -3018,9 +3092,11 @@
         "path": "npc/rv64/vsrc/sim/NpcSimTop.sv"
       }
     ],
-    "file_count": 146,
-    "membership_equal": true,
-    "unchanged_file_count": 137
+    "file_count": 147,
+    "membership_equal": false,
+    "removed_file_count": 0,
+    "removed_files": [],
+    "unchanged_file_count": 135
   },
   "schema": "npc-rv64-architecture-debt-delta-rebind-v2",
   "selected_binding_projection": {

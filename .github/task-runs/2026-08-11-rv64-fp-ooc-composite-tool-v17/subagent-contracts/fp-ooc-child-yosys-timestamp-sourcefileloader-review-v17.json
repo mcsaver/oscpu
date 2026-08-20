@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-sourcefileloader-review-v17",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooFpMulProductPipe timestamp v16 非EDA证据，不运行Python/test/仿真/综合/STA：复算v16 contract=7d3b196df4c3d3829482d2d94f5785a55619d2327c32e671f65c818e93c2a671、gate/bootstrap/validator/identity/status/log/result/receipt哈希与v15/v14/A10/current冻结；攻击SourceFileLoader.get_code是否在首个source import前精确接管、是否仍可能走original/cache/marshal/sourceless/zip/custom loader、audit pyc=0是否来自真实同进程观测、stdlib unittest source provenance、6个npc父namespace与3个leaf closure、target method实际执行、sealed count/replay/重签。存在确定反例则BLOCK，否则仅给工具证据RETAIN；用户已要求完成后停止，因此无论裁决fresh-run授权数均为0，PPA保持GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-source-only-loader-fix-v13",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-source-only-loader-review-v14.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-sourcefileloader-review-v17.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项给出v16 source-loader patch、audit、stdlib、namespace、leaf、sealed execution receipt、A10/current冻结的独立裁决，列出确定反例、未知项、替代解释与置信度；明确fresh-run=0并停止。"
+  ],
+  "success_criteria": [
+    "只有在v16真实执行闭合且不存在同形假绿或合法误拒时才RETAIN工具证据；否则BLOCK。无论结果均不得运行或授权仿真、综合、STA、production runner或A11，PPA保持GAP，终审后停止。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

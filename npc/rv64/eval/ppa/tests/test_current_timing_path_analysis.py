@@ -20,26 +20,23 @@ import current_timing_path_analysis as analysis  # noqa: E402
 
 
 RUN1_TOP40 = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
-    "evidence/traceable-ca37-a1/opensta-top40.rpt")
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/"
+    "evidence/traceable-f72e-a1/opensta-top40.rpt")
 RUN2_TOP40 = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
-    "evidence/current-fresh-ca37-a2/opensta-top40.rpt")
+    ".github/task-runs/2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/"
+    "evidence/current-fresh-f72e-a2/opensta-top40.rpt")
 CURRENT_REFERENCE = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
-    "evidence/current-reference-ppa-ca37-a1.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/current-reference-ppa/result.json")
 SELECTOR = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15w-current-reference-ppa-ca37-a2/"
-    "evidence/optimization-slice-current-reference-ca37-a1.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/selector-current-ppa-v3.json")
 REVIEW = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/"
-    "evidence/independent-frozen-review-v2.md")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "subagent-contracts/v15z-serialized-drain-boundary-review-f72e-v1.result.md")
 TRACEABILITY = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
-    "evidence/traceable-ca37-a1/traceability.txt")
-PATH_CLUSTER = ROOT / (
-    ".github/task-runs/2026-08-07-rv64-v15v-csr-commit-dispatch-disjoint-ca37-ppa-a1/"
-    "evidence/ppa-delta-and-path-cluster-v1.json")
+    ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/"
+    "evidence/traceable-f72e-a1/traceability.txt")
 
 
 class CurrentTimingPathAnalysisTests(unittest.TestCase):
@@ -73,11 +70,10 @@ class CurrentTimingPathAnalysisTests(unittest.TestCase):
             "--run1-top40", self.relative(RUN1_TOP40),
             "--run2-top40", self.relative(run2_top40),
             "--traceability", self.relative(TRACEABILITY),
-            "--path-cluster", self.relative(PATH_CLUSTER),
             "--output", self.relative(self.output),
         )
 
-    def test_exact_reports_define_one_traceable_candidate_only(self) -> None:
+    def test_exact_reports_define_one_traceable_gap(self) -> None:
         built = self.build()
         self.assertEqual(built.returncode, 0, built.stdout)
         verified = self.run_tool("verify", "--input", self.relative(self.output))
@@ -85,12 +81,21 @@ class CurrentTimingPathAnalysisTests(unittest.TestCase):
         value = json.loads(self.output.read_text(encoding="utf-8"))
         self.assertEqual(
             value["status"],
-            "TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED")
+            "GAP_NO_SAFE_SERIALIZED_DRAIN_BOUNDARY")
         paths = value["path_analysis"]
         self.assertEqual(paths["path_count"], 40)
         self.assertEqual(paths["unique_startpoint_count"], 1)
         self.assertEqual(paths["unique_endpoint_count"], 40)
-        self.assertGreaterEqual(paths["dominant_family"]["path_count"], 20)
+        self.assertEqual(paths["dominant_family"]["path_count"], 40)
+        self.assertGreaterEqual(paths["common_raw_prefix_cell_count"], 200)
+        self.assertEqual(paths["endpoint_class_counts"], {
+            "jalr_prefetch_hit_available": 34,
+            "redirect_valid": 5,
+            "pending_branch_misaligned": 1,
+        })
+        self.assertTrue(all(
+            count == 40
+            for count in paths["shared_cone_token_path_counts"].values()))
         self.assertEqual(
             paths["rtl_traceability"]["status"],
             "TRACEABLE_NAMES_PRESENT")
@@ -99,12 +104,16 @@ class CurrentTimingPathAnalysisTests(unittest.TestCase):
             ["dominant_control_segment"]["coverage"], "40/40")
         self.assertEqual(
             value["candidate_decision"]["id"],
-            "head0-csr-inflight-permit-block-v1")
+            "NONE_OWNER_LIFETIME_UNPROVEN")
+        self.assertEqual(
+            value["candidate_decision"]["rejected_candidate_id"],
+            "serialized-mem-terminal-readiness-register-v1")
+        self.assertEqual(value["candidate_decision"]["status"], "GAP")
         self.assertFalse(
             value["candidate_decision"]["production_rtl_change_authorized"])
         self.assertEqual(
             value["next_action"],
-            "validate.head0-csr-dispatch-disjointness")
+            "analyze.serialized-drain-owner-lifetime")
 
     def test_non_exact_second_report_is_rejected(self) -> None:
         mutated = self.work / "mutated-top40.rpt"

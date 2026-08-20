@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "experience_id": "rv64.v16a.owner-permit.93c8",
+  "state": "diagnosed",
+  "design_context": {
+    "design_id": "sha256:93c8edcf798daecb4c0a12e37f86b11da4c2b47d70fedb9f96e3e51c4e9d2551",
+    "source_manifest": ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b/production-manifest-before.sha256",
+    "workload": "CoreMark10+Dhrystone10000+exact-5ns mapped Top40",
+    "configuration": "same frozen f72e/93c8 workload images, committed-PC ROI, NpcSimTop configuration and 5ns STA corner",
+    "toolchain": "local RTL simulation plus Yosys/OpenSTA mapped flow"
+  },
+  "objective": [
+    "correctness",
+    "cpi",
+    "timing",
+    "area"
+  ],
+  "observation": {
+    "claim": "f72e had 40/40 mapped Top40 paths through non-CSR serialized terminal to drain/frontend; 93c8 moved that exact target family out of Top40 with zero CPI delta and small logic-area cost, while the 5ns timing gate remained failed.",
+    "evidence_refs": [
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b/summary.json",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-cpi-93c8-a1/evidence/owner-timing-current-candidate-ab/result.json"
+    ]
+  },
+  "hypothesis": {
+    "claim": "Binding the exact memory-terminal fact to a registered exact-one serialized owner permit removes the direct terminal-to-drain/frontend Top40 path family without CPI regression.",
+    "mechanism_chain": [
+      "current memory-owner terminal scalar drives the serialized drain control cone",
+      "permit D captures terminal only after registered raw backend drain and exact-one owner identity",
+      "permit Q plus owner match replaces the current terminal scalar at non-CSR drain authorization",
+      "raw backend drain and FENCE current-idle remain on the consume edge",
+      "the target terminal-to-drain/frontend path family leaves mapped Top40 while benchmark CPI remains unchanged"
+    ],
+    "competing_explanations": [
+      "The apparent path removal is only endpoint migration and the global critical path remains elsewhere in the terminal collector.",
+      "A configuration or source-manifest drift, rather than the RTL transform, changed the mapped path inventory."
+    ],
+    "falsifier": "Any target non-CSR terminal-to-drain/frontend path remains in the same-design mapped Top40, CPI regresses, or owner/cancel/FENCE invariants fail."
+  },
+  "prediction": {
+    "metric": "target_terminal_drain_frontend_top40_path_count",
+    "expected": 0,
+    "lower": 0,
+    "upper": 0,
+    "unit": "paths",
+    "confidence": 0.78
+  },
+  "proposal": {
+    "transform_id": "experiment.serialized-owner-terminal-permit",
+    "architectural_diff": "Add a valid plus 3-bit exact-one owner permit for non-CSR system, architectural trap and simulation exit; preserve current CSR eligibility, raw drain and FENCE current-idle.",
+    "preserved_invariants": [
+      "serialized owner exact-one and A-to-B handoff isolation",
+      "raw backend drain remains required on consume",
+      "ordinary FENCE requires current mem_idle",
+      "ROB-head trap priority and terminal side effects remain exactly once",
+      "memory token ownership and committed-store behavior are unchanged"
+    ],
+    "rollback": "Remove OooSerializedMemTerminalPermit and restore current mem_owner_terminalized_i as the serialized drain qualifier."
+  },
+  "experiment": {
+    "command": "run-owner-timing-workload-ab.sh plus run-traceable-mapped-current.sh A1/A1b and independent reviewer inventory",
+    "input_refs": [
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b/production-manifest-before.sha256",
+      "npc/rv64/design/specs/ooo-serialized-mem-terminal-permit.md"
+    ],
+    "determinism": "variable_ppa",
+    "repeat_reason": "A1b was a distinct traceability-checker correction over the same mapped candidate; cancelled A2 is not counted as evidence.",
+    "evidence_refs": [
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-cpi-93c8-a1/evidence/owner-timing-current-candidate-ab/result.json",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b/opensta-top40.rpt",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/subagent-contracts/v16a-owner-permit-independent-review-v1.result.md"
+    ]
+  },
+  "result": {
+    "status": "pass",
+    "actual": 0,
+    "unit": "paths",
+    "evidence_refs": [
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b/opensta-top40.rpt",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/subagent-contracts/v16a-owner-permit-independent-review-v1.result.md"
+    ]
+  },
+  "comparison": {
+    "prediction_error": 0,
+    "interval_hit": true,
+    "causal_conclusion": "The bounded path-family prediction is supported and CPI did not regress; this does not prove global timing closure because 93c8 still has 40/40 violations and WNS=-11.550187111 ns."
+  },
+  "meta_critic": {
+    "complete": true,
+    "error_classes": [
+      "E2"
+    ],
+    "knowledge_gap_ids": [
+      "gap.rv64.serialized-permit.cancel-cycle"
+    ],
+    "diagnosis": "The path transform was locally causal, but the original reasoning treated edge-based cancel clearing and downstream priority as sufficient without testing an already-held permit colliding with a same-cycle high-priority cancel."
+  },
+  "corrected_strategy": {
+    "action": "Separate feedback-free same-cycle kill from the complete self-consuming holder clear, gate permit readiness immediately, and test held-permit cancellation before any new PPA measurement.",
+    "scope": "non-CSR serialized system/architectural-trap/simulation-exit permit under the local RV64 control plane",
+    "exceptions": [
+      "CSR replay continues to use the current terminal scalar",
+      "direct frontend flush remains downstream-priority guarded because feeding it into readiness would recreate a ready/flush loop",
+      "global timing and promotion require fresh receipts for the post-fix design"
+    ]
+  },
+  "training": {
+    "eligible": false,
+    "ground_truth_level": "eda_report",
+    "unseen_exam_passed": false,
+    "reasons": [
+      "93c8 fails the exact-5ns timing hard gate",
+      "the held-cancel counterexample required a successor RTL correction",
+      "no unseen-context capability exam or system recertification exists"
+    ]
+  },
+  "timestamps": {
+    "predicted_at": "2026-08-08T18:00:00+08:00",
+    "measured_at": "2026-08-09T01:00:00+08:00",
+    "updated_at": "2026-08-09T14:00:00+08:00"
+  }
+}

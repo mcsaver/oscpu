@@ -206,7 +206,11 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
         }
         return metadata, source_records, script, log
 
-    def elaborate_audit(self) -> dict:
+    def elaborate_audit(
+        self,
+        *,
+        allow_manifest_design_rebind: bool = False,
+    ) -> dict:
         self._write_json(self.manifest, self.manifest_value)
         metadata, source_records, script, log = self.provenance()
         full_yosys_json = graph.canonicalize_full_yosys_json(
@@ -216,6 +220,7 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
             self.repo,
             self.manifest,
             self.yosys_json,
+            allow_manifest_design_rebind=allow_manifest_design_rebind,
             elaborator=metadata,
             elaboration_sources=source_records,
             elaborator_full_json_sha256=graph.sha256_bytes(
@@ -223,6 +228,26 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
             ),
             elaborator_script_sha256=graph.sha256_bytes(script),
             elaborator_log_sha256=graph.sha256_bytes(log),
+        )
+
+    def test_manifest_design_rebind_is_explicit_and_elaboration_only(
+        self,
+    ) -> None:
+        self.manifest_value["design_id"] = f"sha256:{'0' * 64}"
+
+        strict = self.elaborate_audit()
+        self.assertEqual(strict["status"], "FAIL")
+        self.assertIn(
+            "census design_id differs from live RTL source binding",
+            strict["errors"],
+        )
+
+        bootstrap = self.elaborate_audit(
+            allow_manifest_design_rebind=True
+        )
+        self.assertEqual(bootstrap["status"], "PASS", bootstrap["errors"])
+        self.assertNotEqual(
+            bootstrap["design_id"], self.manifest_value["design_id"]
         )
 
     def freeze_baseline(self) -> dict:

@@ -1,0 +1,133 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-synthesis-timeout-physical-closure-architecture-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对 NpcTop 5.0ns 配置中 OooFpArithGate 与五个 production child 全核内联综合在 Yosys ABC 阶段 5400 秒未完成的问题建立物理架构 IR，沿 NpcTop 到 FP backend 再到五级数值流水以及综合映射和 STA 证据链追踪状态所有权、组合边界、层级边界与复杂度来源；比较延长整核内联、逐 child 内联、真实 OOC child netlist 加 Liberty 后与 NpcTop 边界组合、层次化 ABC 以及未测热点 RTL 重写，拒绝无证据路线并选出唯一可逆的下一实验",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa",
+      "yosys-sta",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/nangate45.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/traceable-9d8b-fp-arith-children-a1.status",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/parameters.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/command-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synth-console.log",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synthesis-sources.sha256",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/Makefile",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/nangate45.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/traceable-9d8b-fp-arith-children-a1.status",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/parameters.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/command-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synth-console.log",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synthesis-sources.sha256",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "提交 NpcTop 到 FP 五级流水再到 Yosys ABC 和 OpenSTA 的树图与网状 Architecture IR；逐路线列出语义边界、可观测内部路径、综合完成性、面积和时序可组合性、缓存或复用风险及可杀死反例；只推荐一个下一实验，给出精确 module boundary、输入输出与时钟口径、生成 netlist 或 Liberty 的身份绑定、全核集成方式、时间和资源上限、成功 marker、RETAIN 或 ROLLBACK 门槛以及 Registry lifecycle 迁移"
+  ],
+  "success_criteria": [
+    "结论必须解释 134-source 与 inline 参数为何只证明输入接入而不证明 mapped visibility，区分 ABC 超时的已证事实与替代根因，明确拒绝简单重跑同 run-id 和无测量 RTL 重写；唯一推荐实验必须在一次新 run-id 内 fail-closed，可产生 FP child 内部 cells、area、negative slack、internal path 和 NpcTop 边界 timing 的机器绑定证据，并保留 unknowns、counterexamples、alternative_hypotheses、scope_extension_request 与 confidence_and_basis"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

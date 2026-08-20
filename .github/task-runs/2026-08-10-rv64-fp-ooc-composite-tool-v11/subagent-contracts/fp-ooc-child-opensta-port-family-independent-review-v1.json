@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-port-family-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核v11 exact_port_family Tcl-safe实现与单一入口组合证据：对冻结A5 family_N_64位端口验证brace-safe pattern、scalar/bracket/__v/underscore四形态、单style、canonical index、连续唯一coverage、direction；交叉tclsh真实proc harness、8个负向mutation、attempt-1/v2 receipts及A5冻结。判断RETAIN/FIX/BLOCK；不运行Python/bash/test/runner/EDA，不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-child-opensta-port-family-independent-review-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/retained-netlist-manifest.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2/result.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/retained-netlist-manifest.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项审查生产Tcl pattern construction与exact_port_family状态机，确保不触发方括号命令替换、不以cardinality替代index coverage、四style不混用、scalar仅width1、direction/near-name/leading-zero/out-of-range全部拒绝。",
+    "交叉A5真实underscore 0..63、tclsh harness原始marker、8 mutation、Registry static contract、attempt-1 stale与v2 render/check/bash-n/scoped receipts，确认A5/runner/FP RTL冻结。"
+  ],
+  "success_criteria": [
+    "给出RETAIN/FIX/BLOCK与最强反例、unknowns、alternative hypotheses、confidence。无静态确定误拒/假绿可RETAIN并仅授权全新run-id一次5ns diagnostic；PPA仍GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

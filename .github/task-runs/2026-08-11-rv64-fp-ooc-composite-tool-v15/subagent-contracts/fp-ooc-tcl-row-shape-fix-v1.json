@@ -1,0 +1,124 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-tcl-row-shape-fix-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复本地RV64 FP OOC evidence工具从Python到OpenSTA Tcl的二维表投影：A8已证明OooFpAddSubPipe的138个逐bit driver row被扁平化，且五条NpcTop boundary存在同型静态反例。使用一个共享、Tcl-safe、行级嵌套编码器，使child每行精确6字段、top每行精确8字段且分别为138行和5行；定向负向测试拒绝扁平、缺字段、多字段、跨行合并与非安全atom。不改FP RTL，不重跑A8，不运行production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/subagent-contracts/fp-ooc-tcl-row-shape-fix-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "以共享row编码器生成child与top的真正Tcl list-of-lists；child读取A8冻结driver contract后应为138个六字段row，top Registry投影应为5个八字段row，所有atom保持原值且source/opensta consumers无需猜测行边界。",
+    "增加直接消费production emit函数/CLI的Tcl或等价parser正例与compile-success负向变异，覆盖A8扁平化、top同型扁平化、缺/多字段、跨行合并、unsafe brace/backslash及行数漂移；Registry/spec记录row-shape合同。",
+    "一次裁剪门禁封存受影响unittest、Registry render/check、production runner bash-n与scoped diff/text audit；A8状态和FP RTL before/after不变，production EDA执行次数为0。"
+  ],
+  "success_criteria": [
+    "所有受影响定向门禁单次PASS，A8不重跑、FP RTL不改、production Yosys/OpenSTA/STA/RTL sim为0；结论仅解除row-shape工具阻断，PPA继续GAP并要求独立只读review后才允许全新run-id。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

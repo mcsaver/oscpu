@@ -1,0 +1,16 @@
+{
+  "domain": "local_rv64_cpu",
+  "intent": "redesign",
+  "design_choice": "open",
+  "root_cause": "localized",
+  "semantic_depth": "cross_module_protocol",
+  "objectives": ["correctness", "timing", "area", "complexity"],
+  "baseline_ready": true,
+  "evidence_paths_ready": true,
+  "candidate_exists": false,
+  "architecture_change_authorized": true,
+  "risk": "high",
+  "determinism": "variable_ppa",
+  "known_machine_instability": false,
+  "repeat_requested": false
+}

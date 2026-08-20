@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 OooFpMulProductPipe timestamp v10 isolated bootstrap 的唯一证据域误分类，不改 production runner/test/RTL/Tcl/1800s/600s：v10 已单次封存 FAIL stage=isolated-target-unittest rc2，status=4474bce9ee31877242f60ca78c9afcc515beed0bca265d6a9fcee4c7e11ac758、input-freeze=0669af235e899850e2a6db67dfe30b8bf3ba8eab61a3e16ae90bb69b09518e5f、raw target log=442104584fa2d899f2304c4330c9c022197731ea2b20b3498585e9b550879ded、bootstrap=de2fd158952643b29ebd0b606fdcfd8a66f3f1c79d182838e079bdb862e839c8；v10不得修改删除重跑。新增v11 evidence目录，唯一语义修复是local import closure遍历时精确识别module name=__main__且resolved file等于当前isolated_unittest_runner.py的自身条目，将其从预期三项目标closure中排除，同时要求自身条目恰见一次并把bootstrap path/size/SHA作为独立artifact字段绑定；不得按名称泛化排除其他repo module。继续用绝对Python -I -S -B、decoy、stdlib unittest origin、target唯一method/count=1、architecture_registry/fp_ooc_composite/catalog closure与实际procfs/cmdline；在新输入下target unittest仅一次，raw identity必须在同一进程成功落盘。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增v11 bootstrap/decoys/gate/validator与sealed identity/raw logs/status/result/receipt；保留并逐SHA绑定v10失败四件artifact，result history明确SUPERSEDED_TEST_PASSED_IDENTITY_DOMAIN_ERROR。",
+    "单次v11 gate执行target unittest=1、runner bash-n=1、build=1、verify=1；负向矩阵新增自身__main__漏计/重复/错误路径、误排其他repo module，并保留-I/-S/-B、-m unittest、decoy、stdlib origin、三local module/catalog、raw log/rc/count/replay检查；production EDA/A10/fresh=0。"
+  ],
+  "success_criteria": [
+    "v11 PASS且同进程identity明确bootstrap self count=1、target local closure恰为test/architecture_registry/fp_ooc_composite三项、Ran1/OK/14+15 marker、procfs/cmdline/sys.path/unittest origin与before/after hash闭合；同输入重复调用命令前拒绝。",
+    "输出v11全部关键SHA供v12独立只读绑定；v10/v7/A10/current production/test/RTL/Tcl字节不变，v12 RETAIN前fresh-run=0，PPA=GAP，CPU Architect=NOT_TRIGGERED。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

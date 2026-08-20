@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-mapped-artifact-profile-inventory-tool-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立反例复核 NpcTop 5.0ns mapped_artifact_profile 工具闭包：机械核对 Registry→projection/emit/run-parameters/hash→runner→OpenSTA Tcl→parser→summary→binding 的 profile 身份，攻击 none/BPU/FP artifact-family 绕过，核对 FP negative-slack/internal-path 报告格式与 OpenSTA 真实 report_checks 语法、synth_stat 父子层级 census 与历史真实产物格式、artifact SHA/summary/stamp 绑定和 39 项负向测试有效性；只裁决工具是否可授权一个全新 run-id，production physical/PPA 必须保持 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result.json",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐字段核对 Registry 三种 mapped_artifact_profile 的 schema/catalog/projection/run-parameters/hash/binding 与 runner 实参；构造至少 profile 漂移、错误 artifact family、parser/Tcl/runner/stamp 绕过反例并判断测试是否真实拒绝。",
+    "对照历史真实 synth_stat/OpenSTA report 只读产物，核查 FP exact-one wrapper/五 child、nonzero cells/area、unknown macro 集合、negative slack inventory 和 internal path block parser 是否可能在生产工具中误拒绝、误接受或依赖不稳定文本；给出 RETAIN/FIX/BLOCK 及最小确定修复。",
+    "机械复算 result/log/artifact hash、执行次数与既有 RTL/A1/A2 未改边界；明确工具 PASS 不等于 mapped/PPA PASS，保留 unknowns、alternative_hypotheses、confidence、scope_extension_request。"
+  ],
+  "success_criteria": [
+    "仅运行合同允许的 rg/sed/sha256sum/git diff 只读命令，不运行 Python unittest、bash、生产综合/OpenSTA/STA/parser/RTL 仿真且不写文件；只有在未发现承重反例且 profile/报告/parser/binding 对真实格式闭合时才 RETAIN 并授权一个全新 run-id 的单次 5.0ns NpcTop mapped 流程，否则 FIX/BLOCK。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

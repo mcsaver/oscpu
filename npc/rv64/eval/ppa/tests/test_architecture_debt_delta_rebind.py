@@ -39,11 +39,17 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         expected_changed = {
             path for path in baseline if baseline[path] != current[path]
         }
+        expected_added = set(current) - set(baseline)
         self.assertEqual(
             {row["path"] for row in self.receipt["rtl_delta"]["changed_files"]},
             expected_changed,
         )
-        self.assertEqual(self.receipt["rtl_delta"]["file_count"], 146)
+        self.assertEqual(
+            {row["path"] for row in self.receipt["rtl_delta"]["added_files"]},
+            expected_added,
+        )
+        self.assertEqual(self.receipt["rtl_delta"]["file_count"], len(current))
+        self.assertEqual(self.receipt["rtl_delta"]["removed_file_count"], 0)
         self.assertRegex(
             self.receipt["current_design_id"], r"^sha256:[0-9a-f]{64}$"
         )
@@ -54,9 +60,9 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         self.assertEqual(
             historical["mode_counts"],
             {
-                "CHANGED_RTL_REPLAY_REQUIRED": 29,
+                "CHANGED_RTL_REPLAY_REQUIRED": 31,
                 "CHECKER_ONLY_REUSED": 3,
-                "UNCHANGED_RTL_REUSED": 142,
+                "UNCHANGED_RTL_REUSED": 140,
                 "VERIFICATION_SOURCE_REUSED": 1,
             },
         )
@@ -70,7 +76,7 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
         }
         replacements = self.receipt["current_changed_cone"]["replacements"]
         TOOL.validate_affected_replacements(affected, replacements)
-        self.assertEqual(len(replacements), 29)
+        self.assertEqual(len(replacements), 31)
 
     def test_supplemental_replay_is_exact_current_input(self) -> None:
         replay = self.receipt["current_changed_cone"][
@@ -209,6 +215,7 @@ class ArchitectureDebtDeltaRebindTests(unittest.TestCase):
             projections,
             {
                 "EXACT_CURRENT_DESIGN",
+                "EXACT_CURRENT_SOURCE_PROJECTED_FROM_PRIOR_DESIGN",
                 "EXACT_CURRENT_SOURCE_WITHOUT_RECORDED_WHOLE_DESIGN_ID",
             },
         )

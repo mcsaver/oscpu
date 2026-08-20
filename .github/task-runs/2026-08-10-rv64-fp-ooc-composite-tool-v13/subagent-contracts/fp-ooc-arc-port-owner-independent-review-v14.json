@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-arc-port-owner-independent-review-v14",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooFpAddSubPipe 5.0ns OOC arc inventory PORT owner同构修复：确认parser对PORT object_names保留完整字符串且在style/index解析前拒绝任何层级slash，不会把不同owner或统一伪owner拼成合法连续族；确认该限制仅作用于linked child顶层port family，不误伤合法层次startpoint/endpoint pin；确认public validate_arc_inventory、A6真实underscore64正例、11个负向门禁、Registry单一入口与v12/v13封存身份同构。并回查PathEnd普通值物化仍未回归。若无确定误接受误拒才可RETAIN并最多授权一个fresh diagnostic run-id；不得运行测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-isomorphism-fix-v12.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-single-entry-closure-v13.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-single-entry-closure-v13",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-pathend-parser-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-child-production-fix-audit-closure-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-single-entry-closure-v13/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-independent-review-v14.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-single-entry-closure-v13/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出RETAIN或BLOCK独立裁决，逐项检查完整PORT对象身份、slash owner拒绝、canonical四style/索引集合、startpoint/endpoint层次pin保留、public parser调用链、Registry源合同/spec/ARCH一致性、PathEnd生命周期不回归及v8/v10/v12/v13/A6收据；报告承重反例、未知项和fresh-run授权数。"
+  ],
+  "success_criteria": [
+    "全部只读命令结束且无写入；仅当生产Tcl/parser同构、无跨owner假绿或合法pin误拒、收据无漂移且Registry仍GAP时RETAIN，并只授权一个全新run-id的单次5.0ns diagnostic。任何确定反例均BLOCK；PPA保持GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

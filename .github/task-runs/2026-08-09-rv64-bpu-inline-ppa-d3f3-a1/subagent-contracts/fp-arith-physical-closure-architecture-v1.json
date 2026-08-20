@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-physical-closure-architecture-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "基于当前 f5f2 NpcTop Architecture Registry 的 FP GAP、OooFpArithGate 五级自流水 RTL 与现有 OOC/whole-core 证据，重建 decode→rename→issue→u_fp_issue_stage→arith S1-S5→authorized completion→done FIFO→ROB→commit 的 Architecture IR；比较整块 inline 可见性测量、立即拆 AddSub/Mul/FMA production children、同身份 OOC macro、继续 placeholder 四条路线，冻结且只选择一个可回滚的首个结构动作，同时保持 ProducerId、pdest、kind、double、value、fflags、kill/flush、5-cycle latency 与 1/cycle throughput 不变量。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/decode/OooFpDecode.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooFpClassifyGate.v",
+      "npc/rv64/vsrc/execute/OooFpCompareGate.v",
+      "npc/rv64/vsrc/execute/OooFpConvertGate.v",
+      "npc/rv64/vsrc/execute/OooFpDivIter.v",
+      "npc/rv64/vsrc/execute/OooFpLongOpGate.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/execute/OooFpSgnjGate.v",
+      "npc/rv64/vsrc/execute/OooFpSqrtIter.v",
+      "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v",
+      "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v",
+      "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+      "npc/rv64/vsrc/writeback/OooWriteback.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/design/specs/ooo-fp-admission-credit.md",
+      "npc/rv64/design/specs/ooo-fp-producer-lease.md",
+      "npc/rv64/design/specs/ooo-fp-reg-file.md",
+      "npc/rv64/design/specs/ooo-fp-sticky-wakeup-barrier.md",
+      "npc/rv64/design/specs/ooo-int-to-fp-sticky-wakeup.md",
+      "npc/rv64/design/specs/history/ooo-fp-arith-pipeline.md",
+      "npc/rv64/design/specs/history/ooo-fp-cluster-implementation-plan.md",
+      "npc/rv64/design/specs/history/ooo-fp-fma-fused-topology.md",
+      "npc/rv64/design/specs/history/ooo-fp-pending-exec-decompose.md",
+      "npc/rv64/design/specs/history/ooo-fp-pending-exec.md",
+      "npc/rv64/design/specs/history/ooo-pending-fp-sequencer.md",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
+      "npc/rv64/syn/macro-lib/OooFpArithGate.lib",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-physical-strategy-architect-route-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-physical-strategy-architect-route-v1.result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/synth_stat.txt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/opensta-top40.rpt",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/traceable-f5f2-bpu-flat-read-view-a1.status",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/command-status.txt",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/synth_stat.txt",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-rollback-registry-close-v1/verification.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-physical-closure-architecture-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
+      "npc/rv64/syn/macro-lib/OooFpArithGate.lib",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出 FP Architecture IR 的树、流水图和状态/事务网：逐项标出 17 个 FP 源文件的职责与 reachability，区分 short arithmetic、div/sqrt、convert/class/compare/sgnj、load/store、PRF/wakeup/writeback/commit；给出 S1-S5 每拍数据、meta、fflags 与 kill owner，列明 Edge/Invariant/EvidenceRef/Unknown。对 whole-inline、production child split、OOC macro、placeholder 四方案分别给 RETAIN/FIX/BLOCK 与反例，只选择一个首个动作；为所选动作定义 exact module/port/state owner、physical configuration identity、keep-hierarchy/blackbox 集合、focused TB、compile-success mutation、动态 launch/kill/stage5/authorized/commit 边计数、一次性综合/STA/PPA retain/rollback 门和停止条件。保留 competing hypotheses、scope_extension_request、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "结论必须绑定 current registry snapshot=sha256:1ceb6d96f16a864be17565f2110c9ed2315889670623984f125cca4fa2a99599 与 live design=sha256:f5f2a00a34a25262f9913abda384a197f751afc94cf424e896c7414a65b92eb8；不得把 area=0 的 OooFpArithGate placeholder、旧 OOC probe 或全核 Top40 未命中 FP 解释为真实 FP 内部时序/面积。所选方案必须保持 5-cycle launch→out、1/cycle throughput、同拍 kill/flush 与 value/fflags/ProducerId 对齐，且不能把 div/sqrt/convert/load/store 归入 short arithmetic PPA。只读审查不得修改文件或运行仿真、综合、STA、parser、test；信息不足时 fail-closed 为 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

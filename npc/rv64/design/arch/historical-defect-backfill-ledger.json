@@ -10,13 +10,13 @@
     "VD3": "Current-design raw cycle or transaction observations reject a compile-success negative RTL/oracle version and bind stable local artifacts.",
     "VD4": "VD3 plus current-design aggregate or frozen-system replay, explicit publication boundaries and independent review."
   },
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "entries": [
     {
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -30,7 +30,8 @@
         "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
-        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
       ],
       "domain": "rtl-liveness",
       "first_observed": "2026-07-05",
@@ -66,7 +67,7 @@
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -82,7 +83,8 @@
         "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
-        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
       ],
       "domain": "rtl-liveness",
       "first_observed": "2026-07-05",
@@ -121,7 +123,7 @@
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -132,7 +134,8 @@
         "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
-        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
       ],
       "domain": "rtl-terminal-ownership",
       "first_observed": "2026-07-27",
@@ -165,7 +168,7 @@
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -176,7 +179,8 @@
         "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
-        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
       ],
       "domain": "verification-oracle",
       "first_observed": "2026-07-28",
@@ -208,7 +212,7 @@
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -219,7 +223,8 @@
         "The V15G six-defect current receipt revalidates this bound evidence on sha256:f7a6845564f2d697fca9eac8bf9424136508a62c7fcc7851ad56c688dc2053f9 without rewriting historical artifacts or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
         "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
-        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion.",
+        "The V15Q six-defect current receipt revalidates the directed positive, compile-success negative and layered-system evidence on sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af without rewriting historical execution status or claiming ARCH_STABLE or PPA promotion."
       ],
       "domain": "verification-oracle",
       "first_observed": "2026-07-20",
@@ -251,7 +256,7 @@
       "current_evidence": [
         {
           "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-          "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1"
+          "sha256": "74527dd668c625c673cf6efea5622521ab03acfda9c8d5f047dd58962675be34"
         }
       ],
       "depth_basis": [
@@ -263,7 +268,8 @@
         "The isolated V15G read-only reviewer confirmed exact-source identity, the C0-to-C1 owner handoff root cause, current fix, mutation sensitivity, fail-loud collector policy and the frozen-bank UNKNOWN boundary. This supplies VD4 aggregate/replay, publication boundaries and independent review without an ARCH_STABLE, synthesis, STA, CPI or PPA claim.",
         "The V15Q current-design receipt binds unchanged OooIntBackend/OooMemAxiBridge fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL versions, the independently reviewed adapter terminal path and L0-L3 evidence to sha256:337de8bf9bb72a57ab50570313521cd282c49f88df9cb88417c47673af4a6968; the immutable bank and kind/token/epoch tuple remain UNKNOWN, the 5 ns timing hard gate remains FAIL_NOT_PROMOTABLE, and no terminal-event deduplication or assertion weakening is permitted.",
         "The V15Q current-design receipt binds unchanged OooIntBackend/OooMemAxiBridge fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL versions, the independently reviewed adapter terminal path and L0-L3 evidence to sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f; the immutable bank and kind/token/epoch tuple remain UNKNOWN, the 5 ns timing hard gate remains FAIL_NOT_PROMOTABLE, and no terminal-event deduplication or assertion weakening is permitted.",
-        "The V15Q current-design receipt binds unchanged OooIntBackend/OooMemAxiBridge fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL versions, the independently reviewed adapter terminal path and L0-L3 evidence to sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42; the immutable bank and kind/token/epoch tuple remain UNKNOWN, the 5 ns timing hard gate remains FAIL_NOT_PROMOTABLE, and no terminal-event deduplication or assertion weakening is permitted."
+        "The V15Q current-design receipt binds unchanged OooIntBackend/OooMemAxiBridge fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL versions, the independently reviewed adapter terminal path and L0-L3 evidence to sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42; the immutable bank and kind/token/epoch tuple remain UNKNOWN, the 5 ns timing hard gate remains FAIL_NOT_PROMOTABLE, and no terminal-event deduplication or assertion weakening is permitted.",
+        "The current-design receipt binds live OooIntBackend/OooMemAxiBridge fix bytes, the current V9R 2/2 baseline and 3/3 compile-success negative RTL versions, the current adapter negative variant and independently reviewed L0-L3 evidence to sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af; the immutable bank and kind/token/epoch tuple remain UNKNOWN, current mapped PPA remains UNMEASURED_UNPROMOTED, and no terminal-event deduplication or assertion weakening is permitted."
       ],
       "domain": "rtl-terminal-ownership",
       "first_observed": "2026-07-23",
@@ -344,7 +350,7 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-          "sha256": "27bd975f4e30dd6397df9755b00caac5f651a32395de8f7ad6e69ee695a5afdf"
+          "sha256": "d4b3f5c710defed75d1903c2f18305a357a166093f65a334eb7014145a56ff84"
         }
       ],
       "status": "BACKFILLED",
@@ -352,7 +358,7 @@
       "validation_depth": "VD4"
     }
   ],
-  "revision": "v15q-current-f72e1fb4-historical-defect-vd4-rebind",
+  "revision": "v15q-current-d3f3e7ff-historical-defect-vd4-rebind",
   "schema": "npc-rv64-historical-defect-backfill-ledger-v1",
   "scope": "local RV64 dual-issue OoO RTL, testbench oracle and evidence-binding defects with high diagnosis or replay cost",
   "selected_id": "NONE"

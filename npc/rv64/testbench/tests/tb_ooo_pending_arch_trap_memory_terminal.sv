@@ -11,6 +11,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
   reg pending_arch_trap;
   reg mem_idle;
   reg mem_owner_terminalized;
+  reg serialized_mem_terminal_ready;
   reg pending_system;
   reg pending_system_fence;
 
@@ -54,6 +55,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     .mem_retire_quiet_i(1'b1),
     .mem_idle_i(mem_idle),
     .mem_owner_terminalized_i(mem_owner_terminalized),
+    .serialized_mem_terminal_ready_i(serialized_mem_terminal_ready),
     .pending_system_i(pending_system),
     .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(1'b0),
@@ -123,6 +125,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
       pending_arch_trap = 1'b0;
       mem_idle = 1'b1;
       mem_owner_terminalized = 1'b1;
+      serialized_mem_terminal_ready = 1'b1;
       pending_system = 1'b0;
       pending_system_fence = 1'b0;
     end
@@ -151,6 +154,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     pending_arch_trap = 1'b1;
     mem_idle = 1'b0;
     mem_owner_terminalized = 1'b0;
+    serialized_mem_terminal_ready = 1'b0;
     #1;
     tb_check1("V9Z active memory holder blocks drain", drain_complete, 1'b0);
     tb_check1("V9Z active memory holder blocks arch trap fire",
@@ -163,6 +167,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     // The exact current-edge accepted terminal transfer and the
     // collector-pending-only phase both present the same qualified scalar.
     mem_owner_terminalized = 1'b1;
+    serialized_mem_terminal_ready = 1'b1;
     #1;
     tb_check1("V9Z exact terminal admits drain", drain_complete, 1'b1);
     tb_check1("V9Z exact terminal admits arch trap fire",
@@ -177,6 +182,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     // cycles that carry neither an architectural trap nor a system request.
     pending_arch_trap = 1'b0;
     mem_owner_terminalized = 1'b0;
+    serialized_mem_terminal_ready = 1'b0;
     #1;
     tb_check1("V9Z unrelated drained control ignores memory holder",
               drain_complete, 1'b1);
@@ -189,6 +195,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
     tb_check1("V9Z overlapping serialized controls block active holder",
               drain_complete, 1'b0);
     mem_owner_terminalized = 1'b1;
+    serialized_mem_terminal_ready = 1'b1;
     #1;
     tb_check1("V9Z overlapping serialized controls admit exact terminal",
               drain_complete, 1'b1);

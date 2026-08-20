@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-banked-child-inline-implementation-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读审查 live b279 OooBranchLocalPht 16×256 child-inline 实现及其 GAP evidence：确认 parent/child state ownership、0-cycle双读、S1/S2、RAW、clear、mispredict train/no-restore 与 bank-local fanout结构；攻击 directed TB覆盖、11项compile-success mutation精确oracle、keep-hierarchy/logic-sharing风险、filelist与单一registry新identity/stale-d3f3门，给出最小A2修订或BLOCK，不运行任何测试/综合/STA、不修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-independent-review-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出RETAIN/FIX/BLOCK独立裁决；逐项重建并攻击bank/row、same-bank与different-bank双读、lookup/S2 collision、back-to-back RAW、pending-clear、mispredict train/no-restore、public taken→16 bank-local S1结构和综合重新sharing风险；逐条核对11项mutant是否编译成功且真实动态拒绝，判断两项BPU-L1-STRONG marker应修runner还是修TB，并检查是否缺少directed/mutation反例；检查新增product RTL进入filelist/owner/lifecycle/config、live identity与旧d3f3 receipt失效是否fail-closed。输出最小A2变更清单、保留/回滚门、unknowns、scope_extension_request和confidence，不运行门禁。"
+  ],
+  "success_criteria": [
+    "只有实现保持既有cycle/state语义、bank-local S1真正存在、功能oracle覆盖同bank同/异row和不同bank双读、11项compile-success mutation的精确拒绝可由最小确定性修订闭合、registry不伪绑定旧PPA且不存在其它承重缺口时，才允许FIX后进入A2；若RTL语义错误或需要改OooFrontend/预测周期则BLOCK。不得把TB PASS或RTL结构写成PPA改善，不得修改文件或运行测试。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

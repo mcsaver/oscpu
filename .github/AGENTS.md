@@ -31,6 +31,13 @@
 
 - 所有任务先读取 `.github/instructions/agent-lightweight-workflow.instructions.md` 并分类为
   `review/analysis/docs/development/verification/environment/longrun/cleanup/release`。
+- 本地 RV64 CPU 任务再按 `.github/instructions/cpu-architect-routing.instructions.md` 做六路语义分类；
+  只有分类器输出 `ARCHITECT` 才启动 CPU Architect，普通 RTL、局部 bug、验证、工具、文档和状态任务
+  分别留给 WORKER/EXPLORER/REVIEWER/NON_ARCH，不按关键词或文件数升级。
+- 本地 RV64 的全局 current 状态只从 `npc/rv64/ARCHITECTURE.md` 进入；该入口由 architecture registry
+  将  `.v/.sv` inventory、owner、Git 生命周期、产品 filelist、NpcTop elaboration、动态证据和 mapped
+  STA/PPA 身份一次 join 后生成。Agent 先用 `architecture_registry.py query --capability/--path` 读取有界
+  切片，再按需打开具体 RTL/spec/evidence；其它 Markdown 不再各自维护 current 状态。
 - `review`、`analysis` 是只读任务：直接读取相关源码/spec 并交付结论，不强制 DB brief、memory、
   task-run、profile、strict guard 或实现者/审查者二次套娃。
 - 有落盘修改的任务用 `scripts/agent-flow.sh begin/record/evidence/decision/finish` 记录本轮明确拥有的
@@ -79,7 +86,7 @@
 | **RECALL** | 直接相关源码/spec；需要历史时才生成 DB brief | 不把历史召回作为所有任务的固定前置 |
 | **PLAN** | 任务图或最小可执行步骤 | 复杂任务优先选静态图模板 |
 | **DISPATCH** | 当前节点的具体动作 | 可并发做只读调研，但实现与验证按依赖推进 |
-| **VERIFY** | 客观证据 | 日志、构建结果、测试结果、trace、对比输出 |
+| **VERIFY** | 一次最小充分的客观证据 | 固定输入与确定性 oracle 默认单次；日志、构建结果、测试结果、trace、对比输出 |
 | **ADAPT** | 失败后的根因假设与下一步实验 | 禁止盲目重复同一命令 |
 | **RECORD** | 显式修改路径、验证和工程决策轨迹 | 稳定结论写 memory；确定性结果按 compact/durable task-run 留存 |
 
@@ -125,6 +132,10 @@
 - 需要查看结果时，应直接运行程序并基于真实终端输出总结关键结论。
 - 能脚本化的调试路径优先脚本化，例如 `--batch`、日志文件、trace、watchpoint、配置开关、临时代码插桩或专用测试程序。
 - 任何实际代码修改后，都要提供至少一条验证证据；如果无法验证，必须明确说明缺口。
+- 固定输入、固定命令、固定 tool/seed/thread 且 oracle 确定时默认执行一次；证据绑定 command、input/config、
+  design-id、返回码、结果和 artifact。只有随机/并发、已知 flaky、未固定 seed/thread、PPA/时钟测量噪声、
+  机器异常证据或用户明确要求才重复，并预注册原因、阈值和停止条件。A/B、正负向、不同 corner/config、
+  mutation 或抽象层属于不同证据，不是重复。
 - NPC 性能/CPI/OoO 优化不得只看 `add` 单项；必须按 `.github/instructions/npc-optimization-workflow.instructions.md` 执行全量优先、三类代表样本分析和一个 module 一个源文件约束；`npc/rv64` 还须按 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 执行完整设计点、同源证据、hard-gate-first、全局 Pareto 与 Power/宏面积资格化。
 - RV64 Linux/Ubuntu 性能仿真不得为了跑快省略或短接 guest 可见设备、中断与总线事务路径；Verilator 平台可用 DPI/host C++，但 core/长期 RTL 必须保持可综合边界并按 `.github/instructions/verilator-tapeout-realism.instructions.md` 记录真实度假设。
 
@@ -133,7 +144,9 @@
 ## 7. 记录与交付
 
 - **完成判定钩子**：在声明“完成”、关闭目标、更新 goal 状态、或把任务写入“已完成”前，必须重新展开用户原始请求和已读文档中的 checklist/路线图，逐项核对：
-  - 有落盘实现、跨模块结论、长跑或高风险交付时完成“实现者 / 审查者”双角色复核：实现者先陈述本轮改动、证据和交付边界；审查者随后优先寻找反例、覆盖洞、假绿和越级完成声明。纯代码 review/analysis 不再追加同构的二次审查。
+  - 只有 `risk=high`、release、migration、难恢复的破坏性操作、正式 Architecture/Pareto promotion、
+    对外发布或用户明确要求时，才完成“实现者 / 审查者”风险触发双角色复核；落盘、跨文件、长跑或
+    “非平凡”本身不触发。审查者寻找反例、覆盖洞、假绿和越级声明，不机械重跑同一确定性命令。
   - 若用户请求是路线图、长期目标或包含多阶段建议，只能把已验证的最小闭环称为“子任务/本切片完成”，不得把整个目标标为完成。
   - 若只完成其中一项，最终回复和 memory/task-run 必须显式写清“已完成项、未完成项、下一步候选”，并保持目标/问题在语义上未闭合。
   - 只有当原始目标的全部硬性条目都有客观证据，且不存在未处理的用户明确要求时，才允许使用“整体完成/goal complete”的表述。
@@ -151,7 +164,7 @@
 - 日常收尾只在一轮目标达到确定性交付点时运行
   `scripts/agent-flow.sh finish --task <task-id>`。C 调度器按明确登记的路径运行相关门禁；约 40%
   流程占用只在 `summary.txt` 中观测而不构成时间门禁，AI 失败时再读对应单个日志。
-- 需要实现者/审查者复核的任务先运行 `finish --candidate` 生成 `CANDIDATE_PASS` 并缓存同一
+- 命中上述独立复核风险触发器的任务先运行 `finish --candidate` 生成 `CANDIDATE_PASS` 并缓存同一
   generation 的门禁结果；审查无修改后正式 `finish` 复用缓存并归档，审查触发修改时重新
   `record` 使旧缓存失效。
 - `scripts/agent-e2e.sh --guard --guard-mode strict` 只保留给 release、迁移兼容或用户明确要求的完整

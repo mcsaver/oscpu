@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "gap_id": "gap.rv64.serialized-permit.cancel-cycle",
+  "source_experience_ids": [
+    "rv64.v16a.owner-permit.93c8"
+  ],
+  "trigger": "counterexample",
+  "error_class": "E2",
+  "failed_prediction": "A held permit was assumed harmless on a cancellation edge because state would clear at the edge and downstream priority would mask all lower-priority consumers.",
+  "missing_information": "The original evidence did not observe ready, drain_complete and accepted architectural side effects when an already-held permit collided with a feedback-free ROB-head-trap cancellation while raw drain and control-ready stayed high.",
+  "falsifiable_question": "With a held exact-one permit and raw drain/control-ready high, does a feedback-free high-priority cancel force ready_o=0 and drain_complete_o=0 in the current cycle while the ROB-head trap is accepted exactly once?",
+  "capability_ids": [
+    "commit-trap-control.cancel-cycle-priority",
+    "experimental-method.counterexample-design"
+  ],
+  "acquisition_plan": {
+    "level": "strategy_memory",
+    "action": "Model self-consuming clear and externally sourced kill as separate causal edges; never feed a drain-derived complete clear into readiness, and always include a held-state collision test.",
+    "source_refs": [
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/subagent-contracts/v16a-owner-permit-independent-review-v1.result.md",
+      "npc/rv64/design/specs/ooo-serialized-mem-terminal-permit.md"
+    ]
+  },
+  "validation_plan": {
+    "cheapest_discriminating_experiment": "Run the focused held-permit+cancel tuple and the serialized-owner held-permit+ROB-head-trap integration tuple once, then delete the current-cycle ready gate in a compile-success mutation.",
+    "expected_uncertainty_reduction": 1.0,
+    "experiment_cost": 0.2,
+    "voi": 5.0,
+    "success_criterion": "Production shows ready=0, drain=0, mem trap accepted once, pending arch request=0 and C1/C2 clear/no-repeat; the gate-deletion mutation compiles and is rejected.",
+    "counterexample": "Any held-cancel cycle exposes ready or drain, accepts a lower-priority side effect, or the gate-deletion mutation passes."
+  },
+  "priority": {
+    "impact": 1.0,
+    "frequency": 0.5,
+    "uncertainty": 1.0,
+    "learning_cost": 0.2,
+    "score": 2.5
+  },
+  "status": "validated",
+  "evidence_refs": [
+    ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/v16b-cancel-cycle/focused/logs/tb_ooo_serialized_mem_terminal_permit.log",
+    ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/v16b-cancel-cycle/integration/logs/tb_ooo_serialized_owner_exactly_once.log",
+    ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/v16b-cancel-cycle/mutation/v16a-serialized-mem-terminal-permit-mutation/result.txt",
+    ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/v16b-cancel-cycle/production-lint.log"
+  ]
+}

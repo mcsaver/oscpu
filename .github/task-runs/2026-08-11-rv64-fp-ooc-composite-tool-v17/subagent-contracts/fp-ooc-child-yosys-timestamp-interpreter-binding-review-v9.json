@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooFpMulProductPipe child-Yosys timestamp v7 执行身份闭环。逐文件复算并要求：v7 contract=948ca4fb95c62a71320c20573794c4565db9d12b8826f63b9137fd69ba00b396；gate=8b05af6b1db7158c528d241617e86edb63259e6149806be17c016827be8996e7；identity probe=08351ed9ae11195b5e1a1d2c7e0468abef658e81b82df1d4cf10672aaaf80ff1；validator=eec468df3fcb81fc24630c9107fcc01a7db599900e8f4242926d35b78f64dcf4；input freeze=04ba3cb79ae3fcdeba49a459af1e6ac7886a390ee7304cad719833cdf4f03f43；identity before/after/merged=31d4bfb8000da2738dc4d5d64e011dc51be74517531f7066c16e1e4aecbc6c19/5887cf44239da9415498acab7237a766971f16754aa6f0e0f4c21b638e050e81/ccb695cd9695a56e088217f5962e8ecd0068b7b298499034f6507a264cacacb8；status=1377502fbcd820b5b38de431b015c609544217ef27ddc75662b05a9b901d8cf6；unittest/bash-n raw logs=1ce3d23a70be8dcfc4ba578142f38955fb754a70f5e68433fd3ea62c4364f4a6/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855；result=d8e414d13691a31368ce371fff25a9bb8f7157ec167dabd8011957c244c2aa8c；receipt=1c712dce2ba2fa36b935fde3925fa4b6b081665b75820a57af47fb31eef0a82c。核对 gate 确由 clean absolute Bash 启动并自验 procfs executable/cmdline，目标测试实际用 clean env 和绝对 Python -E -s -B，runner bash-n 用绝对 Bash；Bash canonical size/SHA=1446024/bc5945feb8bd26203ebfafea5ce1878bb2e32cb8fb50ab7ae395cfb1e1aaaef1，Python canonical=/usr/bin/python3.12 size/SHA=8020928/1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118。确认 raw marker/Ran1/OK、executions=1、before=after identity、五禁环境变量不存在、negative verifier 实际消费 environment6/identity9/log5/status6/receipt10。并复核 production child actual argv 仍由1800s直接约束、runner/test/RTL/Tcl/A10/134-source均冻结。发现任何可使未执行目标测试仍生成同形 PASS、可令 PATH/PYTHONPATH/BASH_ENV 绕过、或 review 后 current input 漂移的确定反例则 BLOCK；否则 RETAIN 仅授权一个全新 run-id 单次5.0ns diagnostic，PPA保持GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-external-binding-review-v7.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-execution-receipt-review-v8.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v6.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RETAIN/BLOCK 裁决；逐项列出 v7 gate/identity/status/raw logs/result/receipt、系统 Bash/Python、current runner/test/RTL/Tcl、A10 的复算结果与任何确定反例、unknowns、替代解释、fresh-run授权数和PPA边界。"
+  ],
+  "success_criteria": [
+    "只读命令全部结束并归还WSL ownership；未运行Python/test/Yosys/OpenSTA/STA/RTL sim、未写文件。只有外部hash、真实executable/environment、raw execution transcript、actual production argv与current/A10冻结同时闭合且无确定假绿时才RETAIN=1，否则BLOCK/fresh-run=0。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

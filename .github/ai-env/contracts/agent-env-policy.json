@@ -27,7 +27,11 @@
     "agent": {
       "role": "automatic-maintenance-flow",
       "profile": "agent-system",
-      "maintainer": "scripts/agent-maintain.sh"
+      "maintainer": "scripts/agent-maintain.sh",
+      "live_roots": [
+        ".github/agents",
+        ".codex/agents"
+      ]
     }
   },
   "agent_tools": {
@@ -74,6 +78,47 @@
     ],
     "private_token_reasoning_archived": false,
     "structured_engineering_decision_trace": true
+  },
+  "validation_budget": {
+    "policy": "risk-and-uncertainty-driven",
+    "deterministic_default_execution_count": 1,
+    "deterministic_same_command_rerun_required": false,
+    "evidence_binding_fields": [
+      "command",
+      "input_or_configuration",
+      "design_id_when_applicable",
+      "tool_seed_and_threads_when_applicable",
+      "return_code",
+      "parsed_result",
+      "artifact"
+    ],
+    "repeat_triggers": [
+      "random_or_stochastic",
+      "concurrency",
+      "known_flaky_behavior",
+      "unpinned_seed_or_threads",
+      "ppa_or_wall_clock_measurement_noise",
+      "known_machine_instability",
+      "user_explicit_request"
+    ],
+    "repeat_requires_reason_threshold_and_stop_condition": true,
+    "distinct_evidence_is_not_repetition": [
+      "baseline_vs_candidate",
+      "positive_vs_negative_oracle",
+      "different_corner_or_configuration",
+      "different_mutation",
+      "different_abstraction_layer"
+    ],
+    "independent_review_triggers": [
+      "risk_high",
+      "release",
+      "migration",
+      "hard_to_recover_destructive_action",
+      "formal_architecture_or_pareto_promotion",
+      "external_publication",
+      "user_explicit_request"
+    ],
+    "file_count_or_non_trivial_label_triggers_review": false
   },
   "retention": {
     "db_owned_markdown_must_be_shim": true,
@@ -129,6 +174,17 @@
     "wording_profile_changes_capabilities": false,
     "wording_keyword_blacklist_forbidden": true
   },
+  "task_routing": {
+    "cpu_architect": {
+      "policy": ".github/ai-env/contracts/cpu-architect-routing-v1.json",
+      "classifier": "scripts/cpu_architect_route.py",
+      "custom_agent": ".codex/agents/cpu-architect.toml",
+      "required_route": "ARCHITECT",
+      "keyword_or_file_count_triggering": false,
+      "learning_record_maintenance_triggers_architect": false,
+      "grounded_learning_policy": ".github/ai-env/contracts/cpu-architect-learning-v1.json"
+    }
+  },
   "state_machine": {
     "instruction": ".github/instructions/agent-env-state-machine.instructions.md",
     "contract": ".github/ai-env/contracts/agent-env-state-traceability.json",
@@ -145,7 +201,9 @@
     "inspector": "agent-system",
     "coordinator": "ysyx-coordinator",
     "traceback_required": true,
-    "adversarial_personas_required": true,
+    "adversarial_personas_required": false,
+    "adversarial_personas_policy": "risk-triggered",
+    "deterministic_same_command_rerun_required": false,
     "conflict_resolution_required": true,
     "reviewer_profile_nodes": [
       "state-machine-traceback",

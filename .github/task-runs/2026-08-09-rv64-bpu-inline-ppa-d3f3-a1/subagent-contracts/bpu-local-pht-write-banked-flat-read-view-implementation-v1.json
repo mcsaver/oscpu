@@ -1,0 +1,135 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-write-banked-flat-read-view-implementation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "按已批准 Architecture IR 对 live b279 OooBranchLocalPht 做唯一一次 write-banked/read-flat-view 固定实现：保持 OooBranchDirectionPredictor 外部双路0-cycle lookup、16×256 bank state owner、bank-local update S1→S2、read-before-write/RAW no-forward/clear/mispredict语义不变；每个 OooBranchLocalPhtBank 只导出 valid_q/counter_q read-only view，wrapper 对两条完整12-bit lookup index各执行一次平坦只读选择，update_old_ctr仍留在选中bank内，禁止恢复公共4096-entry write cone。建立新physical configuration、live design identity和单一入口development状态，但不运行综合/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-view-worker-route-v1.result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-write-banked-flat-read-view-implementation-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-flat-read-view-implementation-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "make",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-view-worker-route-v1.result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "只用apply_patch在声明路径实现固定结构：OooBranchLocalPhtBank删除lane-specific lookup端口与组合row-select，新增read-only valid_view_o[255:0]及counter_view_o[511:0]（或位等价且可审计的只读view）；OooBranchLocalPht拼接16 bank views并仅对lookup0_idx_i/lookup1_idx_i各作一次完整12-bit组合选择，bank-local update_old_ctr/update S1/S2与one-hot bank decode不变。更新spec与focused TB/mutation oracle以直接拒绝lane地址复用、bank/row交换、额外lookup周期、flat公共write owner或update S1/S2漂移；保留既有11项compile-success mutation的精确动态拒绝，必要时增加一个compile-success public-flat-write反例。registry新增mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1和机器可读状态字段，旧b279 mapped summary绑定为execution PASS但frozen ROLLBACK/GAP/noncanonical archive，新candidate为development/unmeasured/noncanonical且next_action绑定一次PPA；更新live expected design-id、schema/tool/tests及ARCHITECTURE单一树图网入口。静态自审后各仅一次运行child TB、parent predictor TB、mutation target、registry unittest、registry render/check与scoped diff check，结果写入全新证据目录。"
+  ],
+  "success_criteria": [
+    "外部预测周期和parent接口不变；两个lookup同拍无tick返回，16 bank继续唯一拥有4096-entry valid/counter state，update_taken_i最多进入16个bank-local S1，counter_train/S2 write不允许成为公共4096-entry write data；focused child/parent TB各rc0，全部compile-success mutants具唯一失败marker、无PASS且source unchanged，registry新配置与live design-id/schema/tool/runner投影一致，旧b279证据保持frozen ROLLBACK且新candidate不得伪造PPA。所有确定性门禁在源代码最终状态各执行一次，失败即GAP且不循环重跑；不得修改OooFrontend、父predictor功能RTL、旧sealed evidence或用户无关改动，不得运行综合/STA/系统回放或宣称面积/时序改善。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

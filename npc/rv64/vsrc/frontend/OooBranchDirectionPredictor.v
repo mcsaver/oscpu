@@ -31,8 +31,6 @@ module OooBranchDirectionPredictor (
   reg [`BPU_LOCAL_HISTORY_ENTRIES-1:0] local_hist_valid_q;
   reg [`BPU_LOCAL_HISTORY_W-1:0] local_hist_q
       [0:`BPU_LOCAL_HISTORY_ENTRIES-1];
-  reg [`BPU_LOCAL_PHT_ENTRIES-1:0] local_pht_valid_q;
-  reg [1:0] local_pht_q [0:`BPU_LOCAL_PHT_ENTRIES-1];
 
   function bht_counter_taken;
     input valid;
@@ -116,14 +114,37 @@ module OooBranchDirectionPredictor (
       {lookup0_local_pc_idx_w, lookup0_local_hist_w};
   wire [`BPU_LOCAL_PHT_INDEX_W-1:0] lookup1_local_pht_idx_w =
       {lookup1_local_pc_idx_w, lookup1_local_hist_w};
-  wire lookup0_local_valid_w =
-      local_pht_valid_q[lookup0_local_pht_idx_w];
-  wire lookup1_local_valid_w =
-      local_pht_valid_q[lookup1_local_pht_idx_w];
-  wire [1:0] lookup0_local_ctr_w =
-      local_pht_q[lookup0_local_pht_idx_w];
-  wire [1:0] lookup1_local_ctr_w =
-      local_pht_q[lookup1_local_pht_idx_w];
+  wire lookup0_local_valid_w;
+  wire lookup1_local_valid_w;
+  wire [1:0] lookup0_local_ctr_w;
+  wire [1:0] lookup1_local_ctr_w;
+
+  wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] update_local_hist_idx_w =
+      update_pc_i[`BPU_LOCAL_HISTORY_INDEX_W:1];
+  wire update_local_hist_valid_w =
+      local_hist_valid_q[update_local_hist_idx_w];
+  wire [`BPU_LOCAL_HISTORY_W-1:0] update_local_hist_w =
+      update_local_hist_valid_w ? local_hist_q[update_local_hist_idx_w] :
+                                  {`BPU_LOCAL_HISTORY_W{1'b0}};
+  wire [`BPU_LOCAL_PHT_PC_BITS-1:0] update_local_pc_idx_w =
+      update_pc_i[`BPU_LOCAL_PHT_PC_BITS:1];
+  wire [`BPU_LOCAL_PHT_INDEX_W-1:0] update_local_pht_idx_w =
+      {update_local_pc_idx_w, update_local_hist_w};
+
+  OooBranchLocalPht u_local_pht (
+    .clk(clk),
+    .rst(rst),
+    .clear_i(clear_i),
+    .lookup0_idx_i(lookup0_local_pht_idx_w),
+    .lookup0_valid_o(lookup0_local_valid_w),
+    .lookup0_ctr_o(lookup0_local_ctr_w),
+    .lookup1_idx_i(lookup1_local_pht_idx_w),
+    .lookup1_valid_o(lookup1_local_valid_w),
+    .lookup1_ctr_o(lookup1_local_ctr_w),
+    .update_valid_i(update_valid_i),
+    .update_idx_i(update_local_pht_idx_w),
+    .update_taken_i(update_taken_i)
+  );
   wire lookup0_local_taken_w =
       bht_counter_taken(lookup0_local_valid_w, lookup0_local_ctr_w,
                         lookup0_static_taken_w);
@@ -150,41 +171,25 @@ module OooBranchDirectionPredictor (
   assign lookup1_predict_strong_o =
       lookup1_gshare_strong_w || lookup1_local_strong_w;
 
-  wire [`BPU_LOCAL_HISTORY_INDEX_W-1:0] update_local_hist_idx_w =
-      update_pc_i[`BPU_LOCAL_HISTORY_INDEX_W:1];
-  wire update_local_hist_valid_w =
-      local_hist_valid_q[update_local_hist_idx_w];
-  wire [`BPU_LOCAL_HISTORY_W-1:0] update_local_hist_w =
-      update_local_hist_valid_w ? local_hist_q[update_local_hist_idx_w] :
-                                  {`BPU_LOCAL_HISTORY_W{1'b0}};
-  wire [`BPU_LOCAL_PHT_PC_BITS-1:0] update_local_pc_idx_w =
-      update_pc_i[`BPU_LOCAL_PHT_PC_BITS:1];
-  wire [`BPU_LOCAL_PHT_INDEX_W-1:0] update_local_pht_idx_w =
-      {update_local_pc_idx_w, update_local_hist_w};
   wire [1:0] update_bht_counter_w =
       bht_valid_q[update_bht_idx_i] ? bht_q[update_bht_idx_i] :
                                       `BPU_COUNTER_INIT;
-  wire [1:0] update_local_pht_counter_w =
-      local_pht_valid_q[update_local_pht_idx_w] ?
-      local_pht_q[update_local_pht_idx_w] : `BPU_COUNTER_INIT;
   wire unused_predictor_input_bits_w =
       (|lookup0_pc_i) | lookup0_static_taken_i |
       (|lookup1_pc_i) | lookup1_static_taken_i | (|update_pc_i);
 
   // 【BPU update 两拍流水(2026-07-10 时序债修复)】OOC 实测 update in→reg 57ns
-  // (读老值 4096:1 mux → counter_train → 写使能 decode 单拍串联)。切拍点=读/写
-  // 分离: stage1(resolve 拍)寄存输入+读老值(读 mux 留本拍), stage2 训练+写表
-  // (写 decode 留次拍)。语义: 训练晚 1 拍零正确性影响(启发式); back-to-back 同
-  // 表项 RAW(stage1 读到未含上一条训练的旧值)=丢一次计数器增量, 可容忍。
+  // local-PHT 的相同 S1→S2/read-before-write 合同由 OooBranchLocalPht 的
+  // 16×256 bank-local 流水拥有；parent 只保留 BHT/local-history 的 S1/S2。
+  // 语义: 训练晚 1 拍零正确性影响(启发式); back-to-back 同表项 RAW(stage1
+  // 读到未含上一条训练的旧值)=丢一次计数器增量, 可容忍。
   // GHR 留 stage1 当拍更新(链短, lookup 用最新全局历史保精度)。
   reg upd_valid_q;
   reg upd_taken_q;
   reg [`BPU_BHT_INDEX_W-1:0] upd_bht_idx_q;
   reg [`BPU_LOCAL_HISTORY_INDEX_W-1:0] upd_lhist_idx_q;
-  reg [`BPU_LOCAL_PHT_INDEX_W-1:0] upd_lpht_idx_q;
   reg [`BPU_LOCAL_HISTORY_W-1:0] upd_lhist_q;
   reg [1:0] upd_bht_ctr_q;
-  reg [1:0] upd_lpht_ctr_q;
 
   always @(posedge clk) begin
     if (rst || clear_i) begin
@@ -193,7 +198,6 @@ module OooBranchDirectionPredictor (
       ghr_q <= {`BPU_BHT_INDEX_W{1'b0}};
       bht_valid_q <= {`BPU_BHT_ENTRIES{1'b0}};
       local_hist_valid_q <= {`BPU_LOCAL_HISTORY_ENTRIES{1'b0}};
-      local_pht_valid_q <= {`BPU_LOCAL_PHT_ENTRIES{1'b0}};
       upd_valid_q <= 1'b0;
     end else begin
       // stage1: 寄存输入+读老值; GHR 当拍更新
@@ -202,19 +206,14 @@ module OooBranchDirectionPredictor (
         upd_taken_q <= update_taken_i;
         upd_bht_idx_q <= update_bht_idx_i;
         upd_lhist_idx_q <= update_local_hist_idx_w;
-        upd_lpht_idx_q <= update_local_pht_idx_w;
         upd_lhist_q <= update_local_hist_w;
         upd_bht_ctr_q <= update_bht_counter_w;
-        upd_lpht_ctr_q <= update_local_pht_counter_w;
         ghr_q <= {ghr_q[`BPU_BHT_INDEX_W-2:0], update_taken_i};
       end
       // stage2: 训练+写表
       if (upd_valid_q) begin
         bht_valid_q[upd_bht_idx_q] <= 1'b1;
         bht_q[upd_bht_idx_q] <= counter_train(upd_bht_ctr_q, upd_taken_q);
-        local_pht_valid_q[upd_lpht_idx_q] <= 1'b1;
-        local_pht_q[upd_lpht_idx_q] <=
-            counter_train(upd_lpht_ctr_q, upd_taken_q);
         local_hist_valid_q[upd_lhist_idx_q] <= 1'b1;
         local_hist_q[upd_lhist_idx_q] <=
             {upd_lhist_q[`BPU_LOCAL_HISTORY_W-2:0], upd_taken_q};

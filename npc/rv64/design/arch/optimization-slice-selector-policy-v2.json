@@ -1,0 +1,154 @@
+{
+  "schema": "npc-rv64-optimization-slice-selector-policy-v1",
+  "policy_id": "rv64-cpi-ppa-medium-slice-selector-v2-owner-lifetime",
+  "purpose": "在 current RV64 design-id 上选择唯一的下一次 CPI/PPA 量测、资格化或可回退 RTL 实验；不替代完整设计点的 promotion checker。V2 只新增 serialized drain owner-lifetime 的 candidate-only receipt 类型。",
+  "normative_inputs": {
+    "architecture_ppa_contract": {
+      "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "sha256": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73"
+    },
+    "maturity_stages": {
+      "path": "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+      "sha256": "71e1f2517de9ff9befec12ad64f1d7b658c3458b650fb26f5ce5397cc4bdfa2b"
+    },
+    "ppa_policy": {
+      "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+      "sha256": "1e1cefe497e327c975229135af827afbe3cddb26efccd4fd4c1e141b774e5fce"
+    }
+  },
+  "authorities": {
+    "architecture_debt": {
+      "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+      "schema": "npc-rv64-architecture-debt-current-v2",
+      "design_id_field": "design_id",
+      "status_field": "status",
+      "pass_value": "PASS",
+      "required_for_consistent_state": true
+    },
+    "historical_defect": {
+      "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+      "schema": "npc-rv64-historical-defect-current-v1",
+      "design_id_field": "design_id",
+      "status_field": "status",
+      "pass_value": "PASS",
+      "required_for_consistent_state": true
+    },
+    "architecture_stable": {
+      "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "schema": "npc-rv64-arch-stable-result-v1",
+      "design_id_field": "design_id",
+      "status_field": "architecture_freeze",
+      "pass_value": "ARCH_STABLE",
+      "required_for_consistent_state": true
+    },
+    "performance_baseline": {
+      "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+      "schema": "npc-rv64-performance-baseline-current-v3",
+      "design_id_field": "design_id",
+      "status_field": "status",
+      "pass_value": "PERF_BASELINE",
+      "required_for_consistent_state": true
+    },
+    "layered_system": {
+      "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "schema": "npc-rv64-layered-system-signoff-current-v1",
+      "design_id_field": "rtl_design_id",
+      "status_field": "status",
+      "pass_value": "PASS",
+      "required_for_consistent_state": true
+    },
+    "cpi_census": {
+      "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "schema": "npc-rv64-cpi-bottleneck-census-v2",
+      "design_id_field": "design_id",
+      "status_field": "status",
+      "pass_value": "CPI_BOTTLENECK_CENSUS",
+      "required_for_consistent_state": false
+    },
+    "baseline_index": {
+      "path": "npc/rv64/eval/ppa/baselines/index.json",
+      "schema": "npc-rv64-ppa-baseline-index-v1",
+      "required_for_consistent_state": false
+    }
+  },
+  "maturity_order": [
+    "ARCH_DISCOVERY",
+    "ARCH_CLOSED",
+    "ARCH_STABLE",
+    "PERF_BASELINE",
+    "PPA_QUALIFIED",
+    "SYSTEM_RECERTIFIED",
+    "PROMOTABLE"
+  ],
+  "decision_class_order": [
+    "correctness_closure",
+    "state_reconciliation",
+    "causal_measurement",
+    "ppa_qualification",
+    "rtl_experiment",
+    "diversity_experiment"
+  ],
+  "selection_modes": {
+    "information": {
+      "maximize": [
+        "information_gain",
+        "evidence_confidence",
+        "reversibility"
+      ],
+      "minimize": [
+        "execution_cost",
+        "functional_risk",
+        "scope_width"
+      ],
+      "ambiguous_front_action": "RESEARCH_REQUIRED"
+    },
+    "multiobjective": {
+      "maximize": [
+        "performance_ratio",
+        "area_efficiency_ratio",
+        "qualified_power_efficiency_ratio"
+      ],
+      "hard_gate_only": [
+        "functional_and_architecture",
+        "per_workload_performance_floor",
+        "timing_worst_slack_ns",
+        "area_ceiling",
+        "power_qualification_for_final_claim"
+      ],
+      "ambiguous_front_action": "RESEARCH_REQUIRED",
+      "scalarization_scope": "same_measured_pareto_front_only"
+    }
+  },
+  "uncertainty": {
+    "evidence_grade_order": [
+      "UNKNOWN",
+      "EXPERT_ESTIMATE",
+      "CALIBRATED_PREDICTION",
+      "MEASURED_SAME_DESIGN"
+    ],
+    "intervals_required_for_multiobjective": true,
+    "overlapping_intervals_do_not_imply_dominance": true,
+    "predictions_authorize_promotion": false
+  },
+  "research_state": {
+    "schema": "npc-rv64-optimization-research-state-v1",
+    "allowed_fact_overrides": [],
+    "allowed_evidence_receipts": [
+      "owner_timing",
+      "causal_analysis",
+      "b_latency_sensitivity",
+      "b_response_candidate_analysis",
+      "current_reference_ppa",
+      "current_timing_path_analysis",
+      "serialized_drain_owner_lifetime"
+    ],
+    "required_artifact_binding": true,
+    "candidate_observations_authorize_promotion": false
+  },
+  "claim_boundary": {
+    "selector_authorizes_rtl_semantics": false,
+    "selector_authorizes_promotion": false,
+    "front_py_remains_promotion_authority": true,
+    "selected_slice_meaning": "下一次有界工程动作，而不是 CPI/PPA 胜者"
+  }
+}

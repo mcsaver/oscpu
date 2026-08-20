@@ -1,0 +1,86 @@
+{
+  "aggregate": {
+    "kind": "functional_aggregate",
+    "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/functional-aggregate.json",
+    "sha256": "ed2bf482cec16f98b2ffb2e5a8bfcbf651dc539573094bd0d1b6f633bc4571c7"
+  },
+  "canonical_command": "make -C npc/rv64 check-functional-aggregate",
+  "checks": [
+    {
+      "check_id": "functional.json_schema",
+      "detail": "valid Draft 2020-12 functional aggregate",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.schema_design_cohort",
+      "detail": "functional aggregate schema/design/cohort/image canonicalization must match",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.simulator_binding",
+      "detail": "functional simulator is an exact frozen executable artifact",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.configuration_binding",
+      "detail": "functional configuration is an exact frozen input",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.simulator_build",
+      "detail": "fresh simulator build log is bound to the current design/config/binary",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.module_dynamic_inventory",
+      "detail": "114 module tests have exact set coverage and bound compile/simulation logs",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.official",
+      "detail": "official RV64 suite has exact 177/177 raw-log coverage",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.am",
+      "detail": "AM suite has exact 61/61 raw-log coverage with DiffTest enabled",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.difftest",
+      "detail": "same-cohort DiffTest raw log reports zero architectural mismatches",
+      "status": "PASS"
+    },
+    {
+      "check_id": "functional.benchmarks",
+      "detail": "CoreMark CRC/iterations and Dhrystone run count are bound to GOOD TRAP logs",
+      "status": "PASS"
+    }
+  ],
+  "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+  "counts": {
+    "am_passed": 61,
+    "am_required": 61,
+    "difftest_mismatches": 0,
+    "evidence_mutations_compiled": 11,
+    "evidence_mutations_rejected": 11,
+    "module_passed": 114,
+    "module_required": 114,
+    "official_passed": 177,
+    "official_required": 177
+  },
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+  "exit_code": 0,
+  "mutation_summary": {
+    "kind": "mutation_summary",
+    "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/mutations/summary.json",
+    "sha256": "834b638ed5cd303903c5b99a4391cd7e919c544ae672ed3c8e685ae0a88c9b1e"
+  },
+  "raw_log": {
+    "kind": "raw_log",
+    "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/functional-aggregate.log",
+    "sha256": "ef218ffd864d9792cb7135d55add872a6607f0ebb89680e475460d9467fb55f0"
+  },
+  "schema": "npc-rv64-functional-aggregate-result-v1",
+  "status": "PASS"
+}

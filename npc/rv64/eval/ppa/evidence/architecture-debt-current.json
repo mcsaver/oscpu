@@ -40,7 +40,7 @@
     "WFI-G1": "EXCLUDED_BY_COHORT",
     "XRET-G1": "CLOSED_CURRENT_DESIGN"
   },
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "evidence_reuse_contract": {
     "artifact_state": "PATH_SHA256_SIZE_BOUND",
     "assertion_state": "POSITIVE_ZERO_FAILURE_AND_NEGATIVE_REJECTION_REQUIRED",
@@ -70,43 +70,43 @@
     },
     "cohort_scope": {
       "path": "npc/rv64/design/arch/full-core-cohort-scope-v1.md",
-      "sha256": "d45895321518e211da3b02eb67d69f36d66ae97c9303eaab1744d99d824a58b4",
+      "sha256": "8cb023ad72de953e3571f43f9e7bcdb516d36aabe5044c329949d840e93e38fe",
       "size_bytes": 4104
     },
     "delta_rebind": {
       "path": "npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json",
-      "sha256": "da6bcc1e4d6ef13f5da114855b3bfc00360d92cdbb9354aeb49eebbf3332dd1f",
-      "size_bytes": 177558
+      "sha256": "2399e3181140a080895b183a42f94889a5dfba043300bb0df96ad88ecb04c9f5",
+      "size_bytes": 182316
     },
     "delta_rebind_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py",
-      "sha256": "efe061ddfef95ec482a4449398f2cfa45f81305d1c0f80876f070594f0a500ad",
-      "size_bytes": 38004
+      "sha256": "c4989e67e199919cce2f11c7081645872729daf820d1c52ab5b32b3ed8b62d2e",
+      "size_bytes": 41425
     },
     "exclusion_a-coherence-g1": {
       "path": "npc/rv64/design/arch/cohort/a-coherence-g1-exclusion.json",
-      "sha256": "b1313e6a509a716d98c303d94bed3a7af83145cdee74df96e898db4e19d80772",
+      "sha256": "0726ead7483fad79e765c88fd32f187bdb42c86a2f5e6fbe6959c611aab7f876",
       "size_bytes": 476
     },
     "exclusion_debug-trigger-g1": {
       "path": "npc/rv64/design/arch/cohort/debug-trigger-g1-exclusion.json",
-      "sha256": "09d7192b51920253d3122350b8236f99d7e9f18f0f7ce6273b8d2368a9d87976",
+      "sha256": "066e5e3c64311c1d34b18d9eebcdbc42dfa065e7ae851f9443ffec8a7f0b977a",
       "size_bytes": 446
     },
     "exclusion_sfence-sinval-g1": {
       "path": "npc/rv64/design/arch/cohort/sfence-sinval-g1-exclusion.json",
-      "sha256": "9b58383b9cc85ac8384d73956d298ee633721e161b30f592d4d408ebd829f235",
+      "sha256": "51496d0b678fcacfe035b6783739e7bad470e244c8ce74c1d819e5e2b6afe171",
       "size_bytes": 480
     },
     "exclusion_wfi-g1": {
       "path": "npc/rv64/design/arch/cohort/wfi-g1-exclusion.json",
-      "sha256": "b91f5164e1d799bb352c4171d44de106fcc4f110fa7f41019779e7a446370ebc",
+      "sha256": "0a0a314bb734acfac7d85bdd92161e50d9b3d2819c655f3bf76753edcc677255",
       "size_bytes": 447
     },
     "global_holder_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "52c664dcfbdf23c8d9c1a8a2fa12be976a3d7f8e217f181603cd1046e19d0571",
-      "size_bytes": 81603
+      "sha256": "d810ff012b4c4e1ddeaea05c4c8091ef33e969772cd3662b6dcb20f597b6fc52",
+      "size_bytes": 81207
     },
     "global_holder_tool": {
       "path": "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py",
@@ -115,7 +115,7 @@
     },
     "layered_system": {
       "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
-      "sha256": "bbf760cf7df545ef86876cb790d2ac8291e1b827f41d9b20d5e3700b492dada1",
+      "sha256": "360ae1e8691d23c987ebf82fba0534a2b5a3e9d2905c6ec3ee9e78ce354fd2b5",
       "size_bytes": 2851
     },
     "legacy_v14e_a1_status": {
@@ -130,18 +130,18 @@
     },
     "receipt_schema": {
       "path": "npc/rv64/eval/ppa/schemas/architecture-debt-current-v2.schema.json",
-      "sha256": "0acfe2c19ebafbc00f5c9d72a4d4ba51aec2f47ae16360284925146928a27357",
-      "size_bytes": 3363
+      "sha256": "60845480ba4f1b7517c630630ccf96e449f056e964611632c46bad9338c78456",
+      "size_bytes": 3388
     },
     "receipt_tool": {
       "path": "npc/rv64/eval/ppa/tools/architecture_debt_current.py",
-      "sha256": "60f49153efa969cef0b5a1c32febdfee854aebbb2cfed2bd005240aa06ebb37a",
-      "size_bytes": 47075
+      "sha256": "1c7c982bf166656e8eff25fc47afd192a15cb90e6810518699ba0db8e08de691",
+      "size_bytes": 48715
     },
     "system_tool": {
       "path": "npc/rv64/eval/ppa/tools/system_recertification_current.py",
-      "sha256": "6ee68587985f2e7e6538533b750777c90c8648a9ef4677afb8e228399ac4b5f0",
-      "size_bytes": 17084
+      "sha256": "c7f409865d5e145f7b81704b7c1bcc6500d17c869744bcc6a7243a5adea23446",
+      "size_bytes": 17698
     },
     "v14c_p0": {
       "path": ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/evidence/p0-final-2/receipt.json",
@@ -175,20 +175,21 @@
     },
     "v14h_holder": {
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
-      "sha256": "f8e989ecc5e4191499d2489091c49ab919478a120d965426ae7709f5d59244e0",
-      "size_bytes": 205501
+      "sha256": "89fa7a3db03cf54e8b43ab2d5efdcca5cd18d35ca7699c5883c6e98af7562c7b",
+      "size_bytes": 205197
     }
   },
   "metrics": {
     "delta_rebind": {
-      "artifact_records": 22,
+      "artifact_records": 23,
       "baseline_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
-      "changed_rtl_files": 9,
-      "changed_rtl_replayed": "29/29",
+      "changed_rtl_files": 12,
+      "changed_rtl_replayed": "31/31",
       "historical_negative": "175/175",
-      "positive_only_changed_rtl_files": 4,
-      "rtl_files": 146,
-      "unchanged_rtl_reused": 142,
+      "historical_rtl_files": 146,
+      "positive_only_changed_rtl_files": 6,
+      "rtl_files": 147,
+      "unchanged_rtl_reused": 135,
       "verification_only_reused": 4
     },
     "v14c_p0": {
@@ -249,7 +250,7 @@
     },
     "cohort_scope_binding": {
       "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
-      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42"
+      "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af"
     },
     "producer_holder": {
       "a3_legacy_oracle_records": 5,
@@ -266,15 +267,15 @@
         "L2_MINI_SYSTEM",
         "L3_LIGHTWEIGHT_LINUX"
       ],
-      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+      "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
       "execution_history": {
         "historical_status_rewritten": false,
         "legacy_v14e_a1_original_status": "FAIL",
         "legacy_v14e_a1_status_text": "FAIL rc=1 stage=runner-contract-tests evidence_complete=0 cleanup_rc=1",
         "legacy_v14e_a2_original_status": "PASS"
       },
-      "l0_passed": 113,
-      "l0_required": 113,
+      "l0_passed": 114,
+      "l0_required": 114,
       "l1_am_passed": 61,
       "l1_am_required": 61,
       "l1_official_passed": 177,
@@ -295,7 +296,7 @@
     "system_recertification": "PASS_CURRENT_CONFIG",
     "whole_architecture": "RED"
   },
-  "rtl_file_count": 146,
+  "rtl_file_count": 147,
   "schema": "npc-rv64-architecture-debt-current-v2",
   "status": "PASS",
   "support": {

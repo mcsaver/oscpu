@@ -498,8 +498,8 @@
     {
       "path": "npc/rv64/vsrc/control/OooControlPlane.v",
       "role": "rtl",
-      "sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
-      "size_bytes": 56623
+      "sha256": "fedcc5cec97e26b9a7667450c5a2604376d012b776a9b7212a94a47b76f40dc1",
+      "size_bytes": 59682
     },
     {
       "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
@@ -652,7 +652,7 @@
       "size_bytes": 53548
     }
   ],
-  "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "evidence_ids": {
     "v11e_rob_slot_generation": "v11e-rob-slot-generation-current-closure",
     "v11f_int_iq_producer": "v11f-int-iq-producer-current-closure",
@@ -785,8 +785,8 @@
       },
       {
         "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-        "sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
-        "size_bytes": 56623
+        "sha256": "fedcc5cec97e26b9a7667450c5a2604376d012b776a9b7212a94a47b76f40dc1",
+        "size_bytes": 59682
       },
       {
         "path": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
@@ -1307,11 +1307,11 @@
           "size_bytes": 92944
         },
         {
-          "baseline_sha256": "0172684c372da765c82bd9706b8f492c189f9b9db8da7cb65780ac747355fb3b",
-          "current_sha256": "0172684c372da765c82bd9706b8f492c189f9b9db8da7cb65780ac747355fb3b",
+          "baseline_sha256": "95534a65c815c58fd530b6a9ff9eb666c090a0ebf26bc34588c0352122336c5d",
+          "current_sha256": "95534a65c815c58fd530b6a9ff9eb666c090a0ebf26bc34588c0352122336c5d",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-          "size_bytes": 45212
+          "size_bytes": 46751
         },
         {
           "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",
@@ -1616,11 +1616,11 @@
           "size_bytes": 92944
         },
         {
-          "baseline_sha256": "d54f79b5ff73dca695a9c4830f0a8269a9e51ca9da707a5ca0eaa5919a09bc8e",
-          "current_sha256": "d54f79b5ff73dca695a9c4830f0a8269a9e51ca9da707a5ca0eaa5919a09bc8e",
+          "baseline_sha256": "1caf8032d18db758106b235c6ea5850635e2a55327254fe8ce6b5c714dedd808",
+          "current_sha256": "1caf8032d18db758106b235c6ea5850635e2a55327254fe8ce6b5c714dedd808",
           "equivalent": true,
           "path": "npc/rv64/vsrc/control/OooControlPlane.v",
-          "size_bytes": 63137
+          "size_bytes": 66193
         },
         {
           "baseline_sha256": "62fd0fc66dcded5097840d551a30993d6e2445288bbe8178cf269bb492cf6534",

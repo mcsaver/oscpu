@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "architecture-registry-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 RV64 Architecture Registry 单一入口是否完整覆盖 npc/rv64/vsrc 的 .v/.sv，能区分产品 filelist、顶层可达、动态事务、综合表示和 STA/PPA 可见性，并对 BPU/FP placeholder blackbox 保持 fail-closed；同时确认注册表维护属于 NON_ARCH、只有开放结构缺口才触发 CPU Architect。不得重复已通过的确定性门禁，不得修改文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "AGENTS.md",
+      "AI_ENVIRONMENT.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/yosys-macro-boundary-contracts.md",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/syn/macro-lib/README.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".codex/agents/cpu-architect.toml",
+      ".github/agents/AGENT_INDEX.md",
+      ".github/agents/ysyx-coordinator.agent.md",
+      ".github/ai-env/contracts/cpu-architect-routing-v1.json",
+      ".github/e2e/modules/cpu-architect.md",
+      ".github/e2e/profiles/cpu-architect.tsv",
+      "scripts/e2e/modules/cpu_architect.sh",
+      "scripts/agent-flow.c",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1/lightweight-linux",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b",
+      ".github/runtime-artifacts/agent-flow/2026-08-09-rv64-architect-ownership-registry-v1/gates",
+      ".github/task-runs/2026-08-09-rv64-architect-ownership-registry-v1/subagent-contracts/architecture-registry-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/ai-env/contracts/cpu-architect-routing-v1.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RETAIN、FIX 或 BLOCK 裁决，并逐项审查：未登记 RTL 逃逸、catalog-only 顶层可达反例、debug/sim 显式意图、新文件默认 fail-closed、snapshot/design/evidence 身份连接，以及 placeholder 伪闭环是否会被拒绝。",
+    "审查 BPU/FP 的 L1/L2/L3/L4/L5 状态是否只陈述证据，mapped runner 是否从同一 catalog 投影 blackbox/lib，分类器是否把账本维护保持为 NON_ARCH 且不会因 AI_ENVIRONMENT.md 触发无关 selector 门禁。"
+  ],
+  "success_criteria": [
+    "任何通过结论必须引用真实文件、字段、实例路径和证据 marker；功能 PASS 不得被写成 BPU/FP 内部 timing/area/power PASS，未知项必须保留为 GAP。",
+    "复核仅使用合同允许的只读材料与 rg/sed/sha256sum，不运行测试、仿真、综合、STA 或写命令；返回具体修正点或说明为什么可保留，并立即归还 WSL shell ownership。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

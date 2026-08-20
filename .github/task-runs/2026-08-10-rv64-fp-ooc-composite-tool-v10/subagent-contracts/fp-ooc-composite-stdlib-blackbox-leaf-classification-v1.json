@@ -1,0 +1,125 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-stdlib-blackbox-leaf-classification-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复独立复核发现的production retained-manifest误拒：冻结A4 synth-design.json同时包含7146个OooFpAddSubPipe stdcell instances和同名stdlib blackbox module definitions，_manifest_payload.walk却优先以cell_type in design_modules判hierarchical_rtl，递归空blackbox后leaf_cells=0。改为以绑定stdlib whitelist优先识别leaf；若同名module定义存在，必须是有效blackbox且内部cells为空，否则拒绝stdlib/RTL碰撞。完整A4 design/census/whitelist必须直接作为正例，禁止裁剪module universe或替换为单leaf。不运行production EDA，不改FP RTL或A4。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/subagent-contracts/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-census.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/stdlib-leaf-whitelist.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2/result.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-census.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/stdlib-leaf-whitelist.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2/result.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "重排_manifest_payload.walk分类：boundary alias优先；其次cell_type属于同一绑定stdlib whitelist时直接作为standard_cell_leaf。若design_modules存在同名定义，必须验证blackbox属性为canonical true、cells字典为空且名称仍在whitelist；缺blackbox、false、非空body或stdlib/RTL collision均fail-closed。只有非whitelist且存在的module才可递归hierarchical_rtl。",
+    "定向正例直接消费冻结A4完整synth-design.json、synth-census.json与stdlib whitelist，不裁剪任何module definition、不替换7146实例；要求manifest leaf_cells精确7146、leaf census与Yosys census全等、raw273→canonical11仍闭合。负向覆盖missing/false blackbox attribute、nonempty blackbox body、whitelist missing、stdlib/RTL name collision；并验证unsplit端口offset/upto/signed只能是当前Registry可证明的canonical unsigned descending表示。",
+    "单次执行受影响unittest、Python/schema静态检查和scoped diff/text audit；Registry catalog/production runner/FP RTL/A4均不改，production Yosys/OpenSTA/STA/RTL sim与A4 rerun均为0。保留v9独立BLOCK与所有历史receipt，PPA继续GAP。"
+  ],
+  "success_criteria": [
+    "完整冻结A4 module universe在不简化fixture时生成retained manifest，leaf instance count=7146且census一致；所有blackbox/collision/orientation损坏反例被拒绝，受影响tests/static/scoped audit rc0，A4 hashes不变。通过后需独立只读复核，才可授权全新run-id一次5ns diagnostic。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

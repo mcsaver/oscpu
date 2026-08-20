@@ -22,6 +22,7 @@ run_regression() {
   cd "${repo_root}"
   python3 -B -m unittest \
     npc.rv64.eval.ppa.tests.test_current_timing_path_analysis \
+    npc.rv64.eval.ppa.tests.test_serialized_drain_owner_lifetime_analysis \
     npc.rv64.eval.ppa.tests.test_optimization_slice_selector -v 2>&1
 }
 
@@ -45,7 +46,7 @@ validate_current_or_stale() {
   fi
 
   local canonical_rc=0
-  if python3 -B "${tool}" verify --input "${current}" \
+  if python3 -B "${tool}" verify --input "${current}" --report-only \
       >"${canonical_log}" 2>&1; then
     if ! python3 -B -c \
         'import json,sys; old=json.load(open(sys.argv[1],encoding="utf-8")); new=json.load(open(sys.argv[2],encoding="utf-8")); assert old["live_design_id"] == new["live_design_id"]' \
@@ -104,4 +105,4 @@ case "${1:-}" in
 esac
 
 printf '%s\n' \
-  "[RV64-OPTIMIZATION-SLICE-SELECTOR][PASS] policy=v1 current=${current_state:-generated}"
+  "[RV64-OPTIMIZATION-SLICE-SELECTOR][PASS] policy=v2 current=${current_state:-generated}"

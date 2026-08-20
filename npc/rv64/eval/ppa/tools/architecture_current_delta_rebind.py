@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Rebind retained RV64 architecture-directed evidence to one current RTL identity.
+"""Compose fresh and retained RV64 directed evidence for one current RTL identity.
 
-The replay is deliberately narrow.  Production RTL changes are accepted only when
-they are outside every frozen DI/OOO directed source closure.  Non-DUT provenance
-may move only through the architecture Make target projection, the exact current
-L0 build-control binding, or a freshly audited producer-holder census.  Dynamic
+The replay is deliberately narrow.  Every production RTL change that enters a
+frozen DI/OOO source closure must be replaced by an exact-current fresh record;
+only unaffected records may be projected.  Non-DUT provenance may move only
+through the architecture Make target projection, the exact current L0
+build-control binding, the single-entry architecture registry, or a freshly
+audited producer-holder census.  A production RTL addition is accepted only when
+the registry classifies it as reachable product RTL and the exact-current L0
+receipt covers it; production RTL removal is never projected.  Retained dynamic
 logs and mutation transcripts remain immutable and are never described as rerun.
 """
 
@@ -43,15 +47,26 @@ census_tool = load_tool(
     "architecture_current_delta_census", "producer_holder_census.py")
 layered = load_tool(
     "architecture_current_delta_layered", "layered_system_signoff.py")
+registry = load_tool(
+    "architecture_current_delta_registry", "architecture_registry.py")
 
 
-SCHEMA = "npc-rv64-architecture-current-delta-rebind-v1"
-REPLAY_SCHEMA = "npc-rv64-architecture-current-record-rebind-v1"
+SCHEMA = "npc-rv64-architecture-current-delta-rebind-v2"
+REPLAY_SCHEMA = "npc-rv64-architecture-current-record-rebind-v2"
 NEGATIVE_SCHEMA = "npc-rv64-architecture-current-delta-negative-v1"
 RTL_INPUT_SCHEMA = "npc-rv64-full-core-module-input-binding-v1"
 NPC_MAKEFILE = "npc/rv64/Makefile"
 TB_MAKEFILE = "npc/rv64/testbench/Makefile"
+RTL_FILELIST = "npc/rv64/vsrc/filelist.mk"
 CENSUS_PATH = "npc/rv64/design/arch/producer-holder-census.json"
+REGISTRY_CATALOG_PATH = "npc/rv64/design/arch/rv64-architecture-registry-v1.json"
+REGISTRY_ELABORATION_PATH = (
+    "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json"
+)
+REGISTRY_ENTRY_PATH = "npc/rv64/ARCHITECTURE.md"
+REGISTRY_TOOL_PATH = "npc/rv64/eval/ppa/tools/architecture_registry.py"
+DELTA_TOOL_PATH = "npc/rv64/eval/ppa/tools/architecture_current_delta_rebind.py"
+DELTA_TEST_PATH = "npc/rv64/eval/ppa/tests/test_architecture_current_delta_rebind.py"
 AUTHORIZED_PROVENANCE_DRIFT = frozenset({
     NPC_MAKEFILE,
     TB_MAKEFILE,
@@ -88,6 +103,7 @@ TB_BUILD_CONTRACT_FRAGMENTS = (
     "$(IVERILOG) $(IVFLAGS) $$(TB_IVFLAGS_$(1)) -s $$(if $$(TB_TOP_$(1)),$$(TB_TOP_$(1)),$(1)) -o $(BUILD_DIR)/$(1).vvp $$(sort $$(TB_SRCS_$(1))) >> \"$$$$tmp\" 2>&1; \\",
     "$(VVP) $(BUILD_DIR)/$(1).vvp >> \"$$$$tmp\" 2>&1; \\",
     "$(PYTHON) $(TB_RESULT_CHECKER) \\",
+    "--test \"$(1)\" \\",
     "echo \"[RESULT] PASS\" >> \"$$$$tmp\"; \\",
     "echo \"[RESULT] FAIL status=$$$$status\" >> \"$$$$tmp\"; \\",
 )
@@ -188,7 +204,7 @@ def rtl_manifest(
     if (
         value.get("schema") != RTL_INPUT_SCHEMA
         or not isinstance(files, dict)
-        or len(files) != 146
+        or not files
         or any(
             not isinstance(rel, str)
             or not rel.startswith("npc/rv64/vsrc/")
@@ -215,21 +231,42 @@ def rtl_manifest(
 
 def rtl_delta(
     baseline: dict[str, str], current: dict[str, str],
-) -> list[dict[str, str]]:
-    if set(baseline) != set(current):
-        raise RebindError("baseline/current production RTL membership differs")
-    changed = [
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    baseline_paths = set(baseline)
+    current_paths = set(current)
+    added = sorted(current_paths - baseline_paths)
+    removed = sorted(baseline_paths - current_paths)
+    if removed:
+        raise RebindError(
+            "production RTL removal requires a directed rerun: "
+            f"{removed}")
+    changed: list[dict[str, Any]] = [
         {
             "path": rel,
+            "change_kind": "modified",
             "baseline_sha256": baseline[rel],
             "current_sha256": current[rel],
         }
-        for rel in sorted(baseline)
+        for rel in sorted(baseline_paths & current_paths)
         if baseline[rel] != current[rel]
     ]
+    changed.extend({
+        "path": rel,
+        "change_kind": "added",
+        "baseline_sha256": None,
+        "current_sha256": current[rel],
+    } for rel in added)
+    changed.sort(key=lambda item: item["path"])
     if not changed:
         raise RebindError("delta rebind requires at least one production RTL change")
-    return changed
+    membership = {
+        "equal": not added,
+        "baseline_file_count": len(baseline),
+        "current_file_count": len(current),
+        "added_files": added,
+        "removed_files": removed,
+    }
+    return changed, membership
 
 
 def validate_tb_build_contract(root: pathlib.Path) -> dict[str, Any]:
@@ -278,24 +315,195 @@ def validate_layered_receipt(
         raise RebindError("layered L0 result hash mismatch")
     l0_result = read_json(l0_result_path)
     pre = l0_result.get("inputs", {}).get("pre", {})
+    tests = l0_result.get("tests", {})
+    required = tests.get("required") if isinstance(tests, dict) else None
+    passed = tests.get("passed") if isinstance(tests, dict) else None
     if (
         l0_result.get("status") != "PASS"
-        or l0_result.get("tests", {}).get("required") != 113
-        or l0_result.get("tests", {}).get("passed") != 113
+        or not isinstance(required, int)
+        or required <= 0
+        or passed != required
         or pre.get("path") != current_manifest.relative_to(root).as_posix()
         or pre.get("sha256") != digest(current_manifest)
     ):
-        raise RebindError("current L0 113/113 input binding mismatch")
+        raise RebindError("current L0 exact-input binding mismatch")
     return {
         "design_id": design_id,
-        "l0_passed": 113,
-        "l0_required": 113,
+        "l0_passed": passed,
+        "l0_required": required,
         "l1_official": 177,
         "l1_am": 61,
         "l2_case": "all",
         "l3_case": "all",
         "ubuntu": "NOT_RUN",
     }
+
+
+def validate_architecture_registry(
+    root: pathlib.Path,
+    design_id: str,
+    current_files: dict[str, str],
+    changed: list[dict[str, Any]],
+    membership: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    catalog_path = root / REGISTRY_CATALOG_PATH
+    snapshot = registry.build_snapshot(
+        registry.load_json(catalog_path), root=root)
+    if (
+        snapshot.get("errors")
+        or snapshot.get("status") != "PASS_WITH_PRODUCT_GAPS"
+        or snapshot.get("design_id") != design_id
+    ):
+        raise RebindError("current architecture registry does not structurally audit PASS")
+    entry_path = root / REGISTRY_ENTRY_PATH
+    expected_entry = registry.render_markdown(
+        snapshot, registry.load_json(catalog_path))
+    if not entry_path.is_file() or entry_path.read_text(
+        encoding="utf-8") != expected_entry:
+        raise RebindError("single-entry architecture registry view is stale")
+
+    by_path = {
+        item.get("path"): item
+        for item in snapshot.get("files", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    rtl_changed_paths = [
+        item["path"] for item in changed
+        if item["path"] != RTL_FILELIST
+    ]
+    for path in rtl_changed_paths:
+        record = by_path.get(path)
+        if (
+            not isinstance(record, dict)
+            or record.get("sha256") != current_files.get(path)
+            or record.get("role") != "product"
+            or record.get("filelist") != "PASS"
+            or record.get("reachable") != "PASS"
+        ):
+            raise RebindError(
+                f"changed production RTL is not registry-owned/reachable: {path}")
+    added = membership["added_files"]
+    summary = {
+        "snapshot_id": snapshot["snapshot_id"],
+        "design_id": snapshot["design_id"],
+        "status": "PASS",
+        "source_files": snapshot["counts"]["source_files"],
+        "synthesis_files": snapshot["counts"]["synthesis_files"],
+        "single_entry_current": True,
+        "changed_product_paths": rtl_changed_paths,
+        "added_product_paths": added,
+        "removed_product_paths": membership["removed_files"],
+    }
+    return summary, snapshot
+
+
+def current_rtl_dependency_closure(
+    root: pathlib.Path,
+    snapshot: dict[str, Any],
+    seed_paths: set[str],
+) -> set[str]:
+    """Expand current top-reachable module descendants from directed RTL seeds."""
+    elaboration = read_json(root / REGISTRY_ELABORATION_PATH)
+    if (
+        elaboration.get("status") != "PASS"
+        or elaboration.get("design_id") != snapshot.get("design_id")
+        or not isinstance(elaboration.get("instances"), list)
+    ):
+        raise RebindError("current elaboration dependency graph is stale")
+    files = snapshot.get("files")
+    if not isinstance(files, list):
+        raise RebindError("architecture registry file graph is missing")
+    path_to_modules: dict[str, set[str]] = {}
+    module_to_path: dict[str, str] = {}
+    for item in files:
+        if not isinstance(item, dict) or item.get("role") != "product":
+            continue
+        path = item.get("path")
+        modules = item.get("modules")
+        if not isinstance(path, str) or not isinstance(modules, list):
+            raise RebindError("architecture registry module ownership is malformed")
+        path_to_modules[path] = {
+            module for module in modules if isinstance(module, str) and module
+        }
+        for module in path_to_modules[path]:
+            if module in module_to_path and module_to_path[module] != path:
+                raise RebindError(f"duplicate module dependency owner: {module}")
+            module_to_path[module] = path
+
+    instance_to_module: dict[str, str] = {}
+    for item in elaboration["instances"]:
+        if not isinstance(item, dict):
+            raise RebindError("current elaboration instance row is malformed")
+        path = item.get("path")
+        module = item.get("module")
+        if not isinstance(path, str) or not isinstance(module, str):
+            raise RebindError("current elaboration instance identity is malformed")
+        if path in instance_to_module and instance_to_module[path] != module:
+            raise RebindError(f"ambiguous elaboration instance path: {path}")
+        instance_to_module[path] = module
+    children: dict[str, set[str]] = {}
+    for path, module in instance_to_module.items():
+        if "." not in path:
+            continue
+        parent_path = path.rsplit(".", 1)[0]
+        while parent_path not in instance_to_module and "." in parent_path:
+            parent_path = parent_path.rsplit(".", 1)[0]
+        parent_module = instance_to_module.get(parent_path)
+        if parent_module is None:
+            raise RebindError(f"elaboration parent path is missing: {path}")
+        children.setdefault(parent_module, set()).add(module)
+
+    closure = {
+        path for path in seed_paths if path.startswith("npc/rv64/vsrc/")
+    }
+    frontier: list[str] = sorted({
+        module
+        for path in closure
+        for module in path_to_modules.get(path, set())
+    })
+    visited: set[str] = set()
+    while frontier:
+        module = frontier.pop()
+        if module in visited:
+            continue
+        visited.add(module)
+        path = module_to_path.get(module)
+        if path is not None:
+            closure.add(path)
+        frontier.extend(sorted(children.get(module, set()) - visited))
+    return closure
+
+
+def validate_transitive_delta_coverage(
+    snapshot: dict[str, Any], paths: set[str],
+) -> dict[str, Any]:
+    by_path = {
+        item.get("path"): item
+        for item in snapshot.get("files", [])
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    coverage: dict[str, Any] = {}
+    for path in sorted(paths):
+        item = by_path.get(path)
+        focused_tests = item.get("focused_tests") if isinstance(item, dict) else None
+        if (
+            not isinstance(item, dict)
+            or item.get("role") != "product"
+            or item.get("filelist") != "PASS"
+            or item.get("reachable") != "PASS"
+            or item.get("dynamic") != "FOCUSED_PASS"
+            or not isinstance(focused_tests, list)
+            or not focused_tests
+        ):
+            raise RebindError(
+                "transitive current dependency lacks exact-current focused L0 "
+                f"coverage: {path}")
+        coverage[path] = {
+            "dynamic": item["dynamic"],
+            "focused_tests": sorted(focused_tests),
+            "instance_paths": sorted(item.get("instance_paths", [])),
+        }
+    return coverage
 
 
 def validate_census(root: pathlib.Path, path: pathlib.Path, design_id: str) -> dict[str, Any]:
@@ -332,10 +540,65 @@ def evaluate_payload(
         return arch.evaluate(root, path)
 
 
+def validate_fresh_manifest(
+    root: pathlib.Path,
+    path: pathlib.Path,
+    design_id: str,
+    expected_tests: set[str],
+) -> dict[str, Any]:
+    value = read_json(path)
+    tests = value.get("tests")
+    if (
+        value.get("schema") != arch.EVIDENCE_SCHEMA
+        or value.get("design_id") != design_id
+        or not isinstance(tests, dict)
+        or set(tests) != expected_tests
+    ):
+        raise RebindError(
+            "fresh current record set/design identity mismatch: "
+            f"expected={sorted(expected_tests)}")
+    evaluated = arch.evaluate(root, path)
+    current_rtl_sha = design_id.removeprefix("sha256:")
+    for test_id in sorted(expected_tests):
+        record = tests[test_id]
+        if not isinstance(record, dict) or record.get("status") != "PASS":
+            raise RebindError(f"{test_id}: fresh current record is not PASS")
+        expected_paths = required_paths(test_id, record)
+        record_provenance = record.get("provenance")
+        files = (
+            record_provenance.get("files")
+            if isinstance(record_provenance, dict)
+            else None
+        )
+        if (
+            not isinstance(files, dict)
+            or set(files) != expected_paths
+            or record_provenance.get("rtl_sha256") != current_rtl_sha
+        ):
+            raise RebindError(
+                f"{test_id}: fresh current provenance inventory/design mismatch")
+        drift = sorted(
+            rel for rel, expected_sha in files.items()
+            if digest(arch.safe_artifact(root, rel)) != expected_sha
+        )
+        if drift:
+            raise RebindError(
+                f"{test_id}: fresh current provenance is stale: {drift}")
+        provenance.validate_embedded_artifacts(root, test_id, record, arch)
+        gate_id = TEST_TO_GATE[test_id]
+        gate = evaluated.get("gates", {}).get(gate_id, {})
+        if gate.get("status") != "GREEN" or red_checks(evaluated, gate_id):
+            raise RebindError(
+                f"{test_id}: fresh current gate is not GREEN: "
+                f"{sorted(red_checks(evaluated, gate_id))}")
+    return value
+
+
 def project_manifest(
     *, root: pathlib.Path, source_path: pathlib.Path,
     baseline_rtl_path: pathlib.Path, current_rtl_path: pathlib.Path,
-    layered_path: pathlib.Path, census_path: pathlib.Path,
+    current_record_path: pathlib.Path, layered_path: pathlib.Path,
+    census_path: pathlib.Path,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     source = read_json(source_path)
     baseline_binding, baseline_files = rtl_manifest(
@@ -350,34 +613,87 @@ def project_manifest(
         or set(source["tests"]) != set(TEST_TO_GATE)
     ):
         raise RebindError("source architecture manifest/baseline identity mismatch")
-    changed = rtl_delta(baseline_files, current_files)
+    changed, membership = rtl_delta(baseline_files, current_files)
     changed_paths = {item["path"] for item in changed}
+    registry_summary, registry_snapshot = validate_architecture_registry(
+        root, design_id, current_files, changed, membership)
+    authorized_provenance_drift = set(AUTHORIZED_PROVENANCE_DRIFT)
+    if RTL_FILELIST in changed_paths:
+        authorized_provenance_drift.add(RTL_FILELIST)
     directed_union: set[str] = set()
+    baseline_directed_union: set[str] = set()
+    directed_impact_by_test: dict[str, list[str]] = {}
+    dependency_closure_by_test: dict[str, list[str]] = {}
     mismatches_by_test: dict[str, list[str]] = {}
+    changed_product_paths = changed_paths - {RTL_FILELIST}
     for test_id, record in source["tests"].items():
         if not isinstance(record, dict):
             raise RebindError(f"{test_id}: architecture record is not an object")
         expected_paths = required_paths(test_id, record)
-        directed_union.update(
-            path for path in expected_paths if path.startswith("npc/rv64/vsrc/"))
+        baseline_rtl_paths = {
+            path for path in expected_paths
+            if path.startswith("npc/rv64/vsrc/")
+        }
+        baseline_directed_union.update(baseline_rtl_paths)
+        direct_changed_seeds = baseline_rtl_paths & changed_product_paths
+        current_closure = set(baseline_rtl_paths)
+        if direct_changed_seeds:
+            current_closure.update(current_rtl_dependency_closure(
+                root, registry_snapshot, direct_changed_seeds))
+        dependency_closure_by_test[test_id] = sorted(current_closure)
+        directed_union.update(current_closure)
         files = record.get("provenance", {}).get("files")
         if not isinstance(files, dict) or set(files) != expected_paths:
             raise RebindError(f"{test_id}: directed provenance inventory mismatch")
+        baseline_binding_drift = sorted(
+            rel for rel, expected_sha in files.items()
+            if rel in baseline_files and baseline_files[rel] != expected_sha
+        )
+        if baseline_binding_drift:
+            raise RebindError(
+                f"{test_id}: source record/baseline RTL binding mismatch: "
+                f"{baseline_binding_drift}")
         mismatches = {
             rel for rel, expected_sha in files.items()
             if digest(arch.safe_artifact(root, rel)) != expected_sha
         }
-        if not mismatches or not mismatches.issubset(AUTHORIZED_PROVENANCE_DRIFT):
+        impact = sorted(
+            (changed_paths - {RTL_FILELIST}) & current_closure)
+        if impact:
+            directed_impact_by_test[test_id] = impact
+            direct_impact = set(impact) & expected_paths
+            if not direct_impact.issubset(mismatches):
+                raise RebindError(
+                    f"{test_id}: impacted source record does not expose RTL drift: "
+                    f"{sorted(mismatches)}")
+        elif not mismatches or not mismatches.issubset(
+            authorized_provenance_drift
+        ):
             raise RebindError(
                 f"{test_id}: provenance drift exceeds authorized build/static set: "
                 f"{sorted(mismatches)}")
         mismatches_by_test[test_id] = sorted(mismatches)
         provenance.validate_embedded_artifacts(root, test_id, record, arch)
-    impacted = changed_paths & directed_union
-    if impacted:
+    mapped_changed_paths = {
+        path
+        for impact in directed_impact_by_test.values()
+        for path in impact
+    }
+    unmapped_delta = sorted(changed_product_paths - mapped_changed_paths)
+    if unmapped_delta:
         raise RebindError(
-            "production RTL delta enters a directed source closure; rerun required: "
-            f"{sorted(impacted)}")
+            "current dependency closure leaves production RTL delta unmapped: "
+            f"{unmapped_delta}")
+    transitive_only_delta = mapped_changed_paths - baseline_directed_union
+    transitive_delta_coverage = validate_transitive_delta_coverage(
+        registry_snapshot, transitive_only_delta)
+    impacted_tests = set(directed_impact_by_test)
+    if not impacted_tests:
+        raise RebindError(
+            "delta does not enter a directed source closure; fresh current record "
+            "manifest is not applicable")
+    fresh = validate_fresh_manifest(
+        root, current_record_path, design_id, impacted_tests)
 
     before = arch.evaluate(root, source_path)
     if before.get("overall_status") != "RED" or before.get("exit_code") != 1:
@@ -404,8 +720,40 @@ def project_manifest(
         datetime.timezone.utc).isoformat()
     output["design_id"] = design_id
     source_sha = digest(source_path)
-    for test_id, record in output["tests"].items():
+    fresh_sha = digest(current_record_path)
+    for test_id in sorted(TEST_TO_GATE):
         source_record = source["tests"][test_id]
+        if test_id in impacted_tests:
+            fresh_record = fresh["tests"][test_id]
+            record = copy.deepcopy(fresh_record)
+            record["versioned_replay"] = {
+                "schema": REPLAY_SCHEMA,
+                "classification": "FRESH_CURRENT_DIRECTED_RECORD",
+                "source_manifest_sha256": source_sha,
+                "source_record_sha256": arch.canonical_digest(source_record),
+                "fresh_manifest_sha256": fresh_sha,
+                "fresh_record_sha256": arch.canonical_digest(fresh_record),
+                "baseline_design_id": baseline_binding["design_id"],
+                "current_design_id": design_id,
+                "production_rtl_changed_paths": sorted(changed_paths),
+                "production_rtl_membership": copy.deepcopy(membership),
+                "directed_source_closure_impact": (
+                    directed_impact_by_test[test_id]),
+                "provenance_rebound_paths": [],
+                "source_manifest_rebound_paths": [],
+                "current_l0_l3_status": "PASS_CURRENT_CONFIG",
+                "current_census_status": "PASS",
+                "current_architecture_registry_snapshot": (
+                    registry_summary["snapshot_id"]),
+                "dynamic_logs_modified": False,
+                "mutation_transcripts_modified": False,
+                "directed_simulation_reexecuted": True,
+                "ppa": "UNQUALIFIED",
+            }
+            output["tests"][test_id] = record
+            continue
+
+        record = output["tests"][test_id]
         record_files = record["provenance"]["files"]
         for rel in mismatches_by_test[test_id]:
             record_files[rel] = digest(root / rel)
@@ -424,18 +772,21 @@ def project_manifest(
         record["versioned_replay"] = {
             "schema": REPLAY_SCHEMA,
             "classification": (
-                "RTL_OUTSIDE_DIRECTED_SOURCE_CLOSURE_WITH_CURRENT_BUILD_AND_STATIC_BINDING"
+                "RETAINED_RTL_OUTSIDE_DIRECTED_SOURCE_CLOSURE_WITH_"
+                "CURRENT_BUILD_AND_STATIC_BINDING"
             ),
             "source_manifest_sha256": source_sha,
             "source_record_sha256": arch.canonical_digest(source_record),
             "baseline_design_id": baseline_binding["design_id"],
             "current_design_id": design_id,
             "production_rtl_changed_paths": sorted(changed_paths),
+            "production_rtl_membership": copy.deepcopy(membership),
             "directed_source_closure_impact": [],
             "provenance_rebound_paths": mismatches_by_test[test_id],
             "source_manifest_rebound_paths": sorted(rebound_source_paths),
             "current_l0_l3_status": "PASS_CURRENT_CONFIG",
             "current_census_status": "PASS",
+            "current_architecture_registry_snapshot": registry_summary["snapshot_id"],
             "dynamic_logs_modified": False,
             "mutation_transcripts_modified": False,
             "directed_simulation_reexecuted": False,
@@ -452,12 +803,22 @@ def project_manifest(
         "design_id": design_id,
         "baseline_design_id": baseline_binding["design_id"],
         "rtl_delta": changed,
+        "rtl_membership": membership,
         "directed_source_union": sorted(directed_union),
+        "baseline_directed_source_union": sorted(baseline_directed_union),
+        "dependency_closure_by_test": dependency_closure_by_test,
+        "directed_impact_by_test": directed_impact_by_test,
+        "transitive_only_delta": sorted(transitive_only_delta),
+        "transitive_delta_coverage": transitive_delta_coverage,
+        "fresh_tests": sorted(impacted_tests),
+        "projected_tests": sorted(set(TEST_TO_GATE) - impacted_tests),
+        "authorized_provenance_drift": sorted(authorized_provenance_drift),
         "mismatches_by_test": mismatches_by_test,
         "makefile_gate_projection": make_projection,
         "tb_build_projection": tb_projection,
         "layered_summary": layered_summary,
         "census_summary": census_summary,
+        "registry_summary": registry_summary,
     }
     return output, context
 
@@ -518,20 +879,23 @@ def build(args: argparse.Namespace) -> int:
     source = workspace_path(root, args.source_manifest, must_exist=True)
     baseline = workspace_path(root, args.baseline_rtl_manifest, must_exist=True)
     current = workspace_path(root, args.current_rtl_manifest, must_exist=True)
+    current_record = workspace_path(
+        root, args.current_record_manifest, must_exist=True)
     layered_path = workspace_path(root, args.layered_receipt, must_exist=True)
     census_path = workspace_path(root, args.census, must_exist=True)
     output = workspace_path(root, args.output_manifest, must_exist=False)
     result_path = workspace_path(root, args.result, must_exist=False)
     negative_path = workspace_path(root, args.negative_summary, must_exist=False)
     receipt_path = workspace_path(root, args.receipt, must_exist=False)
-    if len({source, baseline, current, layered_path, census_path, output,
-            result_path, negative_path, receipt_path}) != 9:
+    if len({source, baseline, current, current_record, layered_path, census_path,
+            output, result_path, negative_path, receipt_path}) != 10:
         raise RebindError("all delta-rebind input/output paths must be distinct")
     manifest, context = project_manifest(
         root=root,
         source_path=source,
         baseline_rtl_path=baseline,
         current_rtl_path=current,
+        current_record_path=current_record,
         layered_path=layered_path,
         census_path=census_path,
     )
@@ -545,30 +909,61 @@ def build(args: argparse.Namespace) -> int:
         "status": "PASS",
         "generated_at_utc": datetime.datetime.now(
             datetime.timezone.utc).isoformat(),
-        "claim": "current_architecture_nine_gate_delta_rebind",
+        "claim": "current_architecture_nine_gate_hybrid_rebind",
         "baseline_design_id": context["baseline_design_id"],
         "current_design_id": context["design_id"],
-        "rtl_file_count": 146,
+        "baseline_rtl_file_count": context["rtl_membership"]["baseline_file_count"],
+        "rtl_file_count": context["rtl_membership"]["current_file_count"],
         "rtl_delta": {
-            "membership_equal": True,
+            "membership_equal": context["rtl_membership"]["equal"],
+            "added_files": context["rtl_membership"]["added_files"],
+            "removed_files": context["rtl_membership"]["removed_files"],
             "changed_file_count": len(context["rtl_delta"]),
             "changed_files": context["rtl_delta"],
-            "directed_source_closure_impact": [],
+            "directed_source_closure_impact": context["directed_impact_by_test"],
+            "transitive_only_delta": context["transitive_only_delta"],
+            "transitive_delta_coverage": context["transitive_delta_coverage"],
+        },
+        "record_classification": {
+            "fresh_current": context["fresh_tests"],
+            "retained_projected": context["projected_tests"],
+            "fresh_count": len(context["fresh_tests"]),
+            "projected_count": len(context["projected_tests"]),
+            "required_count": len(TEST_TO_GATE),
         },
         "provenance_rebind": {
-            "authorized_paths": sorted(AUTHORIZED_PROVENANCE_DRIFT),
-            "by_test": context["mismatches_by_test"],
+            "authorized_paths": context["authorized_provenance_drift"],
+            "by_test": {
+                test_id: context["mismatches_by_test"][test_id]
+                for test_id in context["projected_tests"]
+            },
+            "fresh_source_drift": {
+                test_id: context["mismatches_by_test"][test_id]
+                for test_id in context["fresh_tests"]
+            },
             "npc_makefile_projection": context["makefile_gate_projection"],
             "tb_build_projection": context["tb_build_projection"],
             "current_census": context["census_summary"],
             "current_layered_positive": context["layered_summary"],
+            "current_architecture_registry": context["registry_summary"],
         },
         "inputs": {
             "source_architecture_manifest": artifact(root, source),
             "baseline_rtl_manifest": artifact(root, baseline),
             "current_rtl_manifest": artifact(root, current),
+            "current_record_manifest": artifact(root, current_record),
             "layered_system_receipt": artifact(root, layered_path),
             "producer_holder_census": artifact(root, census_path),
+            "architecture_registry_catalog": artifact(
+                root, root / REGISTRY_CATALOG_PATH),
+            "architecture_registry_elaboration": artifact(
+                root, root / REGISTRY_ELABORATION_PATH),
+            "architecture_registry_entry": artifact(
+                root, root / REGISTRY_ENTRY_PATH),
+            "architecture_registry_tool": artifact(
+                root, root / REGISTRY_TOOL_PATH),
+            "delta_rebind_tool": artifact(root, root / DELTA_TOOL_PATH),
+            "delta_rebind_test": artifact(root, root / DELTA_TEST_PATH),
         },
         "outputs": {
             "architecture_manifest": artifact(root, output),
@@ -585,25 +980,31 @@ def build(args: argparse.Namespace) -> int:
             "detected": negative["detected"],
             "required": negative["required"],
         },
-        "directed_simulation_reexecuted": False,
+        "directed_simulation_reexecuted": True,
         "dynamic_logs_modified": False,
         "mutation_transcripts_modified": False,
         "optional_ubuntu": "NOT_RUN",
         "arch_stable": False,
         "ppa": "UNQUALIFIED",
         "claim_boundary": (
-            "Rebinds nine retained DI/OOO records only because the exact current "
-            "production RTL delta is outside every directed source closure, the "
-            "current L0-L3 receipt and census canonically rebuild, and the current "
-            "Make execution projections remain exact. It does not claim a directed "
-            "DUT rerun, ARCH_STABLE, synthesis, STA, power, CPI, PPA or Ubuntu."
+            "Composes exactly the fresh current records derived from the baseline "
+            "semantic plus current elaboration dependency closure with retained "
+            "records whose RTL closures are unaffected. Transitive-only changed "
+            "RTL also requires current focused L0 coverage, registry ownership, "
+            "filelist membership and top reachability. This receipt contains one "
+            "scoped directed DUT rerun; it does not claim all nine were rerun, "
+            "ARCH_STABLE, synthesis, STA, power, CPI, PPA or Ubuntu."
         ),
     }
     write_json(receipt_path, receipt)
     print(
         "[ARCH-CURRENT-DELTA-REBIND][PASS] "
         f"design_id={context['design_id']} changed={len(context['rtl_delta'])} "
-        "directed_impact=0 gates=9/9 negative=4/4 dut_rerun=0"
+        f"rtl={context['rtl_membership']['current_file_count']} "
+        f"added={len(context['rtl_membership']['added_files'])} "
+        f"fresh={len(context['fresh_tests'])} "
+        f"projected={len(context['projected_tests'])} "
+        "gates=9/9 negative=4/4"
     )
     return 0
 
@@ -615,8 +1016,8 @@ def verify(args: argparse.Namespace) -> int:
     if (
         receipt.get("schema") != SCHEMA
         or receipt.get("status") != "PASS"
-        or receipt.get("claim") != "current_architecture_nine_gate_delta_rebind"
-        or receipt.get("directed_simulation_reexecuted") is not False
+        or receipt.get("claim") != "current_architecture_nine_gate_hybrid_rebind"
+        or receipt.get("directed_simulation_reexecuted") is not True
         or receipt.get("dynamic_logs_modified") is not False
         or receipt.get("mutation_transcripts_modified") is not False
         or receipt.get("optional_ubuntu") != "NOT_RUN"
@@ -628,6 +1029,23 @@ def verify(args: argparse.Namespace) -> int:
     outputs = receipt.get("outputs")
     if not isinstance(inputs, dict) or not isinstance(outputs, dict):
         raise RebindError("delta-rebind artifact inventory is malformed")
+    if set(inputs) != {
+        "source_architecture_manifest",
+        "baseline_rtl_manifest",
+        "current_rtl_manifest",
+        "current_record_manifest",
+        "layered_system_receipt",
+        "producer_holder_census",
+        "architecture_registry_catalog",
+        "architecture_registry_elaboration",
+        "architecture_registry_entry",
+        "architecture_registry_tool",
+        "delta_rebind_tool",
+        "delta_rebind_test",
+    } or set(outputs) != {
+        "architecture_manifest", "architecture_result", "negative_summary",
+    }:
+        raise RebindError("delta-rebind artifact inventory membership mismatch")
     resolved_inputs: dict[str, pathlib.Path] = {}
     for name, item in inputs.items():
         if not isinstance(item, dict):
@@ -636,6 +1054,16 @@ def verify(args: argparse.Namespace) -> int:
         if digest(path) != item.get("sha256") or path.stat().st_size != item.get("size_bytes"):
             raise RebindError(f"input artifact drift: {name}")
         resolved_inputs[name] = path
+    for name, relative in {
+        "architecture_registry_catalog": REGISTRY_CATALOG_PATH,
+        "architecture_registry_elaboration": REGISTRY_ELABORATION_PATH,
+        "architecture_registry_entry": REGISTRY_ENTRY_PATH,
+        "architecture_registry_tool": REGISTRY_TOOL_PATH,
+        "delta_rebind_tool": DELTA_TOOL_PATH,
+        "delta_rebind_test": DELTA_TEST_PATH,
+    }.items():
+        if resolved_inputs[name] != (root / relative).resolve(strict=True):
+            raise RebindError(f"registry input path drift: {name}")
     resolved_outputs: dict[str, pathlib.Path] = {}
     for name, item in outputs.items():
         if not isinstance(item, dict):
@@ -649,6 +1077,7 @@ def verify(args: argparse.Namespace) -> int:
         source_path=resolved_inputs["source_architecture_manifest"],
         baseline_rtl_path=resolved_inputs["baseline_rtl_manifest"],
         current_rtl_path=resolved_inputs["current_rtl_manifest"],
+        current_record_path=resolved_inputs["current_record_manifest"],
         layered_path=resolved_inputs["layered_system_receipt"],
         census_path=resolved_inputs["producer_holder_census"],
     )
@@ -666,11 +1095,61 @@ def verify(args: argparse.Namespace) -> int:
     changed_files = receipt.get("rtl_delta", {}).get("changed_files")
     if changed_files != context["rtl_delta"]:
         raise RebindError("receipt RTL delta differs from canonical projection")
+    expected_delta_summary = {
+        "membership_equal": context["rtl_membership"]["equal"],
+        "added_files": context["rtl_membership"]["added_files"],
+        "removed_files": context["rtl_membership"]["removed_files"],
+        "changed_file_count": len(context["rtl_delta"]),
+        "changed_files": context["rtl_delta"],
+        "directed_source_closure_impact": context["directed_impact_by_test"],
+        "transitive_only_delta": context["transitive_only_delta"],
+        "transitive_delta_coverage": context["transitive_delta_coverage"],
+    }
+    if receipt.get("rtl_delta") != expected_delta_summary:
+        raise RebindError("receipt RTL delta summary differs from canonical projection")
+    if (
+        receipt.get("baseline_rtl_file_count")
+        != context["rtl_membership"]["baseline_file_count"]
+        or receipt.get("rtl_file_count")
+        != context["rtl_membership"]["current_file_count"]
+    ):
+        raise RebindError("receipt RTL file count differs from canonical projection")
+    expected_provenance_rebind = {
+        "authorized_paths": context["authorized_provenance_drift"],
+        "by_test": {
+            test_id: context["mismatches_by_test"][test_id]
+            for test_id in context["projected_tests"]
+        },
+        "fresh_source_drift": {
+            test_id: context["mismatches_by_test"][test_id]
+            for test_id in context["fresh_tests"]
+        },
+        "npc_makefile_projection": context["makefile_gate_projection"],
+        "tb_build_projection": context["tb_build_projection"],
+        "current_census": context["census_summary"],
+        "current_layered_positive": context["layered_summary"],
+        "current_architecture_registry": context["registry_summary"],
+    }
+    if receipt.get("provenance_rebind") != expected_provenance_rebind:
+        raise RebindError("receipt provenance projection differs from canonical replay")
     if receipt.get("current_design_id") != context["design_id"]:
         raise RebindError("receipt current design-id mismatch")
+    expected_classification = {
+        "fresh_current": context["fresh_tests"],
+        "retained_projected": context["projected_tests"],
+        "fresh_count": len(context["fresh_tests"]),
+        "projected_count": len(context["projected_tests"]),
+        "required_count": len(TEST_TO_GATE),
+    }
+    if receipt.get("record_classification") != expected_classification:
+        raise RebindError("receipt fresh/projected classification drifted")
     print(
         "[ARCH-CURRENT-DELTA-REBIND-VERIFY][PASS] "
         f"design_id={context['design_id']} changed={len(context['rtl_delta'])} "
+        f"rtl={context['rtl_membership']['current_file_count']} "
+        f"added={len(context['rtl_membership']['added_files'])} "
+        f"fresh={len(context['fresh_tests'])} "
+        f"projected={len(context['projected_tests'])} "
         "gates=9/9 negative=4/4"
     )
     return 0
@@ -686,6 +1165,8 @@ def main() -> int:
         "--baseline-rtl-manifest", required=True, type=pathlib.Path)
     build_parser.add_argument(
         "--current-rtl-manifest", required=True, type=pathlib.Path)
+    build_parser.add_argument(
+        "--current-record-manifest", required=True, type=pathlib.Path)
     build_parser.add_argument("--layered-receipt", required=True, type=pathlib.Path)
     build_parser.add_argument("--census", required=True, type=pathlib.Path)
     build_parser.add_argument("--output-manifest", required=True, type=pathlib.Path)

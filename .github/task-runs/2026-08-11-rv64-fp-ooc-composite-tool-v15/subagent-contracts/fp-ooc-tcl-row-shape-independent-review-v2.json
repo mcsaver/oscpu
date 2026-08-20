@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-tcl-row-shape-independent-review-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地RV64 FP OOC Python到OpenSTA Tcl row-shape修复。沿A8冻结的OooFpAddSubPipe 138-bit driver contract与Registry五条NpcTop boundary，攻击共享encoder/validator同源假绿、实际Tcl list解析差异、brace/backslash/空白atom注入、emit调用点遗漏、child 138行6字段与top 5行8字段consumer错配、A8或FP RTL漂移及越级PPA声明。给出RETAIN或BLOCK与fresh-run授权数；不运行测试或EDA，不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/subagent-contracts/fp-ooc-tcl-row-shape-fix-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1/result.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1/verification-summary.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/subagent-contracts/fp-ooc-tcl-row-shape-independent-review-v2.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a8/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1/result.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/evidence/fp-ooc-tcl-row-shape-fix-v1/verification-summary.md",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐调用点核对共享row encoder输出由独立Tcl parser消费为child 138x6与top 5x8，atom值逐项保持；审计consumer的行数、字段数和Registry width约束，并寻找可被共同encoder/validator掩盖的反例。",
+    "逐项裁决扁平、缺/多字段、跨行合并、unsafe brace/backslash/空白、错误行数、遗漏emit调用、A8/RTL漂移与PPA越级；保留日志marker、证据哈希、unknowns和替代解释。"
+  ],
+  "success_criteria": [
+    "只读合同内证据足以给出RETAIN或BLOCK；只有未发现确定假绿/误拒且A8与FP RTL冻结、工具门禁真实PASS时才授权一个全新run-id的单次5.0ns diagnostic。不得把工具PASS写成PPA PASS。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,1164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-architecture-registry-v1.schema.json",
+  "title": "NPC RV64 architecture ownership registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "single_entry",
+    "scope",
+    "bpu_physical_experiment_state",
+    "owners",
+    "owner_rules",
+    "file_overrides",
+    "owner_globs",
+    "capabilities",
+    "physical_boundaries",
+    "run_parameter_contract",
+    "physical_configurations",
+    "evidence",
+    "architecture_nodes",
+    "architecture_edges"
+  ],
+  "$defs": {
+    "fpOocChildContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rtl",
+        "source_closure",
+        "compile_sources",
+        "top_instance",
+        "clock_port",
+        "synchronous_controls",
+        "input_ports",
+        "output_ports",
+        "path_classes",
+        "top_boundary_contract",
+        "forbidden_timing_exceptions"
+      ],
+      "properties": {
+        "rtl": {"type": "string", "pattern": "^npc/rv64/vsrc/execute/OooFp[A-Za-z0-9]+\\.v$"},
+        "source_closure": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^npc/rv64/vsrc/"}
+        },
+        "compile_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^npc/rv64/vsrc/.+\\.(v|sv)$"
+          }
+        },
+        "top_instance": {"type": "string", "pattern": "^u_[a-z0-9_]+$"},
+        "clock_port": {"const": "clk"},
+        "synchronous_controls": {"const": ["rst", "flush_i"]},
+        "input_ports": {
+          "type": "object",
+          "minProperties": 6,
+          "additionalProperties": {"type": "integer", "minimum": 1}
+        },
+        "output_ports": {
+          "type": "object",
+          "minProperties": 4,
+          "additionalProperties": {"type": "integer", "minimum": 1}
+        },
+        "path_classes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "port_to_register",
+            "register_to_register",
+            "register_to_port",
+            "synchronous_control_to_register",
+            "top_boundary"
+          ],
+          "properties": {
+            "port_to_register": {"const": "required"},
+            "register_to_register": {"enum": ["required", "not_applicable_single_stage"]},
+            "register_to_port": {"const": "required"},
+            "synchronous_control_to_register": {"const": "required"},
+            "top_boundary": {"type": "string", "minLength": 1}
+          }
+        },
+        "top_boundary_contract": {
+          "type": "object",
+          "required": ["source_instance_path", "source_object_class", "source_port_families", "endpoint"]
+        },
+        "forbidden_timing_exceptions": {
+          "const": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-architecture-registry-v1"
+    },
+    "single_entry": {
+      "const": "npc/rv64/ARCHITECTURE.md"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_root",
+        "extensions",
+        "product",
+        "top_module",
+        "canonical_filelist",
+        "product_config",
+        "inventory_review"
+      ],
+      "properties": {
+        "source_root": {
+          "const": "npc/rv64/vsrc"
+        },
+        "extensions": {
+          "const": [
+            ".v",
+            ".sv"
+          ]
+        },
+        "product": {
+          "type": "string",
+          "minLength": 1
+        },
+        "top_module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_filelist": {
+          "type": "string",
+          "minLength": 1
+        },
+        "product_config": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inventory_review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path_set_sha256",
+            "owner",
+            "change_policy"
+          ],
+          "properties": {
+            "path_set_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "owner": {
+              "const": "rv64-architecture"
+            },
+            "change_policy": {
+              "const": "any-vsrc-path-change-requires-review"
+            }
+          }
+        }
+      }
+    },
+    "bpu_physical_experiment_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_configuration",
+        "live_rtl_design_id",
+        "source_lifecycle",
+        "measurement_status",
+        "mapped_execution_receipt",
+        "frozen_experiment_verdict",
+        "physical_status",
+        "archive_status",
+        "front_accepted",
+        "canonical",
+        "champion",
+        "sweep_status",
+        "next_action",
+        "stop_condition",
+        "failed_attempt",
+        "frozen_predecessor"
+      ],
+      "properties": {
+        "active_configuration": {
+          "const": "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1"
+        },
+        "live_rtl_design_id": {
+          "const": "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d"
+        },
+        "source_lifecycle": {
+          "const": "development"
+        },
+        "measurement_status": {
+          "const": "FAILED_INCOMPLETE"
+        },
+        "mapped_execution_receipt": {
+          "const": "FAIL"
+        },
+        "frozen_experiment_verdict": {
+          "const": "ROLLBACK"
+        },
+        "physical_status": {
+          "const": "GAP"
+        },
+        "archive_status": {
+          "const": "RETAIN_NONCANONICAL_NEGATIVE_RESULT"
+        },
+        "front_accepted": {
+          "const": false
+        },
+        "canonical": {
+          "const": false
+        },
+        "champion": {
+          "const": false
+        },
+        "sweep_status": {
+          "const": "BPU_CLOSED_FOR_SWEEP"
+        },
+        "next_action": {
+          "const": "STOP_BPU_PIVOT_FP"
+        },
+        "stop_condition": {
+          "const": "TRIGGERED"
+        },
+        "failed_attempt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "physical_configuration_id",
+            "source_design_id",
+            "result",
+            "status_path",
+            "status_sha256",
+            "command_status_path",
+            "command_status_sha256",
+            "raw_diagnostic_path",
+            "raw_diagnostic_sha256",
+            "raw_diagnostic_qualification",
+            "adjudication_path",
+            "adjudication_sha256",
+            "qualified_measurement",
+            "summary",
+            "architecture_registry_binding"
+          ],
+          "properties": {
+            "physical_configuration_id": {
+              "const": "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1"
+            },
+            "source_design_id": {
+              "const": "sha256:f5f2a00a34a25262f9913abda384a197f751afc94cf424e896c7414a65b92eb8"
+            },
+            "result": {
+              "const": "FAIL"
+            },
+            "status_path": {
+              "const": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/traceable-f5f2-bpu-flat-read-view-a1.status"
+            },
+            "status_sha256": {
+              "const": "f923a8ae87f26025bdec54301bf96013c31c323228a3c04f266705cfb5a4fe5e"
+            },
+            "command_status_path": {
+              "const": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/command-status.txt"
+            },
+            "command_status_sha256": {
+              "const": "7a4d2741e0ac353c60591ac54833a949b470c42b4e28affb694ecb987e2beaa8"
+            },
+            "raw_diagnostic_path": {
+              "const": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/opensta-bpu-negative-slack.tsv"
+            },
+            "raw_diagnostic_sha256": {
+              "const": "4b56ca26b14e52415ac554e4b65e17fb746036782938ce47d13536b97dd97fb4"
+            },
+            "raw_diagnostic_qualification": {
+              "const": "UNBOUND_DIAGNOSTIC_ONLY"
+            },
+            "adjudication_path": {
+              "const": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-flat-read-view-ppa-f5f2-a1.result.md"
+            },
+            "adjudication_sha256": {
+              "const": "c535a9aeb9d135ed8cb08e21100764feef35108de8a6788e4a0822a42f2d7edd"
+            },
+            "qualified_measurement": {
+              "const": false
+            },
+            "summary": {
+              "const": null
+            },
+            "architecture_registry_binding": {
+              "const": null
+            }
+          }
+        },
+        "frozen_predecessor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "physical_configuration_id",
+            "source_design_id",
+            "mapped_summary",
+            "mapped_summary_sha256",
+            "mapped_execution_receipt",
+            "frozen_experiment_verdict",
+            "physical_status",
+            "archive_class",
+            "archive_status",
+            "front_accepted",
+            "canonical",
+            "champion"
+          ],
+          "properties": {
+            "physical_configuration_id": {
+              "const": "mapped-5ns-bpu-local-pht-banked-child-inline-v1"
+            },
+            "source_design_id": {
+              "const": "sha256:b279d4bc209013144ea4075aa7102119a28ee2b77f797a98717401bc9272697e"
+            },
+            "mapped_summary": {
+              "const": ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json"
+            },
+            "mapped_summary_sha256": {
+              "const": "fc752a737d3b05edd8ff9f4fe6c94af4b324357bb2857c6c2ea8f7984b62d802"
+            },
+            "mapped_execution_receipt": {
+              "const": "PASS"
+            },
+            "frozen_experiment_verdict": {
+              "const": "ROLLBACK"
+            },
+            "physical_status": {
+              "const": "GAP"
+            },
+            "archive_class": {
+              "const": "engineering_proxy_archive"
+            },
+            "archive_status": {
+              "const": "RETAIN_NONCANONICAL"
+            },
+            "front_accepted": {
+              "const": false
+            },
+            "canonical": {
+              "const": false
+            },
+            "champion": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "owners": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "responsibility",
+          "reviewers"
+        ],
+        "properties": {
+          "responsibility": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "owner_rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "glob",
+          "owner"
+        ],
+        "properties": {
+          "glob": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "file_overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "product",
+              "catalog_only",
+              "source_fragment",
+              "debug_only",
+              "sim_only"
+            ]
+          },
+          "intent": {
+            "type": "string",
+            "minLength": 1
+          },
+          "review_expiry": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configuration_scope": {
+            "enum": [
+              "product_core",
+              "catalog_compiled",
+              "sim_top",
+              "focused_only"
+            ]
+          }
+        }
+      }
+    },
+    "owner_globs": {
+      "type": "object"
+    },
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "physical_boundaries": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "run_parameter_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "expected_rtl_design_id",
+        "mode",
+        "diagnostic",
+        "design",
+        "period_ns",
+        "clock_port",
+        "clock_name",
+        "defines",
+        "synthesis",
+        "sta",
+        "keep_hierarchy_modules",
+        "sdc_file",
+        "standard_cell_lib",
+        "opensta_binary"
+      ],
+      "properties": {
+        "id": {
+          "const": "npctop-traceable-mapped-5ns-v1"
+        },
+        "expected_rtl_design_id": {
+          "const": "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d"
+        },
+        "mode": {
+          "const": "candidate"
+        },
+        "diagnostic": {
+          "const": "traceable-public-autoname"
+        },
+        "design": {
+          "const": "NpcTop"
+        },
+        "period_ns": {
+          "const": 5.0
+        },
+        "clock_port": {
+          "const": "clk"
+        },
+        "clock_name": {
+          "const": "core_clock"
+        },
+        "defines": {
+          "const": []
+        },
+        "synthesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "flatten",
+            "share",
+            "stop_after_coarse",
+            "public_autoname",
+            "dff_autoname",
+            "sta_flatten_export"
+          ],
+          "properties": {
+            "flatten": {"const": 0},
+            "share": {"const": 0},
+            "stop_after_coarse": {"const": 0},
+            "public_autoname": {"const": 1},
+            "dff_autoname": {"const": 0},
+            "sta_flatten_export": {"const": 1}
+          }
+        },
+        "sta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stage_scc"],
+          "properties": {
+            "stage_scc": {"const": 0}
+          }
+        },
+        "keep_hierarchy_modules": {
+          "const": [
+            "OooIntBackend",
+            "OooFpBackend",
+            "OooFrontend",
+            "OooFetchAxiBridge",
+            "OooMemAxiBridge",
+            "OooRob",
+            "OooIntIssueQueue"
+          ]
+        },
+        "sdc_file": {
+          "const": "yosys-sta/scripts/default.sdc"
+        },
+        "standard_cell_lib": {
+          "const": "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib"
+        },
+        "opensta_binary": {
+          "const": "/home/lyg/tools/OpenSTA/build/sta"
+        }
+      }
+    },
+    "physical_configurations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mapped-5ns-four-placeholder-v1",
+        "mapped-5ns-bpu-inline-v1",
+        "mapped-5ns-bpu-local-pht-banked-child-inline-v1",
+        "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1",
+        "mapped-5ns-fp-arith-production-children-inline-v1",
+        "mapped-5ns-fp-arith-production-children-ooc-boundary-v1"
+      ],
+      "properties": {
+        "mapped-5ns-four-placeholder-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "boundary_modes",
+            "expected_unknown_macro_instances"
+          ],
+          "properties": {
+            "run_parameter_contract": {
+              "const": "npctop-traceable-mapped-5ns-v1"
+            },
+            "comparison_parent": {
+              "type": "null"
+            },
+            "mapped_artifact_profile": {
+              "const": "none"
+            },
+            "boundary_modes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": "placeholder_blackbox"},
+                "Sram4096x113": {"const": "placeholder_blackbox"},
+                "OooFpArithGate": {"const": "placeholder_blackbox"},
+                "OooBranchDirectionPredictor": {"const": "placeholder_blackbox"}
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": 1},
+                "Sram4096x113": {"const": 2},
+                "OooFpArithGate": {"const": 1},
+                "OooBranchDirectionPredictor": {"const": 1}
+              }
+            }
+          }
+        },
+        "mapped-5ns-bpu-inline-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "boundary_modes",
+            "expected_unknown_macro_instances"
+          ],
+          "properties": {
+            "run_parameter_contract": {
+              "const": "npctop-traceable-mapped-5ns-v1"
+            },
+            "comparison_parent": {
+              "const": "mapped-5ns-four-placeholder-v1"
+            },
+            "mapped_artifact_profile": {
+              "const": "none"
+            },
+            "boundary_modes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": "placeholder_blackbox"},
+                "Sram4096x113": {"const": "placeholder_blackbox"},
+                "OooFpArithGate": {"const": "placeholder_blackbox"},
+                "OooBranchDirectionPredictor": {"const": "inline_rtl"}
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": 1},
+                "Sram4096x113": {"const": 2},
+                "OooFpArithGate": {"const": 1}
+              }
+            }
+          }
+        },
+        "mapped-5ns-bpu-local-pht-banked-child-inline-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "boundary_modes",
+            "expected_unknown_macro_instances",
+            "archive_class",
+            "canonical",
+            "champion",
+            "inline_modules",
+            "keep_hierarchy_additions"
+          ],
+          "properties": {
+            "run_parameter_contract": {
+              "const": "npctop-traceable-mapped-5ns-v1"
+            },
+            "comparison_parent": {
+              "const": "mapped-5ns-bpu-inline-v1"
+            },
+            "mapped_artifact_profile": {
+              "const": "bpu-local-pht-v1"
+            },
+            "boundary_modes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": "placeholder_blackbox"},
+                "Sram4096x113": {"const": "placeholder_blackbox"},
+                "OooFpArithGate": {"const": "placeholder_blackbox"},
+                "OooBranchDirectionPredictor": {"const": "inline_rtl"}
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": 1},
+                "Sram4096x113": {"const": 2},
+                "OooFpArithGate": {"const": 1}
+              }
+            },
+            "archive_class": {
+              "const": "engineering_proxy_archive"
+            },
+            "canonical": {
+              "const": false
+            },
+            "champion": {
+              "const": false
+            },
+            "inline_modules": {
+              "const": [
+                "OooBranchDirectionPredictor",
+                "OooBranchLocalPht",
+                "OooBranchLocalPhtBank"
+              ]
+            },
+            "keep_hierarchy_additions": {
+              "const": [
+                "OooBranchDirectionPredictor",
+                "OooBranchLocalPht",
+                "OooBranchLocalPhtBank"
+              ]
+            }
+          }
+        },
+        "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "boundary_modes",
+            "expected_unknown_macro_instances",
+            "archive_class",
+            "canonical",
+            "champion",
+            "inline_modules",
+            "keep_hierarchy_additions"
+          ],
+          "properties": {
+            "run_parameter_contract": {
+              "const": "npctop-traceable-mapped-5ns-v1"
+            },
+            "comparison_parent": {
+              "const": "mapped-5ns-bpu-local-pht-banked-child-inline-v1"
+            },
+            "mapped_artifact_profile": {
+              "const": "bpu-local-pht-v1"
+            },
+            "boundary_modes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": "placeholder_blackbox"},
+                "Sram4096x113": {"const": "placeholder_blackbox"},
+                "OooFpArithGate": {"const": "placeholder_blackbox"},
+                "OooBranchDirectionPredictor": {"const": "inline_rtl"}
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": 1},
+                "Sram4096x113": {"const": 2},
+                "OooFpArithGate": {"const": 1}
+              }
+            },
+            "archive_class": {
+              "const": "engineering_proxy_negative_result_archive"
+            },
+            "canonical": {
+              "const": false
+            },
+            "champion": {
+              "const": false
+            },
+            "inline_modules": {
+              "const": [
+                "OooBranchDirectionPredictor",
+                "OooBranchLocalPht",
+                "OooBranchLocalPhtBank"
+              ]
+            },
+            "keep_hierarchy_additions": {
+              "const": [
+                "OooBranchDirectionPredictor",
+                "OooBranchLocalPht",
+                "OooBranchLocalPhtBank"
+              ]
+            }
+          }
+        },
+        "mapped-5ns-fp-arith-production-children-inline-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "boundary_modes",
+            "expected_unknown_macro_instances",
+            "archive_class",
+            "source_lifecycle",
+            "measurement_status",
+            "physical_status",
+            "canonical",
+            "champion",
+            "inline_modules",
+            "keep_hierarchy_additions"
+          ],
+          "properties": {
+            "run_parameter_contract": {
+              "const": "npctop-traceable-mapped-5ns-v1"
+            },
+            "comparison_parent": {
+              "const": "mapped-5ns-four-placeholder-v1"
+            },
+            "mapped_artifact_profile": {
+              "const": "fp-arith-children-v1"
+            },
+            "boundary_modes": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooFpArithGate",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": "placeholder_blackbox"},
+                "Sram4096x113": {"const": "placeholder_blackbox"},
+                "OooFpArithGate": {"const": "inline_rtl"},
+                "OooBranchDirectionPredictor": {"const": "placeholder_blackbox"}
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "Sram4096x199",
+                "Sram4096x113",
+                "OooBranchDirectionPredictor"
+              ],
+              "properties": {
+                "Sram4096x199": {"const": 1},
+                "Sram4096x113": {"const": 2},
+                "OooBranchDirectionPredictor": {"const": 1}
+              }
+            },
+            "archive_class": {
+              "const": "engineering_proxy_development"
+            },
+            "source_lifecycle": {
+              "const": "development"
+            },
+            "measurement_status": {
+              "const": "UNMEASURED"
+            },
+            "physical_status": {
+              "const": "GAP"
+            },
+            "canonical": {
+              "const": false
+            },
+            "champion": {
+              "const": false
+            },
+            "inline_modules": {
+              "const": [
+                "OooFpArithGate",
+                "OooFpAddSubPipe",
+                "OooFpMulProductPipe",
+                "OooFpMulNormRoundPipe",
+                "OooFpFmaAlignAddPipe",
+                "OooFpFmaNormRoundPipe"
+              ]
+            },
+            "keep_hierarchy_additions": {
+              "const": [
+                "OooFpArithGate",
+                "OooFpAddSubPipe",
+                "OooFpMulProductPipe",
+                "OooFpMulNormRoundPipe",
+                "OooFpFmaAlignAddPipe",
+                "OooFpFmaNormRoundPipe"
+              ]
+            }
+          }
+        },
+        "mapped-5ns-fp-arith-production-children-ooc-boundary-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_parameter_contract",
+            "comparison_parent",
+            "mapped_artifact_profile",
+            "abstraction_kind",
+            "boundary_modes",
+            "implementation_classes",
+            "expected_unknown_macro_instances",
+            "expected_known_ooc_macro_instances",
+            "archive_class",
+            "source_lifecycle",
+            "measurement_status",
+            "physical_status",
+            "canonical",
+            "champion",
+            "inline_modules",
+            "known_ooc_macro_modules",
+            "keep_hierarchy_additions",
+            "ooc_model_contract",
+            "child_contracts"
+          ],
+          "properties": {
+            "run_parameter_contract": {"const": "npctop-traceable-mapped-5ns-v1"},
+            "comparison_parent": {"const": "mapped-5ns-fp-arith-production-children-inline-v1"},
+            "mapped_artifact_profile": {"const": "fp-arith-ooc-composite-v1"},
+            "abstraction_kind": {"const": "OOC_STA_ABSTRACTION"},
+            "boundary_modes": {
+              "const": {
+                "Sram4096x199": "placeholder_blackbox",
+                "Sram4096x113": "placeholder_blackbox",
+                "OooFpArithGate": "inline_rtl",
+                "OooBranchDirectionPredictor": "placeholder_blackbox"
+              }
+            },
+            "implementation_classes": {
+              "const": {
+                "inline_rtl": ["OooFpArithGate"],
+                "known_ooc_macro": [
+                  "OooFpAddSubPipe",
+                  "OooFpMulProductPipe",
+                  "OooFpMulNormRoundPipe",
+                  "OooFpFmaAlignAddPipe",
+                  "OooFpFmaNormRoundPipe"
+                ],
+                "unknown_placeholder": [
+                  "Sram4096x199",
+                  "Sram4096x113",
+                  "OooBranchDirectionPredictor"
+                ]
+              }
+            },
+            "expected_unknown_macro_instances": {
+              "const": {"Sram4096x199": 1, "Sram4096x113": 2, "OooBranchDirectionPredictor": 1}
+            },
+            "expected_known_ooc_macro_instances": {
+              "const": {
+                "OooFpAddSubPipe": 1,
+                "OooFpMulProductPipe": 1,
+                "OooFpMulNormRoundPipe": 1,
+                "OooFpFmaAlignAddPipe": 1,
+                "OooFpFmaNormRoundPipe": 1
+              }
+            },
+            "archive_class": {"const": "engineering_proxy_development"},
+            "source_lifecycle": {"const": "development"},
+            "measurement_status": {"const": "UNMEASURED"},
+            "physical_status": {"const": "GAP"},
+            "canonical": {"const": false},
+            "champion": {"const": false},
+            "inline_modules": {"const": ["OooFpArithGate"]},
+            "known_ooc_macro_modules": {
+              "const": [
+                "OooFpAddSubPipe",
+                "OooFpMulProductPipe",
+                "OooFpMulNormRoundPipe",
+                "OooFpFmaAlignAddPipe",
+                "OooFpFmaNormRoundPipe"
+              ]
+            },
+            "keep_hierarchy_additions": {
+              "const": [
+                "OooFpArithGate",
+                "OooFpAddSubPipe",
+                "OooFpMulProductPipe",
+                "OooFpMulNormRoundPipe",
+                "OooFpFmaAlignAddPipe",
+                "OooFpFmaNormRoundPipe"
+              ]
+            },
+            "ooc_model_contract": {
+              "const": {
+                "corner": "typ_tt_1p2_25",
+                "time_unit": "1ns",
+                "capacitive_load_unit": "1pf",
+                "voltage_v": 1.2,
+                "temperature_c": 25.0,
+                "slew_ns": [0.02, 0.1, 0.5],
+                "load_pf": [0.01, 0.1, 0.5],
+                "power_model": "absent",
+                "path_exceptions": "forbidden",
+                "clock_period_ns": 5.0,
+                "input_delay_ns": 0.0,
+                "timing_derivation": {
+                  "setup": "max(0,period_ns-input_delay_ns-worst_slack_ns)",
+                  "hold": "max(0,input_delay_ns-worst_slack_ns)",
+                  "clk_to_q": "max(0.001,worst_path_delay_ns)"
+                },
+                "path_measurement_basis": {
+                  "path_object": "PathEnd_points_Path_arrival",
+                  "unit_domain": "OpenSTA_PropertyValue_UI_nanoseconds",
+                  "input_to_register_d": "endpoint_arrival_ns-minus-first_arrival_ns_with_zero_input_seed",
+                  "register_q_to_output": "endpoint_cumulative_arrival_ns_from_zero_rising_ideal_clock",
+                  "clock_origin_ns": 0.0,
+                  "clock_source_latency_ns": 0.0,
+                  "clock_network_latency_ns": 0.0,
+                  "clock_insertion_ns": 0.0,
+                  "clock_propagation": "ideal_unpropagated",
+                  "path_end_validation": "constrained_min_max_check_role_startpoint_endpoint_points_first_last"
+                },
+                "mapped_leaf_policy": "bound_stdlib_whitelist_no_dollar_generic",
+                "retained_netlist_manifest": "complete_ports_leaf_cells_instances",
+                "output_bit_classification_source": "retained_unique_driver_plus_bound_stdlib_output_pin_function",
+                "output_bit_classes": ["DYNAMIC", "CONSTANT_0", "CONSTANT_1"],
+                "dynamic_output_path_policy": "real_register_q_path_required",
+                "constant_output_path_policy": "zero_register_q_paths_required",
+                "constant_inference_from_missing_path": "forbidden",
+                "literal_output_timing_group_policy": "none_or_isolated_tied_off_true_without_ordinary_timing",
+                "focused_generated_macro_oracle": "nested_literal_and_top_propagated_constant_no_sdc_seed_dynamic_reg_clk_to_q",
+                "liberty_output_member_policy": "dynamic_state_function_rising_edge_xor_literal_constant_function",
+                "family_timing_summary_policy": "derived_from_dynamic_bits_only",
+                "child_query_budget": {
+                  "progress_schema": "npc-rv64-fp-ooc-query-progress-v1",
+                  "completion_marker": "[FP-OOC-QUERY-BUDGET][PASS]",
+                  "path_class_endpoint_path_count": 1,
+                  "path_class_group_cap": "exact_target_endpoint_cardinality",
+                  "input_query_policy": "per_source_bit_setup_max_hold_min",
+                  "input_endpoint_path_count": 1,
+                  "input_group_path_count": 1,
+                  "output_query_policy": "one_bulk_query_per_analysis_join_by_endpoint",
+                  "output_endpoint_path_count": 1,
+                  "output_group_cap": "sum_registered_output_widths",
+                  "pathend_lifetime": "materialize_once_before_next_search",
+                  "current_addsub": {
+                    "register_d_endpoints": 608,
+                    "nonclock_input_bits": 134,
+                    "output_bits": 138,
+                    "dynamic_output_bits": 136,
+                    "find_calls": 273,
+                    "path_end_limit": 2364,
+                    "validation_limit": 2364
+                  }
+                },
+                "tcl_row_projection_contract": {
+                  "encoding": "outer_list_of_brace_quoted_row_lists",
+                  "atom_policy": "nonempty_ascii_safe_no_brace_or_backslash",
+                  "child_output_bit_driver": {
+                    "fields": ["family", "index", "opensta_object_name", "classification", "constant_value", "driver_binding_sha256"],
+                    "row_count": "sum_registered_output_widths"
+                  },
+                  "top_boundary": {
+                    "fields": ["path_class", "source_instance_path", "source_object_class", "source_port_family_widths", "endpoint_kind", "endpoint_instance_path", "endpoint_object_class", "endpoint_family_widths"],
+                    "row_count": 5
+                  }
+                }
+              }
+            },
+            "child_contracts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "OooFpAddSubPipe",
+                "OooFpMulProductPipe",
+                "OooFpMulNormRoundPipe",
+                "OooFpFmaAlignAddPipe",
+                "OooFpFmaNormRoundPipe"
+              ],
+              "properties": {
+                "OooFpAddSubPipe": {"$ref": "#/$defs/fpOocChildContract"},
+                "OooFpMulProductPipe": {"$ref": "#/$defs/fpOocChildContract"},
+                "OooFpMulNormRoundPipe": {"$ref": "#/$defs/fpOocChildContract"},
+                "OooFpFmaAlignAddPipe": {"$ref": "#/$defs/fpOocChildContract"},
+                "OooFpFmaNormRoundPipe": {"$ref": "#/$defs/fpOocChildContract"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elaboration_receipt",
+        "functional_result",
+        "module_result",
+        "l3_result",
+        "mapped_summary",
+        "latest_mapped_attempt"
+      ],
+      "properties": {
+        "elaboration_receipt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "functional_result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "module_result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "l3_result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mapped_summary": {
+          "const": ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json"
+        },
+        "latest_mapped_attempt": {
+          "const": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/traceable-f5f2-bpu-flat-read-view-a1.status"
+        }
+      }
+    },
+    "architecture_nodes": {
+      "type": "array",
+      "minItems": 1
+    },
+    "architecture_edges": {
+      "type": "array",
+      "minItems": 1
+    }
+  }
+}

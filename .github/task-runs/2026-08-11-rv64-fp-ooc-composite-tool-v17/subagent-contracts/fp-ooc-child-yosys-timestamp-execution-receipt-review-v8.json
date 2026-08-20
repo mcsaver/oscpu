@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-execution-receipt-review-v8",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 OooFpMulProductPipe child-Yosys timestamp 执行收据：重新计算并要求 gate runner=7e3b4e8422bbeb03f9f6450cb0b84fd12d69d45af90a802b9d0a7bb43bc1ef52、validator=50dc455d02f8df436a92f7adae7daf60b26df9ba9893a97fe8fec30be369c79a、input freeze=a468b07284f177742b8c3e02353401f5cfa6db6225b6c66e5144931ab05ad2dc、command status=0b7bfcc6fd6e376dbd1b1450c4dce9434510ee9d84b516b47b1f6a0672832a65、unittest raw log=1ce3d23a70be8dcfc4ba578142f38955fb754a70f5e68433fd3ea62c4364f4a6、bash-n raw log=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855、result=d0708a4f4b20baa5b683f1bc43f839dead93c608ca9d0a57a649313833d053b4、receipt=dc3a63725d45055c20e7ad418fce35185604444b7f49490520cd68d57c00586d；确认 raw unittest 确有 Ran 1 test、OK、唯一 mutations=14/bash_n=15 marker，bash-n rc0、两命令 executions=1、SEALED=1，且 result/receipt/validator 对缺日志、错误返回码、错误计数、marker漂移、A10重放与输入漂移均 fail closed；同时复核 actual executable argv 仍由 1800s run_bounded 直接约束且 first executable 为 Yosys。若发现任何可使未执行测试仍生成同一 PASS 收据、可绕过 actual argv、或 review 后 current input 漂移的确定反例则 BLOCK；否则 RETAIN 仅授权一个全新 run-id 单次 5.0ns diagnostic，PPA 保持 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-external-binding-review-v7.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-execution-receipt-review-v8.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 RETAIN/BLOCK 裁决；逐项列出 raw log、command-status、result/receipt、validator、current runner/test/RTL/A10 的复算 SHA 与执行事实，并说明任何确定反例、unknowns、替代解释、fresh-run 授权数和 PPA GAP 边界。"
+  ],
+  "success_criteria": [
+    "只读命令全部结束并归还 WSL ownership；未运行 Python/test/Yosys/OpenSTA/STA/RTL sim、未写文件；只有未发现确定假绿或误拒且全部外部哈希/原始执行收据/actual argv 同时闭合时才 RETAIN=1，否则 BLOCK/fresh-run=0。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

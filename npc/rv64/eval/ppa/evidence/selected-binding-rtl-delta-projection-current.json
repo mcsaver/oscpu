@@ -183,12 +183,12 @@
     }
   ],
   "consumer_delta_sha256": "bb7b40d049cff57a8083c5c42ae365970bf6be6bed7df7307f7743d05a59d7d3",
-  "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "holder_write_projection": {
     "census": {
-      "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+      "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
       "path": "npc/rv64/design/arch/producer-holder-census.json",
-      "sha256": "cd14113277a61f1b0131c507510d2d15d5d2dca5018d1e89a74882cd1e2e8d81"
+      "sha256": "55e81869db98540440afaaf6bf715ec47c58d413c0db8941e633afbd6954594f"
     },
     "new_holder_state_writes": [
       {
@@ -539,7 +539,7 @@
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage.json",
       "sha256_at_capture": "ba73ab3be961b5626593b50c86d126796ab2e9fc246e77ccb6c9aeba811c0fcd"
     },
-    "projection_sha256": "bd94a304e06144ae35111bf1c11ccdf5deee18506936de51748b5997f528a6e7"
+    "projection_sha256": "8cd055974dabe77c1447f9a8ce261e739a2074b4e8eccfb10baa59bd27ff94d3"
   },
   "policy_binding": {
     "evidence_id": "v14r-memory-request-hold-current-closure",
@@ -938,148 +938,148 @@
   "v14r_evidence": {
     "bound_artifacts": [
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
-        "sha256": "a60f2fb71365f3a4c37b7b10025dec1629086d128844259096e1fc2580c6f151",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
+        "sha256": "3367e3d88562e66b6e1b0978995205c2a05d21e3a6040a9aa49beab5b5a781e9",
         "size_bytes": 22049
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "e0c9dde19529720a67b386922ef9750312a2a8ead61b431b0515dfbcb8b9842c",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "3267dc4e999b8ebdc6277655e7c5ed567ae47dc0ab0b1f0259d126c2f0a3b7da",
         "size_bytes": 20093
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend.log",
-        "sha256": "3fc75ffdbf8c96a857cd3440bf692941e4ab8ed00227dd1d630831fb5998fbda",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend.log",
+        "sha256": "83ee0389dfa48c8215720c6ea0cdedf853e855b7038d728507abd929a8df4a23",
         "size_bytes": 25621
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
-        "sha256": "46f1ed1d6e71f3bfb56d9902b397f868a3ed00bde81f16c23a7add011e2f2856",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+        "sha256": "718e3cd2ea31a04def9b06dd5c83f07d4f9d5d7951859644c3b8ffc042a78973",
         "size_bytes": 20601
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
-        "sha256": "2274742b7faca743b00b5316fdced1e450733c3d056361c1b0575af314862209",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
+        "sha256": "d6a4acea504d722eded1f736fff408d6ef9d0a380be0e2aba0b4761b96d9346a",
         "size_bytes": 20839
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
         "sha256": "318adb723876c55f8a683724e286bd1a7abe1308202eb6d8465b5729610d223a",
         "size_bytes": 704
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "d5d78dc8e75141af4d65286b79adaef75c587f8324e58fd014e950b89220c603",
-        "size_bytes": 20330
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "fc01daa19a9d9686fbe706b409a35dc8fd0ec146b18bbe49414ae60e8ed9635f",
+        "size_bytes": 20297
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/result.txt",
-        "sha256": "47e40604e62e65dee67b0c1b221b1b6214ceb8106f2f08b768e4fecb296936c7",
-        "size_bytes": 784
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/result.txt",
+        "sha256": "209baa4c7015d944fb92a8071b89cecd168d0be223a5b80b8a2fdcf3d7022a9b",
+        "size_bytes": 762
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/cancel-fallback.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/cancel-fallback.diff",
         "sha256": "42dc2437b3a4482b81fb11318c881e13ff936a2afab712fcf7ee67eab8a37299",
         "size_bytes": 1054
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "3e79c20f72fc6297ab39152669556720dd8bfa8caa7d5dd4fad239f11b098a8e",
-        "size_bytes": 20721
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "f68b532c648d50a54ca8c6feee1ce69c4ae594c8f827d18da0d2448a7c07cc58",
+        "size_bytes": 20699
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/result.txt",
-        "sha256": "127a5772a818bc6a13564acd6a9e47c70cea8f5636eca718527107bdb513c426",
-        "size_bytes": 736
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/result.txt",
+        "sha256": "4ccdb2026445a4a7c1e47ece60702512194533526eefd5257009aa0ec3cc96f5",
+        "size_bytes": 714
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/consume-miq-live-split.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/consume-miq-live-split.diff",
         "sha256": "7750a59c61674d2d77e18f8d9187727aded00debfe62c9ff890300e035b3dff3",
         "size_bytes": 1946
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "999536f3e18b0dd3add2306a012f48e830518a191807687d036830d93fa3251c",
-        "size_bytes": 20530
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "9d4f9ff9cc4fbb554e74c1ffe03563bc6232fb0c1033264a7c9eb4a433c42997",
+        "size_bytes": 20508
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/result.txt",
-        "sha256": "7a91e8192a1789c1d246b7b9b95a8f12d458334048319229e792994bd3d9a90a",
-        "size_bytes": 785
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/result.txt",
+        "sha256": "90848bd5cefbae57b491adc4e76d1a143bb5ee6879b5287350ee3aa035339ba3",
+        "size_bytes": 763
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/holder-bypass.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/holder-bypass.diff",
         "sha256": "ffa113d30cdc96f47132515a63aa90dd460d270aea48d325a09665b57069f67c",
         "size_bytes": 1246
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "357d8b759507c86d77e128c9779f524d15bfb1c56420bc01011b2024e5b8af40",
-        "size_bytes": 20729
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "0d8c5e1282a49464abe9885c6b0b43966d34a15aa798c07c3f7d7472de7949d7",
+        "size_bytes": 20685
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/result.txt",
-        "sha256": "85833451409e151d280bdc98b28c3da0b0540dfff448c5e7310ef0f3c5cda1f6",
-        "size_bytes": 727
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/result.txt",
+        "sha256": "f2295e8602645d7cea59ab962e756c1d5b108d923b57dcf8a7407138a31484b9",
+        "size_bytes": 705
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/result.txt",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/result.txt",
         "sha256": "8a06054a09f9310a4eb697aaa17f66cbecb371af9a809b8b43a50807e1d61b75",
         "size_bytes": 260
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-        "sha256": "b79a6037e7579fdd3014826c0f01517f61bc28317e7515fb826c98904643fe18",
-        "size_bytes": 20380
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+        "sha256": "5fca571a2aef794ff5a148e2b4df9f20174985d923013cb98e3efaa145636aaf",
+        "size_bytes": 20358
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/result.txt",
-        "sha256": "232f0f1f271e73d396c643509f7cc90437ca8cec9a47f2fbc4533efa02cb98ea",
-        "size_bytes": 789
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/result.txt",
+        "sha256": "bdd5ee3835441780471fb737d0c35bc34fea673b1dfbaa12f62e4f538446934e",
+        "size_bytes": 767
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/single-bank-probe-order.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/single-bank-probe-order.diff",
         "sha256": "578008c54f0c6188f91a0ee1a55ab17102b4cec2a9893c3d99897d5938338b86",
         "size_bytes": 1155
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-        "sha256": "cd9f8a66b1eaca0b3c82ee55e83ed74d8ebd5972fccbb413f55b4894908b30db",
-        "size_bytes": 20505
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+        "sha256": "b388847ebf3dd09d9b4a05109856530bf6a19a686c8ca5e43deb765cfdd4b5f2",
+        "size_bytes": 20472
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/result.txt",
-        "sha256": "936190bfd465b2f4c0d2f5c9d28bb7af806c831e81840d2ad70d1d49bc15260b",
-        "size_bytes": 770
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/result.txt",
+        "sha256": "de1609009276e8923909fc0d74a9c25c7a61ce6d72c385090381697a7ebd1380",
+        "size_bytes": 748
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
         "sha256": "1d841eb2d1e67564a5e05a3f9255d9d65fd413e83ef54c84f26f0f775b7c7dcc",
         "size_bytes": 626
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/production-after.sha256",
-        "sha256": "1cd6acf9c7e5043f28a5d69023458289550f653cd3b415ac1dbb434ec43eb6aa",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/production-after.sha256",
+        "sha256": "8c6b0fb7e8e9d4b6d5b4c40f06fbe5efa82628a1616210479ec220a24257f635",
         "size_bytes": 1264
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/production-before.sha256",
-        "sha256": "1cd6acf9c7e5043f28a5d69023458289550f653cd3b415ac1dbb434ec43eb6aa",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/production-before.sha256",
+        "sha256": "8c6b0fb7e8e9d4b6d5b4c40f06fbe5efa82628a1616210479ec220a24257f635",
         "size_bytes": 1264
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/result.txt",
-        "sha256": "c450e9c3d726c201003f2b5b96db0e3bb544e359bd48e000c51211ae245aa399",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/result.txt",
+        "sha256": "e4beea4bb135712bcdad7ee39fb3efa84c0c59a887ac2151f24e78f32ac149cb",
         "size_bytes": 220
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-        "sha256": "ae00b92d1f5758c858af482988816c50916bbbe11e81f03225f7532b81b32d66",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+        "sha256": "88b5a1479986a1deae0f4991a16246eec6f6f708e5a6580c44cae3d89db568ba",
         "size_bytes": 19971
       },
       {
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/store-queue/logs/tb_ooo_store_queue.log",
-        "sha256": "6bc261036808a5518122147853773abf30bf040e19799bc73f8ea00300735d73",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/store-queue/logs/tb_ooo_store_queue.log",
+        "sha256": "e92c2586f9cbf7637f0fbe299e81dc0ed70d3c31b625c4c616297eadaa8127db",
         "size_bytes": 11911
       }
     ],
@@ -1122,51 +1122,51 @@
         "markers": [
           "[PASS] tb_ooo_int_backend_v8s_dual_memory"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log"
       },
       {
         "markers": [
           "[V14R-MEMORY-REQUEST-HOLD] holder_ff=29 payload_bits=217 ",
           "[PASS] tb_ooo_int_backend_v14r_memory_request_hold"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log"
       },
       {
         "markers": [
           "[PASS] tb_ooo_int_backend"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend.log"
       },
       {
         "markers": [
           "[PASS] tb_ooo_int_backend_v11l_memory_retry_holder"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log"
       },
       {
         "markers": [
           "[PASS] tb_ooo_int_backend_v11m_memory_reservation_holder"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log"
       },
       {
         "markers": [
           "[V14R-SINGLE-BANK-PROBE-ORDER] older_probe=1 ",
           "[PASS] tb_ooo_int_backend_v14r_single_bank_probe_order"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log"
       },
       {
         "markers": [
           "[V8T-F3-SQ-QUERY]",
           "[PASS] tb_ooo_store_queue"
         ],
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/store-queue/logs/tb_ooo_store_queue.log"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/store-queue/logs/tb_ooo_store_queue.log"
       }
     ],
     "production_manifest": {
       "npc/rv64/design/specs/ooo-memory-request-admission-hold.md": "9c5601078c286f7a6bfe896a1aca424bc090d43bfd2f46146a139f732b3b3a6b",
-      "npc/rv64/testbench/Makefile": "e8aef0ec5ffc37523c896da79697700eb1e749bdf97648fbb44b5c554b651dd5",
+      "npc/rv64/testbench/Makefile": "317c3b7e08ff9d31d5e052f6cbf0009c95d5ff0d56cae7432fffa1484c557120",
       "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh": "df3bb9e53a06a90e42a33ddb9d97468c18bdd854eb5571629ce5d23eab29a0f2",
       "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh": "88153b03fb22452015b290f88677863042182ed68503d871f7afb0957d56daed",
       "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "0a4764af5b07304432e5ec5d862098ef4cc01e90303770d05c2f4975b33bacea",
@@ -1175,7 +1175,7 @@
       "npc/rv64/vsrc/memory/OooStoreQueue.v": "8a88a83380c62e760d0d7b6e2421e967c17082ede692971a9d3aa2564e1981ea",
       "npc/rv64/vsrc/writeback/OooRob.v": "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561"
     },
-    "projection_sha256": "23bc1e261a6d3b913276189166ebd63b91370817bd4078ab9bb4ff2b39870ae5",
-    "root": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1"
+    "projection_sha256": "a068119f75d151511142469caef0f29ca1d87ae8c9eb41ae2ec6f09b8817ce69",
+    "root": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1"
   }
 }

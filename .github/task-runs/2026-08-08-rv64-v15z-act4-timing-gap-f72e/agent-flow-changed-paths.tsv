@@ -1,0 +1,7 @@
+npc/rv64/eval/ppa/tools/current_timing_path_analysis.py
+npc/rv64/eval/ppa/tools/optimization_slice_selector.py
+npc/rv64/eval/ppa/tests/test_current_timing_path_analysis.py
+npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py
+npc/rv64/eval/ppa/run-optimization-slice-selector.sh
+npc/rv64/eval/ppa/evidence/optimization-slice-current.json
+.github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1

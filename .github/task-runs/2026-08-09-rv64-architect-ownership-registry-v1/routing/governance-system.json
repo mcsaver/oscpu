@@ -1,0 +1,16 @@
+{
+  "domain": "tooling",
+  "intent": "implement_fixed",
+  "design_choice": "fixed",
+  "root_cause": "localized",
+  "semantic_depth": "local_logic",
+  "objectives": ["correctness", "complexity"],
+  "baseline_ready": true,
+  "evidence_paths_ready": true,
+  "candidate_exists": false,
+  "architecture_change_authorized": false,
+  "risk": "medium",
+  "determinism": "deterministic",
+  "known_machine_instability": false,
+  "repeat_requested": false
+}

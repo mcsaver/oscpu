@@ -1,0 +1,124 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-tool-blocker-fix-independent-review-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 NpcTop FP OOC composite 当前实现是否解除上一轮七个 BLOCK：Liberty由真实per-port max/min arc inventory导出、Q launch与逐data/rst/flush/output覆盖、Yosys mapped assert和stdlib leaf whitelist、top exact object intersection、retained full port leaf-cell instance manifest、gate-status统一以及对应mutation闭环；不扩大到新架构问题，裁决是否可授权一个全新run-id的单次5.0ns production diagnostic run",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/eval/ppa",
+      "yosys-sta",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1/subagent-contracts/fp-ooc-composite-tool-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/targeted-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/evidence/fp-ooc-composite-tool-test-mutation-fix-v4/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/evidence/fp-ooc-composite-tool-test-mutation-fix-v4/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/subagent-contracts/fp-ooc-composite-tool-blocker-fix-independent-review-v3.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1/subagent-contracts/fp-ooc-composite-tool-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/targeted-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/evidence/fp-ooc-composite-tool-test-mutation-fix-v4/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/evidence/fp-ooc-composite-tool-test-mutation-fix-v4/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "对上一轮每个BLOCK逐项给出CLOSED或OPEN及精确源码依据；复算v2/v4关键hash与执行计数，检查arc变化能否传播到Liberty、setup和hold公式与path semantics是否一致、Tcl是否使用Q并逐族验证、whitelist是否来自同一stdlib且generic无法绕过、top对象交叉是否真实、retained manifest是否从同一netlist生成并由最终summary验证、gate-status和v4dependency crop是否闭合；最终给出RETAIN、FIX或BLOCK以及唯一production授权边界"
+  ],
+  "success_criteria": [
+    "不得运行Python、测试、仿真、综合、OpenSTA、parser或runner，只读源码和封存结果；若没有精确承重反例则RETAIN并只授权一个全新run-id的diagnostic，PPA仍GAP；不得因未执行production EDA本身重复判BLOCK，因为真实API由唯一run fail-closed裁决，但任何静态确定的假绿路径必须BLOCK；保留 counterexamples、unknowns、alternative_hypotheses、scope_extension_request与confidence_and_basis"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

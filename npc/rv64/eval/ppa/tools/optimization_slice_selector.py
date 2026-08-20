@@ -30,6 +30,7 @@ import owner_b_response_candidate_analysis as b_response_candidate  # noqa: E402
 import owner_timing_causal_analysis as causal_analysis  # noqa: E402
 import owner_timing_workload_ab as owner_timing  # noqa: E402
 import performance_bottleneck_census as census_tool  # noqa: E402
+import serialized_drain_owner_lifetime_analysis as serialized_owner_lifetime  # noqa: E402
 
 
 DECISION_SCHEMA = "npc-rv64-optimization-slice-decision-v1"
@@ -37,8 +38,8 @@ POLICY_SCHEMA = "npc-rv64-optimization-slice-selector-policy-v1"
 CATALOG_SCHEMA = "npc-rv64-optimization-slice-catalog-v1"
 RESEARCH_SCHEMA = "npc-rv64-optimization-research-state-v1"
 DEFAULT_POLICY = (
-    "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json")
-DEFAULT_CATALOG = "npc/rv64/eval/ppa/optimization-slices-current.json"
+    "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json")
+DEFAULT_CATALOG = "npc/rv64/eval/ppa/optimization-slices-owner-lifetime-v2.json"
 DEFAULT_DECISION = (
     "npc/rv64/eval/ppa/evidence/optimization-slice-current.json")
 DEFAULT_DECISION_SCHEMA = (
@@ -56,6 +57,8 @@ CURRENT_REFERENCE_PPA_VERIFIER = (
     "npc/rv64/eval/ppa/tools/current_reference_ppa.py")
 CURRENT_TIMING_PATH_ANALYSIS_VERIFIER = (
     "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py")
+SERIALIZED_DRAIN_OWNER_LIFETIME_VERIFIER = (
+    "npc/rv64/eval/ppa/tools/serialized_drain_owner_lifetime_analysis.py")
 
 INFO_MAXIMIZE = (
     "information_gain", "evidence_confidence", "reversibility")
@@ -254,10 +257,22 @@ def validate_policy(
     research = policy.get("research_state", {})
     require(research.get("allowed_fact_overrides") == [],
             "research state must not override authority facts")
-    require(research.get("allowed_evidence_receipts") == [
+    base_receipts = [
         "owner_timing", "causal_analysis", "b_latency_sensitivity",
         "b_response_candidate_analysis", "current_reference_ppa",
-        "current_timing_path_analysis"],
+        "current_timing_path_analysis",
+    ]
+    policy_id = policy.get("policy_id")
+    require(policy_id in {
+        "rv64-cpi-ppa-medium-slice-selector-v1",
+        "rv64-cpi-ppa-medium-slice-selector-v2-owner-lifetime",
+    }, "selector policy_id is unsupported")
+    expected_receipts = (
+        base_receipts + ["serialized_drain_owner_lifetime"]
+        if policy_id == "rv64-cpi-ppa-medium-slice-selector-v2-owner-lifetime"
+        else base_receipts
+    )
+    require(research.get("allowed_evidence_receipts") == expected_receipts,
             "research evidence receipt policy mismatch")
     require(research.get("candidate_observations_authorize_promotion") is False,
             "research observations must not authorize promotion")
@@ -280,8 +295,19 @@ def validate_catalog(
             "optimization slice catalog schema mismatch")
     require(isinstance(catalog.get("catalog_id"), str)
             and catalog["catalog_id"], "catalog_id is invalid")
-    slices = catalog.get("slices")
-    require(isinstance(slices, list) and slices, "catalog slices are missing")
+    local_slices = catalog.get("slices")
+    require(isinstance(local_slices, list) and local_slices,
+            "catalog slices are missing")
+    slices: list[dict[str, Any]] = list(local_slices)
+    base_reference = catalog.get("extends")
+    if base_reference is not None:
+        base_path = verify_artifact_ref(root, base_reference, "base slice catalog")
+        require(base_path != path.resolve(), "slice catalog cannot extend itself")
+        base_catalog, base_slices = validate_catalog(
+            root, base_path, policy)
+        require(base_catalog.get("extends") is None,
+                "nested slice catalog extension is unsupported")
+        slices = [*base_slices, *slices]
     phase_set = set(policy["decision_class_order"])
     seen: set[str] = set()
     for item in slices:
@@ -647,22 +673,103 @@ def validate_research_state(
         definition = timing_analysis_receipt.get("candidate_definition", {})
         require(
             timing_analysis_receipt.get("status") == current_timing.STATUS
-            and candidate.get("status") == "CANDIDATE_ONLY"
+            and candidate.get("status") == "GAP"
             and candidate.get("id") == current_timing.CANDIDATE_ID
+            and candidate.get("rejected_candidate_id")
+            == current_timing.REJECTED_CANDIDATE_ID
+            and candidate.get("mapped_control_cone_resolved") is True
+            and candidate.get("cross_cycle_owner_lifetime_resolved") is False
             and candidate.get("production_rtl_change_authorized") is False
             and candidate.get("promotion_eligible") is False
             and candidate.get("ppa") == "UNQUALIFIED"
-            and definition.get("id") == current_timing.CANDIDATE_ID
-            and definition.get("state") == "CANDIDATE_ONLY"
+            and definition.get("id") == current_timing.REJECTED_CANDIDATE_ID
+            and definition.get("state")
+            == "REJECTED_OWNER_LIFETIME_UNPROVEN"
             and timing_analysis_receipt.get("next_action")
             == current_timing.NEXT_ACTION,
-            "current timing-path analysis exceeds its candidate-only boundary",
+            "current timing-path analysis exceeds its GAP boundary",
         )
         facts.update({
             "current_timing_path_analysis_completed": True,
             "current_timing_path_analysis_status":
                 timing_analysis_receipt["status"],
             "current_timing_candidate_id": current_timing.CANDIDATE_ID,
+        })
+    owner_lifetime_record = receipts.get("serialized_drain_owner_lifetime")
+    if owner_lifetime_record is not None:
+        require(owner_lifetime_record in sources,
+                "serialized drain owner-lifetime receipt must be listed as a research source")
+        owner_lifetime_path = verify_artifact_ref(
+            root, owner_lifetime_record,
+            "research serialized drain owner-lifetime receipt")
+        owner_lifetime_receipt = read_json(
+            owner_lifetime_path,
+            "research serialized drain owner-lifetime receipt")
+        try:
+            rebuilt = serialized_owner_lifetime.rebuild_receipt(
+                owner_lifetime_receipt)
+        except (serialized_owner_lifetime.EvidenceError, OSError, KeyError,
+                TypeError, ValueError) as exc:
+            raise SelectorError(
+                "serialized drain owner-lifetime receipt is not canonical: "
+                f"{exc}") from exc
+        require(owner_lifetime_receipt == rebuilt,
+                "serialized drain owner-lifetime receipt is not canonical")
+        require(
+            owner_lifetime_receipt.get("schema")
+            == serialized_owner_lifetime.SCHEMA,
+            "serialized drain owner-lifetime receipt schema mismatch")
+        require(owner_lifetime_receipt.get("design_id") == live_design_id,
+                "serialized drain owner-lifetime receipt design-id mismatch")
+        require(timing_analysis_record is not None,
+                "serialized drain owner-lifetime analysis requires current timing-path analysis")
+        require(
+            owner_lifetime_receipt.get("inputs", {}).get(
+                "current_timing_path_analysis") == timing_analysis_record,
+            "serialized drain owner-lifetime timing receipt binding mismatch")
+        candidate = owner_lifetime_receipt.get("candidate_decision", {})
+        definition = owner_lifetime_receipt.get("candidate_definition", {})
+        authorization = owner_lifetime_receipt.get("authorization", {})
+        boundary = owner_lifetime_receipt.get("claim_boundary", {})
+        require(
+            owner_lifetime_receipt.get("status")
+            == serialized_owner_lifetime.STATUS
+            and candidate.get("status") == "CANDIDATE_DEFINED"
+            and candidate.get("id") == serialized_owner_lifetime.CANDIDATE_ID
+            and candidate.get("rejected_candidate_id")
+            == serialized_owner_lifetime.REJECTED_CANDIDATE_ID
+            and candidate.get("mapped_control_cone_resolved") is True
+            and candidate.get(
+                "cross_cycle_owner_lifetime_resolved_for_candidate") is True
+            and candidate.get(
+                "bounded_production_rtl_experiment_authorized") is True
+            and candidate.get("production_rtl_implemented") is False
+            and candidate.get("promotion_eligible") is False
+            and candidate.get("accepted_ppa_reference_available") is False
+            and candidate.get("ppa") == "UNQUALIFIED"
+            and definition.get("id") == serialized_owner_lifetime.CANDIDATE_ID
+            and definition.get("state") == "AUTHORIZED_REVERSIBLE_EXPERIMENT"
+            and definition.get("owner_encoding", {}).get("valid_shape")
+            == "exact_one"
+            and authorization.get(
+                "bounded_production_rtl_experiment_authorized") is True
+            and authorization.get("accepted_ppa_reference_available") is False
+            and authorization.get("promotion_eligible") is False
+            and authorization.get("same_design_measurement_required") is True
+            and boundary.get("bare_one_bit_readiness_remains_rejected") is True
+            and boundary.get("candidate_only") is True
+            and boundary.get("production_rtl_unchanged") is True
+            and owner_lifetime_receipt.get("next_action")
+            == serialized_owner_lifetime.NEXT_ACTION,
+            "serialized drain owner-lifetime receipt exceeds its candidate-only boundary",
+        )
+        facts.update({
+            "serialized_drain_owner_lifetime_completed": True,
+            "serialized_drain_owner_lifetime_status":
+                owner_lifetime_receipt["status"],
+            "serialized_drain_candidate_id":
+                serialized_owner_lifetime.CANDIDATE_ID,
+            "serialized_drain_experiment_authorized": True,
         })
     observations = value.get("candidate_observations", {})
     require(isinstance(observations, dict),
@@ -871,6 +978,10 @@ def collect_state(
         "current_timing_path_analysis_completed": False,
         "current_timing_path_analysis_status": "UNAVAILABLE",
         "current_timing_candidate_id": "UNAVAILABLE",
+        "serialized_drain_owner_lifetime_completed": False,
+        "serialized_drain_owner_lifetime_status": "UNAVAILABLE",
+        "serialized_drain_candidate_id": "UNAVAILABLE",
+        "serialized_drain_experiment_authorized": False,
         "causal_selection_authorized": causal_selection_authorized,
         "causal_hypothesis": "UNRESOLVED",
         "ppa_reference_available": ppa_reference_available,
@@ -900,6 +1011,10 @@ def collect_state(
         "current_timing_path_analysis_completed": False,
         "current_timing_path_analysis_status": "UNAVAILABLE",
         "current_timing_candidate_id": "UNAVAILABLE",
+        "serialized_drain_owner_lifetime_completed": False,
+        "serialized_drain_owner_lifetime_status": "UNAVAILABLE",
+        "serialized_drain_candidate_id": "UNAVAILABLE",
+        "serialized_drain_experiment_authorized": False,
         "ppa_reference_available": ppa_reference_available,
         "ppa_qualified": ppa_qualified,
         "performance_anchor_floor": floor,
@@ -1353,6 +1468,9 @@ def build_decision(
     current_timing_verifier_path = workspace_path(
         root, CURRENT_TIMING_PATH_ANALYSIS_VERIFIER,
         "current timing-path analysis verifier")
+    serialized_owner_lifetime_verifier_path = workspace_path(
+        root, SERIALIZED_DRAIN_OWNER_LIFETIME_VERIFIER,
+        "serialized drain owner-lifetime verifier")
     catalog, slices = validate_catalog(root, catalog_path, policy)
     collected, authorities, stale_refs, conflicts = collect_state(
         root, policy, ppa_policy)
@@ -1373,6 +1491,10 @@ def build_decision(
         "ppa_timing_hard_gate", "ppa_reference_available",
         "current_timing_path_analysis_completed",
         "current_timing_path_analysis_status", "current_timing_candidate_id",
+        "serialized_drain_owner_lifetime_completed",
+        "serialized_drain_owner_lifetime_status",
+        "serialized_drain_candidate_id",
+        "serialized_drain_experiment_authorized",
     ):
         if name in facts:
             state[name] = facts[name]
@@ -1394,6 +1516,8 @@ def build_decision(
                 root, current_timing_verifier_path),
             "owner_timing": artifact(root, owner_verifier_path),
             "ppa_checker": artifact(root, ppa_checker_path),
+            "serialized_drain_owner_lifetime": artifact(
+                root, serialized_owner_lifetime_verifier_path),
         },
         "research_state": (
             None if research_path is None else artifact(root, research_path)),

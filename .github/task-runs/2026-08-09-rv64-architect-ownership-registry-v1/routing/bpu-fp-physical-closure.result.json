@@ -1,0 +1,19 @@
+{
+  "reason_codes": [
+    "LOCAL_RV64_OPEN_STRUCTURAL_DECISION",
+    "CAUSAL_BASELINE_AND_EVIDENCE_READY",
+    "CORRECTNESS_AND_TRADEOFF_OBJECTIVES_PRESENT"
+  ],
+  "route": "ARCHITECT",
+  "router_id": "cpu-architect-semantic-router-v1",
+  "schema_version": 1,
+  "verification": {
+    "default_execution_count": 1,
+    "distinct_evidence_is_not_repetition": true,
+    "execution": "REPEAT_WITH_REASON",
+    "repeat_reasons": [
+      "NON_DETERMINISTIC_MODE:variable_ppa"
+    ],
+    "review": "INDEPENDENT"
+  }
+}

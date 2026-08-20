@@ -106,7 +106,8 @@ class ArchitectureDebtCurrentTests(unittest.TestCase):
         payload["status_history"]["historical_status_rewritten"] = True
         with self.assertRaises(TOOL.DebtCurrentError):
             TOOL.validate_v14c(
-                ROOT, payload, self.delta["baseline_design_id"]
+                ROOT, payload, self.delta["baseline_design_id"],
+                self.delta["rtl_delta"]["baseline_file_count"],
             )
 
     def test_v14d_status_history_rewrite_is_rejected(self) -> None:
@@ -114,7 +115,8 @@ class ArchitectureDebtCurrentTests(unittest.TestCase):
         payload["historical_status_rewritten"] = True
         with self.assertRaises(TOOL.DebtCurrentError):
             TOOL.validate_v14d(
-                ROOT, payload, self.delta["baseline_design_id"]
+                ROOT, payload, self.delta["baseline_design_id"],
+                self.delta["rtl_delta"]["baseline_file_count"],
             )
 
     def test_historical_receipt_cannot_be_relabelled_as_current(self) -> None:
@@ -122,7 +124,8 @@ class ArchitectureDebtCurrentTests(unittest.TestCase):
         payload["current_design_id"] = self.receipt["design_id"]
         with self.assertRaises(TOOL.DebtCurrentError):
             TOOL.validate_v14c(
-                ROOT, payload, self.delta["baseline_design_id"]
+                ROOT, payload, self.delta["baseline_design_id"],
+                self.delta["rtl_delta"]["baseline_file_count"],
             )
 
     def test_every_closed_debt_binds_delta_replay(self) -> None:

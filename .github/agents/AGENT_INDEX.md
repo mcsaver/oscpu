@@ -9,6 +9,7 @@ python3 scripts/github_index_db.py load --source auto --path .github/agents/<nam
 | Agent | 责任 |
 | --- | --- |
 | `agent-system` | AI 环境维护、DB-first、branch-health、review routing、delivery gate。 |
+| `cpu-architect` | 仅处理已通过语义分类的 RV64 微架构重设计、因果实验和 correctness+CPI/PPA 取舍。 |
 | `ysyx-coordinator` | 跨模块协调、任务拆分和证据闭环。 |
 | `npc` | NPC RTL、Verilator 仿真、DiffTest target、single/soc 后端。 |
 | `nemu` | NEMU、ISA reference、设备模型、Ubuntu/Linux reference gate。 |
@@ -27,4 +28,7 @@ python3 scripts/github_index_db.py load --source auto --path .github/agents/<nam
 | `verilator-tapeout` | Verilator/tapeout realism 相关检查。 |
 | `yosys-sta` | Yosys 综合、STA、功耗分析。 |
 
-新增 agent 时，同步本文件、对应 `.github/e2e/profiles/*.tsv` 和必要的 module 文档。
+新增 agent 时，同步本文件、对应 `.github/e2e/profiles/*.tsv` 和必要的 module 文档。CPU 架构任务先按
+`.github/instructions/cpu-architect-routing.instructions.md` 分类；未得到 `ARCHITECT` 不得启动
+`cpu-architect`。进入本地 RV64 全局上下文时先读 `npc/rv64/ARCHITECTURE.md` 或 registry 的有界
+capability/path query；registry 维护本身保持 `WORKER/NON_ARCH`。

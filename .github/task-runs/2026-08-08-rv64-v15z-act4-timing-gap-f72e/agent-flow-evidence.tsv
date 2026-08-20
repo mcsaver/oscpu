@@ -1,0 +1,2 @@
+2026-08-08T07:29:31Z	current-timing-path-analysis	GAP	.github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/current-timing-path-analysis/result.json
+2026-08-08T07:29:35Z	selector-regression	PASS	.github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/final-selector-regression.log

@@ -1,0 +1,1 @@
+2026-08-11T03:16:29Z	decision	将 npc/rv-cpu 的 9 个既有顶层目录原样迁入新建 vsrc；仓库外部旧路径引用检索为空，因此不修改 RTL 内容或其它构建文件。	npc/rv-cpu/vsrc

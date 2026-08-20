@@ -118,7 +118,7 @@ The reduced scalar follows:
 
 `OooIntBackend → OooAluDecodeBackend → OooAluCoreSlice →`
 `OooExecuteBackend → OooCoreTopGlue → OooControlPlane →`
-`OooPendingDrainResolveGate`.
+`OooSerializedMemTerminalPermit/OooPendingDrainResolveGate`.
 
 It has three required consumers:
 
@@ -126,24 +126,41 @@ It has three required consumers:
    `OooPendingSystemSequencer` CSR permit. The registered permit, current
    holder metadata, and cancellation state authorize the later Cresolve edge;
    an older active memory holder therefore cannot create a ROB owner.
-2. `drain_complete_o`: a pending system kind must not generate its non-CSR
-   side effect while an active memory holder remains.
+2. For a non-CSR pending system, pending architectural trap, or pending exit,
+   `OooSerializedMemTerminalPermit` samples the exact terminal fact only after
+   raw backend drain.  It binds that fact to the current exact-one registered
+   owner identity.  Its registered-owner `ready_o`, additionally suppressed
+   by a feedback-free same-cycle cancellation witness, not the current
+   terminal scalar, authorizes the later `drain_complete_o` edge.
 3. `drain_complete_o → OooCsrTrapRequestMux.pending_arch_trap_fire_o`: a
    pending architectural trap must not generate its CSR execute-trap request,
-   redirect boundary, or pending clear while an older memory holder remains
-   active.
+   redirect boundary, or pending clear before its owner-bound permit is
+   ready.  Pending system side effects and pending exit use the same boundary.
 
 Ordinary FENCE additionally requires `mem_idle_i`. Collector-pending-only
 tokens therefore do not add up to the collector dequeue latency to the seven
 non-FENCE kinds, the pending architectural trap, or pending exit, while FENCE
 keeps its complete memory graph barrier.
 
-The drain qualifier is:
+The V16A drain qualifier is:
 
 ```text
+serialized_owner =
+  { pending_exit,
+    pending_arch_trap,
+    pending_system && !pending_system_csr }
+
+permit_arm =
+  !permit_valid && stop_pending && backend_drained_q &&
+  exact_one(serialized_owner) && mem_owner_terminalized
+
+permit_ready =
+  !feedback_free_cancel && permit_valid && stop_pending &&
+  exact_one(serialized_owner) &&
+  serialized_owner == permit_owner
+
 serialized_mem_terminal =
-  !(pending_system || pending_arch_trap || pending_exit) ||
-  mem_owner_terminalized
+  !any(serialized_owner) || permit_ready
 
 drain_complete =
   stop_pending && backend_drained && pending_control_ready &&
@@ -151,9 +168,16 @@ drain_complete =
   (!pending_system_fence || mem_idle)
 ```
 
-This equation preserves unrelated drained control cycles: if neither
-serialized owner is present, an active memory holder does not become a new
-global drain condition.
+Reset/flush, architectural cancellation, consume, stop drop, a non-onehot
+owner, or owner mismatch clears the permit with priority over arm.  A
+feedback-free cancellation witness also suppresses readiness in the current
+cycle; the complete holder clear, which contains `drain_complete`, must never
+feed this combinational boundary.  The raw
+`backend_drained` and ordinary-FENCE current `mem_idle` terms remain on the
+consume edge.  This equation preserves unrelated drained control cycles: if
+no non-CSR serialized owner is present, an active memory holder does not
+become a new global drain condition.  It also prevents owner A's sampled fact
+from authorizing owner B after a handoff.
 
 ## 5. Verification obligations
 
@@ -291,3 +315,28 @@ changing production RTL and is detected in an `OOO_ASSERT=0` build. L2 and L3
 both complete their terminal transactions with zero RTL assertion failures.
 No event de-duplication, collector-ingress filtering or assertion weakening is
 part of V15U, and Ubuntu is outside this qualification record.
+
+## 10. V16A owner-bound serialized terminal permit
+
+V16A leaves the twelve collector lanes, exact accepted-transfer authority,
+tracker ownership, current CSR-dispatch terminal eligibility, raw backend
+drain, and ordinary-FENCE current `mem_idle` check unchanged.  For non-CSR
+system, architectural-trap, and simulation-exit holders only, it adds
+`OooSerializedMemTerminalPermit`: four state bits hold a valid flag and the
+exact-one owner identity `{exit, arch-trap, non-CSR-system}`.
+
+The permit arms only after registered stop, raw backend-drained Q, and the
+current exact terminal fact agree.  Its registered-owner readiness must match
+the live owner and be low during a feedback-free cancellation witness; state
+is clear-dominant under reset/flush, cancellation, consume, stop
+drop, non-onehot owner, or owner handoff.  It neither frees a memory token nor
+changes collector, AXI, committed-store, redirect, exception, or CSR
+authority.  A naked ownerless readiness bit remains forbidden.
+
+Focused simulation observes raw-drain recheck, owner match, clear priority,
+held-cancel current-cycle blocking, FENCE current-idle, and CSR current-scalar
+behavior.  Independent compile-success mutations remove owner match, cancel
+state-clear, cancel-cycle blocking, FENCE current-idle, and raw backend drain; all five must be detected while production
+source hashes remain unchanged.  This record defines a reversible engineering
+candidate.  Same-design CPI, fresh mapped synthesis/STA, architecture/system
+recertification, Pareto admission, and promotion remain separate gates.

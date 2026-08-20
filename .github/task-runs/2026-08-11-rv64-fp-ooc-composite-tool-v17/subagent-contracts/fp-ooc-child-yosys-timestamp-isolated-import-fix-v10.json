@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-isolated-import-fix-v10",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 OooFpMulProductPipe timestamp 目标 unittest 的模块解析与 import-closure 缺口，不改 production runner/test/RTL/Tcl/1800s/600s：新增 v10 evidence gate，以绝对 /usr/bin/python3 的 -I -S -B isolated 模式执行一个已哈希 bootstrap，不再使用 -m unittest。bootstrap 在加入 repo root 前先从系统标准库导入 unittest，验证 isolated/no-site/safe-path flags与初始sys.path；随后仅把 canonical repo root追加到sys.path末尾，显式导入并核对唯一 test module文件、FpOocCompositeTests唯一目标method/count=1、architecture_registry.py与fp_ooc_composite.py实际module file，运行同一TextTestRunner并记录实际Python procfs executable/cmdline、unittest.__file__及SHA、target/local import closure path/size/SHA。v10 evidence目录内放置会在非isolated script-dir解析时立即失败的unittest.py与sitecustomize.py decoy，成功执行必须证明二者未加载。v9独立只读裁决为BLOCK/fresh-run=0，contract=048a615bdfaafefa5bdb74658e5be94cf739cead1c2bc15a6286af07f9ab3994、review_result_artifact=none；v7收据保持只读并显式superseded。完整freeze必须新增npc/rv64/eval/ppa/tools/fp_ooc_composite.py并保留test、architecture_registry、catalog、runner、RTL/Tcl、A10。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-execution-receipt-fix-v5",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v6.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-interpreter-binding-fix-v7",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增唯一v10 run-gate.sh、isolated_unittest_runner.py、unittest.py/sitecustomize.py decoy、Python/import identity JSON、raw unittest/bash-n logs、command-status、validator、result与detached receipt；同输入命令前sealed拒绝。",
+    "单次gate内target unittest=1、runner bash-n=1、build=1、verify=1；负向验证覆盖-I/-S/-B缺失、回退-m unittest、repo root前插、stdlib unittest origin/hash、target module/path/method/count、fp_ooc_composite/architecture_registry/catalog closure缺失或漂移、decoy加载、raw log/rc/count/replay；production EDA/A10/fresh=0。"
+  ],
+  "success_criteria": [
+    "v10 PASS且raw transcript包含Ran1/OK/唯一14+15 marker与isolated-import PASS identity；Python实际procfs executable、cmdline、sys.flags/sys.path、unittest origin、唯一target及完整local closure均有原始收据和前后hash。v7/v5/v4/A10/current production/test/RTL/Tcl字节不变。",
+    "输出gate/bootstrap/decoy/validator/identity/status/log/result/receipt/v10 contract及新增fp_ooc_composite closure精确SHA供v11独立只读绑定；v11 RETAIN前fresh-run=0，PPA=GAP，CPU Architect=NOT_TRIGGERED。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

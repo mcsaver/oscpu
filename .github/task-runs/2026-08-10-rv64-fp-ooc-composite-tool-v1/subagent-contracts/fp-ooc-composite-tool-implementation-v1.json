@@ -1,0 +1,163 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-tool-implementation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "为 NpcTop 5.0ns FP 物理诊断新增版本化 ooc_sta_abstraction composite profile：Registry 明确区分 OooFpArithGate inline wrapper、五个 known OOC production child macro 与 SRAM/BPU unknown placeholder；实现五 child 逐个 OOC Yosys 映射、max/min OpenSTA、顺序 Liberty 诊断模型生成和验证、NpcTop wrapper-inline加known-macro回接、边界路径与面积单计核账、composite parser和fail-closed runner，但本任务只实现工具并运行一次定向负向门禁，不运行 production synthesis 或 STA",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa",
+      "yosys-sta",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/icsprout55.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-ooc-composite-architecture-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1/subagent-contracts/fp-ooc-composite-tool-implementation-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1/evidence/fp-ooc-composite-tool-implementation-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/Makefile",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/icsprout55.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-ooc-composite-architecture-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "实现一个不改 FP RTL 的版本化 composite 工具链和 Registry 单入口：配置必须显式列出 inline_rtl、known_ooc_macro、unknown_placeholder；五 child contract 必须逐个声明首级 port-to-register、内部 reg-to-reg、末级 register-to-port、同步 rst/flush 与跨 child/top boundary class，MulProduct 允许没有内部 reg-to-reg；Liberty 生成器只生成 OOC_STA_ABSTRACTION typ_tt sequential 模型并校验 setup hold clk-to-Q、related_pin、单位、corner、load/slew、非零 area 与无伪 PI-to-PO arc；parser 组合五份 child max/min/internal证据和顶层 max/min/boundary census，接受零 negative slack，拒绝面积双计漏计、重复实现、命名型路径假绿与任何身份重放；runner 固定单 EDA、阶段超时、磁盘上限、before/after manifest、cleanup 和唯一 PASS marker"
+  ],
+  "success_criteria": [
+    "最终源码状态后只运行一次定向 unittest加Registry render/check加bash语法与scoped diff批次，不运行 production Yosys/OpenSTA/RTL sim；负向矩阵必须真实拒绝缺失或错误 setup hold clk-to-Q、异步误建同步控制、虚假 PI-to-PO、multicycle/false path、MulProduct错误要求reg-to-reg、child内部负slack被顶层掩盖、五child边界类缺失、zero-negative clean设计误拒绝、Liberty或工具或corner或source跨run重放、macro与stdcell重复实现、area双计漏计及无power模型却宣称完整power；原有 non-OOC profiles 投影不得改变，所有首次失败和执行次数写入新 evidence"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

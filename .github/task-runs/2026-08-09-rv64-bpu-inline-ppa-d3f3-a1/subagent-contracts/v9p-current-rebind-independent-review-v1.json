@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v9p-current-rebind-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 d3f3 当前 OooIntBackend/OooMemAxiBridge 的 V9P C0 retry handoff、OooLsuAxiLaneAdapter final-B terminal 周期、OooMemOwnerTerminalCollector fail-loud exactly-once 路径及 L0-L3 收据，判定历史 duplicate-terminal 缺陷是否已在当前生产 RTL 上以 VD4 边界闭合，同时保持当前 mapped PPA 为 UNMEASURED_UNPROMOTED。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+      "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+      "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+      "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/independent-review.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/v9p-act4-rebind-review-f72e-v2.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/historical-current-d3f3-v4/v9r",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/historical-current-d3f3-v4/adapter-mutation",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/module",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+      "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
+      "npc/rv64/eval/ppa/evidence/act4-current.json",
+      "npc/rv64/design/arch/act4-default-signoff-policy-v1.json",
+      ".github/AGENTS.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/v9p-current-rebind-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-05-rv64-v15g-v9p-terminal-root-cause-backfill/evidence/v9p-root-cause-summary.json",
+      "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出可原样保存的 RV64 独立审查正文：首段按对象、周期/配置、TB/EDA 观测、PASS/GAP 范围组织；逐项给出 d3f3 design-id、L0 114/114、V9R 2/2 正向与 3/3 编译成功负向变体、adapter 1/1 负向变体、collector fail-loud、ACT4 100/100、L0-L3、PPA=UNMEASURED_UNPROMOTED，并保留 UNKNOWN bank/owner tuple、反例、替代假设、scope_extension_request、confidence_and_basis 与 shell ownership 归还。"
+  ],
+  "success_criteria": [
+    "只有当前 source/hash、模块日志、负向变体 marker、layered/system/ACT4 身份全部一致且不存在选择一路、合并或去重后继续 PASS 的假绿时才能判 PASS；f72e 审查只能作为 predecessor，禁止改写为 d3f3 current；未运行综合/STA 时必须明确 PPA=UNMEASURED_UNPROMOTED；任何缺口输出 GAP 或 inconclusive。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-post-split-port-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核A4后实现的post-split port canonicalization与单一入口闭环：机械验证真实A4 273 raw scalar ports到Registry 11 families的精确重建、split/unsplit互斥、index/offset/direction/width/coverage fail-closed、raw→canonical mapping与manifest/netlist重算绑定；交叉4-method/12-port/8-tool mutation、三次revision历史与v2 render/check receipts。判断RETAIN/FIX/BLOCK；不运行Python/bash/test/runner/EDA，不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/subagent-contracts/fp-ooc-composite-post-split-port-independent-review-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2/result.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-canonicalization-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9/evidence/fp-ooc-composite-post-split-port-single-entry-closure-v2/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项复核canonicalize_child_ports与_manifest_payload/validate_netlist_manifest调用链，要求expected family来自同一Registry projection；完整unsplit与完整split二选一；split raw name/index/offset/width/direction/coverage和unknown family全部fail-closed；raw_ports、ports、port_mapping、netlist SHA/size与input receipts均被重算。",
+    "机械交叉真实A4 synth-design 273 raw bits/11 canonical families正例，12个port/manifest/netlist反例、8个tool/schema marker mutations、attempt-1/2失败、revision-3功能PASS/Registry stale与v2 render/check PASS；确认A4 hashes/rerun=0、FP RTL/catalog/production runner未改。"
+  ],
+  "success_criteria": [
+    "给出RETAIN/FIX/BLOCK与最强反例、unknowns、alternative hypotheses和confidence。无静态确定假绿且receipts闭合可RETAIN并只授权全新run-id一次5ns diagnostic；缺口则FIX/BLOCK。production未执行本身不是本review blocker，PPA保持GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

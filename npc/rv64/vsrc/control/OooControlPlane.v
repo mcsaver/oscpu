@@ -271,6 +271,7 @@ module OooControlPlane #(
   wire system_csr_admission_clear_w;
   wire system_csr_dispatch_cancel_w;
   wire system_csr_dispatch_eligible_w;
+  wire system_csr_dispatch_eligible_fire_w;
   wire system_csr_dispatch_permit_w;
   OooPendingSystemAdmissionCancelGate
       u_pending_system_admission_cancel_gate (
@@ -431,6 +432,36 @@ module OooControlPlane #(
   );
 
 
+  // V16A：只给 non-CSR serialized owner 建立带身份的 memory-terminal
+  // permit。裸一位 readiness 无法区分 owner A→B handoff，保持禁止。
+  wire [2:0] serialized_mem_terminal_owner_w = {
+      pending_exit_q,
+      pending_arch_trap_q,
+      pending_system_q && !pending_system_csr_q
+  };
+  // V16B: ready 的同拍 kill 必须保持 feedback-free。完整 holder clear 含
+  // drain_complete 自身，若反喂 permit ready 会形成组合环。这里复用已经
+  // 审计为单向见证的 admission-clear（ROB-head trap、older recovery、
+  // jump terminal、CSR exact commit），再并入 core-local flush。
+  // direct_frontend_flush 与 live serialized owner 由下方 mutex 断言约束为
+  // 不可达，且各真实消费 mux 已独立以 direct flush 为更高优先级。
+  wire serialized_mem_terminal_cancel_w =
+      core_local_flush_w || system_csr_admission_clear_w;
+  wire serialized_mem_terminal_ready_w;
+
+  OooSerializedMemTerminalPermit u_serialized_mem_terminal_permit (
+    .clk(clk),
+    .rst(rst || flush_i),
+    .cancel_i(serialized_mem_terminal_cancel_w),
+    .stop_pending_i(stop_pending_q),
+    .backend_drained_q_i(backend_drained_q),
+    .owner_i(serialized_mem_terminal_owner_w),
+    .mem_owner_terminalized_i(mem_owner_terminalized_i),
+    .consume_i(drain_complete_w),
+    .ready_o(serialized_mem_terminal_ready_w)
+  );
+
+
   OooPendingDrainResolveGate #(
     .ROB_COUNT_W(ROB_COUNT_W),
     .ISSUE_COUNT_W(ISSUE_COUNT_W)
@@ -464,10 +495,11 @@ module OooControlPlane #(
     .mem_retire_quiet_i(mem_retire_quiet_i),
     .mem_idle_i(mem_idle_i),
     .mem_owner_terminalized_i(mem_owner_terminalized_i),
+    .serialized_mem_terminal_ready_i(serialized_mem_terminal_ready_w),
     .backend_drained_o(backend_drained_w),
     .jump_dispatch_valid_o(jump_dispatch_valid_w),
     .system_csr_dispatch_valid_o(system_csr_dispatch_eligible_w),
-    .system_csr_dispatch_fire_o(),
+    .system_csr_dispatch_fire_o(system_csr_dispatch_eligible_fire_w),
     .pending_branch_commit_resolve_o(pending_branch_commit_resolve_w),
     .pending_branch_match_clear_o(pending_branch_match_clear_w),
     .pending_replay_wait_o(pending_replay_wait_w),
@@ -1043,6 +1075,35 @@ module OooControlPlane #(
       v10a_arch_fire_prev_q <= 1'b0;
       v10d_exit_fire_prev_q <= 1'b0;
     end else begin
+      if (serialized_mem_terminal_ready_w &&
+          (!stop_pending_q ||
+           !((serialized_mem_terminal_owner_w == 3'b001) ||
+             (serialized_mem_terminal_owner_w == 3'b010) ||
+             (serialized_mem_terminal_owner_w == 3'b100)))) begin
+        $error("[V16A-SERIALIZED-PERMIT-INTEGRATION-SHAPE] ready lacks exact-one live owner stop=%b owner=%b @%0t",
+               stop_pending_q, serialized_mem_terminal_owner_w, $time);
+        $fatal;
+      end
+      if (serialized_mem_terminal_ready_w && backend_drained_w &&
+          !mem_owner_terminalized_i &&
+          !serialized_mem_terminal_cancel_w) begin
+        $error("[V16A-SERIALIZED-PERMIT-ACTIVE-HOLDER-GUARD] stale permit met raw drain while current memory owner was nonterminal owner=%b @%0t",
+               serialized_mem_terminal_owner_w, $time);
+        $fatal;
+      end
+      if (drain_complete_w &&
+          (serialized_mem_terminal_owner_w != 3'b000) &&
+          !serialized_mem_terminal_ready_w) begin
+        $error("[V16A-SERIALIZED-PERMIT-DRAIN-AUTHORITY] serialized drain completed without current owner permit owner=%b @%0t",
+               serialized_mem_terminal_owner_w, $time);
+        $fatal;
+      end
+      if ((serialized_mem_terminal_owner_w != 3'b000) &&
+          direct_frontend_flush_w) begin
+        $error("[V16A-SERIALIZED-OWNER-DIRECT-FLUSH-MUTEX] live serialized owner overlapped frontend direct fire owner=%b @%0t",
+               serialized_mem_terminal_owner_w, $time);
+        $fatal;
+      end
       if (pending_arch_trap_q && pending_system_q) begin
         $error("[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap @%0t",
                $time);

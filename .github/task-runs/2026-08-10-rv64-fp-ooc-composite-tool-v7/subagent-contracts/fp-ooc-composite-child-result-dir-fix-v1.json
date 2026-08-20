@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-child-result-dir-fix-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 NpcTop FP OOC composite A2 在首个 OooFpAddSubPipe Yosys 前端写 abc.sdc 时的确定性目录所有权错误：runner 只创建 child_runtime，却在稍后定义且从未创建 child_result_dir，shared yosys.tcl 立即 open RESULT_DIR/abc.sdc 而失败。必须在任何 child Yosys 启动前按 canonical runtime root 创建精确 module-200MHz result目录，并由 Registry工具合同和定向mutation拒绝缺失、错误层级或迟创建。不得修改FP RTL，不运行production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-fix-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/subagent-contracts/fp-ooc-composite-child-result-dir-fix-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-fix-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "把 child_result_dir 定义移到目录创建点之前，并以 mkdir -p 精确创建 child_dir、child_runtime 与 child_result_dir；child_netlist和Yosys RESULT_DIR继续使用同一变量，路径必须位于当前run的runtime_dir/children/module/module-200MHz，cleanup边界不扩大。",
+    "扩展 fp_ooc_composite_tool_contract_errors 与两个定向测试：真实runner通过；删除child_result_dir创建、改成child_runtime同层错误目录、把mkdir移动到run_bounded child synthesis之后必须被拒绝；同时保留PYTHONPATH、failure-stage/CLEANUP_RC合同。",
+    "执行且仅执行一次受影响unittest batch、runner bash-n与四文件scoped diff/text audit，封存before/after输入和A2冻结证据hash；不运行production Yosys/OpenSTA/STA/RTL sim，不修改或重跑A2。"
+  ],
+  "success_criteria": [
+    "源码顺序确定为 child_result_dir赋值→mkdir包含该精确变量→child_netlist赋值→首个child run_bounded；三类目录mutation被真实Registry validator拒绝，受影响tests、bash-n、scoped diff均rc0；A2 gate-status继续STAGE=child-OooFpAddSubPipe-synthesis/RETURN_CODE=1/CLEANUP_RC=0且hash不变。修复后仅可用另一全新run-id执行一次production diagnostic。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

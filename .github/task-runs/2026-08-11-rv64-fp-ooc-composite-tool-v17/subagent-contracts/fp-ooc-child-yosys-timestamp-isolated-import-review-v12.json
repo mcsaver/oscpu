@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-isolated-import-review-v12",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 OooFpMulProductPipe timestamp v11 isolated execution/import closure。逐文件复算并要求：v11 contract=8234396d2d34bf2395a05062aadb6e00a0bd7f9372bc00f482c2856163e725e6；gate=5accf6cafb95a1027b9001a87b0d76487fca89b8cb1cbbf8b81cc7c95f32d5a0；bootstrap=52b75e09e0a842d020f76e70735512f9f2451fffe2238f2977785e8aaa9c5a5c；unittest/sitecustomize decoys=c6a1ecd98656f9282c2d26046051f08eb0aa64f3185ba8cd70a45b0c8f83c8a8/d6848d46a1529bdef66014844de9b131431f874dc2bfbe75c48a58dcc80a1efa；validator=93b238e703f79bf5cb9458a302c093c1f74b5c606daa29e5302378fcc7f327b1；freeze=6551181baee5d5252c8559f6aac60b0b976144ac3850f90b13df818dad988147；identity=55bcdd45342a33da310feb0a30ad8a283fc13373573704e61e2499df95ae348e；status=0e7beb24da651938acbfcf51fda87e378d1322ca0ac66f0e569ee8d05a4bd1c2；raw logs=a64f9709cb624e64b29ec4a22eeb9f7caadaed515dc49d9d887a61ce6112880f/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855；result=68ffd39a1865b7c2ab0e6241f39cc5cd61e4266cafe9b7f71977486b28a305da；receipt=20e40d6dcf43d26d9053c31d6e1002355a672096121ca96df5ec6f81a9e6e3df。核对 -I -S -B 与初始sys.path无cwd/script/site、stdlib unittest在repo root加入前加载且origin/hash固定、repo root只追加末尾、target module/file/class/method/suite count=1；__main__仅在resolved file精确等于bootstrap时分离且self count=1，任何其他repo module不能被排除；local closure恰为test/architecture_registry/fp_ooc_composite三项，catalog与三文件before/after hash一致，decoys_loaded=0，实际Python procfs/cmdline与绝对clean env一致。确认Ran1/OK/唯一14+15 marker、target/bash-n/build/verify各1与negative identity9/closure17/log6/status8/receipt10真实消费；v10失败四件历史、current runner/test/Registry/fp_ooc/Tcl/PDK/stdlib/A10/134-source/live design-id均冻结。发现任何未执行目标method仍可生成同形PASS、self-domain泛化漏模块、shadow/site加载、依赖未绑定或review后漂移的确定反例则BLOCK；否则RETAIN只授权一个全新run-id单次5.0ns diagnostic，PPA保持GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-interpreter-binding-review-v9.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-fix-v10.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-review-v12.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-isolated-import-self-domain-fix-v11.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出RETAIN/BLOCK；逐项列出v11 gate/bootstrap/decoy/identity/status/raw logs/result/receipt、isolated import/self-domain/完整local closure、current/A10的复算与任何确定反例、unknowns、替代解释、fresh-run授权数、PPA边界。"
+  ],
+  "success_criteria": [
+    "只读命令结束并归还WSL ownership；未运行Python/test/Yosys/OpenSTA/STA/RTL sim、未写文件。只有外部hash、真实isolated executable/import closure/raw execution、production actual argv与current/A10冻结同时闭合且无确定反例才RETAIN=1，否则BLOCK/fresh-run=0。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

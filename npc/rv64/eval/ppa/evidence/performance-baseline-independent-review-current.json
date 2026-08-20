@@ -1,16 +1,16 @@
 {
-  "approval_marker": "[PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 result_sha256=a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b",
+  "approval_marker": "[PERFORMANCE-BASELINE-INDEPENDENT-REVIEW][APPROVE_PERF_BASELINE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 result_sha256=460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32",
   "checker_regression": {
     "kind": "bounded_checker_regression",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/checker-regression-30.log",
-    "sha256": "9b2a2fe4a3c583776588faf65432cbbe61aa1b25331df25ee9b34295af114321",
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/performance-baseline/checker-regression.log",
+    "sha256": "8fa509c5ebc72744fedd1418f92d378c7b03c5ee8fe44e82e32f1a1c6f4f0378",
     "size_bytes": 5736
   },
   "cleanup_receipt": {
     "kind": "cleanup_receipt",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/cleanup-receipt-f72e-v1.json",
-    "sha256": "802005c1947e139dc4d1b2eddb390dac9ab3e66d61d202de494b01e237411660",
-    "size_bytes": 1339
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/cleanup-receipt.json",
+    "sha256": "6e53f449dfd6276b6e4f8f0464d6637ef7b98d64c2f85e17beb735e9f77dedbc",
+    "size_bytes": 1354
   },
   "command_status": {
     "kind": "direct_stage_status",
@@ -22,22 +22,22 @@
   "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
   "final_manifest": {
     "kind": "performance_baseline_final_manifest",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/run-manifest.json",
-    "sha256": "125b7410c27338277c4eb7850e4f5faa790e019ddb83a799f95481b4bc815978",
-    "size_bytes": 6049
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/run-manifest.json",
+    "sha256": "f11c611d855317dd6bcd0126d5ad5564acc92568f9735b408f5b16d151a69bc0",
+    "size_bytes": 6068
   },
   "open_blockers": [],
   "result": {
     "kind": "performance_baseline_result",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/result.json",
-    "sha256": "a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b",
-    "size_bytes": 11695
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/result.json",
+    "sha256": "460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32",
+    "size_bytes": 11729
   },
   "review_report": {
     "kind": "independent_review_report",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/independent-review-f72e-v3.md",
-    "sha256": "4a0bd62d4f73b5ce84984da4d088249e6ab12b17371bf91dc25d0eea41d1dc4a",
-    "size_bytes": 3646
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-performance-baseline-act4-rebind-review-f72e-v1.result.md",
+    "sha256": "5a15eb2def74a3e2e5c7ae1648f7ab5c0bdf3a0b4be8433b8f5879b5ce5c025d",
+    "size_bytes": 4070
   },
   "review_scope": {
     "bit_exact_repetitions": "PASS",
@@ -60,12 +60,12 @@
       "dhrystone_10000"
     ]
   },
-  "reviewed_at_utc": "2026-08-08T02:06:19Z",
+  "reviewed_at_utc": "2026-08-08T06:50:19Z",
   "reviewer_contract": {
     "kind": "rtl_task_contract",
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/subagent-contracts/v15x-performance-baseline-f72e-review-v3.json",
-    "sha256": "d4bc899dd70282a8b96f5c0e2f5dd1e57165c870d43d3417e125c582129a0045",
-    "size_bytes": 5085
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-performance-baseline-act4-rebind-review-f72e-v1.json",
+    "sha256": "53b640fc5d60ca8b03120fcbb22b1d5592d75195b5ef23be6eb0faf0594788c1",
+    "size_bytes": 4493
   },
   "schema": "npc-rv64-performance-baseline-independent-review-v2",
   "task_run_status": {
@@ -82,8 +82,8 @@
     "checker": {
       "kind": "checker",
       "path": "npc/rv64/eval/ppa/tools/performance_baseline_current.py",
-      "sha256": "870feb9dd5b77a733b5a0b425061e25115aca41efe57abc1567207f6d5c17b5e",
-      "size_bytes": 96732
+      "sha256": "288cc06add79825d883b1fff0b401140cb34880737036fdb15b1a59fa3816f84",
+      "size_bytes": 96771
     },
     "checker_helper": {
       "kind": "checker_helper",
@@ -118,8 +118,8 @@
     "review_tests": {
       "kind": "review_tests",
       "path": "npc/rv64/eval/ppa/tests/test_performance_baseline_review_v2.py",
-      "sha256": "7a6c55321d0c4d78f4e338b9ece6420bf3fd66a8ee148edd97882eba724afa8f",
-      "size_bytes": 9697
+      "sha256": "44939c65c5237375912d384845cb46cdc6531111aa4f6e5d246c735f11cb7a20",
+      "size_bytes": 9742
     },
     "runner": {
       "kind": "runner",

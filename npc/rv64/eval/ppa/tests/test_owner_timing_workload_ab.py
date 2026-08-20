@@ -159,6 +159,52 @@ class OwnerTimingWorkloadAbTests(unittest.TestCase):
         self.assertIn("--arch-stable", runner)
         self.assertIn("arch_stable_baseline_identity", TOOL.read_text(encoding="utf-8"))
 
+    def test_candidate_full_mode_is_diagnostic_and_fail_closed(self) -> None:
+        runner = RUNNER.read_text(encoding="utf-8")
+        tool = TOOL.read_text(encoding="utf-8")
+        self.assertIn("full|candidate-full|invalid-probe", runner)
+        self.assertIn("build-current-candidate", runner)
+        self.assertIn("verify-current-candidate", runner)
+        self.assertIn('candidate_gate_rc=${candidate_gate_rc}', runner)
+        self.assertIn('"architecture_stable_current": False', tool)
+        self.assertIn('"promotion_eligible": False', tool)
+
+    def test_production_manifest_uses_exact_live_inventory(self) -> None:
+        entries = MODULE.production_identity_entries()
+        manifest = self.work / "production-manifest.sha256"
+        manifest.write_text(
+            "".join(f"{digest}  {path}\n" for path, digest in entries.items()),
+            encoding="utf-8",
+        )
+        value = MODULE.validate_manifest(manifest)
+        self.assertEqual(value["file_count"], len(entries))
+        self.assertGreater(value["file_count"], 2)
+
+        omitted = self.work / "production-manifest-omitted.sha256"
+        omitted.write_text(
+            "".join(
+                f"{digest}  {path}\n"
+                for path, digest in list(entries.items())[:-1]
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(MODULE.EvidenceError, "exact canonical"):
+            MODULE.validate_manifest(omitted)
+
+    def test_candidate_delta_accepts_equal_or_better_cycles(self) -> None:
+        equal = MODULE.candidate_performance_delta(100, 50, 100, 50)
+        better = MODULE.candidate_performance_delta(100, 50, 90, 50)
+        self.assertTrue(equal["no_cpi_regression"])
+        self.assertEqual(equal["cycles_delta"], 0)
+        self.assertTrue(better["no_cpi_regression"])
+        self.assertEqual(better["cycles_delta"], -10)
+
+    def test_candidate_delta_flags_regression_and_rejects_retire_drift(self) -> None:
+        regression = MODULE.candidate_performance_delta(100, 50, 101, 50)
+        self.assertFalse(regression["no_cpi_regression"])
+        with self.assertRaisesRegex(MODULE.EvidenceError, "retired count mismatch"):
+            MODULE.candidate_performance_delta(100, 50, 100, 49)
+
     def test_dhrystone_repeated_start_hits_are_legal(self) -> None:
         parsed = self.diagnostic("dhrystone_10000", start_hits=10000)
         self.assertEqual(parsed["start_hits"], 10000)

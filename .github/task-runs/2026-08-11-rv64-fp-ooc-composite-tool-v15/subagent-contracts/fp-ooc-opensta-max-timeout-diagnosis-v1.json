@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-opensta-max-timeout-diagnosis-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立诊断本地RV64 OooFpAddSubPipe 5.0ns OOC OpenSTA max在A9的600秒timeout。沿opensta-fp-ooc-child.tcl的path-class、per-family setup/hold与138-bit output collector，结合OpenSTA本地源码/命令定义，确定find_timing_paths查询次数与group_path_count=100000复杂度；核对endpoint_path_count、max/min worst-path、bulk query、PathEnd即时物化及constant0零Q路径语义，提出最小不降证据强度的首个工具动作。不运行Python/Tcl/OpenSTA/Yosys/STA或测试，不写文件，不把timeout归因RTL。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "yosys-sta",
+      "oss-cad-suite",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v15/subagent-contracts/fp-ooc-opensta-max-timeout-diagnosis-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a9/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/output-bit-driver-contract.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出A9 max阶段的静态query graph与最坏查询/PathEnd数量，区分link/graph构建、path-class、input family与output bit枚举，明确哪些结论是确定、哪些因缺失raw OpenSTA log仍未知。",
+    "从本地OpenSTA命令/源码核对endpoint_path_count、group_path_count、sort_by_slack、max/min与每endpoint返回语义；比较逐bit、按family与全dynamic-output批量方案对constant0零path、dynamic完整覆盖、worst delay/slack及Search-owned PathEnd生命周期的影响。",
+    "给出唯一推荐first action及必须落成的真实focused harness、正负向mutation、timeout/计数marker与fresh-run授权门；若无法不降证据强度则BLOCK并说明scope_extension_request。"
+  ],
+  "success_criteria": [
+    "只读证据足以对根因假设排序并给出可实现的安全查询上界；不运行工程验证、不修改工作区、不授权直接重跑A9，PPA保持GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -11,7 +11,8 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 ## 2. 结构
 ```
  gshare:  index = fn(PC, GHR)        → bht_q[idx] (2-bit 饱和)  [BPU_BHT_ENTRIES=1024]
- local :  lh = local_hist_q[PC_idx(256 项×8b)] → local_pht_q[{pc[4:1],lh}] (2-bit) [PHT 4096]
+ local :  lh = local_hist_q[PC_idx(256 项×8b)] → OooBranchLocalPht[{pc[4:1],lh}]
+          OooBranchLocalPht = 16 banks × 256 rows × (valid+2-bit counter)
  GHR(ghr_q): 全局分支历史移位寄存器(BHT_INDEX_W 位)
  lookup → pred_taken / predict_strong / bht_idx(供 update 回写)
  update(resolve): 按实际 taken 更新计数器(±1 饱和)、移入 GHR、更新 local history
@@ -19,7 +20,26 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 - 每项带 valid 位:未训练(valid=0)时回退**静态预测**(如 backward-taken/forward-not-taken)。
 - 2-bit 计数器:`taken = valid ? (counter>=2) : static`;strong = 计数器在两端(00/11)。
 
-### 2.1 接口与六类合同（F1a scalar fallback ABI）
+### 2.1 Production child ownership
+
+`OooBranchDirectionPredictor` 继续拥有 GHR、1024-entry gshare BHT 和 256-entry
+local-history；`vsrc/frontend/OooBranchLocalPht.v` 独占 local-PHT payload/valid 与
+local-PHT update S1/S2。固定投影为 `BANKS=16`、`ROWS=256`：
+
+- `index[11:8] = PC[4:1]` 只选 bank；
+- `index[7:0] = local_history[7:0]` 只选 bank-local row；
+- 每个 bank 只导出 256-bit valid 与 512-bit counter 的 state-Q read-only view；wrapper
+  按 bank-major 拼成 4096-entry flat view，并用两条各自完整的 12-bit index 各作一次组合选择；
+  同 bank/same row、同 bank/different row 与不同 bank 都保持无仲裁 0-cycle；
+- update 只向匹配 bank 发出 valid，每个 bank 自己在 S1 捕获 row、taken 与 old counter，S2
+  下一沿饱和写回。公共 `update_taken_i` 因而只负载 16 个 bank-local S1，而不是 4096-entry
+  公共训练/写使能锥。
+
+这个 child split 不改变容量、索引 ABI 或预测算法，也不新增 macro/blackbox；wrapper 与 16 个
+`OooBranchLocalPhtBank` 在实验配置中全部 inline。wrapper 不拥有 local-PHT 寄存器、
+`counter_train` 或时序写块；`update_old_ctr` 仍只在 bank 内从该 bank 的 Q 读取。
+
+### 2.2 接口与六类合同（F1a scalar fallback ABI）
 
 | 类别 | 合同 |
 | --- | --- |
@@ -44,9 +64,32 @@ JALR-BTB/BTC/pending jump sequencer 在 mode=1 下已判死,见 2026-07-03 RTL �
 - **BP-I5 decoder immediate ABI (`T3L`)**：frontend 内部 B-imm 总线宽度固定为 13，
   predictor 只取 bit12；branch target 由独立 split-target 模块消费完整 13 位，禁止恢复
   XLEN-wide sign-extension 作为跨模块接口。
+- **BP-I6 local-PHT bank/index**：`index={PC[4:1],local_history[7:0]}` 必须严格投影为
+  bank=`index[11:8]`、row=`index[7:0]`；read view 的 bit 序必须等于
+  `bank*256+row`。不得交换位域、复用 lane0 地址、恢复 bank-local lane selector 或在同 bank
+  两路间仲裁。
+- **BP-I7 local-PHT update 可见性**：resolve 沿是 child S1，下一沿是 S2；lookup/S1 对同沿
+  S2 保持 read-before-write，连续同 entry update 不做 forwarding，因而保留既有丢一次增量行为。
+- **BP-I8 recovery**：`clear_i` 清每个 bank 的 valid 与 pending S2；mispredict 仍按 actual
+  outcome 训练，且 redirect/ROB-walk 不 restore predictor。
+- **BP-I9 local-PHT write ownership**：16 个 bank 是 4096-entry valid/counter 的唯一 owner；
+  wrapper 只消费 Q 端 read-only view，禁止公共 flat valid/counter、trained-counter 或 variable-write
+  owner。`update_taken_i` 最多进入 16 个 bank-local S1 捕获点。
 - 预测错不影响正确性(只影响性能):误预测由后端 resolve→精确 redirect 纠正。
 
 ## 4. 关键路径
+
+2026-08-10 的 current d3f3 inline mapped 证据显示 local-PHT 公共更新锥进入 BPU 内部负裕量
+路径。旧 `mapped-5ns-bpu-local-pht-banked-child-inline-v1` 的 mapped execution receipt 为 PASS，
+但冻结实验裁决是 `ROLLBACK/GAP`：公共 taken 已收窄到 16 个 bank-local S1，然而重复的 bank-local
+lane read mux 使面积门失败；该点只保留为 noncanonical negative-knowledge archive。
+
+`mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1` 是唯一后继 development candidate：
+write owner 与 S1/S2 继续分 bank，read 改成 bank Q flat view。当前 `UNMEASURED/GAP`，本切片明确
+不运行综合/STA，不得声称 WNS/TNS/area/power 改善；唯一 next action 是另一个合同按新 live design-id
+执行一次 traceable 5 ns PPA。新 RTL 使旧 d3f3/b279 elaboration/module/L3/mapped receipts 都不能
+冒充 current-design evidence。
+
 2026-07-12 fresh 5ns A/B 以同一 `5bd7a1546` RTL 基线、Yosys/TCL/PDK、其余三颗 macro
 Liberty 与综合参数重跑；唯一有意差异是 BPU wide/static-scalar ABI 及匹配的 placeholder Liberty。
 旧 ABI 把相同 B-imm 符号网复制接到每 lane 的 52 个 `imm[63:12]` pin；predictor 行为只消费
@@ -96,12 +139,26 @@ SPEF/CTS/OCV，所以该结果不是 200MHz signoff；下一瓶颈必须按后�
 - clear 清 valid 与 GHR，payload 在 invalid entry 中无语义；
 - taken update 移入 GHR，并影响 lookup0/lookup1 的 gshare index；
 - 双 lookup 口同拍组合读，互不干扰。
+- parent→`OooBranchLocalPht` 的 bank-local S1 投影；prediction!=actual 的 mispredict 仍训练，
+  随后的 recovery idle 不 restore local-PHT。
+
+`tb_ooo_branch_local_pht` 定向覆盖 16×256 位域、双路 0-cycle、同 bank same/different row、
+bank Q→flat view 位序、S1→S2、lookup/S2 read-before-write、饱和、背靠背同 entry 无 forwarding
+与 clear pending-S2。`run_ooo_branch_local_pht_mutations.py` 先 fail-closed 审核 wrapper 无时序写 owner，
+再要求原 11 项与新增 public-flat-write-owner 共 12 项负向 RTL 全部编译成功、各命中唯一预期动态
+FAIL marker，且不得出现 `[RESULT] PASS`。
 
 建议命令：
 
 ```bash
 make -C npc/rv64/testbench TESTS=tb_ooo_branch_direction_predictor \
   RESULT_DIR=/tmp/tb-bpu run
+
+make -C npc/rv64/testbench TESTS=tb_ooo_branch_local_pht \
+  RESULT_DIR=/tmp/tb-bpu-local-pht run
+
+make -C npc/rv64/testbench bpu-local-pht-flat-read-view-mutations \
+  BPU_LOCAL_PHT_MUTATION_RESULT=/tmp/tb-bpu-local-pht-mutations
 ```
 
 ## 7. Macro/OOC 待办
@@ -148,8 +205,8 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
 | GHR bits | `10` |
 | local history valid bits | `256` |
 | local history bits | `256 * 8 = 2048` |
-| local PHT valid bits | `4096` |
-| local PHT counter bits | `4096 * 2 = 8192` |
+| local PHT valid bits | `16 * 256 = 4096` |
+| local PHT counter bits | `16 * 256 * 2 = 8192` |
 | total state bits | `17674` |
 
 该数字只是 state-capacity lower bound，不是 stdcell area、SRAM compiler area、leakage 或 timing closure。
@@ -179,3 +236,11 @@ SRAM wrapper 或多表 macro 组合，必须先证明 wrapper 对 §2/§3 的外
   lower bound；真实 Liberty/LEF/OOC STA 仍未闭合。
 - 2026-07-12：F1a 冻结 `lookup*_imm_i[63:0]`→`lookup*_static_taken_i` 单 bit ABI；同步
   placeholder Liberty/checker/TB，并按当前 1024-entry BHT 校正 state lower bound 为 17674 bit。
+- 2026-08-10：把 local-PHT state/read/update 从 parent 移入 production child
+  `OooBranchLocalPht`，固定 16×256 bank-local S1/S2；保留双路 0-cycle、read-before-write、clear、
+  mispredict train/no-restore 与背靠背无 forwarding 语义。配置仅为 non-canonical/non-champion
+  engineering proxy archive，尚无新身份综合/STA 结论。
+- 2026-08-10：冻结旧 banked-child mapped execution PASS 为 `ROLLBACK/GAP` archive；唯一后继
+  保持 bank-local write owner，把每 bank lane-specific row selector 改为 Q 端 read-only view，
+  wrapper 对两条完整 index各作一次 flat select。新配置为 development/unmeasured/noncanonical，
+  本刀未运行综合/STA。

@@ -1,0 +1,108 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-port-family-single-entry-closure-v2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "在v11 Tcl-safe exact_port_family的Python static与2-method unittest/tclsh harness已PASS、唯一失败为generated ARCHITECTURE.md stale后，仅同步单一入口并完成尚未执行的runner bash-n与scoped audit。复用attempt-1功能PASS收据，不重跑unittest/Tcl harness，不改Tcl/tool/tests/Registry catalog、FP RTL或A5。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-child-opensta-port-family-single-entry-closure-v2.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/affected-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1/affected-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项重算attempt-1 status、functional log、static receipt、input manifest与A5冻结hash，确认2-method/tclsh harness、四正例/8负向PASS且Tcl/tool/tests未变；原始Registry stale失败保持冻结。",
+    "只执行一次Registry render→check、一次production runner bash-n及一次scoped diff/text audit，生成独立v2 evidence；unittest/Tcl harness/production EDA/A5 rerun均0。"
+  ],
+  "success_criteria": [
+    "Registry render/check、bash-n、scoped audit均rc0，ARCHITECTURE单一入口同步；attempt-1功能PASS与A5 hashes不变。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

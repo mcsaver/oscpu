@@ -61,6 +61,98 @@ class Act4CurrentTests(unittest.TestCase):
         }
         self.assertEqual(len(napot_cases), 4)
 
+    def test_unused_unknown_elf_compiler_inventory_is_non_semantic(self) -> None:
+        frozen = {"make": {"sha256": "1" * 64}}
+        live = {
+            **frozen,
+            "riscv64-unknown-elf-gcc": {"sha256": "2" * 64},
+        }
+        act4.validate_l1_toolchain_binding(frozen, live)
+        act4.validate_l1_toolchain_binding(live, frozen)
+
+        with self.assertRaisesRegex(act4.Act4Error, "inventory drift"):
+            act4.validate_l1_toolchain_binding(
+                frozen, {**frozen, "unrelated-tool": {"sha256": "3" * 64}}
+            )
+
+    def test_l1_downstream_checker_drift_does_not_require_dut_rerun(self) -> None:
+        frozen = {
+            "schema": "inputs-v1",
+            "design_id": "sha256:" + "1" * 64,
+            "required_tests": ["tb_a"],
+            "official_test_ids": ["rv64ui-p-add"],
+            "am_test_ids": ["dummy"],
+            "groups": {
+                "workflow": {
+                    "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "2" * 64,
+                    "npc/rv64/eval/ppa/tools/full_core_current_evidence.py": "3" * 64,
+                },
+                "functional_workflow": {
+                    "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py": "4" * 64,
+                },
+            },
+        }
+        live = copy.deepcopy(frozen)
+        live["groups"]["workflow"][
+            "npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
+        ] = "5" * 64
+        live["groups"]["functional_workflow"][
+            "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py"
+        ] = "6" * 64
+        act4.validate_l1_input_binding(frozen, live)
+
+    def test_l1_execution_runner_drift_remains_fail_closed(self) -> None:
+        frozen = {
+            "schema": "inputs-v1",
+            "design_id": "sha256:" + "1" * 64,
+            "required_tests": ["tb_a"],
+            "official_test_ids": ["rv64ui-p-add"],
+            "am_test_ids": ["dummy"],
+            "groups": {
+                "workflow": {
+                    "npc/rv64/eval/ppa/tools/full_core_current_evidence.py": "2" * 64,
+                },
+            },
+        }
+        live = copy.deepcopy(frozen)
+        live["groups"]["workflow"][
+            "npc/rv64/eval/ppa/tools/full_core_current_evidence.py"
+        ] = "3" * 64
+        with self.assertRaisesRegex(act4.Act4Error, "input drift: groups"):
+            act4.validate_l1_input_binding(frozen, live)
+
+    def test_act4_checker_drift_projects_without_guest_rerun(self) -> None:
+        frozen = {
+            "design_id": "sha256:" + "1" * 64,
+            "workflow_artifacts": {
+                "checker": {"sha256": "2" * 64},
+                "backend_runner": {"sha256": "3" * 64},
+            },
+            "elfs": [{"artifact": {"sha256": "4" * 64}}],
+        }
+        live = copy.deepcopy(frozen)
+        live["workflow_artifacts"]["checker"]["sha256"] = "5" * 64
+        self.assertEqual(
+            act4.act4_execution_relevant_snapshot(frozen),
+            act4.act4_execution_relevant_snapshot(live),
+        )
+
+    def test_act4_backend_runner_drift_remains_fail_closed(self) -> None:
+        frozen = {
+            "design_id": "sha256:" + "1" * 64,
+            "workflow_artifacts": {
+                "checker": {"sha256": "2" * 64},
+                "backend_runner": {"sha256": "3" * 64},
+            },
+            "elfs": [{"artifact": {"sha256": "4" * 64}}],
+        }
+        live = copy.deepcopy(frozen)
+        live["workflow_artifacts"]["backend_runner"]["sha256"] = "5" * 64
+        self.assertNotEqual(
+            act4.act4_execution_relevant_snapshot(frozen),
+            act4.act4_execution_relevant_snapshot(live),
+        )
+
     def test_missing_case_record_is_rejected(self) -> None:
         with self.workspace_temp() as raw_temp:
             directory = pathlib.Path(raw_temp)

@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-top-boundary-independent-review-v6",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核 NpcTop FP OOC composite 最后一条top boundary修复：OooFpArithGate out_value和out_fflags沿OooFpBackend completion路径进入u_fp_backend的df_value_q 512-bit与df_fflags_q 40-bit register-D，Registry、top Tcl、parser和定向tests是否使用精确真实sink而非不存在top port、近似名或伪object label；仅裁决该确定修复是否CLOSED以及是否可授权一个全新run-id的单次5.0nsproduction diagnostic run",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v4/subagent-contracts/fp-ooc-composite-tool-blocker-fix-independent-review-v3.json",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/evidence/fp-ooc-composite-top-boundary-fix-v5/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/evidence/fp-ooc-composite-top-boundary-fix-v5/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/subagent-contracts/fp-ooc-composite-top-boundary-independent-review-v6.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpBackend.v",
+      "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+      "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/evidence/fp-ooc-composite-top-boundary-fix-v5/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/evidence/fp-ooc-composite-top-boundary-fix-v5/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项核对RTL实例链、df_value_q和df_fflags_q写入语义、Registry owner/family/cardinality/object class、OpenSTA all_registers data-pins到get_pins/get_cells的exact intersection、parser contract和三类negative tests；给出RETAIN、FIX或BLOCK，若无静态确定反例则只授权一个全新run-id的production diagnostic并保留真实mapped naming/API由runner fail-closed裁决"
+  ],
+  "success_criteria": [
+    "不得运行Python、测试、仿真、综合、OpenSTA、parser或runner；只读复算v5合同/result/关键源码hash与门禁计数；不得重审已在v3关闭的其它六项，不得因未来mapped命名未知本身BLOCK，但若Registry cardinality、实例链、对象方向或Tcl逻辑存在确定矛盾必须指出；最终PPA仍GAP并保留counterexamples、unknowns、alternative_hypotheses、scope_extension_request与confidence_and_basis"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

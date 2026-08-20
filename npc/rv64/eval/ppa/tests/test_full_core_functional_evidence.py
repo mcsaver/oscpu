@@ -140,6 +140,47 @@ class FullCoreFunctionalEvidenceTests(unittest.TestCase):
         self.assertIn("module input binding required_tests mismatch", errors)
         self.assertIn("module input binding group inventory mismatch", errors)
 
+    def test_downstream_checker_drift_projects_without_dut_rerun(self) -> None:
+        frozen = {
+            "groups": {
+                "workflow": {
+                    "npc/rv64/eval/ppa/tools/arch_stable_freeze.py": "a" * 64,
+                    "npc/rv64/eval/ppa/tools/full_core_current_evidence.py": "b" * 64,
+                },
+                "functional_workflow": {
+                    "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py": "c" * 64,
+                },
+            }
+        }
+        live = copy.deepcopy(frozen)
+        live["groups"]["workflow"][
+            "npc/rv64/eval/ppa/tools/arch_stable_freeze.py"
+        ] = "d" * 64
+        live["groups"]["functional_workflow"][
+            "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py"
+        ] = "e" * 64
+        self.assertEqual(
+            functional.execution_relevant_inputs(frozen),
+            functional.execution_relevant_inputs(live),
+        )
+
+    def test_execution_runner_drift_remains_fail_closed(self) -> None:
+        frozen = {
+            "groups": {
+                "workflow": {
+                    "npc/rv64/eval/ppa/tools/full_core_current_evidence.py": "a" * 64,
+                }
+            }
+        }
+        live = copy.deepcopy(frozen)
+        live["groups"]["workflow"][
+            "npc/rv64/eval/ppa/tools/full_core_current_evidence.py"
+        ] = "b" * 64
+        self.assertNotEqual(
+            functional.execution_relevant_inputs(frozen),
+            functional.execution_relevant_inputs(live),
+        )
+
     def test_module_payload_contract_rejects_input_drift(self) -> None:
         value = self.valid_module_payload()
         inputs = value["inputs"]

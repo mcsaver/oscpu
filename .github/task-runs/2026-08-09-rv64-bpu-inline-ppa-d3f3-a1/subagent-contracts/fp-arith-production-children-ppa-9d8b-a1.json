@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-production-children-ppa-9d8b-a1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "ppa-analysis",
+  "goal": "对 live sha256:9d8bb6af NpcTop 的 mapped-5ns-fp-arith-production-children-inline-v1 执行且仅执行一次固定 5.0ns traceable Yosys/OpenSTA：BPU 与两类 SRAM 保持 placeholder，OooFpArithGate 与五 production child inline/keep-hierarchy。机器绑定当前 source/config/tool/profile，取得真实 FP hierarchy cells/area、negative-slack pin inventory、至少一条内部 timing path、全核 WNS/TNS/area/power/Top40，并与 four-placeholder baseline 做同边界 delta；任何 exit/signal/timeout/GAP 不重跑。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tools/traceable_path_inventory.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/syn/macro-lib",
+      "yosys-sta",
+      "scripts/task-run-status.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-arith-production-children-ppa-9d8b-a1.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "前置只读核验合同 SHA、输出 run-dir 不存在、Registry expected/live design 均为 sha256:9d8bb6af、physical configuration/profile 分别为 mapped-5ns-fp-arith-production-children-inline-v1 与 fp-arith-children-v1 后，仅执行一次：bash npc/rv64/eval/ppa/run-traceable-mapped-current.sh --run-dir .github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1 --evidence-id traceable-9d8b-fp-arith-children-a1 --physical-configuration mapped-5ns-fp-arith-production-children-inline-v1 --expected-rtl-design-id sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d。任何结果不重跑；等待 runner cleanup 后只读核验封存证据。",
+    "报告 status/command-status、before/after production manifest、summary/binding/source manifest/parameters/STA inputs；列出 source count、unknown macro 精确集合、inline/keep hierarchy、1 OooFpArithGate 加五 child exact-one 且各自非零 cells/area、FP aggregate cell mix/area、negative-slack matched/numeric/negative/worst、真实 internal paths 的 start/end/slack/mapped points、全核 WNS/TNS/violations/loops/logic/sequential area/relative power、Top40 归属与 constraints。",
+    "以 d3f3 four-placeholder 同 5ns baseline 做精确 cells/area/WNS/TNS/power delta，区分 visibility receipt PASS、timing/PPA GAP 与 architecture retain：只有功能证据同 design、FP placeholder 消失、五 child 可见、profile artifacts/binding/cleanup 全闭合时才 RETAIN_VISIBILITY_BOUNDARY；不得因 timing 失败退回 FP placeholder，也不得把 fixed-toggle power 或 macro-excluded area晋级为正式 PPA。"
+  ],
+  "success_criteria": [
+    "runner invocation 精确一次。Evidence PASS 要求 evidence-complete PASS、preflight/manifest/synth/opensta/parser/trace/binding/cleanup 全 rc=0、before/after production manifest 相同、summary/binding 精确绑定 9d8/config/profile、unknown macro 仅 Sram4096x199x1、Sram4096x113x2、OooBranchDirectionPredictorx1且无 OooFpArithGate、Registry 规定的 inline/keep modules全部出现、wrapper和五 child exact-one与非零mapped cells/area、FP negative inventory结构有效、至少一条真实 u_fp_arith internal path、loops=0。正式 timing/PPA 仍要求 WNS>=+0.10ns、TNS=0、violations=0、macro-inclusive area 与 qualified power；任一未满足都保留 GAP。任何失败或工具误拒绝只封存原 run，不修改输入、不重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

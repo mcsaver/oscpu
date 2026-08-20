@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-production-child-split-architecture-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "基于 current d3f3 NpcTop 的 BPU-inline sealed 5 ns Top40，重构 OooBranchDirectionPredictor 的 Architecture IR 并裁定 production child split：定位双取指预测 read、branch resolve/update、local/global history/PHT 状态归属与恢复交互，比较 state-array child、banked decode、registered update/queue 和 whole-inline rollback 等本地可行变换，在不改变预测/恢复正确性和未授权 CPI 周期的前提下选择唯一下一候选及可证伪 retain/rollback 闭环。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".codex/agents/cpu-architect.toml",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/knife-b2-fetch-time-bpu.md",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+      "npc/rv64/design/specs/ooo-branch-spec-tracker.md",
+      "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+      "npc/rv64/design/specs/ooo-frontend-action-gate.md",
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/core/NpcCoreTop.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_bpu_update_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_spec_tracker.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_resolve_recovery_gate.sv",
+      "npc/rv64/testbench/logs/tb_ooo_branch_direction_predictor.log",
+      "npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-child-split-architect-route-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a2-independent-review-v1.result.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/knife-b2-fetch-time-bpu.md",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a2-independent-review-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出本地 BPU Architecture IR 树/图/网：列出 prediction read、update、history/checkpoint/recovery 的节点、边、state owner、周期、并发读写与不变量；从 raw Top40 将 update_taken_i→local_pht_q 的 54.784690857 ns arc 映射到 RTL 结构；对所有本地支持的 candidate 给出 RETAIN/FIX/BLOCK，至少明确比较 whole predictor inline、只切 local-PHT state child、banked/write-decoded local-PHT、registered/queued update 与增加 prediction pipeline 的差异；选择唯一推荐候选，指定精确 module boundary/ports/latency/state ownership、registry physical configuration identity、placeholder/Liberty/OOC characterization 路径、RTL/spec/TB/mutation/PPA 实现序列及回滚条件，并保留 unknowns、counterexamples、alternative_hypotheses、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "推荐必须同时保持当前双取指 prediction 输出、branch resolve/update 次序、local/global history/PHT 饱和计数、reset/flush/recovery 和 OooFrontend 消费周期，除非完整列出新增周期的协议与 CPI 反证；必须解释为什么能切断 Top40 集中 update fanout，如何避免只把路径藏入 blackbox，如何以 child internal timing/area/power 与 NpcTop boundary path 合取闭合；必须把 5 ns WNS=-50.241458893 ns、area +283823.40 与四宏基线作为 rollback/Pareto 门，列出 directed TB、compile-success mutations 和一次确定性同设计 PPA 的客观成功条件。不得修改 RTL/spec/registry，不得运行仿真/综合/STA/test，不得把中等置信度 fanout 假设表述为唯一已证明 root cause。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

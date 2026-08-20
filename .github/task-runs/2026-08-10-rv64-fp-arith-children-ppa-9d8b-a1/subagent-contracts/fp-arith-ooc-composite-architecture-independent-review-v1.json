@@ -1,0 +1,126 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-arith-ooc-composite-architecture-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立尝试推翻 FP synthesis-timeout 架构裁决：审查五个 production child 逐个真实 OOC 映射与顺序 Liberty、OooFpArithGate wrapper inline 回接 NpcTop 的方案是否保留 launch 到 out 五拍和每周期一发语义，是否能用 setup hold 与 clk-to-Q 正确表达 child 的多级寄存边界，是否能把 child 内部 cells area negative slack internal path 与 NpcTop 边界 timing 组合为非 placeholder 的机器证据，并检查当前工具链是否存在使该唯一实验不可实现或会假绿的承重反例",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa",
+      "yosys-sta",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/icsprout55.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synth-console.log",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/command-status.txt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-ooc-composite-architecture-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+      "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+      "npc/rv64/vsrc/execute/OooFpPredicates.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/Makefile",
+      "yosys-sta/Makefile",
+      "yosys-sta/scripts/yosys.tcl",
+      "yosys-sta/scripts/common.tcl",
+      "yosys-sta/scripts/pdk/icsprout55.tcl",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/opensta-traceable-mapped-current.tcl",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/synth-console.log",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/evidence/traceable-9d8b-fp-arith-children-a1/command-status.txt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 APPROVE、FIX 或 BLOCK 的独立裁决；用端口到寄存器、寄存器到端口、跨 child 组合和同步 control 四类 timing arc 检查五个 child 边界，列出 OOC 与顶层组合证据必须绑定的最小 artifact graph，构造能杀死错误 Liberty、多拍压缩、面积双计或漏计、内部路径被隐藏、跨角落或跨源码复用、wrapper 与 child 重复实现的反例；若方案可修订保留，给出唯一最小修订和精确进入实现合同的门槛"
+  ],
+  "success_criteria": [
+    "独立结论必须逐项核对 AddSub、MulProduct 到 MulNorm、FmaAlign 到 FmaNorm 与 wrapper S4 S5 的真实寄存和组合边界，不能把顺序 child 简化成只有 setup 和 clk-to-Q 而遗漏真实 input-to-output、combinational output 或跨 module arc；必须区分物理组合证据与一次 monolithic PPA，明确 Registry 仍为 GAP 的上限，并保留 counterexamples、unknowns、alternative_hypotheses、scope_extension_request 与 confidence_and_basis"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

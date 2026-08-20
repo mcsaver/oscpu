@@ -18,7 +18,7 @@
     "units_with_candidate_evidence": 46,
     "units_without_candidate_evidence": 0
   },
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "duplicate_instance_modules": [
     "OooMemAxiBridge",
     "OooMemInflightQueue"
@@ -43,8 +43,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11b_terminal_collector",
@@ -52,15 +52,15 @@
       "detail": {
         "compile_success_mutations_rejected": 3,
         "compiled_images_retained": 0,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "ingress_lanes": 12,
         "positive_profiles": 2,
         "rtl_file_count": 146,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -79,8 +79,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -126,7 +126,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": false,
         "positive_profiles": 2,
@@ -188,7 +188,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutations_rejected": 9,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "next_token_cursor_closed": true,
         "positive_profiles": 4,
@@ -242,7 +242,7 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
-          "sha256": "793046a39e9cdb8dc87a345213d482ae8637cf868c5bb3f1595fbbea3d7aaf67",
+          "sha256": "4ea30c84f47e23839be7180a7dd5ad47c9f915b54c6331b1eeb6ac96573dec2a",
           "size_bytes": 67825
         }
       ],
@@ -250,7 +250,7 @@
       "binding_state": "CURRENT_SELECTED_MACRO_PROJECTION_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 17,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "generation_widths": [
           1,
@@ -262,7 +262,7 @@
         "rtl_file_count": 146,
         "selected_binding_compatibility_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
-          "sha256": "793046a39e9cdb8dc87a345213d482ae8637cf868c5bb3f1595fbbea3d7aaf67",
+          "sha256": "4ea30c84f47e23839be7180a7dd5ad47c9f915b54c6331b1eeb6ac96573dec2a",
           "size_bytes": 67825
         },
         "selected_bindings": [
@@ -283,7 +283,7 @@
           {
             "compatibility_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-define-projection-current.json",
-              "sha256": "793046a39e9cdb8dc87a345213d482ae8637cf868c5bb3f1595fbbea3d7aaf67",
+              "sha256": "4ea30c84f47e23839be7180a7dd5ad47c9f915b54c6331b1eeb6ac96573dec2a",
               "size_bytes": 67825
             },
             "evidence_sha256": "1ce15faee558f1814ad66303bb63c612fe5026475a198979662aa564c0682694",
@@ -340,7 +340,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 20,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -410,15 +410,15 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11g_store_queue_holder",
       "binding_state": "CURRENT_SELECTED_SOURCE_DELTA_PROJECTION_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 24,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -431,8 +431,8 @@
         "rtl_file_count": 146,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -444,8 +444,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -464,8 +464,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           }
         ],
@@ -495,7 +495,7 @@
       "detail": {
         "checker_replay": {
           "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
-          "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+          "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
           "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
           "historical_checker_replay_required": false,
           "mode": "CURRENT_SELECTED_SOURCE_REUSE",
@@ -531,7 +531,7 @@
           "system_rerun_required_before_system_promotion": true
         },
         "compile_success_mutation_cases_rejected": 31,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "generation_widths": [
           1,
@@ -611,7 +611,7 @@
       "binding_state": "CURRENT_SELECTED_SOURCE_AND_TB_BOUND",
       "detail": {
         "compile_success_mutation_cases_rejected": 13,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_residency_set_membership_closed": true,
         "mutation_simulations_rejected": 26,
@@ -698,8 +698,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11k_miq_holder",
@@ -707,7 +707,7 @@
       "detail": {
         "capture_hold_cross_reject_flush_kill_consume_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "current_miq_elaboration_bound_by_selected_source_and_instance_graph": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_occupancy_set_membership_closed": true,
@@ -728,8 +728,8 @@
         "regressions_current_source_artifact_post_bound": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -803,8 +803,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11l_memory_retry_holder",
@@ -813,7 +813,7 @@
         "c0_empty_and_resident_barriers_closed": true,
         "capture_hold_transfer_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 32,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "flush_cancel_over_fire_priority_closed": true,
         "lane10_lane11_cancel_terminal_closed": true,
@@ -827,8 +827,8 @@
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -840,8 +840,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -853,8 +853,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -901,8 +901,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           }
         ],
@@ -951,8 +951,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11m_memory_reservation_holder",
@@ -961,7 +961,7 @@
         "a3_frozen_evidence_unchanged": true,
         "capture_hold_request_terminal_death_closed": true,
         "compile_success_mutation_cases_rejected": 37,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "lane6_lane7_accepted_terminal_closed": true,
         "mutation_simulations_rejected": 37,
@@ -975,8 +975,8 @@
         "raw_producer_and_token_xz_knownness_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -988,8 +988,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1001,8 +1001,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1049,8 +1049,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           }
         ],
@@ -1111,7 +1111,7 @@
         "amo_transient_holder_disjoint_closed": true,
         "assertion_mutation_cases_rejected": 3,
         "compile_success_mutation_cases_rejected": 16,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "dispatch_lane1_to_execution_terminal0_closed": true,
         "evidence_design_id": "sha256:ca37187e08a3ed489a20d8e05942a2fe8b33ae85904d2edb43e1df08332f9b6f",
         "lane0_lane9_accepted_terminal_closed": true,
@@ -1238,23 +1238,23 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/memory-buffer-product-reachability-current.json",
-          "sha256": "f5e12cc7916ef5196b2956a567c5a984f5d944e6d2e90027dc24cfaae5fd97d3",
-          "size_bytes": 3015
+          "sha256": "991edd28a7eab1558d60364c7378c675593dca57a907fc861ab1e53733073b2e",
+          "size_bytes": 2993
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-          "sha256": "0c35011d40328ad691775e89636672a0f7e1745321572c6bd7d1c38e420cd440",
-          "size_bytes": 60087
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+          "sha256": "99f51ecb09ed7f9b67698f5989fe6a5964c9eff6482930fb6201ac8514b48673",
+          "size_bytes": 60467
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-          "sha256": "4ed6cee79e25450aeefe66100254adfe1b902d88cdff3c610e12d19fbf569b1b",
-          "size_bytes": 17343698
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+          "sha256": "a7e8d5300e46e67d347bdb19e1a0b59ad73665f372929e96a0f43817db1738fd",
+          "size_bytes": 17346903
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11o_memory_buffer_token",
@@ -1263,7 +1263,7 @@
         "a3_checker_replay": "PASS_INDEPENDENT",
         "a3_original_status": "FAIL_RETAINED",
         "compile_success_mutation_cases_rejected": 8,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "current_product_reachability_design_id_current": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "historical_full_yosys_json_retained": false,
@@ -1282,8 +1282,8 @@
         "production_design_id_current": false,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -1295,8 +1295,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1343,8 +1343,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1391,8 +1391,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           }
         ],
@@ -1437,8 +1437,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11p_checkpoint_irrevocable_write",
@@ -1448,7 +1448,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "amo_tracker_death_before_retire_closed": true,
         "compile_success_mutation_cases_rejected": 10,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "full_width_lane0_retire_guard_closed": true,
         "mutation_simulations_rejected": 20,
@@ -1462,8 +1462,8 @@
         "restore_gate_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -1475,8 +1475,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1488,8 +1488,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1536,8 +1536,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           }
         ],
@@ -1583,8 +1583,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11q_int_lane0_packet",
@@ -1594,7 +1594,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "branch_resolve_packet_fields_closed": true,
         "compile_success_mutation_cases_rejected": 12,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex0_packed_alias_closed": true,
         "ex0_raw_packet_fields_closed": true,
@@ -1609,8 +1609,8 @@
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -1622,8 +1622,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1635,8 +1635,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1699,8 +1699,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11r_int_lane1_packet",
@@ -1713,7 +1713,7 @@
         "a3_original_status": "FAIL_RETAINED",
         "a3_terminal_state": "COMPLETE",
         "compile_success_mutation_cases_rejected": 14,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "ex1_alu_source_closed": true,
         "ex1_local_memory_source_closed": true,
@@ -1730,8 +1730,8 @@
         "same_cycle_flush_and_next_cycle_death_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -1743,8 +1743,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1756,8 +1756,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1824,8 +1824,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11s_muldiv_producer",
@@ -1839,7 +1839,7 @@
         "a3_terminal_state": "COMPLETE",
         "authorized_wb_and_ordered_retirement_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "eight_younger_dual_issue_pressure_closed": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
@@ -1856,8 +1856,8 @@
         "request_capture_and_holder_residency_closed": true,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -1869,8 +1869,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1896,8 +1896,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -1963,8 +1963,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11t_clmul_producer",
@@ -1979,7 +1979,7 @@
         "authorized_wb_and_ordered_retirement_closed": true,
         "clmul_low_and_high_paths_closed": true,
         "compile_success_mutation_cases_rejected": 9,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "eight_younger_pressure_closed": false,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exact_open_and_wrong_generation_negative_closed": true,
@@ -1996,8 +1996,8 @@
         "retired_compile_artifacts_validated": 36,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -2016,8 +2016,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -2043,8 +2043,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -2077,27 +2077,27 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/summary.json",
-          "sha256": "8100904b376b9d8772ac804aa2135e7d1d2af6d5b6d79caf2d9feda95ced8153",
-          "size_bytes": 1096833
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/summary.json",
+          "sha256": "2326ff086b8c71238a1b4d70354d4e6eed7d0a6e45bc0f6901fd212839102406",
+          "size_bytes": 1093465
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/source-before.sha256",
-          "sha256": "5106102fd4eb10493b0c484938c987bfb24a04b25b8ae4bd018d418546bdb8a9",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/source-before.sha256",
+          "sha256": "2647e7d01a74d7f2840e9b5aaaacc8d46965ca0e0b6e2691a20d62829b68f053",
           "size_bytes": 2933
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/source-after.sha256",
-          "sha256": "5106102fd4eb10493b0c484938c987bfb24a04b25b8ae4bd018d418546bdb8a9",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/source-after.sha256",
+          "sha256": "2647e7d01a74d7f2840e9b5aaaacc8d46965ca0e0b6e2691a20d62829b68f053",
           "size_bytes": 2933
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/artifact-cleanup.json",
-          "sha256": "020a91f69489184080be3b93b47a8ad14c9a513297f37c9d12328b0b9d903675",
-          "size_bytes": 68227
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/artifact-cleanup.json",
+          "sha256": "41eeec5552ab623b9de521884b9b932a726f921048dd6b9d0de4dc13ce26d9e2",
+          "size_bytes": 66368
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v11u-current-f72e-v1/runner.status",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v11u-current-d3f3-v1/runner.status",
           "sha256": "97933b97e548f9fc5305d7bec5c80db87b4f925169843bda4d94b13309537bf0",
           "size_bytes": 58
         }
@@ -2122,10 +2122,10 @@
           "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
           "npc/rv64/vsrc/writeback/OooRob.v"
         ],
-        "compiler_input_unique_paths_validated": 138,
+        "compiler_input_unique_paths_validated": 139,
         "csr_only_exact_birth_closed": true,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-        "evidence_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+        "evidence_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "exact_commit_and_flush_death_closed": true,
         "full_pid_and_pc_authorization_closed": true,
         "global_live_mask_reuse_fence_closed": true,
@@ -2182,8 +2182,8 @@
             "role": "testbench"
           },
           {
-            "evidence_sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
-            "live_sha256": "a7889201c2b67aa15d6c36fdbaa4c08e68b8210a1d7cfb00e64b027fff85ea30",
+            "evidence_sha256": "fedcc5cec97e26b9a7667450c5a2604376d012b776a9b7212a94a47b76f40dc1",
+            "live_sha256": "fedcc5cec97e26b9a7667450c5a2604376d012b776a9b7212a94a47b76f40dc1",
             "matches_live": true,
             "path": "npc/rv64/vsrc/control/OooControlPlane.v",
             "role": "rtl"
@@ -2298,8 +2298,8 @@
         },
         {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         }
       ],
       "binding_kind": "v11v_fp_producer",
@@ -2312,7 +2312,7 @@
         "a3_terminal_state": "COMPLETE",
         "arith_five_stage_residency_closed": true,
         "compile_success_mutation_cases_rejected": 14,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "done_fifo_pending_and_terminal_release_closed": true,
         "evidence_design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
         "exec1_packet_and_packed_alias_closed": true,
@@ -2332,8 +2332,8 @@
         "retired_compile_artifacts_validated": 51,
         "selected_binding_rtl_delta_projection_receipt": {
           "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-          "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-          "size_bytes": 132299
+          "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+          "size_bytes": 131892
         },
         "selected_bindings": [
           {
@@ -2359,8 +2359,8 @@
             "rtl_delta_projection_match": true,
             "rtl_delta_projection_receipt": {
               "path": "npc/rv64/eval/ppa/evidence/selected-binding-rtl-delta-projection-current.json",
-              "sha256": "e2b317ecf8c4faea84db90a88c64954c57b776fde911f3d52f99d9b04120ef19",
-              "size_bytes": 132299
+              "sha256": "5090c275cb2012921a3e194e467b8003ffe3f4301ff4b29de61f3add88756a3f",
+              "size_bytes": 131892
             }
           },
           {
@@ -2426,147 +2426,147 @@
     {
       "artifacts": [
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/result.txt",
-          "sha256": "c450e9c3d726c201003f2b5b96db0e3bb544e359bd48e000c51211ae245aa399",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/result.txt",
+          "sha256": "e4beea4bb135712bcdad7ee39fb3efa84c0c59a887ac2151f24e78f32ac149cb",
           "size_bytes": 220
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/production-before.sha256",
-          "sha256": "1cd6acf9c7e5043f28a5d69023458289550f653cd3b415ac1dbb434ec43eb6aa",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/production-before.sha256",
+          "sha256": "8c6b0fb7e8e9d4b6d5b4c40f06fbe5efa82628a1616210479ec220a24257f635",
           "size_bytes": 1264
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/production-after.sha256",
-          "sha256": "1cd6acf9c7e5043f28a5d69023458289550f653cd3b415ac1dbb434ec43eb6aa",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/production-after.sha256",
+          "sha256": "8c6b0fb7e8e9d4b6d5b4c40f06fbe5efa82628a1616210479ec220a24257f635",
           "size_bytes": 1264
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "e0c9dde19529720a67b386922ef9750312a2a8ead61b431b0515dfbcb8b9842c",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/focused/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "3267dc4e999b8ebdc6277655e7c5ed567ae47dc0ab0b1f0259d126c2f0a3b7da",
           "size_bytes": 20093
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-          "sha256": "ae00b92d1f5758c858af482988816c50916bbbe11e81f03225f7532b81b32d66",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/single-bank/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+          "sha256": "88b5a1479986a1deae0f4991a16246eec6f6f708e5a6580c44cae3d89db568ba",
           "size_bytes": 19971
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/store-queue/logs/tb_ooo_store_queue.log",
-          "sha256": "6bc261036808a5518122147853773abf30bf040e19799bc73f8ea00300735d73",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/store-queue/logs/tb_ooo_store_queue.log",
+          "sha256": "e92c2586f9cbf7637f0fbe299e81dc0ed70d3c31b625c4c616297eadaa8127db",
           "size_bytes": 11911
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
-          "sha256": "a60f2fb71365f3a4c37b7b10025dec1629086d128844259096e1fc2580c6f151",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/dual-memory/logs/tb_ooo_int_backend_v8s_dual_memory.log",
+          "sha256": "3367e3d88562e66b6e1b0978995205c2a05d21e3a6040a9aa49beab5b5a781e9",
           "size_bytes": 22049
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend.log",
-          "sha256": "3fc75ffdbf8c96a857cd3440bf692941e4ab8ed00227dd1d630831fb5998fbda",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend.log",
+          "sha256": "83ee0389dfa48c8215720c6ea0cdedf853e855b7038d728507abd929a8df4a23",
           "size_bytes": 25621
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
-          "sha256": "46f1ed1d6e71f3bfb56d9902b397f868a3ed00bde81f16c23a7add011e2f2856",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log",
+          "sha256": "718e3cd2ea31a04def9b06dd5c83f07d4f9d5d7951859644c3b8ffc042a78973",
           "size_bytes": 20601
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
-          "sha256": "2274742b7faca743b00b5316fdced1e450733c3d056361c1b0575af314862209",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/linked-regressions/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log",
+          "sha256": "d6a4acea504d722eded1f736fff408d6ef9d0a380be0e2aba0b4761b96d9346a",
           "size_bytes": 20839
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/result.txt",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/result.txt",
           "sha256": "8a06054a09f9310a4eb697aaa17f66cbecb371af9a809b8b43a50807e1d61b75",
           "size_bytes": 260
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/result.txt",
-          "sha256": "47e40604e62e65dee67b0c1b221b1b6214ceb8106f2f08b768e4fecb296936c7",
-          "size_bytes": 784
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/result.txt",
+          "sha256": "209baa4c7015d944fb92a8071b89cecd168d0be223a5b80b8a2fdcf3d7022a9b",
+          "size_bytes": 762
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "d5d78dc8e75141af4d65286b79adaef75c587f8324e58fd014e950b89220c603",
-          "size_bytes": 20330
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "fc01daa19a9d9686fbe706b409a35dc8fd0ec146b18bbe49414ae60e8ed9635f",
+          "size_bytes": 20297
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/amo-held-launch-authorization/amo-held-launch-authorization.diff",
           "sha256": "318adb723876c55f8a683724e286bd1a7abe1308202eb6d8465b5729610d223a",
           "size_bytes": 704
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/result.txt",
-          "sha256": "127a5772a818bc6a13564acd6a9e47c70cea8f5636eca718527107bdb513c426",
-          "size_bytes": 736
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/result.txt",
+          "sha256": "4ccdb2026445a4a7c1e47ece60702512194533526eefd5257009aa0ec3cc96f5",
+          "size_bytes": 714
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "3e79c20f72fc6297ab39152669556720dd8bfa8caa7d5dd4fad239f11b098a8e",
-          "size_bytes": 20721
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "f68b532c648d50a54ca8c6feee1ce69c4ae594c8f827d18da0d2448a7c07cc58",
+          "size_bytes": 20699
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/cancel-fallback/cancel-fallback.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/cancel-fallback/cancel-fallback.diff",
           "sha256": "42dc2437b3a4482b81fb11318c881e13ff936a2afab712fcf7ee67eab8a37299",
           "size_bytes": 1054
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/result.txt",
-          "sha256": "7a91e8192a1789c1d246b7b9b95a8f12d458334048319229e792994bd3d9a90a",
-          "size_bytes": 785
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/result.txt",
+          "sha256": "90848bd5cefbae57b491adc4e76d1a143bb5ee6879b5287350ee3aa035339ba3",
+          "size_bytes": 763
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "999536f3e18b0dd3add2306a012f48e830518a191807687d036830d93fa3251c",
-          "size_bytes": 20530
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "9d4f9ff9cc4fbb554e74c1ffe03563bc6232fb0c1033264a7c9eb4a433c42997",
+          "size_bytes": 20508
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/consume-miq-live-split/consume-miq-live-split.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/consume-miq-live-split/consume-miq-live-split.diff",
           "sha256": "7750a59c61674d2d77e18f8d9187727aded00debfe62c9ff890300e035b3dff3",
           "size_bytes": 1946
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/result.txt",
-          "sha256": "85833451409e151d280bdc98b28c3da0b0540dfff448c5e7310ef0f3c5cda1f6",
-          "size_bytes": 727
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/result.txt",
+          "sha256": "f2295e8602645d7cea59ab962e756c1d5b108d923b57dcf8a7407138a31484b9",
+          "size_bytes": 705
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "357d8b759507c86d77e128c9779f524d15bfb1c56420bc01011b2024e5b8af40",
-          "size_bytes": 20729
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "0d8c5e1282a49464abe9885c6b0b43966d34a15aa798c07c3f7d7472de7949d7",
+          "size_bytes": 20685
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/holder-bypass/holder-bypass.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/holder-bypass/holder-bypass.diff",
           "sha256": "ffa113d30cdc96f47132515a63aa90dd460d270aea48d325a09665b57069f67c",
           "size_bytes": 1246
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/result.txt",
-          "sha256": "232f0f1f271e73d396c643509f7cc90437ca8cec9a47f2fbc4533efa02cb98ea",
-          "size_bytes": 789
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/result.txt",
+          "sha256": "bdd5ee3835441780471fb737d0c35bc34fea673b1dfbaa12f62e4f538446934e",
+          "size_bytes": 767
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
-          "sha256": "b79a6037e7579fdd3014826c0f01517f61bc28317e7515fb826c98904643fe18",
-          "size_bytes": 20380
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/mutation/logs/tb_ooo_int_backend_v14r_single_bank_probe_order.log",
+          "sha256": "5fca571a2aef794ff5a148e2b4df9f20174985d923013cb98e3efaa145636aaf",
+          "size_bytes": 20358
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/single-bank-probe-order/single-bank-probe-order.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/single-bank-probe-order/single-bank-probe-order.diff",
           "sha256": "578008c54f0c6188f91a0ee1a55ab17102b4cec2a9893c3d99897d5938338b86",
           "size_bytes": 1155
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/result.txt",
-          "sha256": "936190bfd465b2f4c0d2f5c9d28bb7af806c831e81840d2ad70d1d49bc15260b",
-          "size_bytes": 770
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/result.txt",
+          "sha256": "de1609009276e8923909fc0d74a9c25c7a61ce6d72c385090381697a7ebd1380",
+          "size_bytes": 748
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
-          "sha256": "cd9f8a66b1eaca0b3c82ee55e83ed74d8ebd5972fccbb413f55b4894908b30db",
-          "size_bytes": 20505
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/mutation/logs/tb_ooo_int_backend_v14r_memory_request_hold.log",
+          "sha256": "b388847ebf3dd09d9b4a05109856530bf6a19a686c8ca5e43deb765cfdd4b5f2",
+          "size_bytes": 20472
         },
         {
-          "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/v14r-current-f72e-v1/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
+          "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/v14r-current-d3f3-v1/mutation/sq-held-launch-residency/sq-held-launch-residency.diff",
           "sha256": "1d841eb2d1e67564a5e05a3f9255d9d65fd413e83ef54c84f26f0f775b7c7dcc",
           "size_bytes": 626
         }
@@ -2578,8 +2578,8 @@
         "bank_local_exact_source_and_token_hold_closed": true,
         "compile_success_mutations_rejected": 6,
         "compiled_images_retained": 0,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-        "evidence_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+        "evidence_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "holder_flip_flops": 29,
         "nonflush_cancel_priority_closed": true,
         "positive_profiles": 7,
@@ -2855,13 +2855,15 @@
       "binding_state": "HISTORICAL_FULL_RTL_BOUND",
       "detail": {
         "compile_success_mutations": 9,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:882111fb3d58039cb7414e6331dac0c10d848463df2228dff93ae22dafbed67b",
         "live_rtl_mismatches": [
           "npc/rv64/vsrc/control/OooControlPlane.v",
+          "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
           "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
           "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
           "npc/rv64/vsrc/execute/OooIntBackend.v",
+          "npc/rv64/vsrc/filelist.mk",
           "npc/rv64/vsrc/frontend/OooFrontend.v",
           "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
           "npc/rv64/vsrc/memory/OooLoadQueue.v",
@@ -2910,7 +2912,7 @@
       "detail": {
         "baseline_passed": 2,
         "compile_success_variants_rejected": 3,
-        "current_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+        "current_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
         "evidence_design_id": "sha256:b27ac45028e2b1261a93463b030e6f7953dfc3b9a071ee83bea1a2b11234c375",
         "live_source_mismatches": [
           "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
@@ -2996,15 +2998,15 @@
     }
   ],
   "global_closure": {
-    "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+    "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
     "global_no_live_reuse": "GREEN",
     "optional_lane1_product_configuration": "PRODUCT_INACTIVE_CONSTANT_LOW",
     "ppa": "UNPROMOTED",
     "receipt": {
       "kind": "global-producer-no-live-reuse-receipt",
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "52c664dcfbdf23c8d9c1a8a2fa12be976a3d7f8e217f181603cd1046e19d0571",
-      "size_bytes": 81603
+      "sha256": "d810ff012b4c4e1ddeaea05c4c8091ef33e969772cd3662b6dcb20f597b6fc52",
+      "size_bytes": 81207
     },
     "semantic_units": 46,
     "status": "PASS",
@@ -3017,8 +3019,8 @@
   "inputs": {
     "census": {
       "path": "npc/rv64/design/arch/producer-holder-census.json",
-      "sha256": "cd14113277a61f1b0131c507510d2d15d5d2dca5018d1e89a74882cd1e2e8d81",
-      "size_bytes": 32514
+      "sha256": "55e81869db98540440afaaf6bf715ec47c58d413c0db8941e633afbd6954594f",
+      "size_bytes": 32459
     },
     "compile_image_retirements": [
       {
@@ -3039,22 +3041,22 @@
     ],
     "global_closure_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json",
-      "sha256": "52c664dcfbdf23c8d9c1a8a2fa12be976a3d7f8e217f181603cd1046e19d0571",
-      "size_bytes": 81603
+      "sha256": "d810ff012b4c4e1ddeaea05c4c8091ef33e969772cd3662b6dcb20f597b6fc52",
+      "size_bytes": 81207
     },
     "instance_graph": {
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/holder-instance-graph.json",
-      "sha256": "3b50bb62ef811b917057107ef00745edfe8a76a88405a041d20c22182afb4b2e",
-      "size_bytes": 86444
+      "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/holder-instance-graph.json",
+      "sha256": "e8b507550b8aa7d886c27b20a53d8a5a4eaaf84de8ff3cb92c01cef5e28905f2",
+      "size_bytes": 86974
     },
     "policy": {
       "path": "npc/rv64/design/arch/producer-holder-semantic-coverage-policy.json",
-      "sha256": "7582af61961f1b7ba9bc4095586eb196f186dadd04a4f079b4528f34bd1668db",
-      "size_bytes": 35276
+      "sha256": "d61a935bfee0a5085ce3e4dfc88afd56ff1a5512a913a2d29e26cb762f122ca9",
+      "size_bytes": 35243
     },
     "system_recertification_receipt": {
       "path": "npc/rv64/eval/ppa/evidence/system-recertification-current.json",
-      "sha256": "bbf760cf7df545ef86876cb790d2ac8291e1b827f41d9b20d5e3700b492dada1",
+      "sha256": "360ae1e8691d23c987ebf82fba0534a2b5a3e9d2905c6ec3ee9e78ce354fd2b5",
       "size_bytes": 2851
     }
   },
@@ -3073,9 +3075,9 @@
       "L2_MINI_SYSTEM",
       "L3_LIGHTWEIGHT_LINUX"
     ],
-    "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-    "l0_passed": 113,
-    "l0_required": 113,
+    "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+    "l0_passed": 114,
+    "l0_required": 114,
     "l1_am_passed": 61,
     "l1_am_required": 61,
     "l1_official_passed": 177,

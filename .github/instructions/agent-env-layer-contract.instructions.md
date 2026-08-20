@@ -29,6 +29,8 @@
   `scripts/agent-e2e.sh`、`scripts/agent-maintain.sh` 和 `scripts/package-ai-dev-env.sh`。
 - 保存对象：任务分类、显式修改路径、gate pointer、review routing、e2e profile、compact/durable
   task-run、长期 runner 状态和商业交付包。
+- 验证预算：固定输入与确定性 oracle 默认单次执行；重复只由显式不确定性或机器异常触发。独立 reviewer
+  只由高风险/发布/迁移/破坏性操作/正式架构晋级/用户要求触发，不由文件数或“非平凡”触发。
 - 文件语义：普通任务由 C 调度器在目标轮次末尾按路径收口；只有 profile/release/长链任务才进入
   完整图执行。工具范围、retention、CI/nightly 和预算规则由 policy 声明。
 - 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小充分工程边界，并由 `agent-system` 的 `rtl-task-contract` 节点验证能力不变的 `rv64-hardware-professional` 语境渲染；该层不使用关键词黑名单，协调状态留在主 agent 记录中，review 暂停只作用于当前节点。

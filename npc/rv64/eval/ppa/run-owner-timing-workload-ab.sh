@@ -10,7 +10,7 @@ arch_stable_input=npc/rv64/eval/ppa/evidence/arch-stable-current.json
 
 usage() {
   printf '%s\n' \
-    "usage: $0 --run-dir .github/task-runs/<run-id> [--arch-stable PATH] [--mode full|invalid-probe] [--workload coremark|dhrystone_10000]" >&2
+    "usage: $0 --run-dir .github/task-runs/<run-id> [--arch-stable PATH] [--mode full|candidate-full|invalid-probe] [--workload coremark|dhrystone_10000]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -43,7 +43,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "${mode}" in
-  full|invalid-probe) ;;
+  full|candidate-full|invalid-probe) ;;
   *) usage; exit 2 ;;
 esac
 case "${probe_workload}" in
@@ -85,7 +85,10 @@ esac
 
 artifact_name=owner-timing-workload-ab
 arch_stable_required=1
-if [[ "${mode}" == invalid-probe ]]; then
+if [[ "${mode}" == candidate-full ]]; then
+  artifact_name=owner-timing-current-candidate-ab
+  arch_stable_required=0
+elif [[ "${mode}" == invalid-probe ]]; then
   artifact_name=owner-timing-invalid-probe
   arch_stable_required=0
 fi
@@ -327,7 +330,7 @@ fi
 
 if [[ "${simulator_identity_rc}" -eq 0 ]]; then
   coremark_rc=0
-  if [[ "${mode}" == full || "${probe_workload}" == coremark ]]; then
+  if [[ "${mode}" != invalid-probe || "${probe_workload}" == coremark ]]; then
     coremark_repetitions=3
     if [[ "${mode}" == invalid-probe ]]; then
       coremark_repetitions=1
@@ -347,7 +350,7 @@ fi
 
 if [[ "${coremark_rc}" -eq 0 ]]; then
   dhrystone_rc=0
-  if [[ "${mode}" == full || "${probe_workload}" == dhrystone_10000 ]]; then
+  if [[ "${mode}" != invalid-probe || "${probe_workload}" == dhrystone_10000 ]]; then
     dhrystone_repetitions=3
     if [[ "${mode}" == invalid-probe ]]; then
       dhrystone_repetitions=1
@@ -422,6 +425,21 @@ if [[ "${postflight_rc}" -eq 0 && "${cleanup_capture_rc}" -eq 0 ]]; then
       --dhrystone-log "${logs_dir}/dhrystone-owner-timing-rep2.log" \
       --dhrystone-log "${logs_dir}/dhrystone-owner-timing-rep3.log" \
       --output "${result_path}" >"${evidence_dir}/receipt-build.log" 2>&1
+  elif [[ "${mode}" == candidate-full ]]; then
+    python3 -B "${tool}" build-current-candidate \
+      --baseline "${baseline}" \
+      --contract "${contract}" \
+      --profile "${profile}" \
+      --production-manifest "${manifest_before}" \
+      --simulator-identity "${simulator_identity}" \
+      --cleanup "${cleanup_identity}" \
+      --coremark-log "${logs_dir}/coremark-owner-timing-rep1.log" \
+      --coremark-log "${logs_dir}/coremark-owner-timing-rep2.log" \
+      --coremark-log "${logs_dir}/coremark-owner-timing-rep3.log" \
+      --dhrystone-log "${logs_dir}/dhrystone-owner-timing-rep1.log" \
+      --dhrystone-log "${logs_dir}/dhrystone-owner-timing-rep2.log" \
+      --dhrystone-log "${logs_dir}/dhrystone-owner-timing-rep3.log" \
+      --output "${result_path}" >"${evidence_dir}/receipt-build.log" 2>&1
   else
     probe_log="${logs_dir}/${probe_workload%%_10000}-owner-timing-rep1.log"
     python3 -B "${tool}" build-invalid-probe \
@@ -442,12 +460,21 @@ fi
 if [[ "${receipt_rc}" -eq 0 ]]; then
   task_run_status_stage "receipt-verify"
   verify_command=verify
-  if [[ "${mode}" == invalid-probe ]]; then
+  if [[ "${mode}" == candidate-full ]]; then
+    verify_command=verify-current-candidate
+  elif [[ "${mode}" == invalid-probe ]]; then
     verify_command=verify-invalid-probe
   fi
   python3 -B "${tool}" "${verify_command}" --input "${result_path}" \
       >"${evidence_dir}/receipt-verify.log" 2>&1
   verify_rc=$?
+fi
+
+candidate_gate_rc=0
+if [[ "${mode}" == candidate-full && "${verify_rc}" -eq 0 ]]; then
+  task_run_status_stage "candidate-performance-gate"
+  jq -e '.performance_gate == "PASS"' "${result_path}" >/dev/null 2>&1
+  candidate_gate_rc=$?
 fi
 
 printf '%s\n' \
@@ -466,6 +493,7 @@ printf '%s\n' \
   "cleanup_capture_rc=${cleanup_capture_rc}" \
   "receipt_rc=${receipt_rc}" \
   "verify_rc=${verify_rc}" \
+  "candidate_gate_rc=${candidate_gate_rc}" \
   "build_bytes_deleted=${build_bytes_deleted}" \
   >"${command_status}"
 
@@ -476,6 +504,7 @@ if [[ "${preflight_rc}" -eq 0 && "${fast_rc}" -eq 0 &&
       "${manifest_rc}" -eq 0 && "${postflight_rc}" -eq 0 &&
       "${cleanup_rc}" -eq 0 && "${cleanup_capture_rc}" -eq 0 &&
       "${receipt_rc}" -eq 0 && "${verify_rc}" -eq 0 &&
+      "${candidate_gate_rc}" -eq 0 &&
       -s "${result_path}" ]]; then
   command_rc=0
   task_run_status_stage "evidence-complete"

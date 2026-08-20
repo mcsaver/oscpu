@@ -1,0 +1,100 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "d3f3-mapped-macro-boundary-baseline-a1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "ppa-analysis",
+  "goal": "对 ARCH_STABLE d3f3 NpcTop 执行一次 current-source 5 ns traceable mapped synthesis 与 OpenSTA 宏边界基线；精确记录 128-source synthesis closure、OooBranchDirectionPredictor/OooFpArithGate placeholder blackbox inventory、logic area proxy、WNS/TNS、Top40 path、production manifest before/after、runtime cleanup 与 architecture-registry binding，不修改 production RTL。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      ".github/task-runs/2026-08-06-rv64-v15p-adapter-final-b-fallthrough-f7a/driver",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tools/traceable_path_inventory.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_traceable_path_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "npc/rv64/eval/ppa/evidence/arch-stable-independent-review-current.json",
+      "npc/rv64/vsrc",
+      "npc/rv64/csrc",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/Makefile",
+      "npc/rv64/syn/macro-lib",
+      "yosys-sta",
+      "oss-cad-suite/bin/yosys",
+      "oss-cad-suite/bin/yosys-abc",
+      "scripts/task-run-status.sh",
+      ".github/runtime-artifacts",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/final-audit.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-mapped-macro-boundary-baseline-a1.json"
+    ],
+    "write_paths": [
+      ".github/runtime-artifacts",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/arch-stable-current-d3f3-v11/final-audit.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "运行且仅运行一次 npc/rv64/eval/ppa/run-traceable-mapped-current.sh --run-dir .github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a1 --evidence-id traceable-d3f3-macro-boundary-a1；返回 summary.json、command-status.txt、task-run status、synthesis source count、blackbox/macro inventory、logic area、WNS/TNS/violations/loops、Top40 中 BPU/FP 边界路径、cleanup 与 design binding 的 PASS/GAP，保留反例、unknowns、alternative_hypotheses、scope_extension_request 和 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有 task-run 终态 PASS、所有 command-status 返回码为 0、before/after production manifest 相同、128 synthesis sources 精确包含 BPU/FP 源、blackbox 精确为两 SRAM 加 OooFpArithGate/OooBranchDirectionPredictor、summary design-id 为 d3f3、OpenSTA 完成、Top40 40/40 可追踪且 runtime/netlist 已清理时才允许 baseline PASS；该 PASS 仅是 placeholder macro-boundary PPA 诊断，BPU/FP 内部路径面积功耗仍为 GAP，WNS 为负或其它 hard gate 不满足时不得升级。命令本身正确但工程结果失败时保留原始 GAP，不重复执行。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

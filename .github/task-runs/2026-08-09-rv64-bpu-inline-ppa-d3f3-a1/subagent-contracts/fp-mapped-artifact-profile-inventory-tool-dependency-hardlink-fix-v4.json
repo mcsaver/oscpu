@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-v4",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "闭合 NpcTop FP mapped tool v2 剩余两个输入完整性反例：把 canonical result generator 运行时 import 的 architecture_registry.py 作为 result/detached receipt 必需依赖逐项绑定；在 BPU/FP profile artifact validator 中要求当前 evidence_dir 内规范文件 st_nlink==1，拒绝跨目录旧 artifact 的 exact-basename hardlink replay。同步核对 production runner 实际传入 absolute canonical non-alias out_dir，必要时做最小接线修复。生成 v4 result/receipt，保留 v1 错误、v2 结果与未派发的语义失真 v3 合同身份；只运行受影响测试，不运行 production EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/fp-mapped-artifact-profile-tool-result-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_mapped_artifact_tool_result.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-identity-fix-v2.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-identity-fix-independent-review-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-v3.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-v4.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/schemas/fp-mapped-artifact-profile-tool-result-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_mapped_artifact_tool_result.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-identity-fix-independent-review-v2.result.md",
+      "npc/rv64/eval/ppa/tools/fp_mapped_artifact_tool_result.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "扩展 result schema/generator/validator 与 detached receipt，使 architecture_registry.py 的 canonical path、size、SHA 为必需 bound dependency；任一漂移使 verify 非零。新 v4 result/receipt 明确 supersede v2，同时继续保留原 d1edadb0 identity error，并记录 v3 合同因 shell command-substitution 语义失真而未派发。",
+    "在 profile artifact canonical validator 中要求文件不是 symlink、resolved path 精确、basename 精确、receipt path/scope/SHA/size 精确且 st_nlink==1；FP/BPU 各新增真实 hardlink replay 负向测试，并保持正常临时目录正向路径通过。",
+    "只读核对 runner 的 evidence_dir/out_dir 创建与 parser --out-dir 实参；若非 absolute canonical non-alias 则最小修正并增加定向静态/行为断言。封存 v4 单次受影响 unittest、generate/validate/verify 与 scoped audit；不重跑其它门。"
+  ],
+  "success_criteria": [
+    "最终确定输入只执行一次受影响 dependency/hardlink/runner-path unittest 子集、一次 v4 canonical generate+validate+verify 和一次 scoped diff/text audit且全部 rc=0；v4 receipt 绑定 architecture_registry.py，FP/BPU exact-basename hardlink 均被拒绝，production runner 传入 absolute canonical out_dir。不得重复旧 39-test 全批、runner bash-n、v2 gate，不运行 production synthesis/OpenSTA/STA/parser main/RTL 仿真；RTL/Registry catalog/A1/A2 不改，PPA 保持 UNMEASURED/GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

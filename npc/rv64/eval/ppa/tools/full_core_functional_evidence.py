@@ -10,6 +10,7 @@ frozen binaries, images, logs, and aggregate JSON are durable cohort inputs.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -58,6 +59,32 @@ GENERATED_INPUT_NAMES = frozenset({".result"})
 GENERATED_INPUT_SUFFIXES = frozenset({
     ".a", ".bin", ".dump", ".elf", ".o", ".so", ".vvp",
 })
+CHECKER_ONLY_INPUT_PATHS = frozenset({
+    "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
+    "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py",
+})
+
+
+def execution_relevant_inputs(value: dict[str, Any]) -> dict[str, Any]:
+    """Remove downstream checker bytes from a frozen DUT-execution closure.
+
+    Both files are re-executed by the current audit and are separately frozen
+    in the ARCH_STABLE workflow inventory.  Their byte drift therefore
+    requires checker replay, not a second execution of unchanged RTL/tests.
+    All RTL, testbench, runner, toolchain, configuration and workload inputs
+    remain exact and fail closed.
+    """
+
+    projected = copy.deepcopy(value)
+    groups = projected.get("groups")
+    if not isinstance(groups, dict):
+        return projected
+    for records in groups.values():
+        if not isinstance(records, dict):
+            continue
+        for relative in CHECKER_ONLY_INPUT_PATHS:
+            records.pop(relative, None)
+    return projected
 
 
 def load_legacy_runner() -> Any:
@@ -369,7 +396,8 @@ def validate_module_result(
         raise RuntimeError("; ".join(input_errors[:8]))
     if (
         require_current_inputs
-        and inputs_pre != module_evidence.capture_inputs(expected_tests)
+        and execution_relevant_inputs(inputs_pre)
+        != execution_relevant_inputs(module_evidence.capture_inputs(expected_tests))
     ):
         raise RuntimeError("module frozen inputs differ from live module inputs")
     artifacts = value.get("artifacts")
@@ -1253,7 +1281,9 @@ def verify_functional_result(
 
     if require_current_design:
         current_inputs = capture_functional_inputs(legacy, required_tests)
-        if current_inputs != inputs_pre:
+        if execution_relevant_inputs(current_inputs) != execution_relevant_inputs(
+            inputs_pre
+        ):
             raise RuntimeError("functional frozen inputs differ from live execution inputs")
 
     if require_canonical_current:

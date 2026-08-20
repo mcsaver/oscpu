@@ -268,5 +268,8 @@ task_run_status_stage "complete"
 task_run_status_mark_evidence_complete
 task_run_status_finalize 0 "${cleanup_rc}" || exit $?
 finalized=1
+design_id="$(${python_bin} -B -c \
+  'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["design_id"])' \
+  "${before_path}")" || exit $?
 printf '%s\n' \
-  "[RV64-ACT4-CURRENT][PASS] design=f72e-bound cases=100 assertions=0 publish=${publish_current}"
+  "[RV64-ACT4-CURRENT][PASS] design=${design_id} cases=100 assertions=0 publish=${publish_current}"

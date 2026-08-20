@@ -1,0 +1,107 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-pathend-audit-closure-v6",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "本地 RV64 OooFpAddSubPipe 5.0ns OOC PathEnd 的 v4 真实 OpenSTA 与功能门禁已PASS；v5仅因把Python f-string源码中的双花括号按运行时Tcl单花括号匹配而FAIL。建立最后一次最小证据closure：保留v4/v5原始收据，沿AST/def方法边界定位 test_opensta_pathend_points_arrival_measurement_semantics，并按源码形态精确检查 foreach property 双花括号及四个PathEnd query-to-unset顺序。不得增加新的功能、Registry、runner或EDA门禁。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/subagent-contracts/fp-ooc-child-opensta-pathend-lifetime-fix-v4.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/subagent-contracts/fp-ooc-child-opensta-pathend-audit-closure-v5.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5/closure-audit.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/subagent-contracts/fp-ooc-child-opensta-pathend-audit-closure-v6.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v6"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-audit-closure-v5/closure-audit.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-lifetime-fix-v4/affected-unittest.log",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增v6独立closure runner且不改v4/v5。逐项绑定v4真实OpenSTA PASS与v5 evidence-only FAIL哈希、当前生产输入和A6冻结哈希。",
+    "只在目标Python test method范围内检查源码形态 marker：foreach property {{path_delay delay arrival}}，并验证setup、hold、output-max、output-min各自query、全部读取/负向检查、unset后才出现下一query；同时确认生产与harness只用-group_path_count。",
+    "唯一执行v6 closure批次1次；unittest、OpenSTA harness、Registry render/check、production runner bash-n、Yosys/OpenSTA/STA/RTL sim、A6 rerun全部0次。失败封存且不再为证据审计增加新门槛。"
+  ],
+  "success_criteria": [
+    "v6 closure rc0并输出唯一PASS marker，v4/v5/A6与当前生产输入哈希不漂移；结果明确v4功能/工具边界PASS而PPA仍GAP。若再次只因非承重evidence字符串失败，停止审计递归并由主节点基于v4真实OpenSTA收据作裁决。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v16a-owner-permit-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 RV64 OooSerializedMemTerminalPermit 对 serialized memory owner terminal transaction 的跨周期 capture/consume/cancel 语义，以及 93c8 候选相对 f72e 基线的定向 TB、compile-success RTL mutation、CoreMark/Dhrystone CPI、5ns mapped STA Top40、WNS/TNS 与逻辑面积证据；裁决候选应 retain_for_reconciliation、rollback 或 research_only，禁止把 timing hard-gate FAIL 扩写成 promotion PASS。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/interface-contract-first.instructions.md",
+      "npc/rv64/design/specs/ooo-serialized-mem-terminal-permit.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_mem_terminal_permit.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv",
+      "npc/rv64/testbench/scripts/run_v16a_serialized_mem_terminal_permit_mutation.sh",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-cpi-93c8-a1",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a2",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/selector-live-93c8.json",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/subagent-contracts/v16a-owner-permit-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-serialized-mem-terminal-permit.md",
+      "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence/selector-live-93c8.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出以真实 RTL signal/transaction 与 evidence 文件为主语的独立审查结论，包含 preserved invariants、反例、f72e→93c8 CPI/WNS/TNS/area 数值比较、Top40 路径迁移、A1/A1b/A2 状态边界、retain/rollback/research-only 裁决、unknowns、替代假设、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "逐项核对 owner exact-one、owner mismatch、flush/cancel/consume clear priority、raw backend drain、FENCE current mem_idle、ROB-head trap priority、CPI no-regression、mapped Top40 目标路径是否移出、timing hard gate 与面积边界；所有结论绑定真实文件/marker，任何缺证据项保持 GAP，不执行或要求机械重跑 A2。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

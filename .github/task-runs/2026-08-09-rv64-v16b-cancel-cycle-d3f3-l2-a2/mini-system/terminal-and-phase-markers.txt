@@ -1,0 +1,55 @@
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:16:[dpi.c:156 uart-rx] loaded bytes=1 file_bytes=0 text_bytes=1 trace=1 min_commit=0 limit=1 cycle_gap=0 release_delay=1000 wait='__RV64_L2_CASE_SELECT__'
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:17:[dpi.c:410 uart-rx] waiting for guest output pattern='__RV64_L2_CASE_SELECT__' before releasing bytes=1
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:19:[dpi.c:249 irq-trace] enabled min_commit=0 limit=256
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:20:[progress] 1000001 insts, pc=0x0000000080019386, 49024 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:21:[progress] 2000000 insts, pc=0x00000000800194ae, 47038 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:38:[guest] OpenSBI v1.8
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:345:[progress] 3000000 insts, pc=0x00000000800148e0, 42607 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:346:[progress] 4000001 insts, pc=0x000000008000b99e, 44971 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:347:[progress] 5000001 insts, pc=0x0000000080019516, 48190 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2885:[guest] __RV64_L2_BEGIN__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2912:[guest] __RV64_L2_OPENSBI_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2938:[guest] __RV64_L2_M_TO_S_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2961:[guest] __RV64_L2_FDT_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2987:[dpi.c:175 uart-rx] pop=1 cycle=9206162 commit=5929430 data=0x78 char='x'
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:2990:[guest] __RV64_L2_CASE_SELECT__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3013:[guest] __RV64_L2_CASE_ALL__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3037:[guest] __RV64_L2_SV39_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3066:[guest] __RV64_L2_AD_UPDATE_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3105:[guest] __RV64_L2_PERMISSION_RECOVERY_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3131:[guest] __RV64_L2_S_TO_U_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3165:[guest] __RV64_L2_AMO_LRSC_FENCE_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3169:[progress] 6000001 insts, pc=0x00000000800024ae, 31499 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3196:[guest] __RV64_L2_SFENCE_VMA_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3225:[guest] __RV64_L2_TIMER_IRQ_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3249:[guest] __RV64_L2_MMIO_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3250:[dpi.c:371 irq-trace] event=1 cycle=9742980 commit=6061129 uart_irq=1 plic_irq=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3251:[dpi.c:371 irq-trace] event=2 cycle=9742982 commit=6061131 uart_irq=1 plic_irq=1
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3252:[dpi.c:371 irq-trace] event=3 cycle=9743141 commit=6061150 uart_irq=1 plic_irq=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3253:[dpi.c:371 irq-trace] event=4 cycle=9743255 commit=6061162 uart_irq=0 plic_irq=0
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3286:[guest] __RV64_L2_PLIC_UART_IRQ_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3314:[guest] __RV64_L2_POWERDOWN_ARM__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3345:[guest] __RV64_L2_MINI_SYSTEM_PASS__
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3346:[cpu-exec.cpp:2834 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x00000000800237ae
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3347:[cpu-exec.cpp:2851 report_run_result] exit via system-reset, code=0, cycles=9897206, commits=6095067
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3349:[cpu-exec.cpp:2470 statistic] total guest instructions = 6095067
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/npc.log:3350:[cpu-exec.cpp:2473 statistic] total guest cycles = 9897206
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:21:[1;34m[dpi.c:156 uart-rx] loaded bytes=1 file_bytes=0 text_bytes=1 trace=1 min_commit=0 limit=1 cycle_gap=0 release_delay=1000 wait='__RV64_L2_CASE_SELECT__'[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:22:[1;34m[dpi.c:410 uart-rx] waiting for guest output pattern='__RV64_L2_CASE_SELECT__' before releasing bytes=1[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:24:[1;34m[dpi.c:249 irq-trace] enabled min_commit=0 limit=256[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:25:[progress] 1000001 insts, pc=0x0000000080019386, 49024 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:26:[progress] 2000000 insts, pc=0x00000000800194ae, 47038 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:352:[progress] 3000000 insts, pc=0x00000000800148e0, 42607 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:353:[progress] 4000001 insts, pc=0x000000008000b99e, 44971 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:354:[progress] 5000001 insts, pc=0x0000000080019516, 48190 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:2996:[1;34m[dpi.c:175 uart-rx] pop=1 cycle=9206162 commit=5929430 data=0x78 char='x'[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3178:R[progress] 6000001 insts, pc=0x00000000800024ae, 31499 inst/s
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3259:[1;34m[dpi.c:371 irq-trace] event=1 cycle=9742980 commit=6061129 uart_irq=1 plic_irq=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3260:[1;34m[dpi.c:371 irq-trace] event=2 cycle=9742982 commit=6061131 uart_irq=1 plic_irq=1[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3261:[1;34m[dpi.c:371 irq-trace] event=3 cycle=9743141 commit=6061150 uart_irq=1 plic_irq=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3262:[1;34m[dpi.c:371 irq-trace] event=4 cycle=9743255 commit=6061162 uart_irq=0 plic_irq=0[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3355:syscon-reset: poweroff requested value=0x00005555 pc=0x00000000800237ae cycle=9897205 commit=6095067
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3356:[1;34m[cpu-exec.cpp:2834 cpu_exec] npc: [1;32mHIT GOOD TRAP[0m at pc = 0x00000000800237ae[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3357:[1;34m[cpu-exec.cpp:2851 report_run_result] exit via system-reset, code=0, cycles=9897206, commits=6095067[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3359:[1;34m[cpu-exec.cpp:2470 statistic] total guest instructions = 6095067[0m
+/home/lyg/PA/ysyx-workbench/.github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l2-a2/mini-system/console.log:3360:[1;34m[cpu-exec.cpp:2473 statistic] total guest cycles = 9897206[0m

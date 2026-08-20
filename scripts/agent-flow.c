@@ -83,6 +83,14 @@ static const GateDef GATES[] = {
         60,
     },
     {
+        "rv64-architecture-registry",
+        "/usr/bin/python3 -B -m unittest "
+        "npc.rv64.eval.ppa.tests.test_architecture_registry -v && "
+        "/usr/bin/python3 -B "
+        "npc/rv64/eval/ppa/tools/architecture_registry.py check",
+        60,
+    },
+    {
         "rv64-terminal-collector-lane-contract",
         "/usr/bin/python3 -B -m unittest "
         "npc.rv64.eval.ppa.tests.test_terminal_collector_lane_contract -v",
@@ -822,6 +830,23 @@ static int derive_gates(const FlowMeta *meta, const StringList *paths,
                 return -1;
             }
         }
+        if (strcmp(path, "npc/rv64/ARCHITECTURE.md") == 0 ||
+            strcmp(path,
+                   "npc/rv64/design/arch/rv64-architecture-registry-v1.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tools/architecture_registry.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/tests/test_architecture_registry.py") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json") == 0 ||
+            strcmp(path,
+                   "npc/rv64/eval/ppa/run-traceable-mapped-current.sh") == 0) {
+            if (add_gate(gates, "rv64-architecture-registry") != 0) {
+                return -1;
+            }
+        }
         if (strcmp(path,
                    "npc/rv64/design/arch/full-core-functional-run-policy-v1.json") == 0 ||
             strcmp(path,
@@ -1316,8 +1341,7 @@ static int derive_gates(const FlowMeta *meta, const StringList *paths,
                    "npc/rv64/eval/ppa/README.md") == 0 ||
             strcmp(path,
                    ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
-            strcmp(path, ".github/agentic-hardware-blueprint.md") == 0 ||
-            strcmp(path, "AI_ENVIRONMENT.md") == 0) {
+            strcmp(path, ".github/agentic-hardware-blueprint.md") == 0) {
             if (add_gate(gates, "rv64-optimization-slice-selector") != 0) {
                 return -1;
             }

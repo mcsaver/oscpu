@@ -1,0 +1,135 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-production-ppa-9d8b-a6",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "ppa-analysis",
+  "goal": "在A1-A5首次失败全部冻结，且PYTHONPATH/status、result-dir/cleanup、source-domain、post-split/stdlib manifest、OpenSTA exact_port_family五组确定修复均独立RETAIN后，对live sha256:9d8bb6af的NpcTop 5.0ns OOC配置执行且仅执行一次A6 production diagnostic：五child真实Yosys+max/min OpenSTA、实测Liberty、wrapper inline与五known OOC回接NpcTop、completion FIFO boundary。任何终态封存不重跑。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa",
+      "npc/rv64/syn/macro-lib",
+      "yosys-sta",
+      "oss-cad-suite",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/runtime-artifacts/fp-ooc-composite/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/runtime-artifacts/locks/rv64-fp-ooc-composite.lock",
+      ".github/task-runs/2026-08-10-rv64-fp-arith-children-ppa-9d8b-a1/subagent-contracts/fp-arith-synthesis-timeout-physical-closure-architecture-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-child-opensta-port-family-independent-review-v1.json",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-composite-production-ppa-9d8b-a6.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/runtime-artifacts/fp-ooc-composite/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/runtime-artifacts/locks/rv64-fp-ooc-composite.lock"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-child-opensta-port-family-independent-review-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "前置核验合同SHA、A6 run/runtime absent、A1-A5冻结、9d8/config/profile精确，runner/tool/Tcl含五轮修复后，仅一次执行 bash npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh --run-id 2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6 --expected-rtl-design-id sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d；宿主timeout至少10小时，活跃时不旁路查询。",
+    "终态cleanup后只读报告五child synth/manifest/max-min/Liberty、top known-OOC/placeholder/boundary、summary/receipt；失败报告首个真实stage/rc/CLEANUP_RC。A1-A6均不复用重写。",
+    "成功最多development/MEASURED_DIAGNOSTIC/GAP，不宣称正式PPA/Pareto/canonical。"
+  ],
+  "success_criteria": [
+    "A6 invocation精确一次；完整PASS需gate complete/0、before=after、五child非零映射与max/min/Liberty、top五known+SRAM/BPU placeholders、512/40 boundary、summary/receipt与cleanup闭合。任一失败封存GAP不重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -1775,7 +1775,8 @@ def validate_independent_review_v2(
 
     contract = read_json(reviewer_contract, "independent reviewer contract")
     require(contract.get("schema_version") == 2
-            and contract.get("task_kind") == "verification",
+            and contract.get("task_kind") in {
+                "verification", "read-only-review"},
             "independent reviewer contract identity mismatch")
     stored = read_json(result_path, "reviewed performance baseline result")
     require(stored.get("schema") == DIRECT_RESULT_SCHEMA

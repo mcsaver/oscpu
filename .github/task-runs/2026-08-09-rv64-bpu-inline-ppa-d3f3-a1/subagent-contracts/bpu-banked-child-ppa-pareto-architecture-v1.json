@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-banked-child-ppa-pareto-architecture-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "基于 b279 NpcTop 的 OooBranchLocalPht 16×256 banked child sealed 5 ns PPA，与 d3f3 whole-BPU-inline 和 four-placeholder baseline 作 Architecture IR/Pareto 裁决；保持本次预冻结 all-axis retain 门的 ROLLBACK/GAP 不可改写，解释旧 40/40 update_taken_i→local_pht_q 路径族消失、WNS/TNS/relative-power 改善与 logic area +3069.64、MUX4 +9136 的结构因果边界，唯一裁定当前 b279 应归档、回退、做一个面积变体还是停止 BPU 并转向 FP，并给出单一入口状态与下一可证伪门槛。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".codex/agents/cpu-architect.toml",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-banked-child-ppa-tradeoff-architect-route-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-banked-child-ppa-tradeoff-architect-route-v1.result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-a2/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-ppa-b279-a1.result.md",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/traceable-b279-bpu-local-pht-banked-child-a1.status",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/synth_stat.txt",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/command-status.txt",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/summary.json",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/synth_stat.txt",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/opensta-top40.rpt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/synth_stat.txt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/opensta-top40.rpt",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-ppa-b279-a1.result.md",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2/evidence/traceable-d3f3-bpu-inline-a2/summary.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2/evidence/traceable-d3f3-macro-boundary-a2/summary.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "输出 BPU Architecture IR 树/图/网及三配置 Pareto 表：逐项绑定 module/state owner/read/update path、5 ns WNS/TNS/logic/sequential area/cells/relative power/Top40；明确区分 frozen experiment verdict、Pareto archive status、canonical production status。对 strict rollback、保留非 canonical frontier、一个局部面积变体、立即转向 FP 四个分支分别给 RETAIN/FIX/BLOCK，并只选择一个下一动作；若选择变体，必须给精确 module/signal/structural boundary、configuration identity、预计切断的 MUX4 来源、不能恢复的公共 update fanout、focused TB/mutation/一次 PPA retain/rollback 门；若转向 FP，必须定义 BPU 的冻结状态和 FP 首个 visibility measurement。保留 counterexamples、unknowns、alternative_hypotheses、scope_extension_request、confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "不得把 b279 本次 predeclared all-axis gate 的 ROLLBACK/GAP 改写成 RETAIN/PASS；只能基于 sealed receipts 作架构推断并标注 Top40 非全路径证明。裁决必须量化 b279 相对 whole-inline 的 WNS +38.691271782 ns、TNS +411499.78125 ns、logic area +3069.64、sequential area +1164.24、known cells -20727、relative power -0.002 W，以及相对 four-placeholder 的 BPU area 286893.04 和 TNS -20728.625；必须解释 16×bank 双读选择与 +9136 MUX4 仅为候选因果而非唯一已证 root cause。输出必须让 registry 能以单一节点表示 development/noncanonical/archive/canonical/GAP，并给出唯一下一决策与停止条件；不得修改文件或运行仿真、综合、STA、parser、test。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

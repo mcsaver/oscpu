@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-stdlib-blackbox-leaf-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立只读复核v10对A4完整Yosys module universe的stdlib-blackbox leaf分类修复：验证boundary→whitelist leaf→非whitelist RTL优先级、design_modules∩whitelist必须canonical true blackbox且empty cells、非whitelist blackbox与碰撞fail-closed、unsplit unsigned descending约束；机械交叉完整A4 748 modules/747 stdlib definitions/7146 leaf/census/273→11正例、5+3 mutations及revision receipts。判断RETAIN/FIX/BLOCK；不运行Python/bash/test/runner/EDA，不写文件。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v9",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/subagent-contracts/fp-ooc-composite-stdlib-blackbox-leaf-independent-review-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-census.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/stdlib-leaf-whitelist.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1/result.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-design.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/synth-census.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a4/evidence/fp-ooc-composite-v1/stdlib-leaf-whitelist.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项复核_manifest_payload.walk与全局module-definition校验：boundary alias不得被whitelist覆盖；whitelist cell即leaf并保留7146逐实例；同名module定义blackbox真值格式、空cells与whitelist同源；非whitelist blackbox/false/missing/nonempty/collision拒绝；非whitelist非blackbox才递归RTL。",
+    "机械交叉完整A4 design/census/root whitelist与v10正例收据，不允许裁剪module universe或单leaf fixture；核对leaf count/census/raw/canonical、5个blackbox/collision与3个orientation反例、attempt-1静态失败与revision-2 PASS、A4/FP RTL/runner冻结。"
+  ],
+  "success_criteria": [
+    "给出RETAIN/FIX/BLOCK、最强反例、unknowns、alternative hypotheses与confidence。无静态确定误拒/假绿且receipt闭合可RETAIN，仅授权全新run-id一次5ns diagnostic；production未执行本身不构成blocker，PPA仍GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

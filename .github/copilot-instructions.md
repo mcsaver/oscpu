@@ -171,10 +171,10 @@ RECALL (加载记忆) → PLAN (分解任务) → DISPATCH (逐步派发) → VE
 
 ## Agent 完成判定钩子
 - 在声明“完成”、关闭 goal 或写入“已完成”记录前，必须回看用户原始请求和已读文档的完整 checklist/路线图，逐项核对实际证据。
-- 有落盘实现、跨模块结论或高风险交付时，在候选交付已经形成后执行一次“实现者 / 审查者”复核；
-  候选由 `scripts/agent-flow.sh finish --task <id> --candidate` 形成且尚不归档最终 PASS；纯只读
-  review 不再追加同构审查。审查者优先寻找反例、覆盖洞、假绿和越级结论，审查无修改后再正式
-  `finish`。
+- 只有 `risk=high`、release、migration、难恢复的破坏性操作、正式 Architecture/Pareto promotion、
+  对外发布或用户明确要求时，才先用 `scripts/agent-flow.sh finish --task <id> --candidate` 形成候选并
+  执行“实现者 / 审查者”风险触发复核；落盘、跨模块和长跑本身不触发。审查者优先寻找反例、覆盖洞、
+  假绿和越级结论，不机械重跑同一确定性命令，审查无修改后再正式 `finish`。
 - 一轮目标确定性交付时运行 `scripts/agent-flow.sh finish --task <id>`；约 40% 流程占用是非阻断复盘
   目标，不设置精确时间门禁。strict e2e guard 只用于 release/迁移并显式消费 paths-file/path，
   不扫描 Git 工作树。

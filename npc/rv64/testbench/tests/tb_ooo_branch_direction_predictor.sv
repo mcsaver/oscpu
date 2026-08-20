@@ -28,6 +28,8 @@ module tb_ooo_branch_direction_predictor;
 
   localparam [`XLEN-1:0] PC0 = 64'h0000_0000_8000_1000;
   localparam [`XLEN-1:0] PC1 = 64'h0000_0000_8000_1020;
+  localparam [`XLEN-1:0] PC_MISPRED = 64'h0000_0000_8000_1012;
+  localparam [`XLEN-1:0] PC_MISPRED_ALIAS = 64'h0000_0000_8000_1032;
 
   OooBranchDirectionPredictor dut (
     .clk(clk),
@@ -127,6 +129,18 @@ module tb_ooo_branch_direction_predictor;
     end
   endtask
 
+  task automatic check_local_ctr;
+    input [1023:0] what;
+    input [1:0] got;
+    input [1:0] exp;
+    begin
+      if (got !== exp) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s got=%0d expected=%0d", what, got, exp);
+      end
+    end
+  endtask
+
   initial begin
     tb_errors = 0;
     clk = 1'b0;
@@ -197,6 +211,56 @@ module tb_ooo_branch_direction_predictor;
     lookup1_static_taken = 1'b0;
     settle();
     tb_check1("lane1 independent static after ghr shift", lookup1_pred_taken, 1'b0);
+
+    // Parent/child integration: actual taken deliberately disagrees with the
+    // current static-not-taken prediction. The predictor has no mispredict
+    // suppression/restore input; resolve still trains bank PC[4:1]=9. An alias
+    // with a fresh local-history row exposes the just-trained {9,8'h00} entry.
+    clear = 1'b1;
+    tick();
+    clear = 1'b0;
+    lookup0_pc = PC_MISPRED;
+    lookup0_static_taken = 1'b0;
+    lookup1_pc = PC1;
+    lookup1_static_taken = 1'b0;
+    settle();
+    tb_check1("mispredict setup predicts not-taken", lookup0_pred_taken, 1'b0);
+    update_pc = PC_MISPRED;
+    update_bht_idx = lookup0_bht_idx;
+    update_taken = 1'b1;
+    update_valid = 1'b1;
+    tick();
+    update_valid = 1'b0;
+    tb_check1("parent selects only bank9 S1",
+              dut.u_local_pht.g_bank[9].u_bank.upd_valid_q, 1'b1);
+    tb_check1("parent leaves bank8 S1 idle",
+              dut.u_local_pht.g_bank[8].u_bank.upd_valid_q, 1'b0);
+    $display("[BPU-LPHT-P0-PARENT-BANK-LOCAL-S1] PASS");
+    tick();
+    lookup0_pc = PC_MISPRED_ALIAS;
+    settle();
+    if ((dut.lookup0_local_valid_w !== 1'b1) ||
+        (dut.lookup0_local_ctr_w !== 2'd3)) begin
+      tb_errors = tb_errors + 1;
+      $display("[BPU-LPHT-P1-MISPREDICT-TRAIN] FAIL valid=%0b ctr=%0d",
+               dut.lookup0_local_valid_w, dut.lookup0_local_ctr_w);
+    end else begin
+      $display("[BPU-LPHT-P1-MISPREDICT-TRAIN] PASS");
+    end
+    check_local_ctr("mispredict trains local PHT", dut.lookup0_local_ctr_w, 2'd3);
+
+    // Recovery/redirect owns frontend control only; an idle cycle cannot restore
+    // or erase predictor state in the absence of explicit clear_i.
+    tick();
+    settle();
+    if ((dut.lookup0_local_valid_w !== 1'b1) ||
+        (dut.lookup0_local_ctr_w !== 2'd3)) begin
+      tb_errors = tb_errors + 1;
+      $display("[BPU-LPHT-P2-MISPREDICT-NO-RESTORE] FAIL valid=%0b ctr=%0d",
+               dut.lookup0_local_valid_w, dut.lookup0_local_ctr_w);
+    end else begin
+      $display("[BPU-LPHT-P2-MISPREDICT-NO-RESTORE] PASS");
+    end
 
     tb_finish("tb_ooo_branch_direction_predictor");
   end

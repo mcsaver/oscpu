@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "v15z-serialized-drain-boundary-review-f72e-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立复核本地 f72e RV64 双发射 OoO 核的 exact-current 5ns mapped Top40：确认 40 条路径的共享内存 owner terminalization 到 drain/redirect/fetch-PC 控制锥、endpoint 分类及 public-flat 映射边界；审查 serialized-mem-terminal-readiness-register-v1 仅作为可回退候选是否具备明确 owner 生命周期、清除条件与反例，主动寻找 stale readiness、memory birth、flush、FENCE、精确异常或 terminal-event 守恒反例；不修改 production RTL。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+      "npc/rv64/eval/ppa/tests/test_current_timing_path_analysis.py",
+      "npc/rv64/eval/ppa/optimization-slices-current.json",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/current-reference-ppa/result.json",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/selector-current-ppa-v1.json",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/opensta-top40.rpt",
+      ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-ppa-a1/evidence/traceable-f72e-a1/traceability.txt",
+      ".github/task-runs/2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/evidence/current-fresh-f72e-a2/opensta-top40.rpt",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-serialized-drain-boundary-review-f72e-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 RTL 对象或本地证据文件、5ns mapped 配置、Top40/EDA 观测、PASS/GAP 范围组织独立结论；列出反例、unknowns、替代解释、scope_extension_request 与 confidence_and_basis；不输出泛化网络安全措辞。"
+  ],
+  "success_criteria": [
+    "独立确认 design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42；两轮 Top40 bit-identical；40/40 共享至少 200 个 raw-prefix cells，并均经过 memory owner terminalization、pending drain、redirect 与 fetch-PC；endpoint 为 jalr_prefetch_hit_available=34、redirect_valid=5、pending_branch_misaligned=1；候选仅定义验证目标，不授权 RTL 修改或 PPA promotion。若无 blocker，恰好一次输出 [V15Z-SERIALIZED-DRAIN-BOUNDARY-REVIEW][PASS_CANDIDATE] design_id=sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42 candidate-only production_rtl_change_authorized=false PPA=UNQUALIFIED promotion_eligible=false；否则不得输出并明确 GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

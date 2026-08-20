@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-port-family-regex-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复A5首个AddSub max OpenSTA在exact_port_family解析失败：double-quoted regexp中的[0-9]被Tcl命令替换，且原正则未覆盖冻结A5 manifest真实的family_0_ split-port形式。用brace-quoted/format构造安全pattern，并按Registry width严格解析exact scalar、family[N]、family__vN、family_N_四种明确形式；每个family必须单一style、canonical十进制、唯一连续覆盖0..width-1、direction一致，禁止near-name/mixed-style/leading-zero/missing/duplicate/out-of-range。A5冻结，不运行production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v10/evidence/fp-ooc-composite-stdlib-blackbox-leaf-classification-v1/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/subagent-contracts/fp-ooc-child-opensta-port-family-regex-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/retained-netlist-manifest.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-regex-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a5/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/retained-netlist-manifest.json",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "重写exact_port_family为Tcl-safe确定解析：pattern必须以brace-quoted format构造，不含double-quoted方括号命令替换；从get_ports *只收集family exact scalar或三种精确indexed形态，解析canonical index并要求width=1时exact scalar，width>1时同一indexed style、0..width-1唯一连续覆盖、direction精确。禁止计数正确但index错误的集合。",
+    "定向Tcl语义测试通过tclsh对生产脚本proc前缀与stubbed get_ports/get_full_name/get_property执行真实exact_port_family；正例覆盖冻结A5 family_N_ 0..63、bracket与__v风格及scalar，负向覆盖原invalid command substitution、missing/duplicate/leading-zero/out-of-range/wrong-direction/near-family/mixed-style。另由Registry tool-contract静态mutation拒绝退化为宽松cardinality-only或double-quoted regexp。",
+    "单次执行受影响unittest/Tcl harness、必要Registry check、bash-n与scoped diff/text audit；production Yosys/OpenSTA/STA/RTL sim和A5 rerun均0，A5 status/manifest hashes冻结。PPA继续GAP。"
+  ],
+  "success_criteria": [
+    "生产exact_port_family在tclsh真实求值中无invalid command name并精确接受A5 family_N_连续集合，全部损坏集合fail-closed，受影响tests/static/bash-n/scoped audit rc0，A5 hashes不变。通过独立只读复核后才可授权全新run-id一次5ns diagnostic。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

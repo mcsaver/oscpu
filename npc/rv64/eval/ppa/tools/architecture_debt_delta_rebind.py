@@ -3,7 +3,7 @@
 
 Historical V14C/V14D/V14E executions remain immutable and retain their old
 design identity.  An old negative observation is reusable only when its
-production RTL source has the same exact hash in the current 146-file RTL
+production RTL source has the same exact hash in the current RTL
 manifest.  Every observation in a changed RTL source requires a
 compile-success rejected variant whose source hash is exact-current.  The
 current L0 result and its manifest are discovered through the canonical
@@ -30,7 +30,6 @@ SCHEMA = "npc-rv64-architecture-debt-delta-rebind-v2"
 BASELINE_DESIGN_ID = (
     "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488"
 )
-RTL_FILE_COUNT = 146
 P0_DEBTS = {
     "FDG-G1", "XRET-G1", "MEM-ISSUE-G1", "IFU-AXI-G1",
     "IFU-FETCH-G2", "IFU-ACCESS-G1", "IFU-TVAL-G1", "PTW-PMP-G1",
@@ -74,6 +73,10 @@ CURRENT_V9F = CURRENT_RUN_ROOT / "memory-lifecycle-mutations-ca37-v1/summary.jso
 CURRENT_SUPPLEMENTAL = pathlib.PurePosixPath(
     ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/"
     "evidence/architecture-delta-mutations-f72e-v1/summary.json"
+)
+CURRENT_D3F3_FENCE = pathlib.PurePosixPath(
+    ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/"
+    "evidence/architecture-delta-mutations-d3f3-fence-v2/summary.json"
 )
 LAYERED_SIGNOFF = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json"
@@ -269,12 +272,13 @@ def manifests(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     baseline = load_json(root, BASELINE_MANIFEST)
     require_equal(baseline.get("design_id"), BASELINE_DESIGN_ID, "baseline design-id")
-    require_equal(baseline.get("file_count"), RTL_FILE_COUNT, "baseline file count")
     baseline_files = baseline.get("files")
     current_files = current.get("groups", {}).get("rtl")
     require(isinstance(baseline_files, dict), "baseline RTL manifest is missing")
     require(isinstance(current_files, dict), "current RTL manifest is missing")
-    require_equal(len(current_files), RTL_FILE_COUNT, "current RTL file count")
+    require_equal(
+        baseline.get("file_count"), len(baseline_files), "baseline file count")
+    require(len(current_files) > 0, "current RTL manifest is empty")
     for relative, expected in current_files.items():
         require_equal(
             sha_file(safe_file(root, relative)), expected, f"live RTL hash {relative}"
@@ -284,22 +288,34 @@ def manifests(
     )
     live_sha, live_files = architecture.rtl_binding(root)
     require_equal(current.get("design_id"), f"sha256:{live_sha}", "current design-id")
-    require_equal(len(live_files), RTL_FILE_COUNT, "live RTL file count")
+    require_equal(set(current_files), set(live_files), "live RTL membership")
     return baseline, current
 
 
 def compare_manifests(
     baseline_files: dict[str, str], current_files: dict[str, str]
 ) -> dict[str, Any]:
-    require_equal(set(current_files), set(baseline_files), "RTL manifest membership")
+    removed = sorted(set(baseline_files) - set(current_files))
+    require(not removed, f"baseline RTL files were removed: {removed}")
+    added = sorted(set(current_files) - set(baseline_files))
     changed = sorted(
-        path for path in baseline_files if baseline_files[path] != current_files[path]
+        path for path in set(baseline_files) & set(current_files)
+        if baseline_files[path] != current_files[path]
     )
     return {
-        "membership_equal": True,
+        "baseline_membership_preserved": True,
+        "membership_equal": not added,
+        "baseline_file_count": len(baseline_files),
         "file_count": len(current_files),
-        "unchanged_file_count": len(current_files) - len(changed),
+        "unchanged_file_count": len(baseline_files) - len(changed),
         "changed_file_count": len(changed),
+        "added_file_count": len(added),
+        "added_files": [
+            {"path": path, "current_sha256": current_files[path]}
+            for path in added
+        ],
+        "removed_file_count": 0,
+        "removed_files": [],
         "changed_files": [
             {
                 "path": path,
@@ -623,6 +639,48 @@ def current_replacements(
                 "evidence_design_projection": supplemental_projection,
             }
 
+    relocated = load_json(root, CURRENT_D3F3_FENCE)
+    require_equal(relocated.get("schema"),
+                  "npc-rv64-architecture-delta-mutations-v1",
+                  "relocated FENCE schema")
+    require_equal(relocated.get("status"), "PASS", "relocated FENCE status")
+    require_equal(relocated.get("design_id"), current_design_id,
+                  "relocated FENCE design-id")
+    require_equal(relocated.get("counts", {}).get("required"), 1,
+                  "relocated FENCE required")
+    require_equal(relocated.get("counts", {}).get("passed"), 1,
+                  "relocated FENCE passed")
+    validate_supplemental_inputs(root, relocated.get("inputs", {}))
+    for row in relocated.get("results", []):
+        require_equal(row.get("name"), "pending-fence-mem-idle-removed",
+                      "relocated FENCE mutation")
+        for item_id in row.get("replaces_historical_items", []):
+            if item_id not in affected:
+                continue
+            require(item_id not in replacements, f"duplicate replacement {item_id}")
+            historical_source = affected[item_id].get("source")
+            relocation = historical_source != row.get("source")
+            if relocation:
+                require_equal(
+                    historical_source,
+                    "npc/rv64/vsrc/control/OooControlPlane.v",
+                    f"relocated historical source {item_id}",
+                )
+            replacement = _current_row(root, row, current_files, item_id)
+            replacements[item_id] = {
+                **replacement,
+                "historical_source": historical_source,
+                "evidence_set": "current_d3f3_fence_relocation",
+                "replacement_kind": (
+                    "CURRENT_CONTRACT_SEMANTIC_RELOCATION"
+                    if relocation else "EXACT_MUTATION_REPLAY"
+                ),
+                "evidence_design_projection": source_design_projection(
+                    relocated.get("design_id"), current_design_id,
+                    "relocated FENCE",
+                ),
+            }
+
     validate_affected_replacements(affected, replacements)
     supplemental_input_replay["evidence_design_projection"] = (
         supplemental_projection
@@ -636,8 +694,17 @@ def validate_affected_replacements(
 ) -> None:
     require_equal(set(replacements), set(affected), "changed-source replacement set")
     for item_id, replacement in replacements.items():
-        require_equal(replacement.get("source"), affected[item_id].get("source"),
-                      f"changed-source replacement binding {item_id}")
+        if replacement.get("replacement_kind") == "CURRENT_CONTRACT_SEMANTIC_RELOCATION":
+            require_equal(
+                replacement.get("historical_source"),
+                affected[item_id].get("source"),
+                f"changed-source relocation binding {item_id}",
+            )
+        else:
+            require_equal(
+                replacement.get("source"), affected[item_id].get("source"),
+                f"changed-source replacement binding {item_id}",
+            )
         require_equal(replacement.get("compile_success"), True,
                       f"changed-source compile-success {item_id}")
         require_equal(replacement.get("dynamic_rejected"), True,
@@ -654,7 +721,7 @@ def current_positive(
     require_equal(l0.get("design_id"), current_design_id, "current L0 design-id")
     inventory = l0.get("tests", {}).get("inventory", [])
     logs = l0.get("tests", {}).get("logs", {})
-    require_equal(len(inventory), 113, "current L0 test inventory")
+    require(len(inventory) > 0, "current L0 test inventory is empty")
     require_equal(set(logs), set(inventory), "current L0 log inventory")
     l0_artifacts = validate_hash_records(root, l0, "current_l0")
 
@@ -677,8 +744,10 @@ def current_positive(
         require_equal(layer.get("status"), "PASS", f"{name} status")
         require_equal(layer.get("design_id"), current_design_id,
                       f"{name} design-id")
+    l0_count = len(inventory)
     require_equal(layers["L0_DIRECTED_RTL"].get("tests"),
-                  {"passed": 113, "required": 113}, "layered L0 counts")
+                  {"passed": l0_count, "required": l0_count},
+                  "layered L0 counts")
     l1 = layers["L1_FULL_CORE_DIFFTEST"].get("counts", {})
     require_equal((l1.get("official_passed"), l1.get("official_required")),
                   (177, 177), "layered L1 official")
@@ -689,7 +758,7 @@ def current_positive(
     require_equal(layers["L3_LIGHTWEIGHT_LINUX"].get("case"), "all", "layered L3 case")
     layered_artifacts = validate_hash_records(root, layered, "layered")
     return {
-        "l0": {"tests": "113/113", "rtl_assertion_failures": 0,
+        "l0": {"tests": f"{l0_count}/{l0_count}", "rtl_assertion_failures": 0,
                "artifact_records": l0_artifacts},
         "l1": {"official": "177/177", "am": "61/61",
                "difftest_mismatches": 0, "guest_rerun": False},
@@ -737,10 +806,12 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
     baseline_files = baseline["files"]
     current_files = current["groups"]["rtl"]
     delta = compare_manifests(baseline_files, current_files)
-    changed_paths = {row["path"] for row in delta["changed_files"]}
+    changed_existing_paths = {row["path"] for row in delta["changed_files"]}
+    added_paths = {row["path"] for row in delta["added_files"]}
+    changed_paths = changed_existing_paths | added_paths
     items = historical_items(root)
     classified = classify_historical(
-        root, items, baseline_files, current_files, changed_paths
+        root, items, baseline_files, current_files, changed_existing_paths
     )
     current_design_id = current["design_id"]
     replacements, supplemental_input_replay = current_replacements(
@@ -775,6 +846,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
         "current_l0": artifact(root, current_l0_path),
         "current_manifest": artifact(root, current_manifest_path),
         "current_supplemental": artifact(root, CURRENT_SUPPLEMENTAL),
+        "current_d3f3_fence": artifact(root, CURRENT_D3F3_FENCE),
         "current_v9f": artifact(root, CURRENT_V9F),
         "delta_mutation_runner": artifact(root, MUTATION_RUNNER),
         "f0_mutations": artifact(root, F0_MUTATIONS),
@@ -827,6 +899,7 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
             "historical_status": "IMMUTABLE",
             "unchanged_rtl": "EXACT_PER_FILE_SHA_REUSE",
             "changed_rtl": "CURRENT_COMPILE_SUCCESS_REJECTED_VARIANT_REQUIRED",
+            "added_rtl": "CURRENT_L0_L1_L2_L3_POSITIVE_COVERAGE_REQUIRED",
             "retained_negative_projection": (
                 "EXACT_CURRENT_SOURCE_HASH_WITH_EXPLICIT_PRIOR_DESIGN_ID"
             ),

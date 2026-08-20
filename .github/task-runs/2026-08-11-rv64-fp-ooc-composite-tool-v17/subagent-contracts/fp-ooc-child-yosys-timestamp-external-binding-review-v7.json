@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-external-binding-review-v7",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "以本合同goal内的精确SHA作为外部不可变锚，独立只读终审NON_ARCH child-Yosys timestamp v4。锚点：validator=83819b083050eb20e19e3d9cae3cd04f466bb54544ffcfde636386bf758d92ab；test=7ab5ef45003c33fbdd1d9d1a0024f63b27fb27747ef4bbebdde6334f8c2762c8；catalog=ad6a93031832ee9c9cce8cb54ba1cb6bc2f7541db156dd58373fec6ffc1d5100；registry=845856be9292592e6b03bac7643ef611b00898eafdc368fcf516e5bfb171f516；pdk_tcl=6102182a0eae5504dedfb1ffd3fc138dbdcd257d819096bf50c7cb755c603d81；result=5b6f71276042b61856e764a71a53978d839ce4f0102b65279aeff15cc1228ca0；receipt=f1d017f33b952c687791a7f14218234f8cc0b3e38d7de984496a6980465a0f98；runner=02a2cdb592540b62b72be4b6b8981e369049034b8b63c558340b614e8f98901d；ARCH=02f2a9b8ec453f084196117ec9ee9db0b7be5a3e036b8d5f30e5b18bbec26203；spec=5f723023e15dd01130dbd5d3b5e24d4f16f8e2c7007de3be5be856c694bc3213；child_sta=27fa6430764602c99cd03a7f737fdc3facbead1c5856ebd3e5ff6609aeb2c212；child_yosys=a149fabea589487354666db9295df05602a95da198b7bd393e0617d14d700efb；shared_yosys=c31e44bf6748a34855ff83fc8c85555b48ac8c116c4893840bf2a8c8355ff397；stdlib=55c129ca0f03a409622e6c309f7f2da3034a003323fc6f4e58ae2225ed416264；v4_contract=1f0bcf683a06f502493bf2a6f08bcef5f1a16b9463d274e9f4ef0d5087557c37；A10_gate=d0cf6fd8c9f3fd477b1281ebdb346e242283d97f3b84da646f7ccceda6ca4cea；A10_log=3ca5aeaebfad33fd8ecf70267495e14d9e7823befb9b98d6c1e7e3db3d427ecd；A10_sources=31461879c39a5190c6a59d9ba2073d92f5ebd4f3ddd45e0fe2f71ca532c3450d；live_design_id=sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d。重算实际argv、14个negative variants、21-artifact receipt与A10冻结，核对前置可执行项、pipeline/background、证据生成后内容漂移、路径身份和review-to-run一致性。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-evidence-independent-review-v5.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/timestamp_evidence.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/result.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/validation-receipt.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/synthesis-sources.sha256",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-external-binding-review-v7.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/timestamp_evidence.py",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/result.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-argv-receipt-fix-v4/validation-receipt.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/synthesis-sources.sha256"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "重算goal内全部外部锚和live design-id，逐token确认/usr/bin/env后13个固定赋值、首个executable为YOSYS_VARIABLE_TOKEN、argv -q/-Q/-T/-t/-l及唯一terminal || fail；检查14个negative variants包含printf,pipeline,pipe-and,background且validator与test语义同构。",
+    "复核result/receipt 21 artifact与A10 134-source/current inputs，并裁决RETAIN或BLOCK。RETAIN最多授权一个全新run-id单次5.0ns production diagnostic，且A11 preflight必须原子重算本合同SHA与goal内所有hash；PPA仍GAP。"
+  ],
+  "success_criteria": [
+    "仅用声明只读命令，不运行Python/test/Yosys/OpenSTA/STA/RTL sim，不写文件，完成后归还shell。",
+    "若任一外部锚、actual executable、negative variant覆盖、A10/live identity或receipt绑定不闭合则BLOCK/fresh-run=0；无确定反例才RETAIN。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

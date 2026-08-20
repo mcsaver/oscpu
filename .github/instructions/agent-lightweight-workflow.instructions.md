@@ -16,6 +16,12 @@
    这些结果用 `evidence` 登记，不在目标末尾重复运行。
 6. 默认不使用 Git 枚举工作树。修改文件由 `record --path` 明确登记，目录自动进入
    `directories.log`；Git 只在用户要求同步、提交、分支或发布时使用。
+7. 验证预算由确定性与风险决定，不由“任务非平凡”、文件数或修改行数决定。固定输入、固定命令、
+   固定 tool/seed/thread 且 oracle 确定时默认只执行一次；记录 command、input/config、design-id、返回码、
+   解析结果和 artifact 即可。
+8. 只有随机/并发、已知 flaky、未固定 seed/thread、PPA 或 wall-clock 测量噪声、机器异常证据，或用户
+   明确要求时才重复同一实验；开始前写明 repeat reason、次数/阈值和停止条件。A/B、正负向 oracle、
+   不同 corner/config、不同 mutation 或不同抽象层是相互区分的证据，不是机械复验。
 
 ## 2. 任务分类
 
@@ -48,6 +54,17 @@
 - 只读代码 review 不要求 DB brief、task-run、strict guard、memory 写回或实现者/审查者二次套娃。
   审查结论本身就是该任务的交付。
 - `--archive` 可以显式覆盖默认档位；需要把一次重要 review 留档时可用 `compact`，但仍不增加门禁。
+
+### 验证预算与独立复核路由
+
+- 普通 development/environment/cleanup 在真实定向 evidence 为 PASS 后直接 `finish`；跨模块和 `>=3`
+  文件只要求先摸清调用链，不自动触发 candidate 或独立 reviewer。
+- `finish --candidate` 与实现者/审查者双角色只用于：`risk=high`、release、migration、难恢复的破坏性
+  操作、正式 Architecture/Pareto promotion、对外发布，或用户明确要求。独立 reviewer 复算身份、反例、
+  覆盖和结论边界，不机械重跑已绑定的确定性命令。
+- 长跑任务使用 fail-closed status/marker/cleanup 证明一次执行是否完整；“耗时长”本身不要求再跑一次。
+- 命令或 oracle 不确定时先修正输入与判断规则；机器/工具异常只形成 `tool_error` 或 GAP，不把失败归因
+  给设计，也不靠无界重试得到绿色结论。
 
 ## 3. 一轮目标的最短闭环
 
@@ -82,13 +99,14 @@ scripts/agent-flow.sh decision \
   --text '<假设、证据、选择理由、反例或回退摘要>' \
   --artifact <optional-path>
 
-# 4. 需要独立审查时先形成候选；审查无改动后正式归档
+# 4. 仅命中风险触发器时先形成候选；审查无改动后正式归档
 scripts/agent-flow.sh finish --task <task-id> --candidate
 # reviewer: 只读复核候选摘要、改动文件和失败反例
 scripts/agent-flow.sh finish --task <task-id>
 ```
 
-无需独立审查的小型落盘任务可直接执行正式 `finish`。`--candidate` 只缓存同一 generation 的 PASS
+未命中独立审查风险触发器的落盘任务直接执行正式 `finish`，不以规模或文件数推断高风险。
+`--candidate` 只缓存同一 generation 的 PASS
 门禁并写 `CANDIDATE_PASS` 摘要，不生成 task-run；审查发现问题并重新 `record` 后 generation 递增，
 旧门禁不会复用。审查无改动时正式 `finish` 复用候选结果并完成归档。
 

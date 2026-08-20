@@ -68,6 +68,18 @@ set SYNTH_BLACKBOX_MODULES ""
 if {[info exists env(SYNTH_BLACKBOX_MODULES)]} {
   set SYNTH_BLACKBOX_MODULES $::env(SYNTH_BLACKBOX_MODULES)
 }
+set SYNTH_KNOWN_OOC_MODULES ""
+if {[info exists env(SYNTH_KNOWN_OOC_MODULES)]} {
+  set SYNTH_KNOWN_OOC_MODULES $::env(SYNTH_KNOWN_OOC_MODULES)
+}
+set SYNTH_COMPOSITE_CENSUS_JSON ""
+if {[info exists env(SYNTH_COMPOSITE_CENSUS_JSON)]} {
+  set SYNTH_COMPOSITE_CENSUS_JSON $::env(SYNTH_COMPOSITE_CENSUS_JSON)
+}
+set SYNTH_COMPOSITE_DESIGN_JSON ""
+if {[info exists env(SYNTH_COMPOSITE_DESIGN_JSON)]} {
+  set SYNTH_COMPOSITE_DESIGN_JSON $::env(SYNTH_COMPOSITE_DESIGN_JSON)
+}
 set KEEP_HIERARCHY_MODULES ""
 if {[info exists env(KEEP_HIERARCHY_MODULES)]} {
   set KEEP_HIERARCHY_MODULES $::env(KEEP_HIERARCHY_MODULES)
@@ -292,6 +304,20 @@ foreach module $SYNTH_BLACKBOX_MODULES {
   select -clear
 }
 
+# Known OOC children are blackboxes only in the composite top run, where their
+# exact sequential Liberty models are supplied separately.  Keep the explicit
+# class projection distinct from legacy unknown placeholders and fail closed if
+# a known macro was not included in the actual synthesis blackbox arguments.
+foreach module $SYNTH_KNOWN_OOC_MODULES {
+  if {$module eq ""} {
+    continue
+  }
+  if {[lsearch -exact $SYNTH_BLACKBOX_MODULES $module] < 0} {
+    error "known OOC module is absent from SYNTH_BLACKBOX_MODULES: $module"
+  }
+  log "\[INFO\]: CLASSIFYING module $module as known OOC macro boundary"
+}
+
 # 级间边界治理(pipeline-stage-boundary.md §6)：flatten 前保留指定模块层次，
 # 让 ABC 沿寄存器边界切 cone。必须先显式 elaborate 派生 $paramod 实体再 setattr——
 # read_verilog 后直接 setattr 落在 AST 占位上，synth 内部重派生时属性丢失(实测)。
@@ -433,8 +459,26 @@ opt_clean -purge
 foreach l $LIB_FILES { read_liberty -lib $l }
 
 # reports
-tee -o $RESULT_DIR/synth_check.txt check -mapped
+# A mapped check that only prints diagnostics can silently leave $mul/$mux and
+# other generic cells.  -assert makes any unmapped cell a non-zero Yosys exit.
+tee -o $RESULT_DIR/synth_check.txt check -mapped -assert
 tee -o $RESULT_DIR/synth_stat.txt stat {*}$LIBS
+if {$SYNTH_COMPOSITE_CENSUS_JSON ne ""} {
+  if {[file pathtype $SYNTH_COMPOSITE_CENSUS_JSON] ne "absolute"} {
+    error "SYNTH_COMPOSITE_CENSUS_JSON must be absolute"
+  }
+  file mkdir [file dirname $SYNTH_COMPOSITE_CENSUS_JSON]
+  tee -o $SYNTH_COMPOSITE_CENSUS_JSON stat -json {*}$LIBS
+}
+if {$SYNTH_COMPOSITE_DESIGN_JSON ne ""} {
+  if {[file pathtype $SYNTH_COMPOSITE_DESIGN_JSON] ne "absolute"} {
+    error "SYNTH_COMPOSITE_DESIGN_JSON must be absolute"
+  }
+  file mkdir [file dirname $SYNTH_COMPOSITE_DESIGN_JSON]
+  # Retain the exact pre-cleanup port/cell/instance graph used to generate the
+  # human-independent manifest; this is distinct from the aggregate stat JSON.
+  write_json $SYNTH_COMPOSITE_DESIGN_JSON
+}
 
 # Keep mapping and recursive area accounting in the requested hierarchy.  Some
 # standalone STA Verilog readers accept a narrower structural subset than the
@@ -458,7 +502,7 @@ if {$SYNTH_STA_FLATTEN_EXPORT_ENABLED} {
   if {$SYNTH_STAGE_SCC_ENABLED} {
     capture_functional_flat_scc post_export
   }
-  tee -o $RESULT_DIR/sta_export_check.txt check -mapped
+  tee -o $RESULT_DIR/sta_export_check.txt check -mapped -assert
 }
 
 # write synthesized design

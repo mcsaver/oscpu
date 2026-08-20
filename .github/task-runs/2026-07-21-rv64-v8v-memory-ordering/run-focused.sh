@@ -5,6 +5,42 @@ RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
 NPC_HOME="$REPO_ROOT/npc/rv64"
 TB_HOME="$NPC_HOME/testbench"
+
+if [[ "${1:-}" == --v8s-dual-memory-checker ]]; then
+  shift
+  if [[ $# -lt 1 ]]; then
+    printf '%s\n' '[V8V-FOCUSED-CHECKER][FAIL] checker path is missing' >&2
+    exit 2
+  fi
+  checker_path=$(realpath -e -- "$1")
+  shift
+  if [[ "$checker_path" != "$TB_HOME/scripts/check_tb_result.py" ]]; then
+    printf '%s\n' '[V8V-FOCUSED-CHECKER][FAIL] canonical checker mismatch' >&2
+    exit 2
+  fi
+  checker_args=("$@")
+  test_binding_count=0
+  for ((i = 0; i < ${#checker_args[@]}; i++)); do
+    if [[ "${checker_args[i]}" == --test ]]; then
+      ((i + 1 < ${#checker_args[@]})) || {
+        printf '%s\n' '[V8V-FOCUSED-CHECKER][FAIL] --test value is missing' >&2
+        exit 2
+      }
+      [[ "${checker_args[i + 1]}" == tb_ooo_int_backend ]] || {
+        printf '%s\n' '[V8V-FOCUSED-CHECKER][FAIL] target identity mismatch' >&2
+        exit 2
+      }
+      checker_args[i + 1]=tb_ooo_int_backend_v8s_dual_memory
+      test_binding_count=$((test_binding_count + 1))
+    fi
+  done
+  if [[ "$test_binding_count" -ne 1 ]]; then
+    printf '%s\n' '[V8V-FOCUSED-CHECKER][FAIL] expected one target binding' >&2
+    exit 2
+  fi
+  exec /usr/bin/python3 -B "$checker_path" "${checker_args[@]}"
+fi
+
 ARCH_BUILDER="$NPC_HOME/eval/ppa/tools/memory_ordering_evidence.py"
 DEFAULT_ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
 DEFAULT_ARCH_LOG="$NPC_HOME/eval/ppa/evidence/memory-ordering.log"
@@ -15,6 +51,8 @@ ARCH_LOG=$(realpath -m -- "${V8V_ARCH_LOG:-$DEFAULT_ARCH_LOG}")
 EVIDENCE_DIR=$(realpath -m -- "${V8V_EVIDENCE_DIR:-$DEFAULT_EVIDENCE_DIR}")
 F2_EVIDENCE_DIR=$(realpath -m -- "${V8V_F2_EVIDENCE_DIR:-$DEFAULT_F2_EVIDENCE_DIR}")
 MUTATION_OUTPUT_ENV=${V8V_MUTATION_OUTPUT_DIR:-}
+ALLOW_RETAINED_F2=${V8V_ALLOW_RETAINED_F2:-0}
+F2_EVIDENCE_MODE=canonical
 if [[ -n "$MUTATION_OUTPUT_ENV" ]]; then
   MUTATION_OUTPUT_DIR=$(realpath -m -- "$MUTATION_OUTPUT_ENV")
   MUTATION_RESULTS="$MUTATION_OUTPUT_DIR/mutation-results.json"
@@ -54,7 +92,8 @@ case "$SCOPED_REFRESH_MODE" in
     ;;
   1)
     case "$EVIDENCE_DIR" in
-      "$REPO_ROOT"/.github/task-runs/*/evidence/ooo3-current) ;;
+      "$REPO_ROOT"/.github/task-runs/*/evidence/ooo3-current | \
+      "$REPO_ROOT"/.github/task-runs/*/evidence/*/ooo3-current) ;;
       *) fail "unsafe scoped OOO-3 evidence path: $EVIDENCE_DIR" ;;
     esac
     SCOPED_EVIDENCE_ROOT=${EVIDENCE_DIR%/ooo3-current}
@@ -64,8 +103,24 @@ case "$SCOPED_REFRESH_MODE" in
       fail "scoped gate log must share the selected task-run evidence root"
     [[ "$MUTATION_OUTPUT_DIR" == "$SCOPED_EVIDENCE_ROOT/lq-mutations" ]] ||
       fail "scoped mutation evidence must share the selected task-run evidence root"
-    [[ "$F2_EVIDENCE_DIR" == "$SCOPED_EVIDENCE_ROOT/f2-current" ]] ||
+    if [[ "$F2_EVIDENCE_DIR" == "$SCOPED_EVIDENCE_ROOT/f2-current" ]]; then
+      F2_EVIDENCE_MODE=scoped-same-root
+    elif [[ "$ALLOW_RETAINED_F2" == 1 ]]; then
+      case "$F2_EVIDENCE_DIR" in
+        "$REPO_ROOT"/.github/task-runs/*/evidence/f2-current)
+          F2_EVIDENCE_MODE=retained-live-revalidated
+          ;;
+        *) fail "retained F2 evidence is outside a task-run evidence root" ;;
+      esac
+      for retained in \
+        result.json mutation-summary.log \
+        mutations/raw_checkpoint_local_flush_bypass.run.log; do
+        [[ -s "$F2_EVIDENCE_DIR/$retained" ]] ||
+          fail "retained F2 evidence is incomplete: $retained"
+      done
+    else
       fail "scoped F2 evidence must share the selected task-run evidence root"
+    fi
     rm -rf -- "$EVIDENCE_DIR"
     rm -f -- "$ARCH_MANIFEST" "$ARCH_LOG"
     ;;
@@ -93,10 +148,22 @@ run_tb() {
   local profile=$1
   local test=$2
   local extra_defines=${3:-}
+  local expected_test_name=${4:-$test}
   local result_dir="$EVIDENCE_DIR/$profile"
   local build_dir="$TEMP_DIR/build-$profile"
   local log="$result_dir/logs/$test.log"
+  local make_python=()
+  if [[ "$expected_test_name" != "$test" ]]; then
+    [[ "$profile" == backend-dual &&
+       "$test" == tb_ooo_int_backend &&
+       "$expected_test_name" == tb_ooo_int_backend_v8s_dual_memory ]] ||
+      fail "unsupported target/logical-test binding: $profile/$test->$expected_test_name"
+    make_python=(
+      "PYTHON=bash $RUN_DIR/run-focused.sh --v8s-dual-memory-checker"
+    )
+  fi
   make -B -C "$TB_HOME" BUILD_DIR="$build_dir" RESULT_DIR="$result_dir" \
+    "${make_python[@]}" \
     IVFLAGS="-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon -DOOO_ASSERT $extra_defines" \
     "$log" > "$EVIDENCE_DIR/$profile.make.log" 2>&1 ||
     fail "$profile $test failed"
@@ -183,6 +250,8 @@ source_paths=(
   "$RUN_DIR/run-focused.sh"
   "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py"
   "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh"
+  "$NPC_HOME/eval/ppa/patches/v8v-memory-ordering-current.patch"
+  "$NPC_HOME/eval/ppa/tools/v8s_dual_memory_core_mutator_current.py"
   "$NPC_HOME/Makefile"
   "$NPC_HOME/design/arch/rv64-architecture-ppa-contract.md"
   "$NPC_HOME/design/arch/producer-holder-census.json"
@@ -235,7 +304,8 @@ sha256sum "${source_paths[@]}" > "$EVIDENCE_DIR/sources.pre.sha256"
 run_tb lq tb_ooo_load_queue
 run_tb sq tb_ooo_store_queue
 run_tb backend tb_ooo_int_backend
-run_tb backend-dual tb_ooo_int_backend '-DV8S_DUAL_MEMORY_FOCUSED'
+run_tb backend-dual tb_ooo_int_backend '-DV8S_DUAL_MEMORY_FOCUSED' \
+  tb_ooo_int_backend_v8s_dual_memory
 run_tb glue tb_ooo_core_top_glue
 run_tb sustained tb_ooo_dual_memory_sustained_issue
 
@@ -308,7 +378,7 @@ python3 "$ARCH_BUILDER" \
   --manifest "$ARCH_MANIFEST" \
   --f2-result "$F2_EVIDENCE_DIR/result.json" \
   --f2-mutation-summary "$F2_EVIDENCE_DIR/mutation-summary.log" \
-  --f2-mutator "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py" \
+  --f2-mutator "$NPC_HOME/eval/ppa/tools/v8s_dual_memory_core_mutator_current.py" \
   --f2-control-gate-log "$F2_EVIDENCE_DIR/mutations/raw_checkpoint_local_flush_bypass.run.log" \
   --run-id "$RUN_ID" \
   > "$EVIDENCE_DIR/static/evidence-builder.log" 2>&1 ||
@@ -461,5 +531,5 @@ print(
 PY
 fi
 
-printf '[V8V-OOO3-RUNNER][PASS] run_id=%s mode=%s metrics=11 mutations=9 OOO-3=GREEN overall=RED ppa=UNQUALIFIED\n' \
-  "$RUN_ID" "$SCOPED_REFRESH_MODE" | tee "$EVIDENCE_DIR/final.log"
+printf '[V8V-OOO3-RUNNER][PASS] run_id=%s mode=%s f2=%s metrics=11 mutations=9 OOO-3=GREEN overall=RED ppa=UNQUALIFIED\n' \
+  "$RUN_ID" "$SCOPED_REFRESH_MODE" "$F2_EVIDENCE_MODE" | tee "$EVIDENCE_DIR/final.log"

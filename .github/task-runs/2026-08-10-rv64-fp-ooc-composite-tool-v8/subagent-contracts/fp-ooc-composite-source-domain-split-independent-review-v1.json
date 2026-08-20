@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-source-domain-split-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立尝试推翻 NpcTop FP OOC composite source-domain分离：核对Registry五child compile_sources是否显式、仅Verilog、严格属于source_closure且含rtl，filelist.mk是否只保留身份闭包；核对schema/validator/emit命令/runner双manifest及Yosys实参是否同一投影且无隐藏后缀过滤；机械交叉5方法8mutation、10个clean-env emit、Registry render/check、A3冻结。只裁决RETAIN/FIX/BLOCK及是否可授权全新run-id，不运行测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/filelist.mk",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/evidence/fp-ooc-composite-source-domain-split-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/subagent-contracts/fp-ooc-composite-source-domain-split-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/evidence/fp-ooc-composite-source-domain-split-v1/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/subagent-contracts/fp-ooc-composite-source-domain-split-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v8/evidence/fp-ooc-composite-source-domain-split-v1/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a3/evidence/fp-ooc-composite-v1/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐child核对compile_sources与source_closure、rtl、filelist.mk的集合关系及schema/architecture_registry expected projection；构造非Verilog、越界、缺rtl和closure漂移反例，判断validator是否fail closed。",
+    "核对fp_ooc_composite emit-child-sources与emit-child-compile-sources语义、runner生成两份sha清单及Yosys只消费child_compile_sources的顺序；确认production/tool/config identity绑定且不存在后缀临时过滤或closure复用。",
+    "复算result 0d7f4f00、gate-status、before/after、5-method/8-mutation与10 emit receipts、Registry snapshot及A3 status/log未改；给出RETAIN/FIX/BLOCK。若无确定反例，只授权全新run-id一次diagnostic，PPA仍GAP。"
+  ],
+  "success_criteria": [
+    "不得运行Python、bash、测试、runner、Yosys、OpenSTA或STA；仅声明只读命令。若source/compile分域或Yosys实参存在确定反例必须指出，否则RETAIN；不得因未production执行本身BLOCK。保留counterexamples、unknowns、alternative_hypotheses、scope_extension_request与confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

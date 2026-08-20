@@ -1,0 +1,127 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-banked-child-inline-oracle-a2",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "按独立review对live b279 local-PHT child-inline做最小A2修订：不改功能RTL/OooFrontend/预测周期，补已训练different-bank双路0-cycle directed case；修正两项mispredict mutation到实际最早strong checker oracle并将所有marker计数收紧为恰好1、绑定raw log hash/size、移除旧task-run默认结果路径；为新physical configuration增加predictor/child/bank配置级keep-hierarchy并保持share=0 fail-closed，run contract expected design-id切到live b279，生成全新A2证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-oracle-a2.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-a2"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "make",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-v1/result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-review-v1.result.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "仅用apply_patch修改声明的TB/runner/Makefile/registry路径：child TB新增已训练不同bank、不同counter、同拍无tick双读marker；两项parent mutant expected marker改为包含BPU-L1-STRONG、got=0、exp=1与pc=0000000080001020的稳定前缀，所有expected marker必须恰好出现1次，evidence逐mutation记录raw log SHA-256与byte size；Makefile默认结果回到RESULT_DIR下且本次命令显式使用全新A2 task-owned空目录。新config以keep_hierarchy_additions或等价配置级字段精确增加OooBranchDirectionPredictor/OooBranchLocalPht/OooBranchLocalPhtBank，tool emit/run-parameters/binding必须消费合并后的hierarchy，share=0及缺失/漂移由schema/tool负向单测拒绝；expected_rtl_design_id更新为live sha256:b279d4bc209013144ea4075aa7102119a28ee2b77f797a98717401bc9272697e，旧d3f3 mapped receipt继续GAP_STALE_DESIGN。静态自审后只运行一次changed child TB、一次11项mutation到A2目录、一次registry unittest、一次render/check、一次scoped diff check；不重复parent正向TB，不运行综合/STA/全量回放。"
+  ],
+  "success_criteria": [
+    "A2只有在不同bank双读marker PASS；11/11 mutant全部compile-success、每项唯一expected marker、唯一RESULT FAIL、无RESULT PASS、source unchanged且raw log hash/size非空；registry新config合并后的keep hierarchy精确包含基础集合加predictor/child/bank且runner输出消费该集合，share漂移/缺层级/runner绕过被负向测试拒绝；live design保持b279、old d3f3 evidence保持stale；所有选中门禁各最终单次rc=0时才PASS。不得改功能RTL、A1封存evidence或用户无关改动，不得宣称PPA改善；失败即GAP且不循环重跑。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

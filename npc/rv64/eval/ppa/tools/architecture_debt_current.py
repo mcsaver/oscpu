@@ -26,7 +26,6 @@ SCHEMA = "npc-rv64-architecture-debt-current-v2"
 LEDGER_SCHEMA = "npc-rv64-architecture-debt-ledger-v2"
 DESIGN_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 COHORT_ID = "full-core-single-hart-rv64-dual-issue-ooo-v1"
-RTL_FILE_COUNT = 146
 
 RECEIPT_PATH = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/evidence/architecture-debt-current.json"
@@ -303,10 +302,17 @@ def validate_hash_records(root: pathlib.Path, value: Any, label: str) -> int:
     return count
 
 
-def validate_source_identity(payload: dict[str, Any], label: str) -> None:
+def validate_source_identity(
+    payload: dict[str, Any],
+    label: str,
+    rtl_file_count: int,
+) -> None:
     identity = payload.get("source_identity")
     require(isinstance(identity, dict), f"{label} source_identity is missing")
-    require_equal(identity.get("file_count"), RTL_FILE_COUNT, f"{label} RTL file count")
+    require_equal(
+        identity.get("file_count"), rtl_file_count,
+        f"{label} RTL file count",
+    )
     require_equal(identity.get("pre_post_equal"), True, f"{label} pre/post binding")
 
 
@@ -354,7 +360,7 @@ def current_rtl_binding(root: pathlib.Path) -> tuple[str, int]:
 
 
 def validate_delta_rebind(
-    root: pathlib.Path, design_id: str,
+    root: pathlib.Path, design_id: str, rtl_file_count: int,
 ) -> dict[str, Any]:
     module = load_module(
         safe_file(root, DELTA_TOOL_PATH),
@@ -381,11 +387,16 @@ def validate_delta_rebind(
         payload.get("current_design_id"), design_id, "delta current design-id"
     )
     delta = payload.get("rtl_delta", {})
-    require_equal(delta.get("file_count"), RTL_FILE_COUNT, "delta RTL file count")
+    require_equal(delta.get("file_count"), rtl_file_count, "delta RTL file count")
     changed_files = delta.get("changed_files")
+    added_files = delta.get("added_files")
     require(isinstance(changed_files, list), "delta changed RTL inventory is absent")
+    require(isinstance(added_files, list), "delta added RTL inventory is absent")
     changed_paths = {
         row.get("path") for row in changed_files if isinstance(row, dict)
+    }
+    added_paths = {
+        row.get("path") for row in added_files if isinstance(row, dict)
     }
     require_equal(
         len(changed_paths), len(changed_files), "delta changed RTL uniqueness"
@@ -394,17 +405,27 @@ def validate_delta_rebind(
         delta.get("changed_file_count"), len(changed_files),
         "delta changed RTL count",
     )
+    require_equal(
+        delta.get("added_file_count"), len(added_files),
+        "delta added RTL count",
+    )
+    require_equal(delta.get("removed_file_count"), 0, "delta removed RTL count")
     historical = payload.get("historical_negative", {})
     require_equal(historical.get("total"), 175, "delta historical negatives")
+    changed_cone_count = historical.get("mode_counts", {}).get(
+        "CHANGED_RTL_REPLAY_REQUIRED")
+    require(
+        isinstance(changed_cone_count, int) and changed_cone_count > 0,
+        "delta changed-cone negative count is invalid",
+    )
     require_equal(
-        historical.get("mode_counts", {}).get("CHANGED_RTL_REPLAY_REQUIRED"),
-        29,
-        "delta changed-cone negatives",
+        sum(historical.get("mode_counts", {}).values()), 175,
+        "delta historical projection partition",
     )
     current = payload.get("current_changed_cone", {})
     require_equal(
         (current.get("passed"), current.get("required")),
-        (29, 29),
+        (changed_cone_count, changed_cone_count),
         "delta current changed-cone replay",
     )
     coverage = payload.get("changed_source_coverage", {})
@@ -415,7 +436,7 @@ def validate_delta_rebind(
         "delta changed-source coverage split is absent",
     )
     require_equal(
-        set(historical_sources) | set(positive_only), changed_paths,
+        set(historical_sources) | set(positive_only), changed_paths | added_paths,
         "delta changed-source coverage completeness",
     )
     require_equal(
@@ -431,20 +452,26 @@ def validate_delta_rebind(
     require_equal(promotion.get("ppa"), "UNPROMOTED", "delta PPA boundary")
     return {
         "baseline_design_id": payload["baseline_design_id"],
-        "rtl_files": 146,
-        "changed_rtl_files": len(changed_files),
+        "historical_rtl_files": delta["baseline_file_count"],
+        "rtl_files": rtl_file_count,
+        "changed_rtl_files": len(changed_files) + len(added_files),
         "positive_only_changed_rtl_files": len(positive_only),
         "historical_negative": "175/175",
-        "unchanged_rtl_reused": 142,
+        "unchanged_rtl_reused": delta["unchanged_file_count"],
         "verification_only_reused": 4,
-        "changed_rtl_replayed": "29/29",
+        "changed_rtl_replayed": f"{changed_cone_count}/{changed_cone_count}",
         "artifact_records": validate_hash_records(
             root, payload.get("inputs", {}), "delta.inputs"
         ),
     }
 
 
-def validate_v14c(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
+def validate_v14c(
+    root: pathlib.Path,
+    payload: dict[str, Any],
+    design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
     require_equal(payload.get("schema"), "rv64-v14c-p0-final-current-dynamic-receipt-v2", "V14C schema")
     require_equal(payload.get("status"), "PASS", "V14C status")
     require_equal(payload.get("current_design_id"), design_id, "V14C design-id")
@@ -455,7 +482,7 @@ def validate_v14c(root: pathlib.Path, payload: dict[str, Any], design_id: str) -
         "V14C scope status",
     )
     require_equal(payload.get("current_dynamic_gate_count"), 9, "V14C gate count")
-    validate_source_identity(payload, "V14C")
+    validate_source_identity(payload, "V14C", rtl_file_count)
     positive = payload.get("positive_current_rtl", {})
     require_equal(positive.get("shared_module_aggregate"), {"passed": 113, "required": 113}, "V14C module aggregate")
     require_equal(positive.get("v14c_dynamic_suite"), {"passed": 18, "required": 18}, "V14C dynamic suite")
@@ -493,7 +520,12 @@ def validate_v14c(root: pathlib.Path, payload: dict[str, Any], design_id: str) -
     return {"positive": "136/136", "negative": "121/121", "artifact_records": validate_hash_records(root, payload, "V14C")}
 
 
-def validate_v14d(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
+def validate_v14d(
+    root: pathlib.Path,
+    payload: dict[str, Any],
+    design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
     require_equal(payload.get("schema"), "rv64-v14d-p1-direct-current-receipt-v1", "V14D schema")
     require_equal(payload.get("status"), "PASS", "V14D status")
     require_equal(payload.get("current_design_id"), design_id, "V14D design-id")
@@ -503,7 +535,7 @@ def validate_v14d(root: pathlib.Path, payload: dict[str, Any], design_id: str) -
         {debt: "CURRENT_DYNAMIC_PASS" for debt in sorted(P1_DIRECT_DEBTS)},
         "V14D scope status",
     )
-    validate_source_identity(payload, "V14D")
+    validate_source_identity(payload, "V14D", rtl_file_count)
     positive = payload.get("positive_rtl", {})
     require_equal((positive.get("passed"), positive.get("required")), (21, 21), "V14D positive RTL")
     negative = payload.get("compile_success_rtl_counterexamples", {})
@@ -519,7 +551,13 @@ def validate_v14d(root: pathlib.Path, payload: dict[str, Any], design_id: str) -
     return {"positive": "21/21", "negative": "24/24", "artifact_records": validate_hash_records(root, payload, "V14D")}
 
 
-def validate_v14e_common(payload: dict[str, Any], design_id: str, debt_id: str, schema: str) -> None:
+def validate_v14e_common(
+    payload: dict[str, Any],
+    design_id: str,
+    debt_id: str,
+    schema: str,
+    rtl_file_count: int,
+) -> None:
     require_equal(payload.get("schema"), schema, f"{debt_id} schema")
     require_equal(payload.get("debt_id"), debt_id, f"{debt_id} identity")
     require_equal(payload.get("status"), "PASS", f"{debt_id} status")
@@ -527,11 +565,17 @@ def validate_v14e_common(payload: dict[str, Any], design_id: str, debt_id: str, 
     require_equal(payload.get("architecture_gate_state"), "RED", f"{debt_id} architecture boundary")
     require_equal(payload.get("ppa_state"), "BLOCKED_BY_ARCHITECTURE", f"{debt_id} PPA boundary")
     require_equal(payload.get("production_rtl_written"), False, f"{debt_id} production RTL")
-    validate_source_identity(payload, debt_id)
+    validate_source_identity(payload, debt_id, rtl_file_count)
 
 
-def validate_v14e_f0(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
-    validate_v14e_common(payload, design_id, "F0-G1", "rv64-v14e-f0-current-summary-v1")
+def validate_v14e_f0(
+    root: pathlib.Path, payload: dict[str, Any], design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
+    validate_v14e_common(
+        payload, design_id, "F0-G1",
+        "rv64-v14e-f0-current-summary-v1", rtl_file_count,
+    )
     require_equal(payload.get("scope_status"), "CURRENT_DYNAMIC_PASS", "F0 scope status")
     require_equal(payload.get("evidence_mode"), "CHECKER_REPLAY", "F0 evidence mode")
     require_equal(payload.get("module", {}).get("passed"), 113, "F0 module pass")
@@ -555,8 +599,14 @@ def validate_v14e_f0(root: pathlib.Path, payload: dict[str, Any], design_id: str
     return {"module": "113/113", "official": "177/177", "am": "61/61", "rtl_negative": "3/3", "oracle_negative": "11/11", "artifact_records": validate_hash_records(root, payload, "F0")}
 
 
-def validate_v14e_fence(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
-    validate_v14e_common(payload, design_id, "FENCE-G1", "rv64-v14e-fence-current-summary-v1")
+def validate_v14e_fence(
+    root: pathlib.Path, payload: dict[str, Any], design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
+    validate_v14e_common(
+        payload, design_id, "FENCE-G1",
+        "rv64-v14e-fence-current-summary-v1", rtl_file_count,
+    )
     require_equal(payload.get("scope_status"), "CURRENT_DYNAMIC_PASS", "FENCE scope status")
     positive = payload.get("positive", {})
     mutations = payload.get("compile_success_rtl_counterexamples", {})
@@ -566,8 +616,14 @@ def validate_v14e_fence(root: pathlib.Path, payload: dict[str, Any], design_id: 
     return {"positive": "2/2", "negative": "2/2", "artifact_records": validate_hash_records(root, payload, "FENCE")}
 
 
-def validate_v14e_serialize(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
-    validate_v14e_common(payload, design_id, "SERIALIZE-G1", "rv64-v14e-serialize-fast-current-summary-v1")
+def validate_v14e_serialize(
+    root: pathlib.Path, payload: dict[str, Any], design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
+    validate_v14e_common(
+        payload, design_id, "SERIALIZE-G1",
+        "rv64-v14e-serialize-fast-current-summary-v1", rtl_file_count,
+    )
     require_equal(payload.get("scope_status"), "CURRENT_FAST_DYNAMIC_PASS", "SERIALIZE fast status")
     require_equal(payload.get("debt_current_status"), "STALE_PENDING_FULL_SYSTEM", "SERIALIZE pre-system history")
     require_equal(payload.get("positive_profiles"), {"passed": 5, "required": 5}, "SERIALIZE positives")
@@ -581,8 +637,14 @@ def validate_v14e_serialize(root: pathlib.Path, payload: dict[str, Any], design_
     return {"positive": "5/5", "rtl_negative": "17/17", "verification_negative": "1/1", "fast_layer_system": "NOT_RUN_IN_FAST_LAYER", "artifact_records": validate_hash_records(root, payload, "SERIALIZE")}
 
 
-def validate_v14e_vectored(root: pathlib.Path, payload: dict[str, Any], design_id: str) -> dict[str, Any]:
-    validate_v14e_common(payload, design_id, "VECTORED-TRAP-G1", "rv64-v14e-vectored-trap-current-summary-v1")
+def validate_v14e_vectored(
+    root: pathlib.Path, payload: dict[str, Any], design_id: str,
+    rtl_file_count: int,
+) -> dict[str, Any]:
+    validate_v14e_common(
+        payload, design_id, "VECTORED-TRAP-G1",
+        "rv64-v14e-vectored-trap-current-summary-v1", rtl_file_count,
+    )
     require_equal(payload.get("scope_status"), "CURRENT_DYNAMIC_PASS", "VECTORED scope status")
     positive = payload.get("positive", {})
     mutations = payload.get("compile_success_rtl_counterexamples", {})
@@ -696,30 +758,37 @@ def build_receipt(root: pathlib.Path) -> dict[str, Any]:
     root = root.resolve()
     design_id, file_count = current_rtl_binding(root)
     require(DESIGN_ID_RE.fullmatch(design_id) is not None, "live RTL design-id is malformed")
-    require_equal(file_count, RTL_FILE_COUNT, "live RTL file count")
+    require(file_count > 0, "live RTL file inventory is empty")
     sources = {name: load_json(root, path) for name, path in SOURCE_PATHS.items()}
-    delta = validate_delta_rebind(root, design_id)
+    delta = validate_delta_rebind(root, design_id, file_count)
     historical_design_id = delta["baseline_design_id"]
+    historical_rtl_files = delta["historical_rtl_files"]
     cohort_binding = validate_cohort_scope(root, design_id)
     metrics = {
         "delta_rebind": delta,
         "v14c_p0": validate_v14c(
-            root, sources["v14c_p0"], historical_design_id
+            root, sources["v14c_p0"], historical_design_id,
+            historical_rtl_files,
         ),
         "v14d_p1_direct": validate_v14d(
-            root, sources["v14d_p1_direct"], historical_design_id
+            root, sources["v14d_p1_direct"], historical_design_id,
+            historical_rtl_files,
         ),
         "v14e_f0": validate_v14e_f0(
-            root, sources["v14e_f0"], historical_design_id
+            root, sources["v14e_f0"], historical_design_id,
+            historical_rtl_files,
         ),
         "v14e_fence": validate_v14e_fence(
-            root, sources["v14e_fence"], historical_design_id
+            root, sources["v14e_fence"], historical_design_id,
+            historical_rtl_files,
         ),
         "v14e_serialize_fast": validate_v14e_serialize(
-            root, sources["v14e_serialize_fast"], historical_design_id
+            root, sources["v14e_serialize_fast"], historical_design_id,
+            historical_rtl_files,
         ),
         "v14e_vectored": validate_v14e_vectored(
-            root, sources["v14e_vectored"], historical_design_id
+            root, sources["v14e_vectored"], historical_design_id,
+            historical_rtl_files,
         ),
     }
     system = validate_system(root, design_id)

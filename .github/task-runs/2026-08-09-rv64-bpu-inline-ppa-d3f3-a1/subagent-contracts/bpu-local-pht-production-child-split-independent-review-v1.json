@@ -1,0 +1,105 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-production-child-split-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立攻击性复核 current d3f3 OooBranchDirectionPredictor 的 16×256 OooBranchLocalPht production-child 架构候选：从 RTL/spec/Top40 重新验证 bank={PC[4:1]}、row=local-history、0-cycle dual read、resolve S1→S2 update、read-before-write RAW、clear 和 no-predictor-recovery 语义，判断该候选是否真实切断 update_taken_i→local_pht_q fanout 而非仅隐藏路径，并审查 registry/OOC/Pareto/rollback 门。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/knife-b2-fetch-time-bpu.md",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+      "npc/rv64/design/specs/ooo-branch-spec-tracker.md",
+      "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+      "npc/rv64/vsrc/frontend",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_bpu_update_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_spec_tracker.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_resolve_recovery_gate.sv",
+      "npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-child-split-architect-route-v1.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-bpu-inline-mapped-a2-independent-review-v1.result.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/agents/cpu-architect.agent.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v2.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出 APPROVE/FIX/BLOCK 独立裁决；重建必要 Architecture IR，逐项攻击 bank/row 位域、双路 same-bank read、lookup+S2-write collision、same-entry back-to-back RAW、S1/S2 visibility、reset/clear、mispredict train/no-restore、跨 bank logic sharing、real Liberty arcs/OOC internal+top boundary 合取和 retain/rollback thresholds；指出任何把 timing path、area 或 CPI 风险隐藏起来的反例，并保留 unknowns、alternative_hypotheses、scope_extension_request 与 confidence_and_basis。"
+  ],
+  "success_criteria": [
+    "只有 16×256 candidate 在当前 RTL index 语义下正确、保持所有外部 cycle/state invariants、确有结构理由将 4096-entry public update load限制到 bank select与256-entry selected bank、且实现/TB/mutation/PPA/OOC 门能 fail-closed 防止路径隐藏时才可 APPROVE；若 bank mapping、RAW/clear/recovery、same-bank dual-read 或 real Liberty arc 合取存在承重缺口则必须 FIX/BLOCK。不得修改文件，不得运行仿真/综合/STA/parser/test，不得把 banked PPA 改善当成已测事实。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

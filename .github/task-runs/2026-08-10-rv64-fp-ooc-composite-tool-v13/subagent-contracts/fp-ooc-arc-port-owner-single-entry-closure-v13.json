@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-arc-port-owner-single-entry-closure-v13",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "闭合本地 RV64 OooFpAddSubPipe 5.0ns OOC arc inventory PORT owner同构修复的Architecture Registry单一入口视图。v12两项定向单测已PASS且唯一FAIL是ARCHITECTURE.md stale；绑定v12原始FAIL与PASS收据、当前parser/Registry/spec/A6身份，依赖裁剪地只执行一次Registry render到授权的ARCHITECTURE.md、check与scoped audit，不重跑单测、OpenSTA、Yosys、STA、RTL sim或A6。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-isomorphism-fix-v12.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-single-entry-closure-v13",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/subagent-contracts/fp-ooc-arc-port-owner-single-entry-closure-v13.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-single-entry-closure-v13"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v13/evidence/fp-ooc-arc-port-owner-isomorphism-fix-v12/affected-unittest.log",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增独立v13 closure runner，先逐项重算v12 gate/unittest/Registry FAIL与production/A6输入哈希，再仅执行Registry render、check和scoped diff/text audit各一次；封存ARCHITECTURE.md前后哈希与非ARCH输入不变证明。"
+  ],
+  "success_criteria": [
+    "v13单次closure rc0，复用v12两项单测PASS且不重跑，Registry render/check与scoped audit PASS，非ARCH输入和A6冻结身份不漂移；unittest/OpenSTA/Yosys/STA/RTL sim/A6 rerun均为0。结果仍为工具修复PASS、PPA GAP，并要求后续独立只读review。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

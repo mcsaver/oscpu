@@ -205,6 +205,37 @@ T4T 属第 1 层，仍有 304 missing input、1906 missing output、1908 unconst
 - 面积比较要求相同 PDK/lib/blackbox inventory；功耗比较要求同一 workload SAIF/VCD、
   activity coverage≥95% 且 macro power 完整。条件未满足时该轴显示 `unqualified`，不能填 0。
 
+### 5.3 FP production-child OOC composite 诊断层
+
+`mapped-5ns-fp-arith-production-children-ooc-boundary-v1` 只允许作为
+`ooc_sta_abstraction` 定位实验，不新增 timing tier，也不满足 §5.1 任一晋级层：
+
+- `OooFpArithGate` 必须 inline；五 production child 必须各出现一次
+  `known_ooc_macro`；`Sram4096x199×1`、`Sram4096x113×2` 与
+  `OooBranchDirectionPredictor×1` 仍是 `unknown_placeholder`。三类集合重叠、漏项或
+  profile/config 漂移均 fail closed。
+- 五 child 的真实 OOC stdcell netlist、nonzero cells/area、max/min 内部 timing path
+  必须逐个绑定。回接 Liberty 只能标为 `OOC_STA_ABSTRACTION`，完整覆盖 setup、hold、
+  clk-to-Q；禁止伪 PI-to-PO arc、timing exception、把同步 `rst/flush_i` 误建为异步
+  recovery/removal，或在没有模型时宣称 power 完整。
+- top 必须在同一 `NpcTop`/5.0ns 图观察五条冻结 child/wrapper boundary class。
+  child negative slack 不能由 clean top 汇总掩盖；clean 设计允许 negative count 为零，
+  工具不得为了制造热点而拒绝。
+- 面积核账为 `top stdcell area excluding known OOC macros + each child OOC area once`；
+  macro/stdcell 重复实现、双计、漏计或零面积均拒绝。因 SRAM/BPU area 与 OOC child
+  power/signoff characterization 仍缺，成功结果固定为
+  `DIAGNOSTIC_ONLY/GAP/noncanonical/nonchampion`，不得参与 Pareto/PPA 排名。
+- 顺序 Liberty 的每个 setup/hold/clk-to-Q 数值必须由绑定 5.0ns period、0ns
+  input-delay、`typ_tt_1p2_25` corner 下的真实逐 port-family max/min arc inventory
+  机械导出，并绑定实际对象名、path delay、slack、source/endpoint object class 与
+  coverage cardinality；任一 inventory 变化必须改变 Liberty。D pin launch、合并
+  `rst/flush_i` 覆盖或常量 timing table 均为无效证据。
+- mapped 完整性由 Yosys 非零 `check -mapped -assert` 与绑定 stdlib leaf whitelist
+  合取；所有 `$*` generic 和非 stdlib leaf 都拒绝。top boundary 只接受 Registry 精确
+  instance/pin contract 与实际 OpenSTA object collection 的交集。cleanup 前必须保留
+  同一 mapped design JSON 派生的完整 port/leaf-cell/instance manifest，状态仅写入
+  evidence 内 `gate-status.txt`；路径或 manifest 漂移均 fail closed。
+
 ## 6. PPA 三轴对抗与晋级
 
 对同 cohort 候选，性能取 `q_i = qualified_mhz / CPI_i`，CoreMark/Dhrystone 默认各 0.5 权重：

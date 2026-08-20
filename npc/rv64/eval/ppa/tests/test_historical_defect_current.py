@@ -32,6 +32,9 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         cls.tool = load_tool()
         cls.receipt = cls.tool.load_json(ROOT, cls.tool.RECEIPT_PATH)
         cls.ledger = cls.tool.load_json(ROOT, cls.tool.LEDGER_PATH)
+        cls.module_test_count = cls.tool.load_json(
+            ROOT, cls.tool.V15W_CURRENT_MODULE_RESULT_PATH
+        )["tests"]["required"]
         cls.closed_ledger = copy.deepcopy(cls.ledger)
         cls.a3_checker_contract = cls.tool.validate_a3_checker_contract(ROOT)
 
@@ -78,6 +81,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                         ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH
                     ),
                     self.receipt["design_id"],
+                    self.receipt["rtl_file_count"],
                 ),
             )
 
@@ -89,6 +93,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 ROOT,
                 payload,
                 self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_queue_head_current_mutation_set_is_exact(self) -> None:
@@ -113,7 +118,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         row["make_returncode"] = 0
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_qh_younger_store(
-                ROOT, historical, current, self.receipt["design_id"]
+                ROOT,
+                historical,
+                current,
+                self.receipt["design_id"],
             )
 
     def test_queue_head_negative_marker_spoof_is_rejected(self) -> None:
@@ -126,7 +134,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         row["markers"] = {"arbitrary marker": 1}
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_qh_younger_store(
-                ROOT, historical, current, self.receipt["design_id"]
+                ROOT,
+                historical,
+                current,
+                self.receipt["design_id"],
             )
 
     def test_queue_head_positive_counts_are_derived_from_retained_log(self) -> None:
@@ -207,6 +218,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 historical,
                 current,
                 self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_v8l_single_mutation_survivor_is_rejected(self) -> None:
@@ -215,7 +227,11 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         current["v14g_dynamic_fence"]["mutations"].pop()
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
-                ROOT, historical, current, self.receipt["design_id"]
+                ROOT,
+                historical,
+                current,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_v8l_retained_log_hash_drift_is_rejected(self) -> None:
@@ -224,7 +240,11 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         current["v14g_dynamic_fence"]["mutations"][0]["log"]["sha256"] = "0" * 64
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v8l(
-                ROOT, historical, current, self.receipt["design_id"]
+                ROOT,
+                historical,
+                current,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_v8l_mutation_sim_return_code_spoof_is_rejected(self) -> None:
@@ -236,6 +256,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.HISTORICAL_V8L_PATH),
                 current,
                 self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_v9p_immutable_lane_nonclaim_cannot_be_rewritten(self) -> None:
@@ -252,6 +273,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
+                self.module_test_count,
             )
 
     def test_v9p_compile_success_mutation_survivor_is_rejected(self) -> None:
@@ -268,6 +290,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
+                self.module_test_count,
             )
 
     def test_v9p_optional_ubuntu_cannot_be_claimed_by_default_signoff(self) -> None:
@@ -284,6 +307,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
+                self.module_test_count,
             )
 
     def test_v9p_independent_review_must_preserve_unknown_frozen_lane(self) -> None:
@@ -300,13 +324,14 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 review,
                 self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
                 self.receipt["design_id"],
+                self.module_test_count,
             )
 
-    def test_v9p_current_rebind_review_cannot_hide_timing_failure(self) -> None:
+    def test_v9p_current_rebind_review_cannot_claim_unmeasured_ppa(self) -> None:
         review = self.tool.load_json(
             ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH
         )
-        review["review_boundary"]["timing_hard_gate"] = "PASS"
+        review["review_boundary"]["current_ppa_state"] = "PROMOTED"
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_v9p_terminal_duplicate(
                 ROOT,
@@ -318,6 +343,44 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 review,
                 self.receipt["design_id"],
+                self.module_test_count,
+            )
+
+    def test_v9p_projected_aggregate_cannot_be_retagged_direct(self) -> None:
+        projection = self.tool.load_json(
+            ROOT, self.tool.V9P_CURRENT_PATH_PROJECTION_PATH
+        )
+        projection["claim_boundary"]["direct_review_retagged"] = True
+        with self.assertRaises(self.tool.HistoricalCurrentError):
+            self.tool.validate_v9p_terminal_duplicate(
+                ROOT,
+                self.tool.load_json(
+                    ROOT, self.tool.HISTORICAL_V9P_ROOT_CAUSE_PATH
+                ),
+                self.tool.load_json(ROOT, self.tool.V9R_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH),
+                self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
+                self.tool.load_json(ROOT, self.tool.V9P_CURRENT_REBIND_REVIEW_PATH),
+                self.receipt["design_id"],
+                self.module_test_count,
+                projection,
+            )
+
+    def test_layered_l0_must_bind_projected_full_core_module(self) -> None:
+        projection = self.tool.load_json(
+            ROOT, self.tool.V9P_CURRENT_PATH_PROJECTION_PATH
+        )
+        layered = self.tool.load_json(ROOT, self.tool.LAYERED_SYSTEM_CURRENT_PATH)
+        layered["layers"]["L0_DIRECTED_RTL"]["result"]["path"] = (
+            self.tool.V15W_CURRENT_MODULE_RESULT_PATH.as_posix()
+        )
+        with self.assertRaises(self.tool.HistoricalCurrentError):
+            self.tool.validate_layered_system_current(
+                ROOT,
+                layered,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
+                projection,
             )
 
     def test_v9p_current_rebind_review_must_preserve_unknown_owner(self) -> None:
@@ -336,6 +399,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
                 self.tool.load_json(ROOT, self.tool.V15G_INDEPENDENT_REVIEW_PATH),
                 review,
                 self.receipt["design_id"],
+                self.module_test_count,
             )
 
     def test_exit_rejection_marker_spoof_is_rejected(self) -> None:
@@ -343,7 +407,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         payload["mutations"][0]["expected_rejection_marker"] = "arbitrary marker"
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_exit_current(
-                ROOT, payload, self.receipt["design_id"]
+                ROOT,
+                payload,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_exit_mutated_source_hash_spoof_is_rejected(self) -> None:
@@ -352,7 +419,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         first[next(iter(first))] = "0" * 64
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_exit_current(
-                ROOT, payload, self.receipt["design_id"]
+                ROOT,
+                payload,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_exit_source_binding_set_and_role_are_exact(self) -> None:
@@ -360,7 +430,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         payload["source_bindings"][-1] = copy.deepcopy(payload["source_bindings"][0])
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_exit_current(
-                ROOT, payload, self.receipt["design_id"]
+                ROOT,
+                payload,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_exit_focused_plusarg_drift_is_rejected(self) -> None:
@@ -368,7 +441,10 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
         payload["configuration"]["plusarg"] = "+UNRELATED_MODE"
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_exit_current(
-                ROOT, payload, self.receipt["design_id"]
+                ROOT,
+                payload,
+                self.receipt["design_id"],
+                self.receipt["rtl_file_count"],
             )
 
     def test_exit_compile_invocation_rejects_unbound_compiler(self) -> None:

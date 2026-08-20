@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "serialized-drain-owner-lifetime-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立追踪本地 RV64 OoO 串行 stop owner 从 capture、backend drain、memory owner terminal collector 到 resolve/owner clear/handoff 的跨周期生命周期，证明或给出反例说明在 backend_drained_q_i 后锁存 mem_owner_terminalized_i 是否会遗漏新 memory birth、保留陈旧 owner 完成资格、越过 flush/FENCE/trap/exit 优先级或丢失 exact token terminal accounting；不得授权生产 RTL 修改。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
+      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+      "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v",
+      "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+      "npc/rv64/vsrc/execute/OooIntBackend.v",
+      "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+      "npc/rv64/vsrc/writeback/OooControlCommitSequencer.v",
+      "npc/rv64/design/specs/ooo-drain-retire-redundancy.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      "npc/rv64/design/specs/ooo-backend-drain-tracker.md",
+      "npc/rv64/design/specs/ooo-control-plane.md",
+      "npc/rv64/design/specs/ooo-stop-pending-sequencer.md",
+      "npc/rv64/design/specs/ooo-fence-drain-ordering.md",
+      "npc/rv64/design/specs/ooo-csr-trap-request-mux.md",
+      "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv",
+      "npc/rv64/testbench/tests/tb_ooo_pending_arch_trap_memory_terminal.sv",
+      "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/current-timing-path-analysis/result.json",
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/subagent-contracts/serialized-drain-owner-lifetime-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/specs/ooo-drain-retire-redundancy.md",
+      "npc/rv64/design/specs/ooo-serialize-memory-owner-terminal.md",
+      ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/current-timing-path-analysis/result.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 cycle k/k+1 列出 stop owner、backend_drained_q_i、memory holder/collector token、mem_owner_terminalized_i、flush、FENCE/trap/exit completion 与 owner clear/handoff 的信号来源和优先关系。",
+    "给出 serialized-mem-terminal-readiness-register-v1 的 PASS、GAP 或 inconclusive 裁决，逐项覆盖 current receipt 的五类 required_counterexamples，并列出可编码为 TB/断言的最小反例序列。",
+    "保留 unknowns、替代假设、confidence_and_basis；若必要路径超出合同，给出 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "每个结论都绑定真实 module/signal/path/line 区间，并区分组合当拍事实、上一沿 registered drain 事实和 collector pending token 事实。",
+    "不得把 backend drained、ROB empty 或 mem_owner_terminalized 任一单点外推为跨周期 owner-lifetime 安全；只有覆盖 reset、local/global flush、owner completion/handoff、memory birth 与 FENCE/trap/exit 优先关系后才可给 PASS。",
+    "若发现任一可行反例，明确最短周期序列、受影响 invariant、现有 TB 覆盖缺口与下一项定向验证动作，不修改工作区。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

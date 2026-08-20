@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-pythonpath-status-fix-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立尝试推翻 NpcTop FP OOC composite runner 的 PYTHONPATH 与失败状态修复：核对 canonical repo_root 后唯一且 readonly 的 PYTHONPATH 是否在首个 Registry/composite Python 调用前生效、是否拒绝外部继承和错误根；核对 EXIT/signal 路径是否保留真实 failure stage、显式 CLEANUP_RC 且不产生假 PASS；机械交叉 clean-env direct-file import、2个定向方法9个 mutation、bash-n、scoped diff 与旧失败 run 未改证据。只裁决工具修复 RETAIN/FIX/BLOCK及是否可用全新 run-id 再执行一次 production diagnostic，不运行任何测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/subagent-contracts/fp-ooc-composite-pythonpath-status-fix-v2.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v5/evidence/fp-ooc-composite-top-boundary-fix-v5/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/subagent-contracts/fp-ooc-composite-pythonpath-status-fix-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v6/evidence/fp-ooc-composite-pythonpath-status-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a1/evidence/fp-ooc-composite-v1/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐行核对 repo_root、export/readonly PYTHONPATH、首个 Registry/composite Python 调用的顺序及 production/tool manifest 对 runner和architecture_registry.py的绑定；构造静态反例判断缺失、错误根、外部拼接或迟绑定是否可能假绿。",
+    "核对 finalize_on_exit 与 forward_signal 的 stage freeze、cleanup、restore/write顺序，CLEANUP_RC 字段和唯一 PASS marker；判断旧 run 的 exit-trap 反例是否在新输入中确定消失，且旧五文件证据哈希未改变。",
+    "核对 result 758f8f93、gate-status、before/after manifest、clean-env receipt、unittest receipt及9个mutation身份；给出RETAIN、FIX或BLOCK。若无静态确定反例，只授权另一个全新run-id的一次production diagnostic，PPA仍GAP。"
+  ],
+  "success_criteria": [
+    "不得运行Python、bash、测试、runner、Yosys、OpenSTA或STA；仅用声明的只读命令复算关键hash和查看源码/限定diff。若环境绑定或status语义存在确定反例必须指出，否则RETAIN并把真实mapped/PPA未知留给fresh runner fail-closed裁决；保留counterexamples、unknowns、alternative_hypotheses、scope_extension_request与confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

@@ -2902,13 +2902,15 @@ e2e_agent_system_dual_role_docs_valid() {
 
   e2e_file_contains "$agents_doc" '实现者' &&
     e2e_file_contains "$agents_doc" '审查者' &&
-    e2e_file_contains "$agents_doc" '双角色复核' &&
+    e2e_file_contains "$agents_doc" '风险触发双角色复核' &&
     e2e_file_contains "$copilot_doc" '实现者' &&
     e2e_file_contains "$copilot_doc" '审查者' &&
-    e2e_file_contains "$copilot_doc" '双角色复核' &&
+    e2e_file_contains "$copilot_doc" '风险触发复核' &&
     e2e_file_contains "$agent_system_doc" '实现者人格' &&
     e2e_file_contains "$agent_system_doc" '审查者人格' &&
-    e2e_file_contains "$state_machine_doc" '实现者/审查者双角色复核'
+    e2e_file_contains "$agent_system_doc" '普通确定性环境修改' &&
+    e2e_file_contains "$state_machine_doc" '风险触发双角色复核' &&
+    e2e_file_contains "$state_machine_doc" '长跑本身不触发'
 }
 
 e2e_agent_system_reviewer_inspector_gate() {
@@ -2938,6 +2940,8 @@ e2e_agent_system_reviewer_inspector_gate() {
      e2e_file_contains "$review_doc" '"inspector": "agent-system"' &&
      e2e_file_contains "$review_doc" '"state-audit"' &&
      e2e_file_contains "$review_doc" '"adversarial_personas"' &&
+     e2e_file_contains "$review_doc" '"activation": "risk-triggered"' &&
+     e2e_file_contains "$review_doc" '"default_required": false' &&
      e2e_file_contains "$review_doc" '"implementer_persona"' &&
      e2e_file_contains "$review_doc" '"reviewer_persona"' &&
      e2e_file_contains "$review_doc" '"conflict_resolution_required": true'; then
@@ -2950,22 +2954,24 @@ e2e_agent_system_reviewer_inspector_gate() {
   if e2e_file_contains "$policy_doc" '"reviewer_profile_nodes"' &&
      e2e_file_contains "$policy_doc" '"state-machine-traceback"' &&
      e2e_file_contains "$policy_doc" '"reviewer-inspector-gate"' &&
-     e2e_file_contains "$policy_doc" '"adversarial_personas_required": true' &&
+     e2e_file_contains "$policy_doc" '"adversarial_personas_required": false' &&
+     e2e_file_contains "$policy_doc" '"adversarial_personas_policy": "risk-triggered"' &&
+     e2e_file_contains "$policy_doc" '"deterministic_default_execution_count": 1' &&
+     e2e_file_contains "$policy_doc" '"deterministic_same_command_rerun_required": false' &&
      e2e_file_contains "$policy_doc" '"conflict_resolution_required": true'; then
-    printf 'PASS policy requires reviewer/inspector profile nodes\n'
+    printf 'PASS policy keeps reviewer/inspector nodes with risk-triggered activation\n'
   else
-    printf 'FAIL policy missing reviewer/inspector profile node requirements\n'
+    printf 'FAIL policy missing risk-triggered reviewer/inspector requirements\n'
     rc=1
   fi
 
-  # Check the delivery contract by semantic anchors instead of one exact
-  # punctuation/persona spelling.  The rule remains strict about both roles and
-  # the dual-role review, while allowing the canonical docs to use
-  # “实现者 / 审查者” or “实现者人格 / 审查者人格”.
+  # Check the delivery contract by semantic anchors. Both roles remain
+  # available, but activation must be risk-driven rather than tied to every
+  # non-trivial or cross-file delivery.
   if e2e_agent_system_dual_role_docs_valid; then
-    printf 'PASS implementer/reviewer dual-role delivery rule is documented\n'
+    printf 'PASS implementer/reviewer risk-triggered delivery rule is documented\n'
   else
-    printf 'FAIL implementer/reviewer dual-role delivery rule missing from docs\n'
+    printf 'FAIL implementer/reviewer risk-triggered delivery rule missing from docs\n'
     rc=1
   fi
 

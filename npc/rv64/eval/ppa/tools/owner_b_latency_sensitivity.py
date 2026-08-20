@@ -135,7 +135,7 @@ def verify_causal_receipt(path: pathlib.Path) -> dict[str, Any]:
     value = load_json(path)
     try:
         rebuilt = causal.rebuild_receipt(value)
-    except (causal.EvidenceError, OSError, KeyError, TypeError) as error:
+    except (causal.AnalysisError, OSError, KeyError, TypeError) as error:
         raise EvidenceError(f"causal receipt cannot be rebuilt: {error}") from error
     require(value == rebuilt, "causal receipt differs from rebuilt evidence")
     require(value.get("status") == "RESEARCH_REQUIRED", "causal status drifted")

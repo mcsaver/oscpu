@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-tool-test-mutation-fix-v3",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 NpcTop FP OOC composite v2 最终门禁中三个测试自身的确定性 mutation 错误：test_fp_ooc_composite_projection_and_tool_contract_fail_closed 对 register_q_pins、actual_pin_crosscheck、validate_netlist_manifest 只删除第一次出现，导致标记仍存；仅将三个 mutation 改为删除全部匹配，并复用已封存的37项PASS与Registry render结果，只执行受影响test method和此前未执行的Registry check、runner bash语法与scoped diff，不改production工具或FP RTL，不运行EDA",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/design/arch",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v3",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/targeted-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v3/subagent-contracts/fp-ooc-composite-tool-test-mutation-fix-v3.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v3/evidence/fp-ooc-composite-tool-test-mutation-fix-v3"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v2/evidence/fp-ooc-composite-tool-blocker-fix-v2/targeted-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "把三个 source-marker mutation 从只替换第一次改成删除所有出现，并封存 production源码hash前后未变、test精确diff、v2 attempt记录引用与v3执行计数；只运行 test_fp_ooc_composite_projection_and_tool_contract_fail_closed 一次，再运行此前未执行的Registry check、production runner bash -n和限定scoped diff各一次，生成v3 result与gate-status.txt"
+  ],
+  "success_criteria": [
+    "三个受影响subtest都必须证明删除全部marker后source audit非空且拒绝mutation；不得重跑v2已通过的37项或Registry render，不得修改production工具、Registry、Tcl、runner、schema、spec、ARCH或FP RTL；production源码hash必须与v2失败时相同，production EDA与RTL sim为0；任何失败封存且不在相同输入重跑"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

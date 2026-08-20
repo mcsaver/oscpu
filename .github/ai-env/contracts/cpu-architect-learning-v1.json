@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "system_id": "cpu-architect-grounded-experience-loop-v1",
+  "purpose": "Externally grounded self-improvement for the local RV64 CPU Architect without self-training on generated proposals.",
+  "schemas": {
+    "capability_graph": ".github/ai-env/contracts/cpu-architect-capability-graph-v1.schema.json",
+    "experience_record": ".github/ai-env/contracts/cpu-architect-experience-record-v1.schema.json",
+    "knowledge_gap": ".github/ai-env/contracts/cpu-architect-knowledge-gap-v1.schema.json"
+  },
+  "validator": "scripts/cpu_architect_learning.py",
+  "error_taxonomy": {
+    "E1": "knowledge_gap",
+    "E2": "reasoning_error",
+    "E3": "causal_attribution_error",
+    "E4": "magnitude_prediction_error",
+    "E5": "tool_or_experiment_error",
+    "E6": "model_abstraction_error",
+    "E7": "objective_or_constraint_error",
+    "E8": "exploration_strategy_error",
+    "E9": "confidence_calibration_error",
+    "E10": "communication_or_traceability_error"
+  },
+  "ground_truth_hierarchy": [
+    "silicon_measurement",
+    "fpga_measurement",
+    "rtl_simulation",
+    "eda_report",
+    "cycle_simulation",
+    "analytical_model",
+    "human_review",
+    "llm_opinion"
+  ],
+  "training_eligible_ground_truth": [
+    "silicon_measurement",
+    "fpga_measurement",
+    "rtl_simulation",
+    "eda_report",
+    "cycle_simulation"
+  ],
+  "learning_levels": [
+    "context_acquisition",
+    "knowledge_memory",
+    "strategy_memory",
+    "training_candidate"
+  ],
+  "loops": {
+    "fast": "Per experiment: predict, measure, compare, diagnose and record.",
+    "medium": "Per bounded slice: update capability evidence and prioritized knowledge gaps.",
+    "slow": "Only after multiple externally validated records and unseen exams: consolidate principles or export a quarantined training candidate."
+  },
+  "grounded_experience_loop": [
+    "solve",
+    "predict",
+    "measure",
+    "compare",
+    "diagnose_error",
+    "detect_gap",
+    "acquire",
+    "unseen_exam",
+    "store",
+    "consolidate"
+  ],
+  "priority_formula": "impact * frequency * uncertainty / learning_cost",
+  "voi_formula": "expected_uncertainty_reduction / experiment_cost",
+  "training_boundary": {
+    "autonomous_weight_update": false,
+    "generated_proposal_is_ground_truth": false,
+    "human_or_llm_opinion_is_sufficient": false,
+    "export_only": true,
+    "required_for_eligibility": [
+      "prediction_recorded_before_measurement",
+      "objective_external_evidence",
+      "meta_critic_complete",
+      "unseen_exam_passed",
+      "scope_and_exceptions_recorded"
+    ]
+  },
+  "consolidation_policy": {
+    "minimum_validated_experiences": 2,
+    "cross_context_counterexample_required": true,
+    "universal_claims_forbidden": true,
+    "principle_must_record_scope_and_exceptions": true
+  },
+  "shadow_mode": {
+    "allowed": true,
+    "promotion_authority": "objective_local_evidence",
+    "human_preference_overrides_silicon_or_rtl_evidence": false
+  }
+}

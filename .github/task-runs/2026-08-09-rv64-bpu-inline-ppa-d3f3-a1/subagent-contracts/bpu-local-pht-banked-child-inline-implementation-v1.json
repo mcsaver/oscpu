@@ -1,0 +1,144 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-local-pht-banked-child-inline-implementation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "在 current RV64 OooBranchDirectionPredictor 中实现一次可逆的 OooBranchLocalPht production child 全 inline 实验：保持双路 0-cycle lookup、resolve S1→S2、read-before-write RAW、clear 与 mispredict train/no-restore 语义，以 16×256 bank-local state/S1 update 将 public update_taken 负载从 4096-entry 公共写锥限制到 16 路 bank select 与每 bank 256 entries；同步维护 spec、filelist、directed TB、compile-success mutation 和单一 architecture registry/config，不运行综合/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      ".github/task-runs/2026-08-10-rv64-bpu-inline-ppa-d3f3-inline-a2",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/design/specs/ooo-branch-bpu-update-gate.md",
+      "npc/rv64/design/specs/ooo-branch-resolve-recovery-gate.md",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/common",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_bpu_update_gate.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_resolve_recovery_gate.sv",
+      "npc/rv64/testbench/scripts",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-independent-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-banked-child-inline-implementation-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/testbench/tests/tb_ooo_branch_local_pht.sv",
+      "npc/rv64/testbench/scripts/run_ooo_branch_local_pht_mutations.py",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-local-pht-banked-child-implementation-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "make",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-build"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-branch-direction-predictor.md",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/common/OooBranchDirectionPredictorFacts.vh",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/testbench/Makefile",
+      "npc/rv64/testbench/tests/tb_ooo_branch_direction_predictor.sv",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-architecture-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-local-pht-production-child-split-independent-review-v1.result.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "仅用 apply_patch 在声明路径内实现 OooBranchLocalPht wrapper 与 16 个 OooBranchLocalPhtBank（可同文件双 module），parent 只把 local-PHT state/read/update 移入 child；bank-local S1 捕获 taken/old counter，S2 饱和写回。补齐参数/位域不变量、spec、filelist、child directed TB、parent integration TB、compile-success mutation runner和 Makefile target；在 registry/schema/tool/test 中登记 mapped-5ns-bpu-local-pht-banked-child-inline-v1 为 comparison_parent=mapped-5ns-bpu-inline-v1 的 engineering_proxy_archive，全部 child inline，三类既有 placeholder 不变，current d3f3 receipts 必须因 source identity 漂移而保持 GAP。静态自审后只运行一次 child TB、一次 parent TB、一次 mutation target、一次 registry unittest、一次 registry render/check 和一次 scoped diff check；不运行综合、STA、全量 L0/L1/L2/L3或系统回放。交付真实 marker/rc、修改文件、unknowns和 scope_extension_request。"
+  ],
+  "success_criteria": [
+    "RTL 必须固定 BANKS=16、ROWS=256、bank=index[11:8]=PC[4:1]、row=index[7:0]=local_history；两路 same-bank/same-row 与 same-bank/different-row 组合读无仲裁，resolve S1和下一沿S2、lookup/S2 read-before-write、背靠背同 entry 无 forwarding的既有丢增量行为、pending-S2 clear、mispredict仍训练且不恢复 predictor全部被 directed TB观测。至少九个 compile-success mutation逐项命中预期失败 marker：lane1地址复用、bank/row交换、lookup加拍、counter wrap或taken反相、update一拍/三拍、RAW forwarding、clear不清 bank-local update、same-bank仲裁、mispredict抑制/restore；编译失败不得计为杀死。registry 的新配置必须只含三类既有 placeholder并显式列 child/banks inline、comparison parent和非 canonical/non champion状态；新增 product RTL必须进入 filelist、inventory/reachability声明，旧 d3f3 mapped summary不得伪绑定新 identity。所有选中命令单次最终执行 rc=0；若失败则 fail-closed 报 GAP，不循环重跑，不声称 timing/PPA改善。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

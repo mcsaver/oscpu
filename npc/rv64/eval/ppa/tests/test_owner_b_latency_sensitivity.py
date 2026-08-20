@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stderr
+import io
+import json
 import os
 import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOLS = ROOT / "npc/rv64/eval/ppa/tools"
@@ -177,6 +181,68 @@ class OwnerBLatencySensitivityTests(unittest.TestCase):
                 pathlib.Path(raw), "run.log",
                 "%Error: Assertion failed\n[OWNER-B-LATENCY-EARLY-VALID][FAIL]\n")
             self.assertGreaterEqual(probe.assertion_marker_count(path), 3)
+
+    def canonical_causal_receipt(self, directory: pathlib.Path) -> pathlib.Path:
+        source = ROOT / (
+            ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-"
+            "rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/owner-causal/"
+            "result.json"
+        )
+        value = json.loads(source.read_text(encoding="utf-8"))
+        value["inputs"] = {
+            name: probe.causal.artifact(ROOT, ROOT / reference["path"])
+            for name, reference in value["inputs"].items()
+        }
+        path = directory / "causal.json"
+        path.write_text(
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def test_causal_receipt_error_is_wrapped_without_attribute_error(self) -> None:
+        runtime = ROOT / ".github/runtime-artifacts/tests"
+        runtime.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            prefix="owner-b-causal-", dir=runtime,
+        ) as raw:
+            directory = pathlib.Path(raw)
+            path = self.canonical_causal_receipt(directory)
+            value = json.loads(path.read_text(encoding="utf-8"))
+            with mock.patch.object(
+                probe.causal, "build_receipt", return_value=value,
+            ):
+                verified = probe.verify_causal_receipt(path)
+            self.assertEqual(verified["status"], "RESEARCH_REQUIRED")
+
+            value["inputs"]["owner_timing_verifier"]["sha256"] = "0" * 64
+            path.write_text(
+                json.dumps(value, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                probe.EvidenceError,
+                "causal receipt cannot be rebuilt: causal input "
+                "owner_timing_verifier sha256 mismatch",
+            ):
+                probe.verify_causal_receipt(path)
+
+            args = mock.Mock()
+            args.func = lambda _: probe.verify_causal_receipt(path)
+            parser = mock.Mock()
+            parser.parse_args.return_value = args
+            stderr = io.StringIO()
+            with mock.patch.object(probe, "parser", return_value=parser):
+                with redirect_stderr(stderr):
+                    return_code = probe.main()
+            self.assertEqual(return_code, 2)
+            self.assertIn(
+                "[OWNER-B-LATENCY-SENSITIVITY][FAIL] causal receipt cannot "
+                "be rebuilt: causal input owner_timing_verifier sha256 mismatch",
+                stderr.getvalue(),
+            )
+            self.assertNotIn("AttributeError", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
 
     def prepare_replay_fixture(
         self, directory: pathlib.Path, *, valid_binding: bool,

@@ -1,0 +1,38 @@
+{
+  "artifacts": {
+    "aggregate": {
+      "kind": "functional_aggregate",
+      "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+      "sha256": "ed2bf482cec16f98b2ffb2e5a8bfcbf651dc539573094bd0d1b6f633bc4571c7",
+      "size_bytes": 238314
+    },
+    "aggregate_log": {
+      "kind": "functional_aggregate_log",
+      "path": "npc/rv64/eval/ppa/evidence/functional-aggregate.log",
+      "sha256": "ef218ffd864d9792cb7135d55add872a6607f0ebb89680e475460d9467fb55f0",
+      "size_bytes": 986
+    },
+    "aggregate_result": {
+      "kind": "functional_aggregate_result",
+      "path": "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      "sha256": "0bc35b4d3859470faaab381eb7f223edb38c5d824df3c955f5c88185bc21f3af",
+      "size_bytes": 3043
+    }
+  },
+  "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+  "execution_status": {
+    "kind": "full_core_execution_status",
+    "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/full-core-current.status",
+    "sha256": "c26de83abdc9496cd1301470918ec39ecca1cf389ef0ae1c6504da1800d1c431",
+    "size_bytes": 5
+  },
+  "schema": "npc-rv64-full-core-functional-current-publication-v1",
+  "source_run_result": {
+    "kind": "functional_run_result",
+    "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/run-result.json",
+    "sha256": "3f10c5ee1d2cac6270dcd0085d3095383ea7faad8b57bd8ca9402f6e39227d03",
+    "size_bytes": 3453
+  },
+  "status": "PASS"
+}

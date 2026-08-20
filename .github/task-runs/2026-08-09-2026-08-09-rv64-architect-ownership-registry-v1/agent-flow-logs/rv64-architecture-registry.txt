@@ -1,0 +1,19 @@
+test_catalog_contract_and_single_entry_are_explicit (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_catalog_contract_and_single_entry_are_explicit) ... ok
+test_catalog_forbids_manual_mapped_design_identity (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_catalog_forbids_manual_mapped_design_identity) ... ok
+test_catalog_only_must_remain_compiled (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_catalog_only_must_remain_compiled) ... ok
+test_dynamic_evidence_is_bound_to_live_design (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_dynamic_evidence_is_bound_to_live_design) ... ok
+test_elaboration_walk_keeps_instance_identity (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_elaboration_walk_keeps_instance_identity) ... ok
+test_inventory_acknowledgement_mutation_fails_closed (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_inventory_acknowledgement_mutation_fails_closed) ... ok
+test_mapped_binding_rejects_missing_identity_and_projection_drift (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_mapped_binding_rejects_missing_identity_and_projection_drift) ... ok
+test_mapped_runner_consumes_registry_projection (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_mapped_runner_consumes_registry_projection) ... ok
+test_non_product_and_development_sources_require_explicit_intent (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_non_product_and_development_sources_require_explicit_intent) ... ok
+test_owner_and_role_resolution_do_not_use_filename_count_routing (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_owner_and_role_resolution_do_not_use_filename_count_routing) ... ok
+test_placeholder_blackbox_cannot_claim_physical_closure (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_placeholder_blackbox_cannot_claim_physical_closure) ... ok
+test_production_manifest_is_rechecked_against_current_inputs (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_production_manifest_is_rechecked_against_current_inputs) ... ok
+test_runner_arguments_must_equal_catalog_projection (npc.rv64.eval.ppa.tests.test_architecture_registry.ArchitectureRegistryTests.test_runner_arguments_must_equal_catalog_projection) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.017s
+
+OK
+[RV64-ARCH-REGISTRY][PASS] snapshot=sha256:14d56474f9e8c59a24a9bd4a292748907fd18048f9b0d7c5cb4facbc40c9ea04 files=141 structural=PASS product=GAP

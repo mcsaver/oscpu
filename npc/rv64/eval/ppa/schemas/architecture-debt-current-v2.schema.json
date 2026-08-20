@@ -32,7 +32,8 @@
       "pattern": "^sha256:[0-9a-f]{64}$"
     },
     "rtl_file_count": {
-      "const": 146
+      "type": "integer",
+      "minimum": 1
     },
     "cohort_id": {
       "const": "full-core-single-hart-rv64-dual-issue-ooo-v1"

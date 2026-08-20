@@ -1,5 +1,10 @@
 # RV64 RTL 目录
 
+> 当前目录权责、每个 `.v/.sv` 的 development/revision/committed 状态、产品 filelist、`NpcTop`
+> elaboration、动态执行和 mapped STA/PPA 可见性统一见 [`../ARCHITECTURE.md`](../ARCHITECTURE.md)。
+> 本 README 解释模块语义与历史；若叙述和 registry 的同一 snapshot 证据冲突，以 registry fail-closed
+> 状态为准。
+
 `vsrc/` 是唯一 RTL 功能分层入口，不再额外套 `ooo/` 外壳。`Ooo*` 模块名只表示
 它属于当前乱序核实现，物理目录按职责和现有外层目录合并：
 
@@ -115,7 +120,14 @@ module/core 回归和性能样本分析。
   dispatch valid/fire 组合中枢（FP start 臂已随 pending-FP 拆除；jump/mem 臂随
   pending 通道证死）；父模块只消费这些事件，不再内联 pending/drain 规则。backend
   drained 不再重复读取 core retire count：ROB-empty 已严格蕴含本拍无 ROB commit，
-  `OooAluCoreSlice` 的 `[CORE-RETIRE-REQUIRES-ROB]` 守护该跨模块定理。
+  `OooAluCoreSlice` 的 `[CORE-RETIRE-REQUIRES-ROB]` 守护该跨模块定理。V16A 起
+  non-CSR system/architectural-trap/exit 的 serialized 条件消费 owner-bound permit Q，
+  但本拍 raw backend drain 与普通 FENCE current `mem_idle` 仍是硬 backstop。
+- `control/OooSerializedMemTerminalPermit.v` 承接 V16A exact memory-terminal 的
+  跨周期 owner 绑定：只保存 valid 与 `{exit, arch-trap, non-CSR-system}` exact-one
+  identity；V16B 以 feedback-free cancel 当拍封住 ready，且
+  flush/cancel/consume/stop drop/owner mismatch 均优先清除；不拥有或释放 memory
+  token，不改变 CSR current terminal eligibility。
 - `memory/OooMemAxiBridge.v` 与 `frontend/OooFetchAxiBridge.v` 已按 Sv39
   leaf PTE 检查 A/D 位：A=0 或 store 且 D=0 返回 page fault，不把该 PTE
   填入 TLB。

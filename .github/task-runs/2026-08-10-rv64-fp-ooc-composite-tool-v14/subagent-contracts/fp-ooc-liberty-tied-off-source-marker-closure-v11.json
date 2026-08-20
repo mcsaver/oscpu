@@ -1,0 +1,112 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-liberty-tied-off-source-marker-closure-v11",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复本地RV64 FP OOC literal tied_off工具在v10唯一门禁中的Registry源码锚点失配：结构parser、A7 138-bit分类与generated OooFpAddSubPipe真实OpenSTA宏观测已经PASS，仅将production fp_ooc_composite.py同一错误消息合并为连续f-string，使Registry fail-closed source contract可见；保留v10原始FAIL与两项功能PASS，只重跑失败Registry method及未执行的render/check、bash-n、scoped audit，不改FP RTL、不运行production EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-liberty-tied-off-parser-fix-v10.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-marker-audit-fix-v8/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7/evidence/fp-ooc-composite-v1",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_constant_output_harness.v",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_constant_macro_harness.v",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-source-marker-closure-v11",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/targeted-unittest.log",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-liberty-tied-off-source-marker-closure-v11.json"
+    ],
+    "write_paths": [
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-source-marker-closure-v11"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-liberty-tied-off-parser-fix-v10/targeted-unittest.log",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "把literal tied_off unsupported/ordinary semantics错误消息改为单个连续f-string；不改变解析算法、测试fixture、Registry字段或FP RTL。",
+    "新增v11 dependency-cropped evidence runner，逐SHA绑定v10 FAIL、parser/A7 generated-macro PASS markers与input manifest，只执行失败Registry method一次、Registry render/check各一次、bash-n一次及scoped audit一次。"
+  ],
+  "success_criteria": [
+    "v11单次门禁PASS；v10两个功能method与focused OpenSTA不重跑，production Yosys/OpenSTA/STA/RTL sim和A7 rerun均为0；Registry仍为product GAP且要求独立只读复核。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

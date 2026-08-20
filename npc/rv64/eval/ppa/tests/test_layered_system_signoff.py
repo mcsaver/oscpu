@@ -93,7 +93,7 @@ class LayeredSystemSignoffTests(unittest.TestCase):
                 "size_bytes": 1,
             },
             "design_id": DESIGN_ID,
-            "rtl_file_count": 146,
+            "rtl_file_count": 147,
             "source_directories": {
                 "l0_module": ".github/task-runs/l0/module",
                 "l1_checker_replay": ".github/task-runs/l1",
@@ -111,9 +111,68 @@ class LayeredSystemSignoffTests(unittest.TestCase):
     def test_default_conjunction_excludes_optional_ubuntu(self) -> None:
         result = self.compose()
         self.assertEqual(result["default_signoff_conjunction"], signoff.DEFAULT_CONJUNCTION)
+        self.assertEqual(result["production_rtl_file_count"], 147)
         self.assertEqual(result["optional_full_ubuntu"]["status"], "NOT_RUN")
         self.assertFalse(result["optional_full_ubuntu"]["blocks_default_signoff"])
         self.assertIn("PPA qualification", result["non_claims"][-1])
+
+    def test_l1_module_count_tracks_the_current_exact_inventory(self) -> None:
+        counts = signoff.expected_l1_counts(114)
+        self.assertEqual(counts["module_passed"], 114)
+        self.assertEqual(counts["module_required"], 114)
+        self.assertEqual(counts["official_required"], 177)
+
+    def test_act4_receipt_failure_can_bind_an_exact_replay_pass(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            run = root / ".github/task-runs/act4"
+            run.mkdir(parents=True)
+            (run / "act4-current.status").write_text(
+                "FAIL rc=2 stage=exit-trap evidence_complete=0 cleanup_rc=0\n",
+                encoding="utf-8",
+            )
+            replay = run / "act4-current-replay.status"
+            replay.write_text("PASS\n", encoding="utf-8")
+            self.assertEqual(
+                signoff.select_act4_top_status(run, root=root), replay)
+
+    def test_act4_receipt_replay_chain_selects_latest_exact_pass(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            run = root / ".github/task-runs/act4"
+            run.mkdir(parents=True)
+            (run / "act4-current.status").write_text(
+                "FAIL rc=2 stage=exit-trap evidence_complete=0 cleanup_rc=0\n",
+                encoding="utf-8",
+            )
+            (run / "act4-current-replay.status").write_text(
+                "FAIL rc=2 stage=exit-trap evidence_complete=0 cleanup_rc=0\n",
+                encoding="utf-8",
+            )
+            (run / "act4-current-replay-v2.status").write_text(
+                "PASS\n", encoding="utf-8"
+            )
+            latest = run / "act4-current-replay-v3.status"
+            latest.write_text("PASS\n", encoding="utf-8")
+            self.assertEqual(
+                signoff.select_act4_top_status(run, root=root), latest
+            )
+
+    def test_act4_execution_failure_cannot_be_replayed_as_receipt_pass(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
+            root = pathlib.Path(raw)
+            run = root / ".github/task-runs/act4"
+            run.mkdir(parents=True)
+            (run / "act4-current.status").write_text(
+                "FAIL rc=1 stage=act4-execution evidence_complete=0 cleanup_rc=0\n",
+                encoding="utf-8",
+            )
+            (run / "act4-current-replay.status").write_text(
+                "PASS\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                signoff.SignoffError, "not a replayable receipt failure",
+            ):
+                signoff.select_act4_top_status(run, root=root)
 
     def test_design_identity_mismatch_is_rejected(self) -> None:
         with self.assertRaisesRegex(signoff.SignoffError, "common PASS design"):

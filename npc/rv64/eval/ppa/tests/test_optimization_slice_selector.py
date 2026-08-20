@@ -19,31 +19,32 @@ ROOT = pathlib.Path(__file__).resolve().parents[5]
 TOOL = ROOT / "npc/rv64/eval/ppa/tools/optimization_slice_selector.py"
 RUNNER = ROOT / "npc/rv64/eval/ppa/run-optimization-slice-selector.sh"
 POLICY = ROOT / (
-    "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json")
+    "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json")
 CATALOG = ROOT / "npc/rv64/eval/ppa/optimization-slices-current.json"
+OWNER_LIFETIME_CATALOG = ROOT / (
+    "npc/rv64/eval/ppa/optimization-slices-owner-lifetime-v2.json")
 CENSUS = ROOT / "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json"
 OWNER = ROOT / (
-    ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-f72e-a1/"
-    "evidence/owner-timing-workload-ab/result.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/owner-timing/result.json")
 CAUSAL = ROOT / (
-    ".github/task-runs/2026-08-08-rv64-v15x-owner-timing-causal-analysis-f72e-a1/"
-    "evidence/owner-timing-causal-analysis/result.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/owner-causal/result.json")
 SENSITIVITY = ROOT / (
-    ".github/task-runs/"
-    "2026-08-08-rv64-v15x-owner-b-latency-sensitivity-f72e-a1/"
-    "evidence/owner-b-latency-sensitivity/result.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/owner-b-sensitivity/result.json")
 CANDIDATE_ANALYSIS = ROOT / (
-    ".github/task-runs/"
-    "2026-08-08-rv64-v15x-owner-b-response-candidate-analysis-f72e-a1/"
-    "evidence/owner-b-response-candidate-analysis/result.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/owner-b-candidate/result.json")
 CURRENT_REFERENCE_PPA = ROOT / (
-    ".github/task-runs/"
-    "2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/"
-    "evidence/current-reference-ppa-f72e-v1.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/current-reference-ppa/result.json")
 CURRENT_TIMING_ANALYSIS = ROOT / (
-    ".github/task-runs/"
-    "2026-08-07-rv64-v15w-current-timing-recovery-analysis-ca37-a1/"
-    "evidence/current-timing-path-analysis-ca37-a1.json")
+    ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/"
+    "evidence/mainline-rebind-f72e-v1/current-timing-path-analysis/result.json")
+SERIALIZED_OWNER_LIFETIME = ROOT / (
+    ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/"
+    "evidence/serialized-drain-owner-lifetime/result.json")
 DECISION_SCHEMA = ROOT / (
     "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json")
 CURRENT_DECISION = ROOT / (
@@ -324,7 +325,8 @@ class OptimizationSliceSelectorTests(unittest.TestCase):
         stored = json.loads(CURRENT_DECISION.read_text(encoding="utf-8"))
         live = json.loads(live_state.read_text(encoding="utf-8"))
         verified = self.run_live_tool(
-            "verify", "--input", self.relative(CURRENT_DECISION))
+            "verify", "--input", self.relative(CURRENT_DECISION),
+            "--report-only")
         if verified.returncode == 0:
             self.assertEqual(stored["live_design_id"], live["live_design_id"])
             return
@@ -680,7 +682,7 @@ class OptimizationSliceSelectorTests(unittest.TestCase):
         self.assertIn(
             "requires the B-response candidate receipt", built.stdout)
 
-    def test_current_timing_analysis_selects_inflight_permit_experiment(self) -> None:
+    def test_current_timing_gap_holds_without_authorized_rtl_slice(self) -> None:
         research = self.research_state(evidence_receipts={
             "owner_timing": self.source_ref(OWNER),
             "causal_analysis": self.source_ref(CAUSAL),
@@ -691,25 +693,74 @@ class OptimizationSliceSelectorTests(unittest.TestCase):
                 CURRENT_TIMING_ANALYSIS),
         })
         built = self.build(research=research)
-        self.assertEqual(built.returncode, 0, built.stdout)
+        self.assertEqual(built.returncode, 1, built.stdout)
         result = self.result()
-        self.assertEqual(result["decision"], "SELECT")
-        self.assertEqual(result["next_action"], "RTL_EXPERIMENT")
-        self.assertEqual(
-            result["selected_slice"]["id"],
-            "experiment.head0-csr-inflight-permit-block",
-        )
+        self.assertEqual(result["decision"], "NO_ELIGIBLE")
+        self.assertEqual(result["next_action"], "HOLD")
+        self.assertIsNone(result["selected_slice"])
         self.assertTrue(
             result["state"]["current_timing_path_analysis_completed"])
         self.assertEqual(
             result["state"]["current_timing_candidate_id"],
-            "head0-csr-inflight-permit-block-v1",
+            "NONE_OWNER_LIFETIME_UNPROVEN",
         )
         self.assertEqual(
             result["inputs"]["verification_tools"]
             ["current_timing_path_analysis"]["path"],
             "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
         )
+
+    def test_owner_lifetime_closure_selects_owner_bound_permit_experiment(self) -> None:
+        self.catalog = json.loads(
+            OWNER_LIFETIME_CATALOG.read_text(encoding="utf-8"))
+        self.write_json(self.catalog_path, self.catalog)
+        research = self.research_state(evidence_receipts={
+            "owner_timing": self.source_ref(OWNER),
+            "causal_analysis": self.source_ref(CAUSAL),
+            "b_latency_sensitivity": self.source_ref(SENSITIVITY),
+            "b_response_candidate_analysis": self.source_ref(CANDIDATE_ANALYSIS),
+            "current_reference_ppa": self.source_ref(CURRENT_REFERENCE_PPA),
+            "current_timing_path_analysis": self.source_ref(
+                CURRENT_TIMING_ANALYSIS),
+            "serialized_drain_owner_lifetime": self.source_ref(
+                SERIALIZED_OWNER_LIFETIME),
+        })
+        built = self.build(research=research)
+        self.assertEqual(built.returncode, 0, built.stdout)
+        result = self.result()
+        self.assertEqual(result["decision"], "SELECT")
+        self.assertEqual(result["next_action"], "RTL_EXPERIMENT")
+        self.assertEqual(
+            result["selected_slice"]["id"],
+            "experiment.serialized-owner-terminal-permit")
+        self.assertTrue(
+            result["state"]["serialized_drain_owner_lifetime_completed"])
+        self.assertEqual(
+            result["state"]["serialized_drain_candidate_id"],
+            "serialized-owner-terminal-permit-v2")
+        self.assertTrue(
+            result["state"]["serialized_drain_experiment_authorized"])
+        self.assertEqual(
+            result["inputs"]["verification_tools"]
+            ["serialized_drain_owner_lifetime"]["path"],
+            "npc/rv64/eval/ppa/tools/"
+            "serialized_drain_owner_lifetime_analysis.py",
+        )
+
+    def test_owner_lifetime_receipt_requires_timing_gap_receipt(self) -> None:
+        research = self.research_state(evidence_receipts={
+            "owner_timing": self.source_ref(OWNER),
+            "causal_analysis": self.source_ref(CAUSAL),
+            "b_latency_sensitivity": self.source_ref(SENSITIVITY),
+            "b_response_candidate_analysis": self.source_ref(CANDIDATE_ANALYSIS),
+            "current_reference_ppa": self.source_ref(CURRENT_REFERENCE_PPA),
+            "serialized_drain_owner_lifetime": self.source_ref(
+                SERIALIZED_OWNER_LIFETIME),
+        })
+        built = self.build(research=research)
+        self.assertEqual(built.returncode, 2, built.stdout)
+        self.assertIn(
+            "requires current timing-path analysis", built.stdout)
 
     def test_tampered_current_reference_cannot_advance_selector(self) -> None:
         value = json.loads(CURRENT_REFERENCE_PPA.read_text(encoding="utf-8"))

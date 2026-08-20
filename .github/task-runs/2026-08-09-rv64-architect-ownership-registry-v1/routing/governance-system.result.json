@@ -1,0 +1,15 @@
+{
+  "reason_codes": [
+    "DOMAIN_OUTSIDE_LOCAL_RV64_CPU"
+  ],
+  "route": "NON_ARCH",
+  "router_id": "cpu-architect-semantic-router-v1",
+  "schema_version": 1,
+  "verification": {
+    "default_execution_count": 1,
+    "distinct_evidence_is_not_repetition": true,
+    "execution": "SINGLE_PASS",
+    "repeat_reasons": [],
+    "review": "SELF_CRITIC"
+  }
+}

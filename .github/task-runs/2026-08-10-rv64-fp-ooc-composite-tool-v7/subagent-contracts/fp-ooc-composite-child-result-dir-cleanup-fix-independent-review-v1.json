@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-composite-child-result-dir-cleanup-fix-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立尝试推翻 NpcTop FP OOC composite child_result_dir 与 exact runtime parent cleanup 修复：核对源码顺序是否为child_result_dir赋值、三目录创建、child_netlist、child Yosys；核对cleanup_runtime是否唯一拥有random run.*与strict exact parent删除，非空parent是否经CLEANUP_RC fail closed，FAIL/signal/success是否共用；机械交叉2个方法6个mutation、bash-n、scoped diff、A2 status与空parent未改。只裁决RETAIN/FIX/BLOCK及是否可授权全新run-id，不运行测试或EDA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-cleanup-fix-v2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/subagent-contracts/fp-ooc-composite-child-result-dir-cleanup-fix-v2.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2",
+      ".github/runtime-artifacts/fp-ooc-composite/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-cleanup-fix-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-cleanup-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/subagent-contracts/fp-ooc-composite-child-result-dir-cleanup-fix-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-cleanup-fix-v2/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v7/evidence/fp-ooc-composite-child-result-dir-cleanup-fix-v2/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a2/evidence/fp-ooc-composite-v1/gate-status.txt"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐行核对child_result_dir赋值、mkdir精确变量、child_netlist和run_bounded顺序，确认共享yosys.tcl写abc.sdc前目录必存在且不存在错误同层或跨run路径。",
+    "逐行核对cleanup_runtime的canonical random runtime校验、rm、strict rmdir exact parent及返回码传播，确认不存在success-only重复rmdir、吞错或删除A1/A2历史目录的可能；保留A2空parent作为历史反例。",
+    "复算result 6f38208b、gate-status、before/after manifest、2-method/6-mutation receipt及A2 status hash；给出RETAIN/FIX/BLOCK。若无静态确定反例，只授权另一全新run-id的一次production diagnostic，PPA仍GAP。"
+  ],
+  "success_criteria": [
+    "不得运行Python、bash、测试、runner、Yosys、OpenSTA或STA；只用声明的只读命令。若目录顺序或cleanup边界存在确定反例必须指出，否则RETAIN；不得因尚未production执行本身BLOCK，真实mapped与PPA仍由fresh runner fail closed。保留counterexamples、unknowns、alternative_hypotheses、scope_extension_request与confidence_and_basis。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

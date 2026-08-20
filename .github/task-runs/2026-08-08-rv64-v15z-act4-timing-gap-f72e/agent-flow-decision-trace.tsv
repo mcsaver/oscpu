@@ -1,0 +1,1 @@
+2026-08-08T07:29:45Z	counterexample	registered serialized-memory readiness may survive a later memory birth or stop-owner handoff; current RTL evidence does not prove exclusion, so no production RTL candidate is authorized	.github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-serialized-drain-boundary-review-f72e-v1.result.md

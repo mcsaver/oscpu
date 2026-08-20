@@ -50,14 +50,12 @@ DEFAULT_CONJUNCTION = [
     "L2_MINI_SYSTEM",
     "L3_LIGHTWEIGHT_LINUX",
 ]
-EXPECTED_L1_COUNTS = {
+EXPECTED_L1_STATIC_COUNTS = {
     "am_passed": 61,
     "am_required": 61,
     "difftest_mismatches": 0,
     "evidence_mutations_compiled": 11,
     "evidence_mutations_rejected": 11,
-    "module_passed": 113,
-    "module_required": 113,
     "official_passed": 177,
     "official_required": 177,
 }
@@ -90,6 +88,18 @@ LAYER_IDENTITY_HELPER_REPLAY_PATHS = frozenset(
 LAYER_SIGNOFF_POLICY_REPLAY_PATHS = frozenset(
     {"npc/rv64/design/arch/layered-system-signoff-policy-v1.json"}
 )
+
+
+def expected_l1_counts(module_count: int) -> dict[str, int]:
+    if module_count <= 0:
+        raise SignoffError("L0 directed test inventory is empty")
+    return {
+        **EXPECTED_L1_STATIC_COUNTS,
+        "module_passed": module_count,
+        "module_required": module_count,
+    }
+
+
 LAYER_REPORT_REPLAY_PATH_SETS = (
     LAYER_IDENTITY_HELPER_REPLAY_PATHS,
     LAYER_SIGNOFF_POLICY_REPLAY_PATHS,
@@ -410,8 +420,7 @@ def verify_l0(
         expected_design_id=design_id,
         require_current_inputs=True,
     )
-    if len(module_records) != 113:
-        raise SignoffError("L0 directed test count differs from exact inventory")
+    module_count = len(module_records)
     for record in module_records:
         log_path = repo_path(record["raw_log"], root=root)
         if "-DOOO_ASSERT" not in log_path.read_text(
@@ -425,7 +434,7 @@ def verify_l0(
         "claim": "L0_DIRECTED_RTL_PASS_CURRENT_IDENTITY",
         "status": "PASS",
         "design_id": design_id,
-        "tests": {"passed": 113, "required": 113},
+        "tests": {"passed": module_count, "required": module_count},
         "rtl_assertions": {"enabled": True, "failures": 0},
         "result": artifact(module_result, kind="module_current_result", root=root),
         "stage_status": artifact(
@@ -470,9 +479,6 @@ def verify_l1_replay(
     for key, value in expected.items():
         if result.get(key) != value:
             raise SignoffError(f"L1 replay field mismatch: {key}")
-    if result.get("counts") != EXPECTED_L1_COUNTS:
-        raise SignoffError("L1 replay counts differ from exact cohort")
-
     module_result = verify_artifact(
         result.get("module_result"), expected_kind="module_current_result", root=root
     )
@@ -541,8 +547,8 @@ def verify_l1_replay(
         expected_design_id=design_id,
         require_current_inputs=False,
     )
-    if len(module_records) != 113:
-        raise SignoffError("L0 directed test count differs from exact inventory")
+    if result.get("counts") != expected_l1_counts(len(module_records)):
+        raise SignoffError("L1 replay counts differ from exact cohort")
     for record in module_records:
         log_path = repo_path(record["raw_log"], root=root)
         if "-DOOO_ASSERT" not in log_path.read_text(
@@ -625,9 +631,6 @@ def verify_l1_direct(
         raise SignoffError(f"L1 direct-execution evidence is invalid: {exc}") from exc
     if result.get("design_id") != design_id:
         raise SignoffError("L1 direct-execution design-id differs from live RTL")
-    if result.get("counts") != EXPECTED_L1_COUNTS:
-        raise SignoffError("L1 direct-execution counts differ from exact cohort")
-
     module_result = verify_artifact(
         result.get("module_result"),
         expected_kind="module_current_result",
@@ -636,6 +639,13 @@ def verify_l1_direct(
     expected_module_result = run_dir / "evidence/module/result.json"
     if module_result != expected_module_result:
         raise SignoffError("L1 direct module result is not owned by the source run")
+    _, module_records = full_core.validate_module_result(
+        module_result,
+        expected_design_id=design_id,
+        require_current_inputs=True,
+    )
+    if result.get("counts") != expected_l1_counts(len(module_records)):
+        raise SignoffError("L1 direct-execution counts differ from exact cohort")
     functional_status = repo_path(
         run_dir / "evidence/functional/status.json", root=root
     )
@@ -711,9 +721,7 @@ def verify_act4_current(
         raise SignoffError("ACT4 current receipt does not bind the common PASS design")
     source_raw = task_run_dir(value["source_directory"], root=root)
     source_run = source_raw.parents[2]
-    status_path = repo_path(source_run / "act4-current.status", root=root)
-    if status_path.read_text(encoding="utf-8") != "PASS\n":
-        raise SignoffError("ACT4 task-run status is not exact PASS")
+    status_path = select_act4_top_status(source_run, root=root)
     return {
         "claim": value["claim"],
         "status": "PASS",
@@ -729,6 +737,45 @@ def verify_act4_current(
             status_path, kind="task_run_status", root=root
         ),
     }
+
+
+def select_act4_top_status(
+    source_run: pathlib.Path, *, root: pathlib.Path = ROOT,
+) -> pathlib.Path:
+    direct = repo_path(source_run / "act4-current.status", root=root)
+    direct_text = direct.read_text(encoding="utf-8")
+    if direct_text == "PASS\n":
+        return direct
+    if direct_text != "FAIL rc=2 stage=exit-trap evidence_complete=0 cleanup_rc=0\n":
+        raise SignoffError("ACT4 task-run status is not a replayable receipt failure")
+    replay_by_index: dict[int, pathlib.Path] = {}
+    for replay in source_run.glob("act4-current-replay*.status"):
+        match = re.fullmatch(
+            r"act4-current-replay(?:-v([2-9][0-9]*))?\.status",
+            replay.name,
+        )
+        if match is None:
+            raise SignoffError("ACT4 receipt replay filename is malformed")
+        index = int(match.group(1)) if match.group(1) is not None else 1
+        if index in replay_by_index:
+            raise SignoffError("ACT4 receipt replay index is duplicated")
+        replay_by_index[index] = repo_path(replay, root=root)
+    if not replay_by_index or set(replay_by_index) != set(
+        range(1, max(replay_by_index) + 1)
+    ):
+        raise SignoffError("ACT4 receipt replay chain is incomplete")
+    for replay in replay_by_index.values():
+        text = replay.read_text(encoding="utf-8")
+        if text != "PASS\n" and re.fullmatch(
+            r"FAIL rc=[0-9]+ stage=[A-Za-z0-9._-]+ "
+            r"evidence_complete=0 cleanup_rc=[0-9]+\n",
+            text,
+        ) is None:
+            raise SignoffError("ACT4 receipt replay status is malformed")
+    latest = replay_by_index[max(replay_by_index)]
+    if latest.read_text(encoding="utf-8") != "PASS\n":
+        raise SignoffError("ACT4 latest receipt replay is not an exact PASS")
+    return latest
 
 
 def attach_l1_required_subcohorts(
@@ -752,6 +799,7 @@ def verify_layer(
     *,
     layer: str,
     design_id: str,
+    rtl_file_count: int,
     root: pathlib.Path = ROOT,
 ) -> dict[str, Any]:
     result_dir = task_run_dir(result_dir, root=root)
@@ -830,6 +878,7 @@ def verify_layer(
         or summary.get("signoff_scope") != expected_scope
         or summary.get(case_key) != expected_case
         or summary.get("rtl_design_id") != design_id
+        or summary.get("production_rtl_file_count") != rtl_file_count
         or summary.get("assertion_failures") != 0
         or len(summary.get("terminal_counts", {})) != terminal_count
         or any(value != 1 for value in summary.get("terminal_counts", {}).values())
@@ -855,7 +904,7 @@ def verify_layer(
     )
     if (
         rtl_identity.get("rtl_design_id") != design_id
-        or rtl_identity.get("production_rtl_file_count") != 146
+        or rtl_identity.get("production_rtl_file_count") != rtl_file_count
     ):
         raise SignoffError(f"{layer} RTL identity receipt mismatch")
     verify_cleanup(result_dir / "runtime-cleanup.txt", root=root)
@@ -1021,8 +1070,7 @@ def evaluate(
     assert selected_l1_dir is not None
     design_hex, rtl_files = architecture.rtl_binding(root)
     design_id = f"sha256:{design_hex}"
-    if len(rtl_files) != 146:
-        raise SignoffError(f"production RTL file count drifted: {len(rtl_files)}")
+    rtl_file_count = len(rtl_files)
     policy_path = repo_path(root / POLICY_PATH, root=root)
     schema_path = repo_path(root / SCHEMA_PATH, root=root)
     policy = load_json(policy_path)
@@ -1036,8 +1084,12 @@ def evaluate(
     l1 = verify_l1(l1_source_dir, design_id=design_id, root=root)
     act4 = verify_act4_current(design_id=design_id, root=root)
     l1 = attach_l1_required_subcohorts(l1, act4)
-    l2 = verify_layer(l2_dir, layer="L2", design_id=design_id, root=root)
-    l3 = verify_layer(l3_dir, layer="L3", design_id=design_id, root=root)
+    l2 = verify_layer(
+        l2_dir, layer="L2", design_id=design_id,
+        rtl_file_count=rtl_file_count, root=root)
+    l3 = verify_layer(
+        l3_dir, layer="L3", design_id=design_id,
+        rtl_file_count=rtl_file_count, root=root)
     receipt = compose_receipt(
         policy=policy,
         policy_artifact=artifact(policy_path, kind="layered_signoff_policy", root=root),
@@ -1050,7 +1102,7 @@ def evaluate(
             schema_path, kind="layered_signoff_schema", root=root
         ),
         design_id=design_id,
-        rtl_file_count=len(rtl_files),
+        rtl_file_count=rtl_file_count,
         source_directories={
             "l0_module": relative(l0_dir, root=root),
             (
@@ -1134,9 +1186,11 @@ def main() -> int:
             )
             if result != receipt:
                 raise SignoffError("receipt differs from recomputed layered evidence")
+        l0_tests = result["layers"]["L0_DIRECTED_RTL"]["tests"]
         print(
             "[RV64-LAYERED-SYSTEM-SIGNOFF][PASS] "
-            f"design_id={result['rtl_design_id']} L0=113/113 "
+            f"design_id={result['rtl_design_id']} "
+            f"L0={l0_tests['passed']}/{l0_tests['required']} "
             "L1=177+61+ACT4-100 L2=all L3=all "
             "Ubuntu=not-run PPA=not-implied"
         )

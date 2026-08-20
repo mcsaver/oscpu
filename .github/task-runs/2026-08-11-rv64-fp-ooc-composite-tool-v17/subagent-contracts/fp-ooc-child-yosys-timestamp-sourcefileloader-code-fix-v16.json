@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "修复 OooFpMulProductPipe timestamp v15 非EDA gate 的真实首败，不改 production runner/test/RTL/Tcl/1800s/600s且继续停止仿真、综合与STA：v15 gate/status/log/freeze SHA分别为2fb9ddf4130120e1dfd066ba6fe1354051e4b021944c5985af1a0c4801d5d831、a915ec92632e788008dc12f1135189ead9a7d0ec0649ddc459e92c209ad794cf、bf7cb4e7f709a56e966ad1a6ef72ad1a82c53502a173ad51526c3f418a15414a、1e57236e1a5b1396f30b5b17c8c60aba6973841563d2b8473e542670096e7fe5，封存FAIL stage=isolated-target-unittest。新增v16 evidence：bootstrap仅导入builtin sys后安装audit hook；从启动时已存在的_frozen_importlib_external取得精确SourceFileLoader类，在任何source-backed import前仅覆写该类get_code为source-only实现：get_filename(fullname)→get_data(.py source path)→绑定source bytes SHA/size→source_to_code(bytes, exact path)，禁止默认cache code path、marshal或bytecode读取。保留-I -S -B与固定-X pycache_prefix作为防御，要求整个同进程pyc/open-code事件=0；拒绝SourcelessFileLoader、zip/custom loader。6个npc父package仍由ExactNamespaceFinder/Loader无代码构造，3个leaf仍冻结source direct compile；stdlib unittest及实际source模块由patched SourceFileLoader执行并绑定loader/spec/origin/code filename/source SHA-size。v15标记SUPERSEDED_EXECUTION_FAILED_EXPECTED_PROBE，v13/v14/A10/current冻结。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/yosys-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/vsrc",
+      "yosys-sta",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-source-only-loader-fix-v13",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-source-only-loader-review-v14.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15.json",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16.json"
+    ],
+    "write_paths": [
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-sourcefileloader-code-fix-v16"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/evidence/fp-ooc-child-yosys-timestamp-import-domain-closure-fix-v15",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v17/subagent-contracts/fp-ooc-child-yosys-timestamp-source-only-loader-review-v14.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增v16 gate/bootstrap/decoys/validator及sealed identity/raw logs/status/result/receipt；记录patched SourceFileLoader class/method provenance、每个stdlib source模块source SHA-size/code filename、pyc事件0、npc namespace与leaf closure。",
+    "单次v16非EDA gate target unittest=1、runner bash-n=1、build=1、verify=1；负向验证覆盖原get_code/patch时序或类漂移/cache或marshal路径/source path-hash-size/code filename、sourceless/zip/custom loader、namespace/leaf/self/decoy/log/status/replay；RTL sim/Yosys/OpenSTA/STA/production runner/A10/A11/fresh=0。"
+  ],
+  "success_criteria": [
+    "v16 PASS且identity证明SourceFileLoader在首个source import前被精确source-only get_code接管、所有相关纯Python模块从绑定.py bytes编译且全程bytecode读取事件为0；npc父package与3 leaf闭合，目标method实际Ran1/OK/14+15，同输入重调前拒绝。",
+    "输出v16关键SHA供v17独立只读复核；v15/v14/A10/current production/test/RTL/Tcl字节不变，PPA保持GAP且A11不启动，CPU Architect=NOT_TRIGGERED。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

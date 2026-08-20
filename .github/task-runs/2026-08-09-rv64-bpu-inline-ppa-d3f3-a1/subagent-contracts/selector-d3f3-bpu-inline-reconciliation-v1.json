@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "selector-d3f3-bpu-inline-reconciliation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "复核 current RV64 selector 从 f72e owner-timing 决策漂移到 d3f3 live design 后的 fail-closed 状态：定位 owner_timing_verifier SHA mismatch、OooControlPlane live-source mismatch 与 owner_b_latency_sensitivity.py 对 EvidenceError 的异常引用，区分预期 stale authority、真实工具缺陷和需要重建的 current receipts，并给出不绕过 selector 的最小序列，使下一有界动作能够合法选择 current-design BPU full-RTL inline mapped PPA 测量或明确拒绝它。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/agent-lightweight-workflow.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/eval/ppa/run-optimization-slice-selector.sh",
+      "npc/rv64/eval/ppa/optimization-slices-owner-lifetime-v2.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py",
+      "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py",
+      "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
+      "npc/rv64/eval/ppa/tools/serialized_drain_owner_lifetime_analysis.py",
+      "npc/rv64/eval/ppa/tests/test_serialized_drain_owner_lifetime_analysis.py",
+      "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+      "npc/rv64/eval/ppa/evidence",
+      "npc/rv64/vsrc/control/OooControlPlane.v",
+      "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+      "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v",
+      ".github/task-runs/2026-08-08-rv64-owner-timing-causality-v1/evidence",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence",
+      ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1/lightweight-linux",
+      ".github/task-runs/2026-08-08-rv64-v16a-owner-permit-ppa-93c8-a1b/evidence/traceable-93c8-a1b",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/selector-d3f3-bpu-inline-reconciliation-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json",
+      "npc/rv64/eval/ppa/evidence/optimization-slice-current.json",
+      "npc/rv64/eval/ppa/tools/optimization_slice_selector.py"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "按 live d3f3、旧 f72e/93c8 receipt、selector policy/catalog/research overlay 分层列出每个 mismatch 的 root cause、是否为预期 fail-closed、是否需改代码、需重建或只需失效的 receipt，以及不可越级使用的历史结论。",
+    "给出最小有序工程序列和接受/停止条件：selector 先应输出 STATE_CONFLICT、RECONCILIATION、current-reference PPA 或 BPU inline physical-visibility 中哪一类动作；明确 BPU inline 如何进入 catalog/authority 而不把 registry 策略当 promotion 授权。"
+  ],
+  "success_criteria": [
+    "结论引用真实 JSON 字段、工具函数、design-id、source/tool SHA 与 receipt 路径；必须保留未知项、替代路径和 scope_extension_request，不得以修改测试期望掩盖 stale input，也不得把旧 f72e/93c8 receipt 重标为 d3f3。",
+    "仅使用合同允许的 rg/sed/sha256sum，不写文件、不运行 selector/tests/仿真/综合/STA；返回 RETAIN/FIX/BLOCK 及可直接转化为实现或验证合同的最小路径集合，并归还 WSL shell ownership。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

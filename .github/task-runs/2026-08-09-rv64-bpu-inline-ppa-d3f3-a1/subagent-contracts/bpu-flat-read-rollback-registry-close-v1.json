@@ -1,0 +1,103 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-flat-read-rollback-registry-close-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "把f5f2 flat-read-view exactly-once PPA失败与BPU stop condition机械写回Architecture Registry单一入口，不改RTL、不重跑任何仿真/综合/STA：live source仍为development f5f2，但candidate measurement标成FAILED_INCOMPLETE、frozen verdict=ROLLBACK、physical=GAP、front_accepted=false、next_action=STOP_BPU_PIVOT_FP、stop_condition=TRIGGERED；保留b279 execution PASS但ROLLBACK/GAP非canonical archive，并把latest successful mapped summary与latest failed attempt分别指向真实证据。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1",
+      ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-flat-read-view-ppa-f5f2-a1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-banked-child-ppa-pareto-architecture-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-rollback-registry-route-v1.result.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-rollback-registry-close-v1",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-flat-read-rollback-registry-close-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/bpu-flat-read-rollback-registry-close-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-flat-read-view-ppa-f5f2-a1.result.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "仅用apply_patch更新registry JSON/schema/tool/tests与生成式ARCHITECTURE：BPU live design/source_lifecycle保持f5f2/development，不物理回退或伪装commit；flat-read配置状态固定measurement=FAILED_INCOMPLETE、mapped_execution_receipt=FAIL、frozen_experiment_verdict=ROLLBACK、physical_status=GAP、archive_status=RETAIN_NONCANONICAL_NEGATIVE_RESULT、front_accepted=false、canonical/champion=false、next_action=STOP_BPU_PIVOT_FP、stop_condition=TRIGGERED，并绑定failed run status/command-status/raw diagnostic路径且明确无summary/binding。b279配置继续execution PASS但frozen ROLLBACK/GAP；evidence.mapped_summary指向b279最新成功bound summary，另有latest_mapped_attempt指向f5f2失败status，query/render必须显示GAP_STALE_DESIGN与BPU_CLOSED_FOR_SWEEP。schema/tool负向单测拒绝把failed attempt改PASS、把raw诊断冒充bound summary、清除stop condition或继续RUN_TRACEABLE。静态自审后一次unittest、一次render/check、一次scoped diff check，写新证据目录。"
+  ],
+  "success_criteria": [
+    "registry单一入口必须同时可见source lifecycle、b279 frozen archive、f5f2 failed attempt、无current bound PPA与BPU sweep closed；不得把raw WNS/area标为canonical/qualified measurement，不得更改live design-id、RTL/spec、旧sealed run或exactly-once verdict。只有定向unittest、render/check、diff check各最终单次rc0才PASS；不得运行仿真/综合/STA/parser或重试f5f2 PPA。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

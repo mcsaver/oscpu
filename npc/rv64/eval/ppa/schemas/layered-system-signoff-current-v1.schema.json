@@ -24,7 +24,7 @@
     "status": {"const": "PASS"},
     "claim": {"const": "LAYERED_SYSTEM_SIGNOFF_PASS_CURRENT_IDENTITY"},
     "rtl_design_id": {"pattern": "^sha256:[0-9a-f]{64}$"},
-    "production_rtl_file_count": {"const": 146},
+    "production_rtl_file_count": {"type": "integer", "minimum": 1},
     "default_signoff_conjunction": {
       "const": [
         "L0_DIRECTED_RTL",

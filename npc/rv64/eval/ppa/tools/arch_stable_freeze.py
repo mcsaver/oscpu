@@ -131,8 +131,11 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
     "npc/rv64/eval/ppa/tools/historical_defect_backfill.py",
     "npc/rv64/eval/ppa/tools/historical_defect_current.py",
+    "npc/rv64/eval/ppa/tools/v9p_current_path_projection.py",
     "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
     "npc/rv64/eval/ppa/tools/architecture_provenance_replay.py",
+    "npc/rv64/eval/ppa/tools/architecture_current_delta_rebind.py",
+    "npc/rv64/eval/ppa/tools/architecture_registry.py",
     "npc/rv64/eval/ppa/tools/functional_archive_rehydrate.py",
     "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py",
     "npc/rv64/eval/ppa/tools/functional_aggregate.py",
@@ -157,9 +160,17 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tools/vectored_trap_evidence.py",
     "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py",
     "npc/rv64/eval/ppa/tests/test_architecture_debt_delta_rebind.py",
+    "npc/rv64/eval/ppa/tests/test_architecture_current_delta_rebind.py",
+    "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+    "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+    "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+    "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+    "npc/rv64/ARCHITECTURE.md",
     "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk",
     "npc/rv64/eval/ppa/historical-defect-current-evidence.mk",
     "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+    ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/"
+    "v9p-current-full-core-path-projection-v1.json",
     "npc/rv64/eval/ppa/run-arch-stable-audit.sh",
     "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv",
     "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
@@ -185,6 +196,7 @@ WORKFLOW_BINDING_PATHS = (
     "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py",
     "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py",
     "npc/rv64/eval/ppa/tests/test_historical_defect_current.py",
+    "npc/rv64/eval/ppa/tests/test_v9p_current_path_projection.py",
     "npc/rv64/design/arch/historical-defect-backfill-ledger.json",
     "npc/rv64/eval/ppa/tests/test_functional_aggregate.py",
     "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
@@ -8598,6 +8610,16 @@ def validate_system_recertification(
         if isinstance(receipt, dict) else None
     )
     promotion = receipt.get("promotion") if isinstance(receipt, dict) else None
+    expected_l0_count: int | None = None
+    l0_inventory_errors: list[str] = []
+    try:
+        required_tests, l0_inventory_errors = parse_required_tests(
+            (root / "npc/rv64/testbench/Makefile").read_text(encoding="utf-8")
+        )
+        if not l0_inventory_errors:
+            expected_l0_count = len(required_tests)
+    except OSError as exc:
+        l0_inventory_errors = [f"cannot read current L0 inventory: {exc}"]
     expected_layers = {
         "L0_DIRECTED_RTL",
         "L1_FULL_CORE_DIFFTEST",
@@ -8605,6 +8627,11 @@ def validate_system_recertification(
         "L3_LIGHTWEIGHT_LINUX",
     }
     contract_errors: list[str] = []
+    if l0_inventory_errors or expected_l0_count is None:
+        contract_errors.append(
+            "current L0 TESTS inventory is invalid: "
+            + "; ".join(l0_inventory_errors[:2])
+        )
     if not (
         isinstance(receipt, dict)
         and receipt.get("schema_version") == SYSTEM_RECERTIFICATION_SCHEMA
@@ -8631,9 +8658,12 @@ def validate_system_recertification(
         l2 = layers.get("L2_MINI_SYSTEM")
         l3 = layers.get("L3_LIGHTWEIGHT_LINUX")
         if not isinstance(l0, dict) or l0.get("tests") != {
-            "passed": 113, "required": 113,
+            "passed": expected_l0_count, "required": expected_l0_count,
         } or l0.get("rtl_assertion_failures") != 0:
-            contract_errors.append("L0 is not 113/113 with zero RTL assertions")
+            contract_errors.append(
+                "L0 does not match the exact current TESTS inventory "
+                f"({expected_l0_count}/{expected_l0_count}) with zero RTL assertions"
+            )
         if not isinstance(l1, dict) or any(
             l1.get(key) != value
             for key, value in {
@@ -8704,8 +8734,8 @@ def validate_system_recertification(
                 "L2_MINI_SYSTEM",
                 "L3_LIGHTWEIGHT_LINUX",
             ],
-            "l0_passed": 113,
-            "l0_required": 113,
+            "l0_passed": expected_l0_count,
+            "l0_required": expected_l0_count,
             "l1_official_passed": 177,
             "l1_official_required": 177,
             "l1_am_passed": 61,
@@ -8771,6 +8801,7 @@ def validate_system_recertification(
         "optional_full_ubuntu": optional,
         "promotion": promotion,
         "canonical_replay": replay,
+        "expected_l0_module_count": expected_l0_count,
         "layered_signoff_receipt": layered_observation,
     })
     return checks, blockers, observed

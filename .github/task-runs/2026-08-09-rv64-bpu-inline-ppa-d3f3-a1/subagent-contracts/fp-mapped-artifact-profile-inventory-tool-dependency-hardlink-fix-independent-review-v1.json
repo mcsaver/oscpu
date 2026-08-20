@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-independent-review-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "独立终审 NpcTop FP mapped tool v4：机械核验 result/detached receipt 对 architecture_registry.py 与全部 executable/config/schema inputs 的绑定；验证 BPU/FP exact-basename hardlink replay 被真实 parser validator 拒绝且唯一 inode 正向不误拒绝；从 production runner 源码闭合 absolute canonical evidence_dir 到同一 parser --out-dir 的数据流。仅裁决是否解除一个 fresh 5.0ns run-id 的工具阻断，PPA 保持 GAP。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/schemas/fp-mapped-artifact-profile-tool-result-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/fp_mapped_artifact_tool_result.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/tests/test_fp_mapped_inventory.py",
+      "npc/rv64/eval/ppa/tests/test_bpu_mapped_inventory.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-v4.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-identity-fix-independent-review-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v4.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v4.validation-receipt.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-dependency-hardlink-fix-independent-review-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/fp-mapped-artifact-profile-inventory-tool-identity-fix-independent-review-v2.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v4.json",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-mapped-artifact-profile-inventory-tool-v1/result-identity-v4.validation-receipt.json",
+      "npc/rv64/eval/ppa/tools/fp_mapped_artifact_tool_result.py",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "逐项重算 v4 result、detached receipt、result schema、Registry catalog/schema/tool、generator、v4 contract 的 canonical path/size/SHA 与 receipt_id；确认完整 configuration/profile/status、v1/v2/v3 历史关系和任一依赖漂移 fail closed。",
+    "沿真实函数检查 canonical_profile_out_dir、canonical_profile_artifact_path、require_profile_artifact_receipt 的 non-symlink/resolved/exact basename/st_nlink/receipt scope-SHA-size 合取；核对 FP/BPU hardlink 测试使用 Path.hardlink_to 和真实 parse_mapped_profile_evidence 路径，而非仅字符串 marker。",
+    "沿 runner 的 repo_root/task_run_root/evidence_dir 构造、mkdir/realpath/non-alias 门、parser --out-dir 实参和 final binding 顺序闭合正常 production 调用；给出 RETAIN/FIX/BLOCK、unknowns、alternative_hypotheses、confidence、scope_extension_request。"
+  ],
+  "success_criteria": [
+    "仅运行 rg、sed、sha256sum、git diff 独立只读命令；每条 shell 调用不得使用未转义管道、alternation 或 command substitution，不运行 Python/bash/unittest/parser/仿真/综合/OpenSTA/STA且不写文件。只有全部身份、dependency、hardlink 与 runner out_dir 数据流闭合且无新反例时才 RETAIN 并仅授权一个全新 run-id 的单次 5.0ns NpcTop mapped run。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

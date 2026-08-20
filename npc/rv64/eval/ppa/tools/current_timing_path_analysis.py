@@ -16,16 +16,37 @@ from typing import Any
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[5]
-SCHEMA = "npc-rv64-current-timing-path-analysis-v2"
+SCHEMA = "npc-rv64-current-timing-path-analysis-v3"
 REFERENCE_SCHEMA = "npc-rv64-current-reference-ppa-v1"
 SELECTOR_SCHEMA = "npc-rv64-optimization-slice-decision-v1"
 SELECTED_SLICE = "analyze.current-timing-recovery-candidate"
 EXPECTED_REFERENCE_STATUS = "REPEATABLE_CURRENT_REFERENCE_TIMING_HARD_GATE_FAIL"
-PATH_CLUSTER_SCHEMA = "npc-rv64-v15v-ppa-delta-path-cluster-v1"
-REVIEW_MARKER = "[V15W-HEAD0-CSR-FROZEN-REVIEW][PASS_CANDIDATE]"
-STATUS = "TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED"
-CANDIDATE_ID = "head0-csr-inflight-permit-block-v1"
-NEXT_ACTION = "validate.head0-csr-dispatch-disjointness"
+REVIEW_MARKER = (
+    "[V15Z-SERIALIZED-DRAIN-BOUNDARY-REVIEW]"
+    "[GAP_OWNER_LIFETIME_UNPROVEN]"
+)
+STATUS = "GAP_NO_SAFE_SERIALIZED_DRAIN_BOUNDARY"
+CANDIDATE_ID = "NONE_OWNER_LIFETIME_UNPROVEN"
+REJECTED_CANDIDATE_ID = "serialized-mem-terminal-readiness-register-v1"
+NEXT_ACTION = "analyze.serialized-drain-owner-lifetime"
+
+ENDPOINT_CLASS_TOKENS = {
+    "jalr_prefetch_hit_available": "jalr_prefetch_hit_available_i",
+    "redirect_valid": "redirect_valid_i",
+    "pending_branch_misaligned": "pending_branch_misaligned_i",
+}
+SHARED_CONE_TOKENS = {
+    "launch_public_alias_csr_mtvec": "csr_mtvec_q",
+    "bridge_effective_data_priv": "effective_data_priv",
+    "bridge_pmp_check": "u_req_pmp_checker",
+    "store_queue_query1": "store_queue_query1",
+    "load_queue_response1_open": "lq_response1_open",
+    "memory_owner_terminal_collector": "mem_owner_terminal_collector",
+    "pending_drain_complete": "pending_drain_resolve_gate_drain_complete",
+    "redirect_arbiter": "u_redirect_arbiter",
+    "commit_trap_pc": "commit_trap_pc",
+    "fetch_pc_outstanding": "fetch_pc_outstanding",
+}
 
 START_RE = re.compile(r"^Startpoint:\s+(\S+)")
 END_RE = re.compile(r"^Endpoint:\s+(\S+)")
@@ -148,6 +169,37 @@ def common_suffix_length(values: list[list[str]]) -> int:
 def histogram(values: list[str]) -> dict[str, int]:
     return dict(sorted(collections.Counter(values).items(),
                        key=lambda item: float(item[0])))
+
+
+def path_names(path: dict[str, Any]) -> list[str]:
+    return [
+        path["startpoint"],
+        *(point["instance"] for point in path["combinational"]),
+        path["endpoint"],
+    ]
+
+
+def endpoint_class_counts(paths: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {name: 0 for name in ENDPOINT_CLASS_TOKENS}
+    for path in paths:
+        matches = [
+            name for name, token in ENDPOINT_CLASS_TOKENS.items()
+            if token in path["endpoint"]
+        ]
+        require(len(matches) == 1,
+                f"path {path['index']} endpoint class is not unique")
+        counts[matches[0]] += 1
+    return counts
+
+
+def shared_cone_token_counts(paths: list[dict[str, Any]]) -> dict[str, int]:
+    return {
+        name: sum(
+            any(token in instance for instance in path_names(path))
+            for path in paths
+        )
+        for name, token in SHARED_CONE_TOKENS.items()
+    }
 
 
 def parse_report(path: pathlib.Path) -> list[dict[str, Any]]:
@@ -289,7 +341,9 @@ def summarize_paths(paths: list[dict[str, Any]]) -> dict[str, Any]:
 
     numeric_names = all(NUMERIC_INSTANCE_RE.fullmatch(value)
                         for value in [*starts.keys(), *endpoints])
-    dominant = families[0]
+    common_raw_prefix = common_prefix_length(raw_chains)
+    endpoint_classes = endpoint_class_counts(paths)
+    cone_tokens = shared_cone_token_counts(paths)
     return {
         "path_count": len(paths),
         "violated_path_count": len(paths),
@@ -302,17 +356,20 @@ def summarize_paths(paths: list[dict[str, Any]]) -> dict[str, Any]:
         "raw_chain_variant_count": len({path["raw_chain_sha256"] for path in paths}),
         "cell_type_chain_variant_count": len(
             {path["type_chain_sha256"] for path in paths}),
-        "common_raw_prefix_cell_count": common_prefix_length(raw_chains),
+        "common_raw_prefix_cell_count": common_raw_prefix,
         "common_raw_suffix_cell_count": common_suffix_length(raw_chains),
         "minimum_combinational_cell_count": min(len(value) for value in raw_chains),
         "maximum_combinational_cell_count": max(len(value) for value in raw_chains),
         "families": families,
         "dominant_family": {
-            "id": dominant["id"],
-            "path_count": dominant["path_count"],
-            "coverage_ratio": f'{dominant["path_count"] / len(paths):.12f}',
-            "classification": "SHARED_STARTPOINT_AND_CELL_TYPE_CONE",
+            "id": "SHARED_RAW_PREFIX",
+            "path_count": len(paths),
+            "coverage_ratio": "1.000000000000",
+            "classification": "SHARED_RAW_PREFIX_WITH_LATE_ENDPOINT_DIVERGENCE",
+            "common_prefix_cell_count": common_raw_prefix,
         },
+        "endpoint_class_counts": endpoint_classes,
+        "shared_cone_token_path_counts": cone_tokens,
         "top_shared_incremental_delay_cells": shared_hotspots[:12],
         "rtl_traceability": {
             "status": "GAP_NUMERIC_POSTMAP_NAMES" if numeric_names else "TRACEABLE_NAMES_PRESENT",
@@ -337,6 +394,11 @@ def verify_selector(path: pathlib.Path, design_id: str) -> dict[str, Any]:
             state.get("ppa_reference_available") is False and
             state.get("ppa_timing_hard_gate") == "FAIL",
             "selector PPA boundary mismatch")
+    analyzer_ref = value.get("inputs", {}).get(
+        "verification_tools", {}).get("current_timing_path_analysis")
+    analyzer_path = verify_ref(analyzer_ref, "selector current timing analyzer")
+    require(analyzer_path == pathlib.Path(__file__).resolve(),
+            "selector does not bind this current timing analyzer")
     return value
 
 
@@ -414,47 +476,22 @@ def verify_traceability(path: pathlib.Path) -> dict[str, int | str]:
     return {"status": "PASS", **numeric}
 
 
-def verify_path_cluster(
-        path: pathlib.Path,
-        run1_top40: pathlib.Path,
-        path_analysis: dict[str, Any]) -> dict[str, Any]:
-    value = load_json(path)
-    require(value.get("schema") == PATH_CLUSTER_SCHEMA and
-            value.get("status") == "PASS" and
-            value.get("decision") == "ENGINEERING_CANDIDATE_RETAIN" and
-            value.get("gap") == "5NS_TARGET_NOT_MET",
-            "ca37 path-cluster boundary mismatch")
-    candidate = value.get("top40", {}).get("candidate", {})
-    startpoints = path_analysis.get("startpoint_histogram", {})
-    require(
-        candidate.get("path_count") == 40
-        and candidate.get("unique_startpoints") == 1
-        and candidate.get("unique_endpoints") == 40
-        and candidate.get("startpoint") in startpoints
-        and candidate.get("endpoint_classes") == {
-            "jalr_prefetch_hit_available": 38,
-            "redirect_valid": 2,
-        },
-        "ca37 path-cluster member classification mismatch",
-    )
-    tokens = candidate.get("token_path_counts", {})
-    require(
-        tokens.get("head0_csr_commit") == 40
-        and tokens.get("system_csr_dispatch_cancel") == 40
-        and tokens.get("system_csr_dispatch_valid") == 40
-        and tokens.get("pending_system_inst") == 40
-        and tokens.get("pending_system_csr_commit") == 0,
-        "ca37 path-cluster control-token census mismatch",
-    )
-    top40_ref = value.get("evidence", {}).get("candidate_top40", {})
-    require(isinstance(top40_ref, dict) and
-            set(top40_ref) == {"path", "sha256"},
-            "ca37 candidate top-40 reference key set mismatch")
-    bound_top40 = resolve_workspace(top40_ref.get("path", ""))
-    require(bound_top40 == run1_top40 and
-            top40_ref.get("sha256") == sha256(run1_top40),
-            "ca37 path cluster does not bind the current top-40 report")
-    return value
+def verify_current_cone(path_analysis: dict[str, Any]) -> None:
+    require(path_analysis.get("path_count") == 40 and
+            path_analysis.get("violated_path_count") == 40 and
+            path_analysis.get("unique_startpoint_count") == 1 and
+            path_analysis.get("unique_endpoint_count") == 40,
+            "current top-40 cardinality mismatch")
+    require(path_analysis.get("common_raw_prefix_cell_count", 0) >= 200,
+            "current top-40 lacks the expected deep shared raw prefix")
+    require(path_analysis.get("endpoint_class_counts") == {
+        "jalr_prefetch_hit_available": 34,
+        "redirect_valid": 5,
+        "pending_branch_misaligned": 1,
+    }, "current top-40 endpoint classification mismatch")
+    require(path_analysis.get("shared_cone_token_path_counts") == {
+        name: 40 for name in SHARED_CONE_TOKENS
+    }, "current top-40 serialized drain token census mismatch")
 
 
 def build_payload(
@@ -463,15 +500,13 @@ def build_payload(
         review_path: pathlib.Path,
         run1_top40_path: pathlib.Path,
         run2_top40_path: pathlib.Path,
-        traceability_path: pathlib.Path,
-        path_cluster_path: pathlib.Path) -> dict[str, Any]:
+        traceability_path: pathlib.Path) -> dict[str, Any]:
     current_reference_path = resolve_workspace(current_reference_path)
     selector_path = resolve_workspace(selector_path)
     review_path = resolve_workspace(review_path)
     run1_top40_path = resolve_workspace(run1_top40_path)
     run2_top40_path = resolve_workspace(run2_top40_path)
     traceability_path = resolve_workspace(traceability_path)
-    path_cluster_path = resolve_workspace(path_cluster_path)
     reference = verify_reference(
         current_reference_path, run1_top40_path, run2_top40_path)
     design_id = reference.get("design_id")
@@ -499,40 +534,43 @@ def build_payload(
         for path in run2_paths
     ], "parsed top-40 path members differ between runs")
     path_analysis = summarize_paths(run2_paths)
-    require(path_analysis["dominant_family"]["path_count"] >= 20,
-            "no dominant physical-proxy path family was identified")
+    verify_current_cone(path_analysis)
     require(path_analysis["rtl_traceability"]["status"] ==
             "TRACEABLE_NAMES_PRESENT",
             "current top-40 does not contain traceable public-flat names")
     traceability = verify_traceability(traceability_path)
-    cluster = verify_path_cluster(
-        path_cluster_path, run1_top40_path, path_analysis)
-    cluster_candidate = cluster["top40"]["candidate"]
     path_analysis["rtl_traceability"]["rtl_owner"] = {
         "launch": {
             "module": "CsrFile",
-            "state": "csr_mtvec_q[63]",
+            "public_flat_alias": "csr_mtvec_q[63]",
             "hierarchy_evidence": next(iter(
                 path_analysis["startpoint_histogram"])),
-            "resolution": "EXACT_PUBLIC_FLAT_STATE",
+            "resolution": "EXACT_PUBLIC_FLAT_ALIAS",
+            "logical_state_identity": "NOT_CLAIMED_AFTER_MAPPED_EQUIVALENT_REG_MERGE",
         },
         "capture": {
             "module": "OooFetchPcOutstandingSequencer",
-            "endpoint_classes": cluster_candidate["endpoint_classes"],
+            "endpoint_classes": path_analysis["endpoint_class_counts"],
             "resolution": "PUBLIC_FLAT_MODULE_AND_INPUT_ALIAS",
             "exact_rtl_register_bit": "NOT_CLAIMED_FROM_AUTONAME_ALIAS",
         },
         "dominant_control_segment": {
             "modules": [
-                "OooCsrAccessRequestMux",
-                "OooPendingSystemAdmissionCancelGate",
-                "OooFrontendBackendDispatchMux",
+                "OooMemAxiBridge",
+                "OooIntBackend",
+                "OooMemOwnerTerminalCollector",
+                "OooPendingDrainResolveGate",
+                "OooRedirectArbiter",
+                "OooFetchPcOutstandingSequencer",
             ],
             "signals": [
-                "head0_csr_commit_w",
-                "system_csr_dispatch_cancel_w",
-                "system_csr_dispatch_valid_w",
-                "pending_system_inst_q",
+                "effective_data_priv",
+                "store_queue_query1",
+                "lq_response1_open_w",
+                "mem_owner_terminalized_i",
+                "drain_complete_o",
+                "commit_trap_pc_w",
+                "redirect_valid_w",
             ],
             "coverage": "40/40",
         },
@@ -556,7 +594,6 @@ def build_payload(
             "run1_top40": file_ref(run1_top40_path),
             "run2_top40": file_ref(run2_top40_path),
             "traceability": file_ref(traceability_path),
-            "ca37_path_cluster": file_ref(path_cluster_path),
             "builder": file_ref(pathlib.Path(__file__)),
         },
         "repeatability": {
@@ -567,63 +604,67 @@ def build_payload(
         },
         "path_analysis": path_analysis,
         "candidate_decision": {
-            "status": "CANDIDATE_ONLY",
+            "status": "GAP",
             "id": CANDIDATE_ID,
-            "rtl_owner_resolved": True,
+            "rejected_candidate_id": REJECTED_CANDIDATE_ID,
+            "mapped_control_cone_resolved": True,
+            "cross_cycle_owner_lifetime_resolved": False,
             "production_rtl_change_authorized": False,
             "promotion_eligible": False,
             "ppa": "UNQUALIFIED",
             "reason": (
-                "Both current reports and the ca37 cluster place head0 CSR "
-                "commit cancellation in all 40 violating paths.  The reversible "
-                "candidate first blocks pending-CSR permit arm/hold with the "
-                "registered head0 CSR inflight owner, then keeps commit as an "
-                "admission clear while removing it only from pre-ROB dispatch "
-                "cancel.  This receipt defines that topology but does not prove "
-                "the cross-owner disjointness or authorize an RTL edit."
+                "Both exact-current reports place memory request/LSQ owner "
+                "terminalization, serialized drain completion, trap redirect and "
+                "fetch-PC state in all 40 violating paths.  A one-bit registered "
+                "readiness boundary is not safe from current evidence because "
+                "memory birth and stop-owner handoff cannot yet be excluded while "
+                "readiness is retained.  The candidate is rejected pending an "
+                "owner-lifetime proof; no RTL edit is authorized."
             ),
             "current_top40_control_token_counts":
-                cluster_candidate["token_path_counts"],
+                path_analysis["shared_cone_token_path_counts"],
         },
         "candidate_definition": {
-            "id": CANDIDATE_ID,
-            "state": "CANDIDATE_ONLY",
+            "id": REJECTED_CANDIDATE_ID,
+            "state": "REJECTED_OWNER_LIFETIME_UNPROVEN",
             "rtl_objective": (
-                "Use head0_csr_inflight_q as a registered blocker for "
-                "dispatch_permit_q arm/hold, then remove head0_csr_commit_i "
-                "only from system_csr_dispatch_cancel_o while retaining its "
-                "pending-owner admission clear and serial-flush effects."
+                "Capture mem_owner_terminalized_i into a one-bit readiness "
+                "register only for the active serialized stop owner after "
+                "backend_drained_q_i, clear it on reset, flush, owner completion "
+                "or owner handoff, and consume that registered readiness at the "
+                "serialized drain boundary instead of the same-cycle memory "
+                "owner cone."
             ),
             "intended_scope": [
-                "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
-                "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+                "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
                 "npc/rv64/vsrc/control/OooControlPlane.v",
-                "npc/rv64/vsrc/frontend/OooFrontend.v",
+                "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+                "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
             ],
-            "pipeline_state_added": 0,
-            "interface_state_source": "existing head0_csr_inflight_q",
+            "pipeline_state_added": 1,
+            "interface_state_source": "existing backend_drained_q_i and mem_owner_terminalized_i",
             "reversible": True,
         },
         "next_measurement": {
             "id": NEXT_ACTION,
             "purpose": (
-                "Prove or reject the registered-inflight/pre-ROB pending-CSR "
-                "disjointness before any production RTL edit."
+                "Resolve the memory-birth and stop-owner handoff lifetime gap "
+                "before reconsidering any registered terminal boundary."
             ),
             "must_hold": [
-                "queue-head CSR dispatch fire cannot capture a lane1 pending SYSTEM owner",
-                "head0_csr_commit implies the edge-old head0_csr_inflight owner",
-                "head0_csr_inflight blocks pending CSR permit arm and clears any held permit",
-                "commit-cycle dispatch fire remains false for dispatch0_ready 0 and 1",
-                "reset, local/global/serial flush and older-control recovery clear both owners",
-                "post-dispatch ProducerId lease is cleared only by exact producer death",
+                "readiness can arm only while one serialized stop owner is live and backend_drained_q_i is true",
+                "no memory owner birth or active-holder reappearance is possible after readiness capture for that owner",
+                "reset, local/global flush, owner completion and owner handoff clear readiness before reuse",
+                "arch-trap, system, exit and FENCE priority and natural completion remain unchanged apart from the declared one-cycle boundary",
+                "collector pending tokens and exact tracker free events are neither dropped nor duplicated",
+                "ready/valid payload stability, replay and precise exception ordering remain unchanged",
             ],
             "required_counterexamples": [
-                "same-cycle queue-head CSR lane0 fire plus lane1 SYSTEM capture",
-                "permit held under backend ready stall when head0 CSR commits",
-                "head0 CSR commit with inflight owner absent",
-                "older-control kill or serial flush colliding with permit arm/fire",
-                "pending CSR producer lease colliding with queue-head CSR commit",
+                "new memory birth on the cycle after readiness capture",
+                "stale readiness surviving serialized owner clear or handoff",
+                "flush colliding with readiness arm",
+                "collector-pending token observed as completed without exact terminal accounting",
+                "FENCE mem_idle or trap/exit completion bypassed by readiness state",
             ],
         },
         "candidate_invariants_if_owner_is_resolved": [
@@ -638,7 +679,8 @@ def build_payload(
             "traceable_public_flat_names_40_of_40":
                 traceability["public_flat_startpoints"] == 40 and
                 traceability["public_flat_endpoints"] == 40,
-            "control_segment_owner_resolved": True,
+            "mapped_control_segment_resolved": True,
+            "cross_cycle_owner_lifetime_resolved": False,
             "capture_register_bit_not_inferred_from_autoname_alias": True,
             "adapter_not_attributed_from_zero_top40_tokens":
                 reference.get("timing", {}).get("adapter_tokens_in_top40") == 0,
@@ -667,8 +709,7 @@ def rebuild_receipt(actual: dict[str, Any]) -> dict[str, Any]:
     require(actual.get("schema") == SCHEMA, "analysis receipt schema mismatch")
     inputs = actual.get("inputs", {})
     for label in ("current_reference", "selector", "independent_review",
-                  "run1_top40", "run2_top40", "traceability",
-                  "ca37_path_cluster", "builder"):
+                  "run1_top40", "run2_top40", "traceability", "builder"):
         verify_ref(inputs.get(label), label)
     return build_payload(
         pathlib.Path(inputs["current_reference"]["path"]),
@@ -677,7 +718,6 @@ def rebuild_receipt(actual: dict[str, Any]) -> dict[str, Any]:
         pathlib.Path(inputs["run1_top40"]["path"]),
         pathlib.Path(inputs["run2_top40"]["path"]),
         pathlib.Path(inputs["traceability"]["path"]),
-        pathlib.Path(inputs["ca37_path_cluster"]["path"]),
     )
 
 
@@ -691,7 +731,6 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--run1-top40", required=True)
     build.add_argument("--run2-top40", required=True)
     build.add_argument("--traceability", required=True)
-    build.add_argument("--path-cluster", required=True)
     build.add_argument("--output", required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("--input", required=True)
@@ -714,7 +753,7 @@ def main() -> int:
                 pathlib.Path(args.current_reference), pathlib.Path(args.selector),
                 pathlib.Path(args.independent_review), pathlib.Path(args.run1_top40),
                 pathlib.Path(args.run2_top40), pathlib.Path(args.traceability),
-                pathlib.Path(args.path_cluster))
+            )
             atomic_write_json(output, value)
             design_id = value["design_id"]
         else:
@@ -724,7 +763,7 @@ def main() -> int:
             require(actual == expected, "analysis receipt differs from rebuilt evidence")
             design_id = actual["design_id"]
         print(
-            "[CURRENT-TIMING-PATH-ANALYSIS][PASS_CANDIDATE_ONLY] "
+            "[CURRENT-TIMING-PATH-ANALYSIS][PASS_GAP] "
             f"design_id={design_id} paths=40 dominant_shared_cone=1 "
             f"candidate={CANDIDATE_ID} production_rtl_authorized=false"
         )

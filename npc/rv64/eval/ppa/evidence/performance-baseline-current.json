@@ -1,13 +1,13 @@
 {
   "arch_stable": {
     "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
-    "sha256": "bf4ec713b3bd9ff1de2f40a4a28ab481187c9ed40251adcfc8aa05ba97a5a9d5",
-    "size_bytes": 770767
+    "sha256": "a80f88a4215e34fdf2b064eae993d0242c8649339b8387007e680eb45d7a8325",
+    "size_bytes": 770977
   },
   "baseline_contract": {
     "path": "npc/rv64/design/arch/performance-baseline-contract-v3.json",
-    "sha256": "343a20e9bb08b0d5af6bfeff082cbc55a5f24ba826835bd00764a86985f9ae9d",
-    "size_bytes": 6974
+    "sha256": "0ea7a7f2b9846d598ecacae09d0b7f24393eb550610b845d7e665dc3df77bf83",
+    "size_bytes": 6977
   },
   "benchmarks": {
     "coremark": {
@@ -196,7 +196,7 @@
   "blockers": [],
   "boundary_qualification_amendment": {
     "path": "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
-    "sha256": "f7b35637c01f6d3025952cf0553c1f48b19d0167f60b46dab96dd3087fd34d29",
+    "sha256": "7e790d29a389aea310770ec768027aa47866b43ce8e59940c8817945ba48ffac",
     "size_bytes": 3783
   },
   "claim_boundary": {
@@ -272,23 +272,23 @@
     "status": "PASS"
   },
   "manifest": {
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/run-manifest.json",
-    "sha256": "125b7410c27338277c4eb7850e4f5faa790e019ddb83a799f95481b4bc815978",
-    "size_bytes": 6049
+    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/rebind-act4-v1/run-manifest.json",
+    "sha256": "f11c611d855317dd6bcd0126d5ad5564acc92568f9735b408f5b16d151a69bc0",
+    "size_bytes": 6068
   },
   "maturity_stage": "PERF_BASELINE",
   "measurement_contract": {
     "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
-    "sha256": "fbf81c1bb92de631248dbd607381743700c3af97895f9a118b505b90a55825db",
-    "size_bytes": 5880
+    "sha256": "3ecc2155fdcc7161ca2c0069bb621a05e28ce15f906b54b608a295bfc5fa7fb8",
+    "size_bytes": 5883
   },
   "policy": {
     "path": "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
-    "sha256": "628be663aed21c39c59d5434e37c87c41d913becacc43c426d9566209a14c601",
+    "sha256": "1a6f2012f9ad9cf519147ff4ccd57fa569f85716c6e615357b49424d1c026f17",
     "size_bytes": 2398
   },
   "postflight_arch_stable_verify": {
-    "path": ".github/task-runs/2026-08-08-rv64-v15x-performance-baseline-f72e-a1/evidence/performance-baseline-current/arch-stable-post.log",
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/mainline-rebind-f72e-v1/performance-baseline/arch-stable-post.log",
     "sha256": "163e7cd85f0232175fe3aa1307eadb937c2e774acf9f950256931cc531498fc5",
     "size_bytes": 85
   },

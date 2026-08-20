@@ -1,0 +1,127 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-child-opensta-pathend-arrival-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "本地 RV64 OooFpAddSubPipe 的 5.0ns OOC max/min OpenSTA 证据在 A6 已越过 Yosys、retained manifest 与 exact_port_family，首个失败固定为 setup/flush_i PathEnd 不存在 path_delay、delay、arrival 属性。按 OpenSTA 3.1.0 对象模型把输入端到寄存器D延迟改为同一 PathEnd points 的末点 arrival 减首点 arrival，把寄存器Q到输出的 clk-to-Q 改为显式0ns上升沿、零 insertion/latency、未传播时钟下的末点累计 arrival；验证 PathEnd min_max、check_role、startpoint/endpoint 与 points 首尾一致，禁止 period-slack、required-slack、PathEnd伪属性、data_arrival_time offset或Q到输出差分冒充完整clk-to-Q。A6保持冻结，不修改FP RTL，不运行production Yosys/OpenSTA/STA。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-arrival-api-research-v1/result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v11/evidence/fp-ooc-child-opensta-port-family-single-entry-closure-v2/result.json",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_path_arrival_harness.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-arrival-v1",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/opensta-max.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/subagent-contracts/fp-ooc-child-opensta-pathend-arrival-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_path_arrival_harness.v",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/fp-ooc-child-opensta-pathend-arrival-v1"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v12/evidence/opensta-pathend-arrival-api-research-v1/result.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a6/evidence/fp-ooc-composite-v1/children/OooFpAddSubPipe/opensta-max.log",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "生产 child Tcl 仅从同一 PathEnd 的 points 取得 Path arrival：setup/hold 记录末减首的 input-to-D 片上增量，clk-to-Q 记录显式零相位理想时钟下末点累计 CK-to-Q-to-output；同时验证 constrained PathEnd、min/max、setup/hold或output setup/output hold角色、首尾pin、输入seed和零时钟origin，保留现有arc inventory字段与Liberty公式。",
+    "新增最小真实 OpenSTA 3.1.0 harness，使用绑定ics55 Liberty与DFFQX1H7L加BUFX1H7L小网表执行生产测量proc，证明PathEnd伪属性被拒、input-to-D末减首正确、Q-to-output末点包含clk-to-Q且末减首会丢失它；定向mutation拒绝错误对象、错误单位、错误role/minmax、非零clock origin与伪延迟推导。",
+    "Registry单一入口与FP spec明确path measurement basis，定向unittest、一次真实OpenSTA harness、Registry render/check、runner bash-n和scoped audit各只在最终输入运行一次；A6及FP RTL哈希保持不变，production EDA执行次数为0。"
+  ],
+  "success_criteria": [
+    "真实OpenSTA harness和受影响门禁全部rc0，生成证据绑定OpenSTA binary、stdlib、生产Tcl、Registry、测试与A6冻结状态哈希；独立只读复核未发现clk-to-Q漏算、input seed混入、PathEnd属性误用或单位混算后，才可授权一个全新run-id的5.0ns diagnostic，PPA仍为GAP。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

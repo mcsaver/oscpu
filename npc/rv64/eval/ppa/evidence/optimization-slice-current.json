@@ -1,106 +1,138 @@
 {
   "candidate_dispositions": [
     {
-      "disposition": "SELECTED_NEXT_ACTION",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "analyze.current-timing-recovery-candidate",
-      "reasons": []
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "analyze.owner-b-response-latency-candidate",
       "reasons": [
-        "PREREQUISITE:b_response_candidate_analysis_completed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "analyze.owner-timing-hypothesis",
       "reasons": [
-        "PREREQUISITE:causal_analysis_completed:eq:false",
-        "PREREQUISITE:causal_selection_authorized:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "close.current-hard-blocker",
       "reasons": [
-        "PREREQUISITE:hard_blockers_closed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.head0-csr-inflight-permit-block",
       "reasons": [
-        "PREREQUISITE:current_timing_candidate_id:eq:\"head0-csr-inflight-permit-block-v1\"",
-        "PREREQUISITE:current_timing_path_analysis_completed:eq:true",
-        "PREREQUISITE:current_timing_path_analysis_status:eq:\"TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED\""
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.hide-b-response-latency",
       "reasons": [
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.increase-write-concurrency",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H2_WRITE_CONCURRENCY\"",
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.reduce-pre-request-residency",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H4_PRE_REQUEST_PIPELINE\"",
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.serialized-owner-terminal-permit",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.current-performance-baseline",
       "reasons": [
-        "PREREQUISITE:performance_baseline_current:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.owner-b-latency-sensitivity",
       "reasons": [
-        "PREREQUISITE:causal_selection_authorized:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.owner-timing-causality",
       "reasons": [
-        "PREREQUISITE:causal_analysis_completed:eq:false",
-        "PREREQUISITE:causal_selection_authorized:eq:false",
-        "PREREQUISITE:owner_timing_measured:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "qualify.current-reference-ppa",
       "reasons": [
-        "PREREQUISITE:ppa_reference_measurement_completed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "reconcile.current-cpi-census",
       "reasons": [
-        "PREREQUISITE:cpi_census_current:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "research.correct-head-residency-weighting",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H3_HEAD_RESIDENCY_WEIGHTING\""
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     }
   ],
@@ -113,121 +145,156 @@
     "selector_authorizes_rtl_semantics": false,
     "timing_is_a_hard_gate_not_a_soft_objective": true
   },
-  "decision": "SELECT",
+  "decision": "STATE_CONFLICT",
   "deferred": [
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.current-timing-recovery-candidate",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "analyze.owner-b-response-latency-candidate",
       "reasons": [
-        "PREREQUISITE:b_response_candidate_analysis_completed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "analyze.owner-timing-hypothesis",
       "reasons": [
-        "PREREQUISITE:causal_analysis_completed:eq:false",
-        "PREREQUISITE:causal_selection_authorized:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "close.current-hard-blocker",
       "reasons": [
-        "PREREQUISITE:hard_blockers_closed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.head0-csr-inflight-permit-block",
       "reasons": [
-        "PREREQUISITE:current_timing_candidate_id:eq:\"head0-csr-inflight-permit-block-v1\"",
-        "PREREQUISITE:current_timing_path_analysis_completed:eq:true",
-        "PREREQUISITE:current_timing_path_analysis_status:eq:\"TRACEABLE_HEAD0_CSR_DISPATCH_CANCEL_CANDIDATE_DEFINED\""
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.hide-b-response-latency",
       "reasons": [
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.increase-write-concurrency",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H2_WRITE_CONCURRENCY\"",
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "experiment.reduce-pre-request-residency",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H4_PRE_REQUEST_PIPELINE\"",
-        "PREREQUISITE:ppa_reference_available:eq:true"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.serialized-owner-terminal-permit",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.current-performance-baseline",
       "reasons": [
-        "PREREQUISITE:performance_baseline_current:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.owner-b-latency-sensitivity",
       "reasons": [
-        "PREREQUISITE:causal_selection_authorized:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "measure.owner-timing-causality",
       "reasons": [
-        "PREREQUISITE:causal_analysis_completed:eq:false",
-        "PREREQUISITE:causal_selection_authorized:eq:false",
-        "PREREQUISITE:owner_timing_measured:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "qualify.current-reference-ppa",
       "reasons": [
-        "PREREQUISITE:ppa_reference_measurement_completed:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "reconcile.current-cpi-census",
       "reasons": [
-        "PREREQUISITE:cpi_census_current:eq:false"
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     },
     {
-      "disposition": "DEFERRED_PREREQUISITE",
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
       "id": "research.correct-head-residency-weighting",
       "reasons": [
-        "PREREQUISITE:causal_hypothesis:eq:\"H3_HEAD_RESIDENCY_WEIGHTING\""
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
       ]
     }
   ],
-  "eligible_front": [
-    "analyze.current-timing-recovery-candidate"
-  ],
+  "eligible_front": [],
   "inputs": {
     "authorities": {
       "architecture_debt": {
         "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
-        "sha256": "dc46177af0f1745e89fd3e87c862534b532e3999b9e182fdca5f62b4d87b9b93",
-        "size_bytes": 13227
+        "sha256": "dc90209913ef99d6a6a446b6422c76b42ba82608b092f92905017a680eebdd13",
+        "size_bytes": 13263
       },
       "architecture_stable": {
         "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
-        "sha256": "bf4ec713b3bd9ff1de2f40a4a28ab481187c9ed40251adcfc8aa05ba97a5a9d5",
-        "size_bytes": 770767
+        "sha256": "a80f88a4215e34fdf2b064eae993d0242c8649339b8387007e680eb45d7a8325",
+        "size_bytes": 770977
       },
       "baseline_index": {
         "path": "npc/rv64/eval/ppa/baselines/index.json",
@@ -236,34 +303,34 @@
       },
       "cpi_census": {
         "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
-        "sha256": "71feee06061bc7bc1de76c0ecf664657f9140b0c72be1c1722643eed715fa5c7",
+        "sha256": "6b0b70c1a8c7c2626aa7358036499b59d669f0b89242a50684ccd97f4c31d143",
         "size_bytes": 15548
       },
       "historical_defect": {
         "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
-        "sha256": "9157f460b9cda5a83f8ba64137ae5ad081423e890e2e878219d74ed0bacd7200",
-        "size_bytes": 19379
+        "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1",
+        "size_bytes": 20690
       },
       "layered_system": {
         "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
-        "sha256": "1d97e9e13a7c792f87d202ac0bd02f949914aa5708148767b5482f35f5c48612",
-        "size_bytes": 15497
+        "sha256": "3e9cf0e0f0c71c7d260f6dfa43191681cc0455373795ecfec8767a1b6c6d6a06",
+        "size_bytes": 16452
       },
       "performance_baseline": {
         "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
-        "sha256": "a4d4ffe075e34f5375e20ed40b92518499862a11d3df5c30e57419826dfa1e2b",
-        "size_bytes": 11695
+        "sha256": "460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32",
+        "size_bytes": 11729
       }
     },
     "catalog": {
-      "path": "npc/rv64/eval/ppa/optimization-slices-current.json",
-      "sha256": "dac1ac81397389ff7fb6449e7d4fcf2445bd8470b80db74f100447d4a33bfd40",
-      "size_bytes": 29536
+      "path": "npc/rv64/eval/ppa/optimization-slices-owner-lifetime-v2.json",
+      "sha256": "803951a9e152fec1ad9a85875aa29c6113880c15d0474292f8832f2f716aae93",
+      "size_bytes": 5057
     },
     "decision_schema": {
       "path": "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
-      "sha256": "fa0e5f61063a2425c0d62e8d412107a5dcb04f6538551b6dbe888d0dd6fcf8ed",
-      "size_bytes": 4693
+      "sha256": "3531f9d64f52df663f40501aba31e873cb208e9eebb24d573d3fe4b1f9b0d573",
+      "size_bytes": 4854
     },
     "normative": {
       "architecture_ppa_contract": {
@@ -283,19 +350,15 @@
       }
     },
     "policy": {
-      "path": "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json",
-      "sha256": "139b3721eb69e3c883c3d3955437abd1c23a872643fc9ea8ee498b8d0a833548",
-      "size_bytes": 5173
+      "path": "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json",
+      "sha256": "8cd841d7ab2e1fa5f09a64ca14388ff5de408cab0d9d8589b05d9573e69cb07d",
+      "size_bytes": 5310
     },
-    "research_state": {
-      "path": ".github/task-runs/2026-08-08-rv64-v15x-current-reference-ppa-f72e-a2/evidence/optimization-research-state-current-reference-f72e-v1.json",
-      "sha256": "19ecd7e8316784b95ad88b427bf3301a76af627d5b6ece624cb27b20e2134f20",
-      "size_bytes": 2984
-    },
+    "research_state": null,
     "verification_tools": {
       "b_latency_sensitivity": {
         "path": "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
-        "sha256": "d0a9034dcebd2905032d0f4abfc2c08efe678c96b20a1df242a74c74b60adfca",
+        "sha256": "82bfee245424806cf0e10013371a705c013ba8b6197e93918f9040f094bd6bae",
         "size_bytes": 33766
       },
       "b_response_candidate_analysis": {
@@ -315,67 +378,40 @@
       },
       "current_timing_path_analysis": {
         "path": "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
-        "sha256": "a428723d4b0a8b11d9c8851d2609b7ddaa0af620a8a09c0a55ce5006a602f0d9",
-        "size_bytes": 32552
+        "sha256": "36905b3e0b6b56cb35b2c2ce22e44f7664c0c85230d4fcac9d97b12be9a6a302",
+        "size_bytes": 34129
       },
       "owner_timing": {
         "path": "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
-        "sha256": "75e964753ce491d2de2c8cf57da31888038b31e034e4929f9f5a7f26029c1329",
-        "size_bytes": 58948
+        "sha256": "21f6047deb34810bd2da887ab408f8070adf7c64134408f15d949c118dd62bfe",
+        "size_bytes": 71980
       },
       "ppa_checker": {
         "path": "npc/rv64/eval/ppa/tools/check.py",
         "sha256": "327ea3ad4c9d328749c0123cc614bc4bdc9769aec9f27019128e7da7ce5809a5",
         "size_bytes": 129598
+      },
+      "serialized_drain_owner_lifetime": {
+        "path": "npc/rv64/eval/ppa/tools/serialized_drain_owner_lifetime_analysis.py",
+        "sha256": "434fc002fc22f3ed9e0dc849c84c2302b63c47b4130e87aec56ffdf8862acd56",
+        "size_bytes": 21161
       }
     }
   },
-  "live_design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
-  "next_action": "CAUSAL_MEASUREMENT",
+  "live_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+  "next_action": "STATE_RECONCILIATION",
   "reason_codes": [
-    "CURRENT_IDENTITY_COHERENT",
-    "CORRECTNESS_BLOCKERS_CLOSED",
-    "PERF_BASELINE_CURRENT",
-    "PERFORMANCE_ANCHOR_FLOOR_NOT_MET",
-    "PPA_UNQUALIFIED",
-    "UNIQUE_ELIGIBLE_FRONT"
+    "AUTHORITY_STATE_CONFLICT"
   ],
   "schema": "npc-rv64-optimization-slice-decision-v1",
-  "selected_slice": {
-    "action": "对两轮 bit-exact mapped netlist 的 top-40 路径按 startpoint、endpoint、共享组合锥和 RTL owner 聚类，区分主导路径族与旁支，只定义一个保持 CPI、owner/holder、flush/replay 和精确异常合同的可回退时序候选或明确 GAP；本切片不修改 production RTL。",
-    "class": "causal_measurement",
-    "domain": "RV64 mapped critical-path causality",
-    "forbidden_claims": [
-      "a negative WNS reference is an accepted PPA baseline",
-      "vectorless power is qualified power",
-      "production RTL authorization or promotion from path clustering alone"
-    ],
-    "id": "analyze.current-timing-recovery-candidate",
-    "required_evidence": [
-      "two-run exact top-40 path-member identity and setup-warning closure",
-      "path-family counts with shared startpoint, endpoint and RTL owner mapping",
-      "one minimal reversible timing candidate invariant or one explicit no-safe-candidate GAP",
-      "CPI, area, owner/holder, flush/replay and exception counterexamples"
-    ],
-    "rollback_conditions": [
-      "path reports or source mapping are not repeatable",
-      "the proposed cut changes architectural terminal or owner lifetime semantics"
-    ],
-    "scope": [
-      "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
-      "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v",
-      "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-      "npc/rv64/vsrc/frontend/OooFetchPcOutstandingSequencer.v"
-    ],
-    "selection_mode": "information",
-    "success_conditions": [
-      "one dominant physical proxy path family is distinguished from secondary families",
-      "the next candidate has an exact register-cut or logic-cone objective without weakening the 5 ns hard gate"
-    ],
-    "title": "聚类 current 5 ns 违例路径并定义最小可回退时序候选"
-  },
-  "snapshot_key": "sha256:9698821fe9ab7ce4c6fe2dfead68d5e0ea46e7eefe2aba67171c73546834e2f0",
-  "stale_refs": [],
+  "selected_slice": null,
+  "snapshot_key": "sha256:9b28b76eee88aff3861403765a1d443a4aaa5ce2b14a9fd9cbeb11121fd303fb",
+  "stale_refs": [
+    {
+      "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "reason": "DESIGN_ID_MISMATCH"
+    }
+  ],
   "state": {
     "authority_status": {
       "architecture_debt": {
@@ -407,51 +443,45 @@
         "status_matches": true
       }
     },
-    "b_latency_sensitivity_completed": true,
-    "b_latency_sensitivity_status": "H1_B_RESPONSE_LATENCY_SENSITIVE",
-    "b_response_candidate_analysis_completed": true,
-    "b_response_candidate_analysis_status": "CURRENT_PATH_MAPPED_NEXT_CANDIDATE_DEFINED",
-    "causal_analysis_completed": true,
-    "causal_analysis_status": "RESEARCH_REQUIRED",
-    "causal_hypothesis": "H1_B_RESPONSE_LATENCY",
-    "causal_selection_authorized": true,
-    "causal_status": "HYPOTHESIS_NOT_PROVEN",
-    "cpi_census_current": true,
+    "b_latency_sensitivity_completed": false,
+    "b_latency_sensitivity_status": "UNAVAILABLE",
+    "b_response_candidate_analysis_completed": false,
+    "b_response_candidate_analysis_status": "UNAVAILABLE",
+    "causal_analysis_completed": false,
+    "causal_analysis_status": "UNAVAILABLE",
+    "causal_hypothesis": "UNRESOLVED",
+    "causal_selection_authorized": false,
+    "causal_status": "UNAVAILABLE",
+    "cpi_census_current": false,
     "current_timing_candidate_id": "UNAVAILABLE",
     "current_timing_path_analysis_completed": false,
     "current_timing_path_analysis_status": "UNAVAILABLE",
     "hard_blockers_closed": true,
-    "maturity": "PERF_BASELINE",
-    "owner_timing_measured": true,
+    "maturity": "ARCH_STABLE",
+    "owner_timing_measured": false,
     "performance_anchor_floor": 0.995,
     "performance_anchor_floor_met": false,
-    "performance_anchor_ratios": {
-      "coremark": "0.931908419516",
-      "dhrystone_10000": "0.972328046810"
-    },
-    "performance_baseline_current": true,
-    "ppa_engineering_reference_available": true,
+    "performance_anchor_ratios": {},
+    "performance_baseline_current": false,
+    "ppa_engineering_reference_available": false,
     "ppa_qualified": false,
     "ppa_reference_available": false,
-    "ppa_reference_measurement_completed": true,
-    "ppa_reference_measurement_status": "REPEATABLE_CURRENT_REFERENCE_TIMING_HARD_GATE_FAIL",
-    "ppa_timing_hard_gate": "FAIL",
-    "production_rtl_file_count": 146,
-    "state_conflicts": []
+    "ppa_reference_measurement_completed": false,
+    "ppa_reference_measurement_status": "UNAVAILABLE",
+    "ppa_timing_hard_gate": "UNKNOWN",
+    "production_rtl_file_count": 147,
+    "serialized_drain_candidate_id": "UNAVAILABLE",
+    "serialized_drain_experiment_authorized": false,
+    "serialized_drain_owner_lifetime_completed": false,
+    "serialized_drain_owner_lifetime_status": "UNAVAILABLE",
+    "state_conflicts": [
+      "architecture_stable:DESIGN_ID_MISMATCH",
+      "historical_defect:DESIGN_ID_MISMATCH",
+      "performance_baseline:DESIGN_ID_MISMATCH"
+    ]
   },
   "tradeoff_analysis": {
-    "active_class": "causal_measurement",
-    "active_mode": "information",
-    "front_status": "UNIQUE",
-    "qualified_axes": [
-      "information_gain",
-      "evidence_confidence",
-      "reversibility",
-      "execution_cost",
-      "functional_risk",
-      "scope_width"
-    ],
-    "scalarization_used": false,
-    "timing_role": "HARD_GATE_NOT_OBJECTIVE"
+    "active_mode": null,
+    "front_status": "NOT_EVALUATED"
   }
 }

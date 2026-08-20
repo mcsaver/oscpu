@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "router_id": "cpu-architect-semantic-router-v1",
+  "purpose": "Fail-closed routing for the project CPU Architect Agent without keyword or file-count triggering.",
+  "instruction": ".github/instructions/cpu-architect-routing.instructions.md",
+  "custom_agent": ".codex/agents/cpu-architect.toml",
+  "canonical_agent": ".github/agents/cpu-architect.agent.md",
+  "classifier": "scripts/cpu_architect_route.py",
+  "grounded_learning_policy": ".github/ai-env/contracts/cpu-architect-learning-v1.json",
+  "required_fields": [
+    "domain",
+    "intent",
+    "design_choice",
+    "root_cause",
+    "semantic_depth",
+    "objectives",
+    "baseline_ready",
+    "evidence_paths_ready",
+    "candidate_exists",
+    "architecture_change_authorized",
+    "risk",
+    "determinism",
+    "known_machine_instability",
+    "repeat_requested"
+  ],
+  "enums": {
+    "domain": ["local_rv64_cpu", "cpu_adjacent", "tooling", "generic"],
+    "intent": ["redesign", "trade_study", "diagnose", "implement_fixed", "verify", "report"],
+    "design_choice": ["open", "fixed", "unknown"],
+    "root_cause": ["causal_chain_known", "localized", "unknown"],
+    "semantic_depth": ["mechanical", "local_logic", "cross_module_protocol", "architectural_state"],
+    "objective": ["correctness", "cpi", "timing", "area", "power", "complexity"],
+    "risk": ["low", "medium", "high", "migration", "release"],
+    "determinism": ["deterministic", "concurrent", "flaky", "variable_ppa", "stochastic", "unknown"]
+  },
+  "routes": ["ARCHITECT", "EXPLORER", "WORKER", "REVIEWER", "CLARIFY", "NON_ARCH"],
+  "architect_hard_gates": {
+    "domain": "local_rv64_cpu",
+    "intents": ["redesign", "trade_study"],
+    "design_choice": "open",
+    "semantic_depth": ["cross_module_protocol", "architectural_state"],
+    "root_cause": ["causal_chain_known", "localized"],
+    "required_objective": "correctness",
+    "required_tradeoff_objectives": ["cpi", "timing", "area", "power", "complexity"],
+    "baseline_ready": true,
+    "evidence_paths_ready": true,
+    "architecture_change_authorized": true
+  },
+  "verification_policy": {
+    "default_execution_count": 1,
+    "single_pass_determinism": ["deterministic"],
+    "repeat_determinism": ["concurrent", "flaky", "variable_ppa", "stochastic"],
+    "repeat_requires_reason_threshold_and_stop_condition": true,
+    "independent_review_risks": ["high", "migration", "release"],
+    "distinct_evidence_is_not_repetition": [
+      "baseline_vs_candidate",
+      "positive_vs_negative_oracle",
+      "different_config_or_corner",
+      "different_mutation",
+      "different_abstraction_layer"
+    ]
+  },
+  "workspace_search_dimensions": [
+    "frontend_fetch_predict_redirect",
+    "decode_rename_allocate",
+    "scheduling_issue_wakeup",
+    "regread_bypass_execution",
+    "memory_lsq_cache_mmu_axi",
+    "writeback_rob_precise_commit",
+    "csr_trap_fence_serialization",
+    "cpi_timing_area_power_system_evidence"
+  ],
+  "examples": [
+    {
+      "id": "owner-terminal-critical-cone",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "redesign",
+        "design_choice": "open",
+        "root_cause": "causal_chain_known",
+        "semantic_depth": "cross_module_protocol",
+        "objectives": ["correctness", "timing", "cpi", "area"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": true,
+        "risk": "medium",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "ARCHITECT", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "coremark-slow-unknown",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "diagnose",
+        "design_choice": "unknown",
+        "root_cause": "unknown",
+        "semantic_depth": "local_logic",
+        "objectives": ["correctness", "cpi"],
+        "baseline_ready": false,
+        "evidence_paths_ready": false,
+        "candidate_exists": false,
+        "architecture_change_authorized": true,
+        "risk": "medium",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "EXPLORER", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "fixed-permit-implementation",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "implement_fixed",
+        "design_choice": "fixed",
+        "root_cause": "causal_chain_known",
+        "semantic_depth": "cross_module_protocol",
+        "objectives": ["correctness", "timing"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": true,
+        "risk": "medium",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "WORKER", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "candidate-promotion-review",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "verify",
+        "design_choice": "fixed",
+        "root_cause": "causal_chain_known",
+        "semantic_depth": "architectural_state",
+        "objectives": ["correctness", "cpi", "timing", "area", "power"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": true,
+        "architecture_change_authorized": false,
+        "risk": "high",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "REVIEWER", "execution": "SINGLE_PASS", "review": "INDEPENDENT"}
+    },
+    {
+      "id": "trace-parser-fix",
+      "packet": {
+        "domain": "tooling",
+        "intent": "implement_fixed",
+        "design_choice": "fixed",
+        "root_cause": "localized",
+        "semantic_depth": "local_logic",
+        "objectives": ["correctness"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": false,
+        "risk": "low",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "NON_ARCH", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "open-design-without-authority",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "trade_study",
+        "design_choice": "open",
+        "root_cause": "localized",
+        "semantic_depth": "architectural_state",
+        "objectives": ["correctness", "cpi", "area"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": false,
+        "risk": "medium",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "CLARIFY", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "flaky-concurrent-probe",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "diagnose",
+        "design_choice": "unknown",
+        "root_cause": "unknown",
+        "semantic_depth": "cross_module_protocol",
+        "objectives": ["correctness", "timing"],
+        "baseline_ready": false,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": true,
+        "risk": "high",
+        "determinism": "flaky",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "EXPLORER", "execution": "REPEAT_WITH_REASON", "review": "INDEPENDENT"}
+    },
+    {
+      "id": "cross-file-mechanical-rename",
+      "packet": {
+        "domain": "local_rv64_cpu",
+        "intent": "implement_fixed",
+        "design_choice": "fixed",
+        "root_cause": "localized",
+        "semantic_depth": "mechanical",
+        "objectives": ["correctness"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": true,
+        "risk": "low",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "WORKER", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    },
+    {
+      "id": "architecture-registry-view-maintenance",
+      "packet": {
+        "domain": "tooling",
+        "intent": "implement_fixed",
+        "design_choice": "fixed",
+        "root_cause": "localized",
+        "semantic_depth": "mechanical",
+        "objectives": ["correctness"],
+        "baseline_ready": true,
+        "evidence_paths_ready": true,
+        "candidate_exists": false,
+        "architecture_change_authorized": false,
+        "risk": "low",
+        "determinism": "deterministic",
+        "known_machine_instability": false,
+        "repeat_requested": false
+      },
+      "expected": {"route": "NON_ARCH", "execution": "SINGLE_PASS", "review": "SELF_CRITIC"}
+    }
+  ]
+}

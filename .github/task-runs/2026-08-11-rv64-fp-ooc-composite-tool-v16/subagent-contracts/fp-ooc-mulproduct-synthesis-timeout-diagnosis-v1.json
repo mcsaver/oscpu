@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-mulproduct-synthesis-timeout-diagnosis-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "read-only-review",
+  "goal": "对A10中OooFpMulProductPipe在5.0ns OOC production Yosys synthesis的1800秒超时做独立只读根因诊断：从冻结yosys.log、production runner、Yosys Tcl、ABC脚本、MulProduct RTL与已生成artifact重建最后完成pass、门级规模/算术结构和超时边界；区分gate-netlist extraction、ABC优化、工具预算与RTL结构候选，不运行EDA、不改输入，并给出唯一最小安全first action或inconclusive。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/configs/product-rtl-defaults.mk",
+      "npc/rv64/Makefile",
+      "npc/rv64/eval/ppa",
+      "yosys-sta",
+      "oss-cad-suite",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/children/OooFpMulProductPipe/yosys.log",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-tool-v16/subagent-contracts/fp-ooc-mulproduct-synthesis-timeout-diagnosis-v1.json"
+    ],
+    "write_paths": [],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "yosys-sta/scripts/yosys.tcl",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/gate-status.txt",
+      ".github/task-runs/2026-08-11-rv64-fp-ooc-composite-ppa-9d8b-a10/evidence/fp-ooc-composite-v1/children/OooFpMulProductPipe/yosys.log"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "给出OooFpMulProductPipe synthesis timeout的证据链：最后完成/未完成Yosys pass、可见module/cell/operator规模、ABC命令与预算、与AddSub或历史artifact的必要对照、确定反例与替代解释、unknowns、confidence_and_basis；明确CPU Architect是否触发。",
+    "给出恰一个最小安全first action及其输入变化、预期artifact/oracle和fresh-run授权边界；若证据不足则返回scope_extension_request或inconclusive，不得运行Yosys/OpenSTA/STA/RTL sim。"
+  ],
+  "success_criteria": [
+    "A10和RTL保持只读冻结，命令仅来自声明集合，production EDA执行次数为0。",
+    "结论能机械区分1800秒timeout发生在Yosys/ABC调用链的已证边界与未证内部阶段，不把无日志误报为RTL timing或area结论。",
+    "first action必须针对根因、可fail-closed验证且不复用A10 run-id；若会改变OooFpMulProductPipe流水级、接口、吞吐或五拍协议，则明确标为架构选择并暂停触发CPU Architect，否则标为NON_ARCH。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

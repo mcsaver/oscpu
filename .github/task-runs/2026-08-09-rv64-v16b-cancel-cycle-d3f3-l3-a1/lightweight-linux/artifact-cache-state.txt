@@ -1,0 +1,2 @@
+artifact_cache_state=reused
+artifact_cache=/home/lyg/PA/ysyx-workbench/.github/runtime-artifacts/rv64-lightweight-linux-current/artifacts

@@ -29,18 +29,23 @@ tools: [read, edit, search, agent, todo]
 
 - 先判断需求应落在 **Database 长期记忆**、**Skill 标准流程**、**Agent 自动维护**、**全局规则**、**按目录生效的 instructions**、还是 **记忆/蓝图文档**，不要把所有东西都塞进一份全局指令
 - 复杂任务优先落成“Database 事实层 + Skill 规则层 + Agent 执行层”的三层结构，再映射到图任务协议和模块专家
-- 交付前必须让“实现者人格”和“审查者人格”对立：实现者负责收敛方案、证据和边界，审查者负责主动寻找反例、覆盖洞、假绿、未跑 profile、未读上下文和越级完成声明；最终结论由证据裁决，冲突未解决时只允许交付子任务状态和剩余风险
+- 只有 `risk=high`、release、migration、难恢复的破坏性操作、正式 Architecture/Pareto promotion、
+  对外发布或用户明确要求时，才让“实现者人格”和“审查者人格”对立；普通确定性环境修改由实现者
+  自我批评后直接交付。审查者检查反例、覆盖、身份和越级声明，不机械重跑同一确定性命令；冲突未
+  解决时只允许交付子任务状态和剩余风险
 - 新增 agent 时，必须让 `description` 能清楚暴露触发词和使用场景
 - 新增工程模块或工作流 agent 后，同时检查 coordinator 的 `agents` 列表、蓝图 Agent 分层、memory-protocol 模块清单、对应 `memory/modules/*.md`、e2e module、profile 与脚本 gate
 - 修改范围保持最小闭环：同一轮只落一组能独立生效的配置变更
-- 修改 agent 工作流入口后，至少运行 `scripts/agent-maintain.sh --mode check`；若触及模块覆盖或用户要求 e2e，优先运行相关模块 profile（如 `--profile software-flow`）、`--profile agent-system`、`--profile contracts` 和 `--profile quick` 生成 task-run 证据
+- 修改 agent 工作流入口后，只运行路径映射到的一轮最小确定性 gate；触及模块覆盖或用户明确要求
+  e2e 时再选相关 profile，不默认串行运行 check、agent-system、contracts 和 quick 的重叠闭包
 
 ## 约束
 
 - 只修改 `.github/`、`.github/memory/`、`.github/skills/`、`scripts/agent-e2e.sh`、`scripts/agent-maintain.sh` 和 `scripts/e2e/**` 下与 agent 流程直接相关的文件
 - 文档与注释使用中文
 - 除非确实是全局规则，否则谨慎使用 `applyTo: "**"`
-- 修改完成后必须更新 `.github/memory/modules/agent-system.md` 与 `.github/memory/project-status.md`
+- 只有产生稳定、跨会话可复用的新事实时才更新 `.github/memory/modules/agent-system.md` 或
+  `.github/memory/project-status.md`；普通环境修改与单次 PASS 不强制写 memory
 
 ## 输出格式
 

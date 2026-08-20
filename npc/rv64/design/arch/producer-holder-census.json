@@ -103,27 +103,27 @@
     "evidence": {
       "result": {
         "kind": "holder_instance_graph_result",
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/holder-instance-graph.json",
-        "sha256": "3b50bb62ef811b917057107ef00745edfe8a76a88405a041d20c22182afb4b2e"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/holder-instance-graph.json",
+        "sha256": "e8b507550b8aa7d886c27b20a53d8a5a4eaaf84de8ff3cb92c01cef5e28905f2"
       },
       "receipt": {
         "kind": "holder_instance_graph_receipt",
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
-        "sha256": "0c35011d40328ad691775e89636672a0f7e1745321572c6bd7d1c38e420cd440"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph-receipt.json",
+        "sha256": "99f51ecb09ed7f9b67698f5989fe6a5964c9eff6482930fb6201ac8514b48673"
       },
       "full": {
         "kind": "holder_instance_graph_yosys_canonical_full_json_gzip",
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
-        "sha256": "4ed6cee79e25450aeefe66100254adfe1b902d88cdff3c610e12d19fbf569b1b"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph.full.json.gz",
+        "sha256": "a7e8d5300e46e67d347bdb19e1a0b59ad73665f372929e96a0f43817db1738fd"
       },
       "script": {
         "kind": "holder_instance_graph_yosys_script",
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
-        "sha256": "ba7cd306a1bed385f3d5f76c15aa9ac5de661d7165040641600fa19c117ea601"
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph.ys",
+        "sha256": "073ee1e7bb5b5b7fca546a7a10a8439f264d239574d2f71dcda98b9fb77dfd4c"
       },
       "log": {
         "kind": "holder_instance_graph_yosys_log",
-        "path": ".github/task-runs/2026-08-08-rv64-v15x-f72e-state-reconciliation-a1/evidence/current-holder-instance-graph/yosys-instance-graph.log",
+        "path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/current-holder-instance-graph/yosys-instance-graph.log",
         "sha256": "9e1beea36a898c5889e2830561de0206f7085ab3e78580e03a6a0629e4c12337"
       }
     }
@@ -719,7 +719,7 @@
     "compile_success_mutations_required": true,
     "claim_boundary": "A passing static census does not itself grant global no-live-reuse, whole-architecture GREEN, or PPA promotion."
   },
-  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
   "freeze_evidence": {
     "canonical_command": "make -C npc/rv64 check-global-producer-no-live-reuse",
     "dynamic_log": {

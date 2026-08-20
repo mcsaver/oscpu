@@ -1,0 +1,125 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "bpu-inline-physical-configuration-implementation-v1",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "implementation",
+  "goal": "实现 registry-authorized 的 NpcTop 5 ns BPU-inline 物理配置：保留 mapped-5ns-four-placeholder-v1 四宏基线，新增 mapped-5ns-bpu-inline-v1，只将 OooBranchDirectionPredictor 从 blackbox/Liberty 投影移除；RTL design-id 保持 d3f3，physical configuration、projection、run parameters 与证据 artifact 形成独立 fail-closed binding。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/cpu-architect-routing.instructions.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-mapped-baseline-a2",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tools/traceable_path_inventory.py",
+      "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+      "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "npc/rv64/vsrc/frontend/OooFrontend.v",
+      "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "npc/rv64/vsrc/sram/Sram4096x199.v",
+      "npc/rv64/vsrc/sram/Sram4096x113.v",
+      "npc/rv64/syn/macro-lib",
+      "npc/rv64/vsrc/filelist.mk",
+      "npc/rv64/.config",
+      "npc/rv64/include",
+      "npc/rv64/Makefile",
+      "yosys-sta",
+      "scripts/task-run-status.sh",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-inline-physical-boundary-architecture-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-mapped-macro-boundary-baseline-a2.result.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-inline-physical-configuration-implementation-v1.json"
+    ],
+    "write_paths": [
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/instructions/rv64-ppa-optimization-workflow.instructions.md",
+      "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/run-traceable-mapped-current.sh",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-inline-physical-boundary-architecture-review-v1.result.md",
+      ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/d3f3-mapped-macro-boundary-baseline-a2.result.md",
+      ".github/instructions/rtl-generation-workflow.instructions.md"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "用 apply_patch 修改且仅修改声明的五个路径：catalog/schema 增加 shared run_parameter_contract 与两个 physical configurations；architecture_registry.py 显式解析 configuration，生成 boundary_modes/blackbox/inline/Liberty 投影，以不含可变 evidence pointer 的 architecture_policy_sha256 和 configuration/run-parameter/artifact hashes 形成 v2 binding，并校验 expected d3f3、parameters、STA input manifest、summary unknown macro census；runner 强制 --physical-configuration 与 --expected-rtl-design-id，从 registry 取得宏投影并将配置/参数/artifact 传给 stamp；单测覆盖正常 parent/child 投影及未知配置、错误 delta、BPU blackbox或Liberty残留、缺 SRAM/FP、parameter/design-id/census/runner gate 漂移。运行一次 bash -n 和一次 test_architecture_registry 定向单测，报告修改路径、测试返回码、unknowns 与 scope_extension_request；不运行综合/STA。"
+  ],
+  "success_criteria": [
+    "四宏配置投影与 A2 宏集合一致，BPU-inline 投影精确保留 Sram4096x199、Sram4096x113、OooFpArithGate 并将且仅将 OooBranchDirectionPredictor 标为 inline_rtl，BPU Liberty 不出现；configuration ID 必须显式且未知/空 ID rc=2；expected RTL design-id 不匹配时 stamp rc=2；binding v2 同时校验 policy/configuration/projection/run-parameter/parameters/STA-input 与 unknown macro census，evidence pointer 更新不改变 policy hash；runner 缺任一显式参数或 final gate 时静态 mutation 被拒绝。A2 summary 不修改，WNS<0 不得升级，bash -n 与单次定向 unittest 均 rc=0。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

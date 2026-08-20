@@ -10,6 +10,7 @@ import json
 import pathlib
 import re
 import sys
+from decimal import Decimal
 from typing import Any
 
 TOOLS_DIR = pathlib.Path(__file__).resolve().parent
@@ -809,17 +810,45 @@ def baseline_image_path(
         raise EvidenceError(f"{workload} image is not canonical: {error}") from error
 
 
+def production_identity_entries() -> dict[pathlib.Path, str]:
+    suffixes = {".v", ".sv", ".vh", ".svh", ".mk"}
+    paths = sorted(
+        source.resolve()
+        for source in (REPO_ROOT / "npc/rv64/vsrc").rglob("*")
+        if source.is_file() and source.suffix.lower() in suffixes
+    )
+    paths.extend(
+        path.resolve()
+        for path in (
+            REPO_ROOT / "npc/rv64/include/generated/autoconf.h",
+            REPO_ROOT / "npc/rv64/include/config/auto.conf",
+        )
+    )
+    if len(paths) != len(set(paths)) or not paths:
+        raise EvidenceError("canonical production source inventory is invalid")
+    return {path: sha256(path) for path in paths}
+
+
 def validate_manifest(path: pathlib.Path) -> dict[str, Any]:
     lines = path.read_text(encoding="utf-8").splitlines()
-    if len(lines) != 148 or len(set(lines)) != 148:
-        raise EvidenceError("production manifest must contain 148 unique files")
+    expected = production_identity_entries()
+    if len(lines) != len(expected) or len(set(lines)) != len(expected):
+        raise EvidenceError(
+            "production manifest must contain the exact canonical source inventory"
+        )
+    observed: dict[pathlib.Path, str] = {}
     for line in lines:
         match = re.fullmatch(r"([0-9a-f]{64})  (/.+)", line)
         if match is None:
             raise EvidenceError("production manifest line format mismatch")
         source = resolve_file(match.group(2))
-        if sha256(source) != match.group(1):
+        if source in observed:
+            raise EvidenceError("production manifest contains a duplicate path")
+        observed[source] = match.group(1)
+        if expected.get(source) != match.group(1):
             raise EvidenceError(f"production source drift: {rel(source)}")
+    if observed != expected:
+        raise EvidenceError("production manifest path inventory drift")
     return {
         **file_ref(path),
         "file_count": len(lines),
@@ -1094,6 +1123,227 @@ def rebuild_receipt(data: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def ratio_string(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        raise EvidenceError("performance ratio denominator must be positive")
+    return format(Decimal(numerator) / Decimal(denominator), ".12f")
+
+
+def candidate_performance_delta(
+    reference_cycles: int,
+    reference_retired: int,
+    candidate_cycles: int,
+    candidate_retired: int,
+) -> dict[str, Any]:
+    if reference_cycles <= 0 or candidate_cycles <= 0:
+        raise EvidenceError("candidate comparison cycles must be positive")
+    if reference_retired <= 0 or candidate_retired <= 0:
+        raise EvidenceError("candidate comparison retired count must be positive")
+    if candidate_retired != reference_retired:
+        raise EvidenceError("candidate/reference retired count mismatch")
+    reference_cpi = Decimal(reference_cycles) / Decimal(reference_retired)
+    candidate_cpi = Decimal(candidate_cycles) / Decimal(candidate_retired)
+    return {
+        "reference_cycles": reference_cycles,
+        "candidate_cycles": candidate_cycles,
+        "cycles_delta": candidate_cycles - reference_cycles,
+        "retired_instructions": candidate_retired,
+        "reference_cpi": format(reference_cpi, ".12f"),
+        "candidate_cpi": format(candidate_cpi, ".12f"),
+        "cpi_delta": format(candidate_cpi - reference_cpi, ".12f"),
+        "reference_ipc": ratio_string(reference_retired, reference_cycles),
+        "candidate_ipc": ratio_string(candidate_retired, candidate_cycles),
+        "no_cpi_regression": candidate_cycles <= reference_cycles,
+    }
+
+
+def build_current_candidate_receipt(
+    baseline_path: pathlib.Path,
+    contract_path: pathlib.Path,
+    profile_path: pathlib.Path,
+    manifest_path: pathlib.Path,
+    simulator_identity_path: pathlib.Path,
+    cleanup_path: pathlib.Path,
+    diagnostic_logs: dict[str, list[pathlib.Path]],
+) -> dict[str, Any]:
+    baseline, _, _ = validate_static_inputs(baseline_path, contract_path, profile_path)
+    manifest = validate_manifest(manifest_path)
+    production_design_id = live_rtl_design_id()
+    if production_design_id == baseline["design_id"]:
+        raise EvidenceError(
+            "current candidate mode requires a successor RTL design-id"
+        )
+    simulator_identity = validate_simulator_identity(simulator_identity_path)
+    validate_cleanup(cleanup_path, simulator_identity)
+
+    workloads: dict[str, Any] = {}
+    for workload in ("coremark", "dhrystone_10000"):
+        baseline_entry = baseline["benchmarks"][workload]
+        reference_refs = baseline_entry.get("logs", [])
+        if len(reference_refs) != 3:
+            raise EvidenceError(f"{workload} baseline must have three logs")
+        reference_logs = [
+            verify_ref(reference, f"{workload}.reference[{index}]")
+            for index, reference in enumerate(reference_refs)
+        ]
+        references = [parse_reference_log(path, workload) for path in reference_logs]
+        reference_region = require_all_equal(
+            [value["region_payload"] for value in references],
+            f"{workload} reference region",
+        )
+        reference_counter = require_all_equal(
+            [value["counter_payload"] for value in references],
+            f"{workload} reference counter",
+        )
+        reference = references[0]
+        if (
+            reference["cycles"] != baseline_entry["cycles"]
+            or reference["retired"] != baseline_entry["retired_instructions"]
+        ):
+            raise EvidenceError(f"{workload} baseline counters drifted")
+
+        paths = diagnostic_logs.get(workload, [])
+        if len(paths) != 3:
+            raise EvidenceError(f"{workload} candidate must have three logs")
+        diagnostics = [parse_diagnostic_log(path, workload) for path in paths]
+        diagnostic_region = require_all_equal(
+            [value["region_payload"] for value in diagnostics],
+            f"{workload} candidate region",
+        )
+        diagnostic_counter = require_all_equal(
+            [value["counter_payload"] for value in diagnostics],
+            f"{workload} candidate counter",
+        )
+        owner_signature = require_all_equal(
+            [value["owner_signature_sha256"] for value in diagnostics],
+            f"{workload} candidate owner timing",
+        )
+        candidate = diagnostics[0]
+        for key in ("start_hits", "end_hits", "start_lane", "end_lane"):
+            if candidate[key] != reference[key]:
+                raise EvidenceError(
+                    f"{workload} candidate/reference {key} mismatch"
+                )
+        delta = candidate_performance_delta(
+            reference["cycles"],
+            reference["retired"],
+            candidate["cycles"],
+            candidate["retired"],
+        )
+        if delta["reference_cpi"] != baseline_entry["cpi"]:
+            raise EvidenceError(f"{workload} baseline CPI formatting drifted")
+        workloads[workload] = {
+            **delta,
+            "image": file_ref(baseline_image_path(baseline, workload)),
+            "reference": {
+                "design_id": baseline["design_id"],
+                "repetitions": 3,
+                "logs": reference_refs,
+                "region_counter_bit_exact": True,
+            },
+            "candidate": {
+                "design_id": production_design_id,
+                "repetitions": 3,
+                "logs": [file_ref(path) for path in paths],
+                "region_counter_bit_exact": True,
+                "owner_timing_bit_exact": True,
+                "owner_signature_sha256": owner_signature,
+                "owner_line_count": candidate["owner_line_count"],
+            },
+            "frozen_reference_region_exact_match": (
+                diagnostic_region == reference_region
+            ),
+            "frozen_reference_counter_exact_match": (
+                diagnostic_counter == reference_counter
+            ),
+        }
+
+    no_regression = all(
+        entry["no_cpi_regression"] for entry in workloads.values()
+    )
+    return {
+        "schema": "npc-rv64-owner-timing-current-candidate-ab-v1",
+        "status": (
+            "CURRENT_RTL_CPI_NO_REGRESSION"
+            if no_regression
+            else "CURRENT_RTL_CPI_REGRESSION"
+        ),
+        "performance_gate": "PASS" if no_regression else "FAIL",
+        "design_id": production_design_id,
+        "reference_design_id": baseline["design_id"],
+        "design_relation": "CURRENT_RTL_VS_FROZEN_REFERENCE_SAME_CONFIG_WORKLOAD",
+        "scope": (
+            "CoreMark10 and Dhrystone10000 deterministic candidate CPI A/B; "
+            "the frozen ARCH_STABLE baseline is reference-only"
+        ),
+        "inputs": {
+            "baseline_receipt": file_ref(baseline_path),
+            "owner_timing_contract": file_ref(contract_path),
+            "validation_profile": file_ref(profile_path),
+            "production_manifest": manifest,
+            "diagnostic_simulator_identity": file_ref(simulator_identity_path),
+            "runtime_cleanup": file_ref(cleanup_path),
+        },
+        "workloads": workloads,
+        "checks": {
+            "current_production_manifest_exact": True,
+            "candidate_repetitions_bit_exact": True,
+            "candidate_owner_state_conservation": True,
+            "candidate_owner_interval_conservation": True,
+            "candidate_owner_invalid_events": 0,
+            "retired_instruction_identity": True,
+            "benchmark_terminal_markers": True,
+            "runtime_cleanup": True,
+        },
+        "qualification_boundary": {
+            "architecture_stable_current": False,
+            "frozen_baseline_is_reference_only": True,
+            "performance_candidate_measured": True,
+            "ppa": "UNQUALIFIED",
+            "promotion_eligible": False,
+        },
+    }
+
+
+def rebuild_current_candidate_receipt(data: dict[str, Any]) -> dict[str, Any]:
+    if data.get("schema") != "npc-rv64-owner-timing-current-candidate-ab-v1":
+        raise EvidenceError("current candidate receipt schema mismatch")
+    inputs = data.get("inputs", {})
+    paths = {
+        name: verify_ref(inputs.get(name), f"candidate.{name}")
+        for name in (
+            "baseline_receipt",
+            "owner_timing_contract",
+            "validation_profile",
+            "diagnostic_simulator_identity",
+            "runtime_cleanup",
+        )
+    }
+    manifest_input = inputs.get("production_manifest")
+    if not isinstance(manifest_input, dict) or "path" not in manifest_input:
+        raise EvidenceError("candidate.production_manifest is malformed")
+    paths["production_manifest"] = resolve_file(manifest_input["path"])
+    logs: dict[str, list[pathlib.Path]] = {}
+    for workload in ("coremark", "dhrystone_10000"):
+        entries = data.get("workloads", {}).get(workload, {}).get(
+            "candidate", {}
+        ).get("logs", [])
+        if len(entries) != 3:
+            raise EvidenceError(f"{workload} candidate log inventory mismatch")
+        logs[workload] = [
+            verify_ref(entry, f"{workload}.candidate") for entry in entries
+        ]
+    return build_current_candidate_receipt(
+        paths["baseline_receipt"],
+        paths["owner_timing_contract"],
+        paths["validation_profile"],
+        paths["production_manifest"],
+        paths["diagnostic_simulator_identity"],
+        paths["runtime_cleanup"],
+        logs,
+    )
+
+
 def build_invalid_probe_receipt(
     baseline_path: pathlib.Path,
     contract_path: pathlib.Path,
@@ -1344,6 +1594,48 @@ def command_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_build_current_candidate(args: argparse.Namespace) -> int:
+    diagnostic_logs = {
+        "coremark": [resolve_file(path) for path in args.coremark_log],
+        "dhrystone_10000": [resolve_file(path) for path in args.dhrystone_log],
+    }
+    value = build_current_candidate_receipt(
+        resolve_file(args.baseline),
+        resolve_file(args.contract),
+        resolve_file(args.profile),
+        resolve_file(args.production_manifest),
+        resolve_file(args.simulator_identity),
+        resolve_file(args.cleanup),
+        diagnostic_logs,
+    )
+    output = pathlib.Path(args.output)
+    if not output.is_absolute():
+        output = REPO_ROOT / output
+    atomic_write_json(output, value)
+    print(
+        "[OWNER-TIMING-CURRENT-CANDIDATE][MEASURED] "
+        f"design_id={value['design_id']} reference={value['reference_design_id']} "
+        f"performance_gate={value['performance_gate']} workloads=2 repetitions=3 "
+        "arch_stable_current=0 ppa=UNQUALIFIED promotion_eligible=0"
+    )
+    return 0
+
+
+def command_verify_current_candidate(args: argparse.Namespace) -> int:
+    path = resolve_file(args.input)
+    data = load_json(path)
+    expected = rebuild_current_candidate_receipt(data)
+    if data != expected:
+        raise EvidenceError("current candidate receipt differs from rebuilt evidence")
+    print(
+        "[OWNER-TIMING-CURRENT-CANDIDATE-VERIFY][PASS] "
+        f"design_id={data['design_id']} reference={data['reference_design_id']} "
+        f"performance_gate={data['performance_gate']} workloads=2 repetitions=3 "
+        "arch_stable_current=0 ppa=UNQUALIFIED promotion_eligible=0"
+    )
+    return 0
+
+
 def command_build_invalid_probe(args: argparse.Namespace) -> int:
     value = build_invalid_probe_receipt(
         resolve_file(args.baseline),
@@ -1425,6 +1717,22 @@ def parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify")
     verify.add_argument("--input", required=True)
     verify.set_defaults(func=command_verify)
+
+    candidate = sub.add_parser("build-current-candidate")
+    candidate.add_argument("--baseline", required=True)
+    candidate.add_argument("--contract", required=True)
+    candidate.add_argument("--profile", required=True)
+    candidate.add_argument("--production-manifest", required=True)
+    candidate.add_argument("--simulator-identity", required=True)
+    candidate.add_argument("--cleanup", required=True)
+    candidate.add_argument("--coremark-log", action="append", required=True)
+    candidate.add_argument("--dhrystone-log", action="append", required=True)
+    candidate.add_argument("--output", required=True)
+    candidate.set_defaults(func=command_build_current_candidate)
+
+    candidate_verify = sub.add_parser("verify-current-candidate")
+    candidate_verify.add_argument("--input", required=True)
+    candidate_verify.set_defaults(func=command_verify_current_candidate)
 
     invalid_probe = sub.add_parser("build-invalid-probe")
     invalid_probe.add_argument("--baseline", required=True)

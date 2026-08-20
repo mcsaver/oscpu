@@ -1,0 +1,133 @@
+{
+  "schema_version": 2,
+  "contract_type": "local-rtl-task",
+  "task_id": "fp-ooc-constant-output-marker-audit-fix-v8",
+  "engineering_domain": "local-rv64-rtl",
+  "task_kind": "verification",
+  "goal": "修复v7 evidence runner把协调dispatch-log错误要求与v6旧哈希相同的预审问题，并执行尚未开始的constant-output裁剪门禁。v7已证明test_fp_ooc_composite.py逆替换后精确重构v6测试哈希，随后仅因dispatch-log在记录v7派发后自然变化而于marker-diff-audit停止；受影响unittest、真实OpenSTA、Registry、bash-n、scoped audit均0。v8不修改测试或production源码，仅让新evidence runner把当前dispatch-log作为本批次独立before/after绑定而不与v6比较；继续单次执行受影响method及剩余门禁，production EDA/A7 rerun为0。",
+  "scope": {
+    "workspace_root": ".",
+    "allowed_paths": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-constant-output-evidence-model-v6.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-constant-output-harness-marker-fix-v7.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-ppa-9d8b-a7",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json",
+      "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/eval/ppa/tests/test_architecture_registry.py",
+      "npc/rv64/ARCHITECTURE.md",
+      "npc/rv64/design/specs/ooo-fp-arith-gate.md",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-top.tcl",
+      "npc/rv64/eval/ppa/run-fp-ooc-composite-current.sh",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/traceable_mapped_sta.py",
+      "npc/rv64/eval/ppa/schemas/fp-ooc-composite-v1.schema.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tests/fixtures/fp_ooc_constant_output_harness.v",
+      "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+      "npc/rv64/vsrc/execute/OooFpRound.v",
+      "npc/rv64/vsrc/include/define.v",
+      "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-marker-audit-fix-v8",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-constant-output-marker-audit-fix-v8.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/input-manifest-before.sha256",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/marker-diff-audit.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/result.json"
+    ],
+    "write_paths": [
+      "npc/rv64/ARCHITECTURE.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-marker-audit-fix-v8"
+    ],
+    "allowed_commands": [
+      {
+        "command": "rg",
+        "mode": "read-only",
+        "purpose": "search-allowed-paths"
+      },
+      {
+        "command": "sed",
+        "mode": "read-only",
+        "purpose": "view-selected-lines"
+      },
+      {
+        "command": "sha256sum",
+        "mode": "read-only",
+        "purpose": "hash-declared-artifact"
+      },
+      {
+        "command": "git diff",
+        "mode": "read-only",
+        "purpose": "inspect-scoped-diff"
+      },
+      {
+        "command": "apply_patch",
+        "mode": "write-within-scope",
+        "purpose": "edit-declared-write-paths"
+      },
+      {
+        "command": "bash",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      },
+      {
+        "command": "python3",
+        "mode": "write-within-scope",
+        "purpose": "run-declared-workspace-script"
+      }
+    ]
+  },
+  "context": {
+    "required_files": [
+      ".github/AGENTS.md",
+      ".github/instructions/rtl-agent-task-contract.instructions.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/dispatch-log.md",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/subagent-contracts/fp-ooc-constant-output-harness-marker-fix-v7.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/affected-unittest.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/result.json",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-evidence-model-v6/input-manifest-before.sha256",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/gate-status.txt",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/marker-diff-audit.log",
+      ".github/task-runs/2026-08-10-rv64-fp-ooc-composite-tool-v14/evidence/fp-ooc-constant-output-harness-marker-fix-v7/result.json",
+      "npc/rv64/eval/ppa/tests/test_fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/tools/fp_ooc_composite.py",
+      "npc/rv64/eval/ppa/opensta-fp-ooc-child.tcl",
+      "npc/rv64/eval/ppa/tools/architecture_registry.py",
+      "npc/rv64/design/arch/rv64-architecture-registry-v1.json"
+    ],
+    "material_mode": "workspace-files",
+    "supplied_material": []
+  },
+  "deliverables": [
+    "新增v8 evidence runner，逐SHA绑定v6与v7原始失败收据；technical source和A7冻结输入按v6基线校验，dispatch-log仅按v8当前批次before/after校验，不参与跨批次等值。",
+    "不修改test_fp_ooc_composite.py及任何production工具；复用v7已证明的唯一Tcl-safe marker差异，单次执行受影响A7 mixed-output method与真实OpenSTA harness。",
+    "受影响method通过后单次执行Registry render/check、production runner bash-n和14路径scoped diff/text/schema audit，ARCH继续由Registry单入口生成，PPA保持GAP并要求独立只读review。"
+  ],
+  "success_criteria": [
+    "v8 preflight正确区分协调日志与技术输入；受影响A7 mixed-output method及真实OpenSTA marker单次PASS，Registry render/check、runner bash-n、scoped audit各单次PASS；v6/v7收据不变，其余6个v6 PASS方法重跑0次，production EDA/RTL sim/A7 rerun=0。"
+  ],
+  "status_policy": {
+    "review_state": "review_pending",
+    "parent_goal_state": "active",
+    "isolate_review_to_subtask": true,
+    "preserve_original_request": true,
+    "semantic_distortion_retry_forbidden": true,
+    "official_feedback_recommended": true
+  },
+  "language_policy": {
+    "preserve_rtl_identifiers": true,
+    "domain_accurate_wording": true,
+    "wording_preserves_task_semantics": true
+  },
+  "source_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json"
+}

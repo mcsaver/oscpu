@@ -130,13 +130,24 @@ module tb_ooo_serialized_owner_exactly_once;
   wire system_csr_dispatch_permit;
   wire system_csr_dispatch_valid;
   wire system_csr_dispatch_fire;
+  wire trap_mem_valid;
+  wire [2:0] serialized_mem_terminal_owner = {
+      pending_exit,
+      pending_arch_trap,
+      pending_system && !pending_system_csr
+  };
+  // Mirror the production V16B feedback-free ready-kill boundary.  The full
+  // holder clears below contain drain_complete and therefore remain state
+  // consumers only; they must not feed the permit's combinational ready.
+  wire serialized_mem_terminal_cancel =
+      core_local_flush || trap_mem_valid || branch_spec_resolve_valid;
+  wire serialized_mem_terminal_ready;
   assign system_csr_dispatch_valid =
       system_csr_dispatch_permit && stop_pending && pending_system &&
       pending_system_csr && !pending_system_dispatched;
   assign system_csr_dispatch_fire = system_csr_dispatch_valid;
 
   wire core_commit_exception_trap;
-  wire trap_mem_valid;
   wire [`XLEN-1:0] trap_mem_pc;
   wire [`TRAP_CAUSE_W-1:0] trap_mem_cause;
   wire [`XLEN-1:0] trap_mem_tval;
@@ -399,6 +410,18 @@ module tb_ooo_serialized_owner_exactly_once;
     .producer_id_o(pending_system_producer_id)
   );
 
+  OooSerializedMemTerminalPermit u_serialized_mem_terminal_permit (
+    .clk(clk),
+    .rst(rst),
+    .cancel_i(serialized_mem_terminal_cancel),
+    .stop_pending_i(stop_pending),
+    .backend_drained_q_i(1'b1),
+    .owner_i(serialized_mem_terminal_owner),
+    .mem_owner_terminalized_i(mem_owner_terminalized),
+    .consume_i(drain_complete),
+    .ready_o(serialized_mem_terminal_ready)
+  );
+
   OooPendingDrainResolveGate u_drain_gate (
     .rob_count_i({`OOO_ROB_COUNT_W{1'b0}}),
     .issue_count_i({`OOO_ISSUE_COUNT_W{1'b0}}),
@@ -424,6 +447,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .mem_retire_quiet_i(1'b1),
     .mem_idle_i(mem_idle),
     .mem_owner_terminalized_i(mem_owner_terminalized),
+    .serialized_mem_terminal_ready_i(serialized_mem_terminal_ready),
     .pending_system_i(pending_system),
     .pending_system_fence_i(pending_system_fence),
     .pending_system_csr_i(pending_system_csr),
@@ -1041,11 +1065,19 @@ module tb_ooo_serialized_owner_exactly_once;
       `TB_TICK(clk);
       clear_inputs();
       mem_owner_terminalized = 1'b1;
+      #1;
+      tb_check1("V16B terminal fact is registered before held-cancel test",
+                drain_complete, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("V16B held arch permit is live before commit trap",
+                serialized_mem_terminal_ready, 1'b1);
       core_commit0_valid = 1'b1;
       core_commit0_exception = 1'b1;
       #1;
-      tb_check1("V10A commit trap overlap reaches drain",
-                drain_complete, 1'b1);
+      tb_check1("V16B commit trap suppresses held permit before drain",
+                drain_complete, 1'b0);
+      tb_check1("V16B commit trap suppresses held permit ready",
+                serialized_mem_terminal_ready, 1'b0);
       tb_check1("V10A commit trap request selected",
                 trap_mem_valid, 1'b1);
       // A lower-priority pending architectural trap is not an accepted
@@ -1072,7 +1104,7 @@ module tb_ooo_serialized_owner_exactly_once;
       check_int("V10A commit overlap remains no-repeat",
                 pending_arch_request_count_q, 0);
       if (tb_errors == errors_before)
-        $display("[V10A-COMMIT-TRAP-PRIORITY-PASS] mem-selected=1 arch-request=0 C1-clear=1 C2-repeat=0");
+        $display("[V16B-HELD-PERMIT-COMMIT-TRAP-PRIORITY-PASS] mem-selected=1 arch-request=0 ready=0 drain=0 C1-clear=1 C2-repeat=0");
       else
         $display("[V10A-COMMIT-TRAP-PRIORITY-RED] errors=%0d",
                  tb_errors - errors_before);
@@ -1105,6 +1137,11 @@ module tb_ooo_serialized_owner_exactly_once;
 
       mem_owner_terminalized = 1'b1;
       #1;
+      tb_check1("V16A arch terminal arm is registered",
+                drain_complete, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("V16A arch owner-bound permit is ready",
+                serialized_mem_terminal_ready, 1'b1);
       tb_check1("V10A C0 exact terminal completes drain",
                 drain_complete, 1'b1);
       tb_check1("V10A C0 arch request fires",
@@ -1206,6 +1243,11 @@ module tb_ooo_serialized_owner_exactly_once;
       mem_idle = 1'b0;
       mem_owner_terminalized = 1'b1;
       #1;
+      tb_check1("V16A exit terminal arm is registered",
+                drain_complete, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("V16A exit owner-bound permit is ready",
+                serialized_mem_terminal_ready, 1'b1);
       tb_check1("V10D C0 exact terminal completes drain",
                 drain_complete, 1'b1);
       tb_check1("V10D C0 raw exit pulse", raw_exit, 1'b1);
