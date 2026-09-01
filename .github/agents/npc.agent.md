@@ -1,45 +1,48 @@
 # NPC Agent
 
-## RTL 生成强制工作流（最高优先级）
+## RTL 实现与接口正确性
 
-写或改任何 `npc/rv64` 可综合 Verilog 前，必须遵循
-`.github/instructions/rtl-generation-workflow.instructions.md`（需求→协议+FSM+不变量+拓扑→RTL，六段留痕）。
-其中触碰握手 / stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复 或跨模块的改动，
-**先走阶段 0**：按 `.github/instructions/interface-contract-first.instructions.md` 冻结六类跨模块契约、
-填满目标模块 SPEC-TEMPLATE §2/§3，并让能编码的契约过 `make -C npc/rv64 check-contract` gate（决策见 `decisions.md` [38]）。
+写或改 `npc/rv64` 可综合 Verilog 时遵循
+`.github/instructions/rtl-generation-workflow.instructions.md` 的真实接口、结构和最小验证原则。触碰握手、
+stall、flush/redirect/trap、异常/访存序、投机恢复或跨模块事务时，确认 transaction ownership、payload
+hold 与同拍优先级；已有 contract 足够时直接使用，含义缺失时再修订 SPEC/断言并运行相关
+`make -C npc/rv64 check-contract`。不要求六段留痕或固定阶段后才允许编辑。
 
-## 默认开发环境
+## 可选 E2E 场景
 
-NPC 开发默认使用 NPC-only profile：
+普通局部 NPC 开发使用直接相关 lint/build/TB/sim。需要显式 NPC-only 端到端场景时使用：
 
 - 快速 NPC 合同：`scripts/agent-e2e.sh --profile npc-dev`
 
 ## 子 agent 任务契约
 
-派发 `npc/rv64` RTL、验证或 PPA 子任务前，读取
-`.github/instructions/rtl-agent-task-contract.instructions.md`，并用
-`.github/skills/prepare-rtl-task-contract/` 生成、校验和渲染最小充分工程契约。只读复核必须限定路径、
-命令和输出，禁止写文件、联网、账号、凭据和外部服务；实现任务必须显式列出可写文件并继续满足
-RTL 四段式与接口契约硬门。需要发现源码遗漏时默认给出模块级 `workspace-files` 只读范围；no-tools
-只用于限定材料复核，不得把实现、验证或 PPA 执行节点因模板惯性全部降级为只读 reviewer。
-子 agent 渲染提示固定使用 `rv64-hardware-professional`，只包含 RV64 微架构、流水线、事务、时序、
-验证和 PPA 语义；协调状态留在主 agent，且措辞层不得减少工具、上下文、反例或推理出口。
+复杂、并行或跨会话的 `npc/rv64` RTL/验证/PPA 子任务可以用
+`.github/instructions/rtl-agent-task-contract.instructions.md` 和 prepare skill 组织 objective、RTL/spec/TB、
+write ownership、建议命令与 acceptance criteria。它是可选 handoff，不是路径/命令权限白名单，也不要求
+SHA、固定 fork 模式或逐字 render。局部任务直接派发，并允许检查判断 root cause 所需的调用链。
 
 ## RV64 PPA 持续优化
 
-涉及双发射完整 OoO 核的性能、面积、时序或功耗时，必须读取
+准备对双发射完整 OoO 核作全局性能、面积、时序、功耗或正式 promotion 结论时，读取
 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与
 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md`；中间检查点只能留开发证据，不能进入全局 Pareto、seed 或 champion。
 
-`npc-dev` 包含 `software-flow`、`npc-sim-contract`、`npc-single-contract`、`npc-soc-contract` 和 `npc-rv64-contract`。它不得包含 `nemu-dev`、`nemu-ubuntu`、`nemu-ubuntu-full-gate` 或 NEMU full Ubuntu gate。
+`npc-dev` 只包含 `npc-sim-contract`、`npc-single-contract`、`npc-soc-contract` 和 `npc-rv64-contract`；它不把
+`software-flow` 方法检查注入业务验证，也不得包含 `nemu-dev`、`nemu-ubuntu`、`nemu-ubuntu-full-gate`
+或 NEMU full Ubuntu gate。
 
 ## 软件流程
 
-NPC 仿真、Verilator harness、RTL-adjacent C++、Linux boot/systemd 观察和 RV64 contract 都要先走 `software-flow` 的软件闭环，再按需要交给硬件或系统 gate。NPC 相关问题不要用 NEMU-only profile 证明完成；NEMU 问题也不要靠 NPC profile 混过去。
+NPC 仿真、Verilator harness、RTL-adjacent C++ 和 Linux host 工具遵循 `software-flow` 的 root-cause 与
+focused-test 原则，不要求先完成固定软件流程记录。NPC 相关问题不能用 NEMU-only profile 证明完成；
+NEMU reference 也不能靠 NPC profile 混过去。
 
 ## 边界
 
 - NPC-only 环境 bug 要修 `npc-dev` 和相关 module contract。
 - 跨 NEMU/NPC/RV64 Linux 的集成验证继续使用旧集成 profile，例如 `nemu-ubuntu-full-gate` 或 `rv64-linux`。
-- 当前 NPC Ubuntu/systemd 长门状态以 known-issues 为准，不因 NEMU full Ubuntu 进展自动关闭。
-- （契约先行硬门槛）rv64 核改动若填不出受影响模块的接口/控制契约（§2/§3 的 flush「谁清谁保持」表、stall 语义、同拍优先级表出现填不出的格子），即视为尚未理解上下游业务，禁止落 RTL；先补齐契约或显式上升为“契约缺口”任务节点，不得先写 RTL 再撞死锁回填。
+- NPC Ubuntu/systemd 的 known-issues 仅作历史线索；当前状态以实际 worktree、runner/config 和最近直接
+  evidence 为准。NEMU-only 进展不能自动关闭 NPC GAP。
+- rv64 核改动若还无法解释受影响接口的 flush/stall/同拍优先级，就先读取上下游、波形或已有 spec，直到
+  能提出可检验假设；必要时补契约或定向 assertion。是否先做小型 RTL/TB 探针由可逆性和诊断价值决定，
+  不把表格填写或任务节点状态当作编辑权限。

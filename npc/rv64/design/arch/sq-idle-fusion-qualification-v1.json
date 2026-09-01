@@ -1,0 +1,157 @@
+{
+  "schema": "npc-rv64-sq-idle-fusion-qualification-v1",
+  "contract_state": "CURRENT_HEAD_SAME_CYCLE_SQ_IDLE_FUSION_QUALIFICATION_V1",
+  "scope": "two physical memory lanes on the single configured RV64 hart",
+  "instrumentation_boundary": {
+    "rtl_observer": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+    "host_accumulator": "npc/rv64/csrc/cpu/cpu-exec.cpp",
+    "parser": "npc/rv64/eval/ppa/tools/sq_idle_fusion_qualification.py",
+    "dut_feedback": false,
+    "dut_feedback_definition": "no feedback into architectural next-state, ready-valid credit, lookup, retry, queue-update, or terminal action selectors",
+    "observer_cone": "under CONFIG_NPC_OOO_STATS the current-head source enters the existing combinational SQ query observer cone; focused assertions and lint prove that its result remains action-quiet and loop-free",
+    "synthesis_scope": "stats-conditional instrumentation; CONFIG_NPC_OOO_STATS off makes the probe constant zero so it can be optimized away; this qualification slice does not perform synthesis, STA, or PPA qualification",
+    "legacy_counter_schema_changed": false
+  },
+  "event_mask": {
+    "width_bits": 32,
+    "layout": "field-major",
+    "lane_order": "the low bit of every pair is lane0 and the high bit is lane1",
+    "fields": [
+      {
+        "name": "prequal",
+        "bits": [1, 0],
+        "meaning": "bridge S_IDLE admission of a direct final-PA cached current-MIQ-head load probe"
+      },
+      {
+        "name": "exact",
+        "bits": [3, 2],
+        "meaning": "prequal and the corresponding backend full mem*_sq_query_exact_w fact"
+      },
+      {
+        "name": "allow",
+        "bits": [5, 4],
+        "meaning": "exact and the three-bit decision is strictly 001 in {replay,forward,allow} order"
+      },
+      {
+        "name": "forward",
+        "bits": [7, 6],
+        "meaning": "exact and the three-bit decision is strictly 010 in {replay,forward,allow} order"
+      },
+      {
+        "name": "replay",
+        "bits": [9, 8],
+        "meaning": "exact and the three-bit decision is strictly 100 in {replay,forward,allow} order"
+      },
+      {
+        "name": "invalid",
+        "bits": [11, 10],
+        "meaning": "exact but the three-bit decision is not one of the three strict known one-hot encodings"
+      },
+      {
+        "name": "allow_rob_head",
+        "bits": [13, 12],
+        "meaning": "allow, ROB head valid, ROB launch open, and current MIQ full ProducerId exactly equals the full ROB-head ProducerId"
+      }
+    ],
+    "reserved_bits": [31, 14],
+    "reserved_value": 0,
+    "host_decode": "popcount each two-bit pair; pair 11 contributes two, never one"
+  },
+  "prequal_source": {
+    "wire": "OooMemAxiBridge.stats_current_head_sq_probe_w",
+    "admission_state": "S_IDLE",
+    "semantic_boundary": "same-cycle bridge admission for the current MIQ head",
+    "forbidden_gates": [
+      "OooStoreQueue empty",
+      "OooIntBackend sq_empty_w",
+      "OooIntBackend drain_inflight_q"
+    ]
+  },
+  "lane_classification": {
+    "exact": "prequal && backend mem*_sq_query_exact_w",
+    "decision_vector_order": "{replay,forward,allow}",
+    "allow": "exact && decision === 3'b001",
+    "forward": "exact && decision === 3'b010",
+    "replay": "exact && decision === 3'b100",
+    "invalid": "exact && decision is not strictly one of 001,010,100",
+    "allow_rob_head": "allow && rob_head_valid && rob_head_launch_open && known(current_miq_full_producer_id) && known(rob_head_full_producer_id) && current_miq_full_producer_id === rob_head_full_producer_id",
+    "x_safety": "NpcSimTop converts every emitted bit to a known two-state value with case equality and exact three-bit comparisons",
+    "inexact_fail_closed_replay": "not replay; it contributes to prequal-exact identity_or_lq_reject"
+  },
+  "host_counters": {
+    "stored": [
+      "cycles",
+      "prequal",
+      "exact",
+      "allow",
+      "forward",
+      "replay",
+      "invalid",
+      "allow_rob_head"
+    ],
+    "derived": {
+      "identity_or_lq_reject": "prequal - exact"
+    },
+    "arithmetic": "all cumulative additions, snapshot subtractions, derived subtraction, and conservation sums are uint64 checked",
+    "sticky_integrity": [
+      "reserved or structurally impossible event encoding",
+      "non-contiguous callback cycle",
+      "uint64 overflow"
+    ]
+  },
+  "conservation": {
+    "decision_partition": "exact == allow + forward + replay + invalid",
+    "qualification_funnel": "prequal >= exact",
+    "derived_reject": "identity_or_lq_reject == prequal - exact",
+    "rob_head_subset": "allow_rob_head <= allow"
+  },
+  "region_sampling": {
+    "start_snapshot": "inclusive cumulative snapshot after callback for start-boundary cycle S",
+    "end_snapshot": "inclusive cumulative snapshot after callback for end-boundary cycle E",
+    "interval": "(S,E]",
+    "delta": "checked end snapshot minus start snapshot",
+    "retire_lane_suffix_correction": false,
+    "containment": "every region counter, including cycles and the derived reject, is no greater than its whole-run final counterpart"
+  },
+  "markers": {
+    "region": "[sq_idle_fusion] SQ_IDLE_FUSION_REGION",
+    "final": "[sq_idle_fusion] SQ_IDLE_FUSION_FINAL",
+    "field_order": [
+      "schema",
+      "complete",
+      "available",
+      "overflow",
+      "malformed",
+      "cycles",
+      "prequal",
+      "exact",
+      "identity_or_lq_reject",
+      "allow",
+      "forward",
+      "replay",
+      "invalid",
+      "allow_rob_head",
+      "conservation"
+    ],
+    "integer_domain": "all fields except schema are unsigned decimal uint64; boolean fields are restricted to 0 or 1"
+  },
+  "qualification": {
+    "requires_unique_region_marker": true,
+    "requires_unique_final_marker": true,
+    "requires_exact_field_order": true,
+    "requires_complete": true,
+    "requires_available": true,
+    "requires_zero_overflow": true,
+    "requires_zero_malformed": true,
+    "requires_zero_invalid": true,
+    "requires_conservation": true,
+    "requires_region_contained_in_final": true
+  },
+  "interpretation_boundary": {
+    "prequal_is_not": "StoreQueue empty residency or an SQ drain-idle cycle count",
+    "reject_is": "a bridge-admitted current-head candidate rejected by backend full identity and/or LQ openness",
+    "reject_is_not": "a backend replay decision",
+    "allow_rob_head_is": "the allow subset whose current MIQ full ProducerId is the open ROB-head ProducerId",
+    "forbidden_inference": "these event counts alone do not prove CPI, timing, area, power, or functional equivalence of an idle-fusion RTL change"
+  }
+}

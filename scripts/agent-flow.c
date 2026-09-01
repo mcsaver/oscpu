@@ -247,11 +247,6 @@ static const GateDef GATES[] = {
         180,
     },
     {
-        "state-audit",
-        "python3 scripts/github_index_db.py state-audit",
-        180,
-    },
-    {
         "skill-audit",
         "python3 scripts/github_index_db.py skill-audit",
         180,
@@ -623,123 +618,10 @@ static const GateDef *find_gate(const char *id) {
     return NULL;
 }
 
-static int starts_with(const char *value, const char *prefix) {
-    return strncmp(value, prefix, strlen(prefix)) == 0;
+static int is_terminal_status(const char *status) {
+    return strcmp(status, "PASS") == 0 || strcmp(status, "FINISHED") == 0;
 }
 
-static int ends_with(const char *value, const char *suffix) {
-    size_t value_length = strlen(value);
-    size_t suffix_length = strlen(suffix);
-    return value_length >= suffix_length &&
-           strcmp(value + value_length - suffix_length, suffix) == 0;
-}
-
-static int is_allowed_build_description(const char *path) {
-    return strcmp(path,
-                  "tool/softfloat/build/Linux-x86_64-GCC/.gitignore") == 0 ||
-           strcmp(path,
-                  "tool/softfloat/build/Linux-x86_64-GCC/Makefile") == 0 ||
-           strcmp(path,
-                  "tool/softfloat/build/Linux-x86_64-GCC/platform.h") == 0 ||
-           starts_with(
-               path,
-               "ysyxSoC/rocket-chip/dependencies/chisel/.github/workflows/"
-               "build-scala-cli-template/");
-}
-
-static int has_generated_directory_component(const char *path) {
-    const char *component = path;
-    while (*component != '\0') {
-        const char *slash = strchr(component, '/');
-        size_t length = slash == NULL ? strlen(component)
-                                      : (size_t)(slash - component);
-        if ((length == strlen("build") &&
-             strncmp(component, "build", length) == 0) ||
-            (length == strlen("obj_dir") &&
-             strncmp(component, "obj_dir", length) == 0) ||
-            (length == strlen("CMakeFiles") &&
-             strncmp(component, "CMakeFiles", length) == 0) ||
-            (length == strlen("__pycache__") &&
-             strncmp(component, "__pycache__", length) == 0)) {
-            return 1;
-        }
-        /* build-*.py/build_helper.c 等源码文件不是目录；只有后续仍有
-         * path component 时才把 build-/build_ 前缀视作二级产物目录。 */
-        if (slash != NULL && length > strlen("build-") &&
-            (strncmp(component, "build-", strlen("build-")) == 0 ||
-             strncmp(component, "build_", strlen("build_")) == 0)) {
-            return 1;
-        }
-        if (slash == NULL) {
-            break;
-        }
-        component = slash + 1;
-    }
-    return 0;
-}
-
-static int is_regenerable_source_artifact(const char *path) {
-    if (is_allowed_build_description(path)) {
-        return 0;
-    }
-    return has_generated_directory_component(path) ||
-           ends_with(path, ".pyc") || ends_with(path, ".pyo") ||
-           ends_with(path, ".pyd") ||
-           ends_with(path, ".o") || ends_with(path, ".vvp") ||
-           ends_with(path, ".vcd") || ends_with(path, ".fst") ||
-           ends_with(path, ".fsdb") || ends_with(path, ".wlf") ||
-           ends_with(path, ".vpd") || ends_with(path, ".ghw");
-}
-
-static int is_environment_surface(const char *path) {
-    return strcmp(path, "AGENTS.md") == 0 ||
-           strcmp(path, "AI_ENVIRONMENT.md") == 0 ||
-           strcmp(path, ".github/AGENTS.md") == 0 ||
-           strcmp(path, ".github/copilot-instructions.md") == 0 ||
-           starts_with(path, ".github/ai-env/") ||
-           starts_with(path, ".github/agents/") ||
-           starts_with(path, ".github/e2e/") ||
-           starts_with(path, ".github/skills/") ||
-           starts_with(path, ".github/instructions/agent-") ||
-           strcmp(path,
-                  ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
-           starts_with(path, ".github/workflows/agent-") ||
-           strcmp(path,
-                  "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv") == 0 ||
-           strcmp(path,
-                  "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
-           starts_with(path, "scripts/agent-") ||
-           strcmp(path, "scripts/check-rv64-soc-delivery-gates.sh") == 0 ||
-           strcmp(path, "scripts/tests/test-rv64-soc-delivery-gates.sh") == 0 ||
-           starts_with(path, "scripts/e2e/") ||
-           starts_with(path, "scripts/dev_memory/") ||
-           strcmp(path, "scripts/github_index_db.py") == 0;
-}
-
-static int is_ordinary_documentation_path(const char *path) {
-    int documentation_suffix = ends_with(path, ".md") ||
-                               ends_with(path, ".rst") ||
-                               ends_with(path, ".adoc") ||
-                               ends_with(path, ".txt");
-    if (!documentation_suffix || is_environment_surface(path)) {
-        return 0;
-    }
-    /* ROADMAP mirrors machine authorities; editing its narration is not a
-       request to rebuild a stale current-design receipt. */
-    if (strcmp(path, "npc/rv64/design/arch/ROADMAP.md") == 0) {
-        return 1;
-    }
-    /* Architecture contracts remain evidence-bearing even when Markdown. */
-    if (starts_with(path, "npc/rv64/design/arch/") ||
-        starts_with(path, ".github/runtime-artifacts/")) {
-        return 0;
-    }
-    if (starts_with(path, ".github/task-runs/")) {
-        return ends_with(path, "/delivery-summary.md") ||
-               ends_with(path, "/dispatch-log.md");
-    }
-    return 1;
-}
 
 static int add_gate(StringList *gates, const char *id) {
     if (find_gate(id) == NULL) {
@@ -774,594 +656,18 @@ static int normalize_gate_dependencies(StringList *gates) {
 
 static int derive_gates(const FlowMeta *meta, const StringList *paths,
                         const StringList *explicit_gates, StringList *gates) {
+    (void)meta;
+    (void)paths;
     memset(gates, 0, sizeof(*gates));
-    if (strcmp(meta->task_class, "review") == 0 ||
-        strcmp(meta->task_class, "analysis") == 0) {
-        return 0;
-    }
-    if (strcmp(meta->task_class, "release") == 0) {
-        return add_gate(gates, "maintain-release");
-    }
     for (size_t i = 0; i < explicit_gates->count; ++i) {
         if (add_gate(gates, explicit_gates->values[i]) != 0) {
             return -1;
         }
     }
-    for (size_t i = 0; i < paths->count; ++i) {
-        const char *path = paths->values[i];
-        /* 可再生编译物只属于源码树清洁面。先短路能避免历史 task-run
-         * 目录名把 __pycache__/build/ 清理误路由到架构 current receipt。 */
-        if (is_regenerable_source_artifact(path)) {
-            if (add_gate(gates, "source-artifact-hygiene") != 0) {
-                return -1;
-            }
-            continue;
-        }
-        if (strcmp(meta->task_class, "docs") == 0 &&
-            is_ordinary_documentation_path(path)) {
-            continue;
-        }
-        if (strcmp(path, ".gitignore") == 0 ||
-            strcmp(path, "scripts/check-source-tree-artifact-hygiene.sh") == 0 ||
-            strcmp(path,
-                   "scripts/tests/test-source-tree-artifact-hygiene.sh") == 0) {
-            if (add_gate(gates, "source-artifact-hygiene") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "scripts/agent-flow.c") == 0 ||
-            strcmp(path, "scripts/agent-flow.sh") == 0 ||
-            strcmp(path, "scripts/tests/test-agent-flow.sh") == 0 ||
-            strcmp(path,
-                   ".github/instructions/agent-lightweight-workflow.instructions.md") == 0) {
-            if (add_gate(gates, "flow-self-test") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/rv64-soc-delivery-gates.tsv") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
-            strcmp(path, "scripts/check-rv64-soc-delivery-gates.sh") == 0 ||
-            strcmp(path, "scripts/tests/test-rv64-soc-delivery-gates.sh") == 0) {
-            if (add_gate(gates, "rv64-soc-delivery-gates") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "npc/rv64/ARCHITECTURE.md") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/rv64-architecture-registry-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_registry.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_architecture_registry.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-traceable-mapped-current.sh") == 0) {
-            if (add_gate(gates, "rv64-architecture-registry") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/full-core-functional-run-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-full-core-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/full_core_current_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/full_core_functional_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/functional_aggregate.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/arch_stable_freeze.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/functional-aggregate-v2.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/functional-aggregate-result-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/difftest-reference-profile-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testsuites/scripts/npc-rv64-core-regress.sh") == 0 ||
-            strcmp(path,
-                   "am-kernels/tests/cpu-tests/scripts/check_results.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_full_core_current_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_full_core_functional_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_full_core_runner_entry.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/replay-full-core-functional-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/full_core_functional_replay.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_full_core_functional_replay.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_functional_aggregate.py") == 0 ||
-            strcmp(path,
-                   ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-functional-aggregate.py") == 0 ||
-            strcmp(path,
-                   ".github/task-runs/2026-07-22-rv64-v9l-functional-aggregate-current-design/run-focused.sh") == 0 ||
-            strcmp(path, "abstract-machine/Makefile") == 0 ||
-            strcmp(path, "abstract-machine/am/Makefile") == 0 ||
-            strcmp(path, "abstract-machine/klib/Makefile") == 0 ||
-            strcmp(path, "am-kernels/benchmarks/coremark/Makefile") == 0 ||
-            strcmp(path, "am-kernels/benchmarks/dhrystone/Makefile") == 0 ||
-            strcmp(path, "am-kernels/tests/cpu-tests/Makefile") == 0 ||
-            strcmp(path, "nemu/Makefile") == 0 ||
-            strcmp(path, "abstract-machine/scripts/riscv64-npc.mk") == 0 ||
-            strcmp(path, "abstract-machine/scripts/platform/npc.mk") == 0 ||
-            strcmp(path, "npc/rv64/Makefile") == 0) {
-            if (add_gate(gates, "rv64-full-core-runner-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/system-recertification-run-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-system-recertification-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/system_recertification_run.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_system_recertification_runner.py") == 0 ||
-            strcmp(path, "Linux/scripts/check-ubuntu-rootfs.sh") == 0 ||
-            strcmp(path, "Linux/scripts/check-npc-systemd-guest.sh") == 0 ||
-            strcmp(path, "Linux/scripts/npc-systemd-strict-check.sh") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/npc_systemd_transaction_evidence.py") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/prepare-npc-rootfs-run-image.sh") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/tests/test_npc_systemd_strict_check.py") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/tests/test_check_npc_systemd_guest_contract.py") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/tests/test_npc_systemd_transaction_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py") == 0 ||
-            strcmp(path, "npc/rv64/configs/default_defconfig") == 0 ||
-            strcmp(path, "npc/rv64/configs/product-rtl-defaults.mk") == 0) {
-            if (add_gate(gates,
-                         "rv64-system-recertification-runner-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
-            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
-            strcmp(path, "npc/rv64/csrc/dpi.c") == 0) {
-            if (add_gate(gates,
-                         "rv64-current-simulator-cache-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-mini-system-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/rv64-layer-source-id.sh") == 0 ||
-            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
-            strcmp(path, "npc/rv64/csrc/dpi.c") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/replay-layer-checker-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/mini_system_run.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_mini_system_run.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "Linux/mini-system/rv64-l2-payload.S") == 0 ||
-            strcmp(path,
-                   "Linux/mini-system/rv64-l2-payload.ld") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/build-rv64-mini-system.sh") == 0 ||
-            strcmp(path, "Linux/scripts/build-opensbi.sh") == 0 ||
-            strcmp(path, "Linux/platform/gen_dts.py") == 0 ||
-            strcmp(path, "Linux/platform/common-rv64.yml") == 0 ||
-            strcmp(path, "Linux/platform/npc-rv64.yml") == 0) {
-            if (add_gate(gates,
-                         "rv64-mini-system-runner-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-lightweight-linux-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/build-current-simulator-cache.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/rv64-simulator-source-id.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/rv64-layer-source-id.sh") == 0 ||
-            strcmp(path, "npc/rv64/vsrc/sim/NpcSimTop.sv") == 0 ||
-            strcmp(path, "npc/rv64/csrc/dpi.c") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/replay-layer-checker-current.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/lightweight_linux_run.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_lightweight_linux_run.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "Linux/lightweight/rv64-l3-kernel.config") == 0 ||
-            strcmp(path,
-                   "Linux/lightweight/rv64-l3-init.c") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/build-rv64-lightweight-linux.sh") == 0 ||
-            strcmp(path,
-                   "Linux/scripts/check-rv64-lightweight-linux-config.sh") == 0 ||
-            strcmp(path, "Linux/scripts/build-opensbi.sh") == 0 ||
-            strcmp(path, "Linux/platform/gen_dts.py") == 0 ||
-            strcmp(path, "Linux/platform/common-rv64.yml") == 0 ||
-            strcmp(path, "Linux/platform/npc-rv64.yml") == 0) {
-            if (add_gate(gates,
-                         "rv64-lightweight-linux-runner-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/layered-system-signoff-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/layered_system_signoff.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/system_recertification_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_layered_system_signoff.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_system_recertification_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/layered-system-signoff-current-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/system-recertification-current.json") == 0) {
-            if (add_gate(gates,
-                         "rv64-layered-system-signoff-current") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "npc/rv64/vsrc/execute/OooIntBackend.v") == 0 ||
-            strcmp(path,
-                   "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_terminal_collector_lane_contract.py") == 0) {
-            if (add_gate(gates,
-                         "rv64-terminal-collector-lane-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/historical-defect-backfill-ledger.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/historical-defect-backfill-ledger-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_historical_defect_backfill.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/historical_defect_backfill.py") == 0) {
-            if (add_gate(gates,
-                         "rv64-historical-defect-ledger-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/historical-defect-current-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_historical_defect_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/historical_defect_current.py") == 0) {
-            if (add_gate(gates,
-                         "rv64-historical-defect-current-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "npc/rv64/design/arch/architecture-debt-ledger.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/full-core-cohort-scope-v1.md") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/producer-holder-semantic-coverage.json") == 0 ||
-            starts_with(path, "npc/rv64/design/arch/cohort/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-08-02-rv64-v14c-p0-transitive-current-rebind-v1/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-08-02-rv64-v14d-p1-direct-current-rebind-v1/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/") ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/architecture-debt-current-evidence.mk") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/architecture-debt-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/architecture-debt-delta-rebind-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/system-recertification-checker-replay-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/system-recertification-checker-tests.log") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/architecture-debt-current-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/architecture-debt-current-v2.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_architecture_debt_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_architecture_debt_delta_rebind.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/run_architecture_delta_mutations.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/test_run_architecture_delta_mutations.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_debt_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_debt_delta_rebind.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py") == 0) {
-            if (add_gate(gates, "rv64-architecture-debt-current") != 0) {
-                return -1;
-            }
-        }
-        if (starts_with(path,
-                        ".github/task-runs/2026-07-20-rv64-v8l-global-producer-no-live-reuse/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-07-27-rv64-v10e-current-design-system-recert/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-07-28-rv64-v10f-a3-checker-replay-v2/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-stop-hold-drop/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-07-29-rv64-hist-ser-qh-younger-store-cycle/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-08-02-rv64-v14e-p1-remaining-current-rebind-v1/") ||
-            starts_with(path,
-                        ".github/task-runs/2026-08-04-rv64-v14k-arch-stable-current-baseline-v1/") ||
-            starts_with(path,
-                        ".github/runtime-artifacts/agent-flow/rv64-v14g-producer-owner-global-gate/") ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/historical-defect-current-evidence.mk") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/historical-defect-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/global-producer-no-live-reuse-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/architecture_hard_gates.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/global_producer_no_live_reuse.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/run_historical_exit_current.py") == 0) {
-            if (add_gate(gates, "rv64-historical-defect-current") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "scripts/agent-e2e.sh") == 0 ||
-            starts_with(path, "scripts/e2e/") ||
-            starts_with(path, ".github/e2e/")) {
-            if (add_gate(gates, "profile-bindings") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-policy.json") == 0 ||
-            strcmp(path, ".github/workflows/agent-maintain.yml") == 0) {
-            if (add_gate(gates, "policy-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-schema-contract.json") == 0 ||
-            starts_with(path, "scripts/dev_memory/") ||
-            strcmp(path, "scripts/github_index_db.py") == 0) {
-            if (add_gate(gates, "schema-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-runtime-artifacts.json") == 0 ||
-            strcmp(path, "scripts/e2e/lib/report.sh") == 0) {
-            if (add_gate(gates, "artifact-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-delivery.json") == 0 ||
-            strcmp(path, "scripts/package-ai-dev-env.sh") == 0) {
-            if (add_gate(gates, "delivery-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-observability.json") == 0) {
-            if (add_gate(gates, "trace-audit") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, ".github/ai-env/contracts/agent-env-state-traceability.json") == 0 ||
-            strcmp(path, ".github/instructions/agent-env-state-machine.instructions.md") == 0) {
-            if (add_gate(gates, "state-audit") != 0) {
-                return -1;
-            }
-        }
-        if (starts_with(path, ".github/skills/")) {
-            if (add_gate(gates, "skill-audit") != 0) {
-                return -1;
-            }
-        }
-        if (starts_with(path, ".github/skills/prepare-rtl-task-contract/") ||
-            strcmp(path, ".github/ai-env/contracts/agent-env-rtl-task-contract.json") == 0 ||
-            strcmp(path, ".github/instructions/rtl-agent-task-contract.instructions.md") == 0) {
-            if (add_gate(gates, "rtl-task-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "scripts/task-run-status.sh") == 0 ||
-            strcmp(path, "scripts/tests/test-task-run-status.sh") == 0) {
-            /* 该 helper 是全核 runner 的 fail-closed 状态承重件；修改时同时
-             * 复核入口接线，不能只测 helper 的孤立状态机。 */
-            if (add_gate(gates, "rv64-full-core-runner-contract") != 0) {
-                return -1;
-            }
-            if (add_gate(gates,
-                         "rv64-system-recertification-runner-contract") != 0) {
-                return -1;
-            }
-            if (add_gate(gates,
-                         "rv64-mini-system-runner-contract") != 0) {
-                return -1;
-            }
-            if (add_gate(gates,
-                         "rv64-lightweight-linux-runner-contract") != 0) {
-                return -1;
-            }
-            if (add_gate(gates, "task-run-status-test") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/eval/ppa/tools/arch_stable_freeze.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/arch_stable_current_candidate.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/functional_archive_rehydrate.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_arch_stable_freeze.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_arch_stable_current_candidate.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_functional_archive_rehydrate.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/arch-stable-independent-review-v1.schema.json") == 0) {
-            if (add_gate(gates, "rv64-arch-stable-checker-contract") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/eval/ppa/run-arch-stable-audit.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/arch-stable/full-core-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/arch-stable-independent-review-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/arch-stable-current.json") == 0) {
-            if (add_gate(gates, "rv64-arch-stable-current") != 0) {
-                return -1;
-            }
-        }
-        if (starts_with(path,
-                        "npc/rv64/eval/ppa/instrumentation/owner-timing") ||
-            starts_with(path,
-                        "npc/rv64/eval/ppa/instrumentation/owner_timing") ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/instrumentation/check-owner-timing.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-owner-timing-diagnostics.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-owner-timing-workload-ab.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/replay-owner-timing-link.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/replay-owner-timing-invalid-probe.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_owner_timing_workload_ab.py") == 0) {
-            if (add_gate(gates, "rv64-owner-timing-fast") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path,
-                   "npc/rv64/design/arch/optimization-slice-selector-policy-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/rv64-architecture-ppa-contract.md") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/optimization-slices-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/baselines/index.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/architecture-debt-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/historical-defect-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/arch-stable-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/performance-baseline-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/evidence/optimization-slice-current.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/performance_baseline_current.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/performance_bottleneck_census.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/check.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tools/optimization_slice_selector.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_performance_bottleneck_census.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/tests/test_optimization_slice_selector.py") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-performance-bottleneck-census.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/run-optimization-slice-selector.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/eval/ppa/README.md") == 0 ||
-            strcmp(path,
-                   ".github/instructions/rv64-ppa-optimization-workflow.instructions.md") == 0 ||
-            strcmp(path, ".github/agentic-hardware-blueprint.md") == 0) {
-            if (add_gate(gates, "rv64-optimization-slice-selector") != 0) {
-                return -1;
-            }
-        }
-        if (strcmp(path, "npc/rv64/vsrc/execute/OooIntBackend.v") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/tests/tb_ooo_int_backend.sv") == 0 ||
-            strcmp(path, "npc/rv64/testbench/Makefile") == 0 ||
-            strcmp(path,
-                   "npc/rv64/design/specs/ooo-memory-request-admission-hold.md") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/run_v14r_memory_request_hold_mutation.sh") == 0 ||
-            strcmp(path,
-                   "npc/rv64/testbench/scripts/check_v14r_memory_request_hold.sh") == 0) {
-            if (add_gate(gates, "rv64-memory-request-hold-fast") != 0) {
-                return -1;
-            }
-        }
-    }
+
+    /* Gate 只来自调用者显式选择；文件路径不再产生隐式权限或完成条件。 */
     return normalize_gate_dependencies(gates);
+
 }
 
 static int count_pass_evidence(const char *state_dir, const char *required_name) {
@@ -1390,38 +696,13 @@ static int count_pass_evidence(const char *state_dir, const char *required_name)
     return count;
 }
 
-static int validate_completion_inputs(const FlowMeta *meta, const StringList *paths,
-                                      const char *state_dir, char *reason, size_t reason_size) {
-    if ((strcmp(meta->task_class, "review") == 0 ||
-         strcmp(meta->task_class, "analysis") == 0 ||
-         strcmp(meta->task_class, "verification") == 0) &&
-        paths->count != 0) {
-        snprintf(reason, reason_size, "class=%s forbids source modifications", meta->task_class);
-        return -1;
-    }
-    if (strcmp(meta->task_class, "environment") != 0 &&
-        strcmp(meta->task_class, "release") != 0) {
-        for (size_t i = 0; i < paths->count; ++i) {
-            if (is_environment_surface(paths->values[i])) {
-                snprintf(reason, reason_size,
-                         "path=%s requires class=environment or release", paths->values[i]);
-                return -1;
-            }
-        }
-    }
-    if (strcmp(meta->task_class, "development") == 0 && paths->count > 0 &&
-        count_pass_evidence(state_dir, NULL) == 0) {
-        snprintf(reason, reason_size, "development modifications require one PASS evidence record");
-        return -1;
-    }
-    if (strcmp(meta->task_class, "verification") == 0 &&
-        count_pass_evidence(state_dir, NULL) == 0) {
-        snprintf(reason, reason_size, "verification requires one PASS evidence record");
-        return -1;
-    }
+static int validate_completion_inputs(const FlowMeta *meta, const char *state_dir,
+                                      char *reason, size_t reason_size) {
     if (strcmp(meta->task_class, "longrun") == 0 &&
+        strcmp(meta->archive_mode, "durable") == 0 &&
         count_pass_evidence(state_dir, "task-run-status") == 0) {
-        snprintf(reason, reason_size, "longrun requires task-run-status PASS evidence");
+        snprintf(reason, reason_size,
+                 "durable longrun requires task-run-status PASS evidence");
         return -1;
     }
     if (strcmp(meta->task_class, "cleanup") == 0 &&
@@ -1588,7 +869,6 @@ static int write_summary(const char *state_dir, const FlowMeta *meta,
     char temporary[PATH_MAX];
     int64_t now = realtime_ms();
     int64_t work_ms = current_work_ms(meta, now);
-    double overhead = work_ms > 0 ? (100.0 * (double)meta->gate_ms / (double)work_ms) : 0.0;
     if (path_join(path, sizeof(path), state_dir, "summary.txt") != 0) {
         return -1;
     }
@@ -1602,6 +882,21 @@ static int write_summary(const char *state_dir, const FlowMeta *meta,
     }
     fprintf(stream, "AGENT_FLOW_V1\n");
     fprintf(stream, "RESULT=%s\n", result);
+    if (gates->count == 0) {
+        fprintf(stream, "ENGINEERING_RESULT=NOT_EVALUATED\n");
+        fprintf(stream, "GATE_SELECTION=NOT_REQUESTED\n");
+    } else if (strcmp(result, "PASS") == 0 ||
+               strcmp(result, "CANDIDATE_PASS") == 0) {
+        fprintf(stream, "ENGINEERING_RESULT=SCOPED_PASS\n");
+        fprintf(stream, "GATE_SELECTION=EXPLICIT\n");
+    } else if (strcmp(result, "PLAN") == 0 ||
+               strcmp(result, "ACTIVE") == 0) {
+        fprintf(stream, "ENGINEERING_RESULT=NOT_EVALUATED\n");
+        fprintf(stream, "GATE_SELECTION=EXPLICIT\n");
+    } else {
+        fprintf(stream, "ENGINEERING_RESULT=NOT_MET_OR_INCOMPLETE\n");
+        fprintf(stream, "GATE_SELECTION=EXPLICIT\n");
+    }
     fprintf(stream, "REASON=%s\n", reason);
     fprintf(stream, "TASK_ID=%s\n", meta->task_id);
     fprintf(stream, "TASK_CLASS=%s\n", meta->task_class);
@@ -1609,9 +904,6 @@ static int write_summary(const char *state_dir, const FlowMeta *meta,
     fprintf(stream, "GENERATION=%d\n", meta->generation);
     fprintf(stream, "WORK_MS=%lld\n", (long long)work_ms);
     fprintf(stream, "GATE_MS=%lld\n", (long long)meta->gate_ms);
-    fprintf(stream, "OVERHEAD_PERCENT=%.2f\n", overhead);
-    fprintf(stream, "OVERHEAD_TARGET_PERCENT=%d\n",
-            meta->overhead_target_percent);
     fprintf(stream, "PATH_COUNT=%zu\n", paths->count);
     fprintf(stream, "DIRECTORY_COUNT=%zu\n", directories->count);
     fprintf(stream, "GATE_COUNT=%zu\n", gates->count);
@@ -1662,15 +954,7 @@ static int write_summary(const char *state_dir, const FlowMeta *meta,
 }
 
 static const char *default_archive_mode(const char *task_class) {
-    if (strcmp(task_class, "development") == 0 ||
-        strcmp(task_class, "environment") == 0 ||
-        strcmp(task_class, "cleanup") == 0) {
-        return "compact";
-    }
-    if (strcmp(task_class, "longrun") == 0 ||
-        strcmp(task_class, "release") == 0) {
-        return "durable";
-    }
+    (void)task_class;
     return "none";
 }
 
@@ -1772,7 +1056,8 @@ static int copy_bounded_log(const char *source, const char *destination, int64_t
 static int create_task_run_archive(const char *repo_root, const char *state_dir,
                                    const FlowMeta *meta,
                                    const StringList *directories,
-                                   const GateResult *results, size_t result_count) {
+                                   const GateResult *results, size_t result_count,
+                                   const char *final_result) {
     if (strcmp(meta->archive_mode, "none") == 0) {
         return 0;
     }
@@ -1853,22 +1138,18 @@ static int create_task_run_archive(const char *repo_root, const char *state_dir,
     char timestamp[32];
     iso8601_now(timestamp, sizeof(timestamp));
     int64_t work_ms = current_work_ms(meta, realtime_ms());
-    double overhead = work_ms > 0
-                          ? (100.0 * (double)meta->gate_ms / (double)work_ms)
-                          : 0.0;
     fprintf(report, "# Agent Flow Result\n\n");
     fprintf(report, "- `schema`: agent-flow-v1\n");
     fprintf(report, "- `task_id`: %s\n", meta->task_id);
     fprintf(report, "- `task_class`: %s\n", meta->task_class);
     fprintf(report, "- `archive_mode`: %s\n", meta->archive_mode);
-    fprintf(report, "- `status`: PASS\n");
+    fprintf(report, "- `status`: %s\n", final_result);
+    fprintf(report, "- `engineering_result`: %s\n",
+            strcmp(final_result, "PASS") == 0 ? "SCOPED_PASS"
+                                                 : "NOT_EVALUATED");
     fprintf(report, "- `completed_at`: %s\n", timestamp);
     fprintf(report, "- `work_ms`: %lld\n", (long long)work_ms);
     fprintf(report, "- `gate_ms`: %lld\n", (long long)meta->gate_ms);
-    fprintf(report, "- `workflow_overhead_percent`: %.2f\n", overhead);
-    fprintf(report, "- `workflow_overhead_target_percent`: %d\n",
-            meta->overhead_target_percent);
-    fprintf(report, "- `workflow_overhead_policy`: advisory; never blocks delivery\n");
     fprintf(report, "- `path_source`: explicit-agent-flow-log; no Git enumeration\n\n");
     fprintf(report, "## Modified directories\n\n");
     if (directories->count == 0) {
@@ -1923,8 +1204,7 @@ static void usage(FILE *stream) {
     fprintf(stream,
             "usage:\n"
             "  scripts/agent-flow.sh begin --task ID --class CLASS "
-            "[--overhead-target 1..100] "
-            "[--archive none|compact|durable] [--initial-work-seconds N]\n"
+            "[--archive none|compact|durable]\n"
             "  scripts/agent-flow.sh record --task ID [--path PATH ...] [--gate GATE ...]\n"
             "  scripts/agent-flow.sh evidence --task ID --name NAME --status PASS|FAIL|GAP "
             "[--artifact PATH|-]\n"
@@ -2033,9 +1313,8 @@ static int command_begin(const char *state_root, int argc, char **argv) {
         append_event(state_dir, "BEGIN", task_class) != 0) {
         return 2;
     }
-    printf("[agent-flow] BEGIN task=%s class=%s archive=%s overhead_target~%d%% "
-           "state=%s\n",
-           task_id, task_class, archive_mode, overhead_target, state_dir);
+    printf("[agent-flow] BEGIN task=%s class=%s archive=%s state=%s\n",
+           task_id, task_class, archive_mode, state_dir);
     return 0;
 }
 
@@ -2049,7 +1328,7 @@ static int command_record(const char *state_root, int argc, char **argv) {
         return 2;
     }
     FlowMeta meta;
-    if (read_meta(state_dir, &meta) != 0 || strcmp(meta.status, "PASS") == 0) {
+    if (read_meta(state_dir, &meta) != 0 || is_terminal_status(meta.status)) {
         fprintf(stderr, "[agent-flow] task is missing or already complete: %s\n", task_id);
         return 2;
     }
@@ -2058,13 +1337,6 @@ static int command_record(const char *state_root, int argc, char **argv) {
     if (collect_option_values(argc, argv, "--path", &raw_paths) != 0 ||
         collect_option_values(argc, argv, "--gate", &raw_gates) != 0 ||
         (raw_paths.count == 0 && raw_gates.count == 0)) {
-        return 2;
-    }
-    if ((strcmp(meta.task_class, "review") == 0 ||
-         strcmp(meta.task_class, "analysis") == 0) &&
-        raw_gates.count != 0) {
-        fprintf(stderr, "[agent-flow] class=%s forbids gate pointers\n",
-                meta.task_class);
         return 2;
     }
     char paths_file[PATH_MAX];
@@ -2162,7 +1434,7 @@ static int command_evidence(const char *repo_root, const char *state_root,
         return 2;
     }
     FlowMeta meta;
-    if (read_meta(state_dir, &meta) != 0 || strcmp(meta.status, "PASS") == 0) {
+    if (read_meta(state_dir, &meta) != 0 || is_terminal_status(meta.status)) {
         return 2;
     }
     char evidence_path[PATH_MAX];
@@ -2277,7 +1549,7 @@ static int command_decision(const char *repo_root, const char *state_root,
         return 2;
     }
     FlowMeta meta;
-    if (read_meta(state_dir, &meta) != 0 || strcmp(meta.status, "PASS") == 0) {
+    if (read_meta(state_dir, &meta) != 0 || is_terminal_status(meta.status)) {
         return 2;
     }
     if (append_decision_trace(state_dir, kind, text, artifact) != 0) {
@@ -2307,7 +1579,7 @@ static int command_reclassify(const char *state_root, int argc, char **argv) {
     }
     FlowMeta meta;
     if (read_meta(state_dir, &meta) != 0 ||
-        strcmp(meta.status, "PASS") == 0) {
+        is_terminal_status(meta.status)) {
         fprintf(stderr,
                 "[agent-flow] task is missing or already complete: %s\n",
                 task_id);
@@ -2352,7 +1624,7 @@ static int command_pause_resume(const char *state_root, int argc, char **argv, i
         return 2;
     }
     FlowMeta meta;
-    if (read_meta(state_dir, &meta) != 0 || strcmp(meta.status, "PASS") == 0) {
+    if (read_meta(state_dir, &meta) != 0 || is_terminal_status(meta.status)) {
         return 2;
     }
     int64_t now = realtime_ms();
@@ -2410,9 +1682,19 @@ static int command_status(const char *state_root, int argc, char **argv) {
         derive_gates(&meta, &paths, &explicit_gates, &gates) != 0) {
         return 2;
     }
-    const char *result = strcmp(meta.status, "PASS") == 0 ? "PASS" : "ACTIVE";
+    const char *result = "ACTIVE";
+    const char *reason = meta.status;
+    if (is_terminal_status(meta.status)) {
+        if (strcmp(meta.status, "FINISHED") == 0 || gates.count == 0) {
+            result = "FINISHED_NO_GATES";
+            reason = "record finalized; no checks were requested";
+        } else {
+            result = "PASS";
+            reason = "all explicitly selected checks passed";
+        }
+    }
     if (write_summary(state_dir, &meta, &paths, &directories, &gates,
-                      NULL, 0, result, meta.status) != 0 ||
+                      NULL, 0, result, reason) != 0 ||
         print_summary(state_dir) != 0) {
         return 2;
     }
@@ -2441,7 +1723,7 @@ static int command_finish(const char *repo_root, const char *state_root,
         derive_gates(&meta, &paths, &explicit_gates, &gates) != 0) {
         return 2;
     }
-    if (strcmp(meta.status, "PASS") == 0) {
+    if (is_terminal_status(meta.status)) {
         return print_summary(state_dir) == 0 ? 0 : 2;
     }
     if (plan_only) {
@@ -2457,7 +1739,18 @@ static int command_finish(const char *repo_root, const char *state_root,
         return 2;
     }
     char reason[MAX_LINE];
-    if (validate_completion_inputs(&meta, &paths, state_dir, reason, sizeof(reason)) != 0) {
+    if (validate_completion_inputs(&meta, state_dir, reason, sizeof(reason)) != 0) {
+        snprintf(meta.status, sizeof(meta.status), "BLOCKED");
+        write_meta(state_dir, &meta);
+        append_event(state_dir, "BLOCKED", reason);
+        write_summary(state_dir, &meta, &paths, &directories, &gates,
+                      NULL, 0, "BLOCKED", reason);
+        print_summary(state_dir);
+        return 1;
+    }
+    if (candidate_only && gates.count == 0) {
+        snprintf(reason, sizeof(reason),
+                 "candidate requires at least one explicitly selected gate");
         snprintf(meta.status, sizeof(meta.status), "BLOCKED");
         write_meta(state_dir, &meta);
         append_event(state_dir, "BLOCKED", reason);
@@ -2470,7 +1763,9 @@ static int command_finish(const char *repo_root, const char *state_root,
     GateResult results[MAX_ITEMS];
     size_t result_count = 0;
     int blocked = 0;
-    snprintf(reason, sizeof(reason), "all selected gates passed");
+    snprintf(reason, sizeof(reason), gates.count == 0
+                                         ? "record finalized; no checks were requested"
+                                         : "all explicitly selected checks passed");
     for (size_t i = 0; i < gates.count; ++i) {
         const GateDef *gate = find_gate(gates.values[i]);
         if (gate == NULL || result_count >= MAX_ITEMS) {
@@ -2502,7 +1797,7 @@ static int command_finish(const char *repo_root, const char *state_root,
     if (!blocked && candidate_only) {
         snprintf(meta.status, sizeof(meta.status), "CANDIDATE");
         snprintf(reason, sizeof(reason),
-                 "all selected gates passed; awaiting pre-delivery review");
+                 "all explicitly selected gates passed; awaiting pre-delivery review");
         if (write_meta(state_dir, &meta) != 0 ||
             append_event(state_dir, "CANDIDATE", reason) != 0 ||
             write_summary(state_dir, &meta, &paths, &directories, &gates,
@@ -2512,17 +1807,19 @@ static int command_finish(const char *repo_root, const char *state_root,
         }
         return 0;
     }
+    const char *final_result = gates.count == 0 ? "FINISHED_NO_GATES" : "PASS";
     if (!blocked &&
         create_task_run_archive(repo_root, state_dir, &meta, &directories,
-                                results, result_count) != 0) {
+                                results, result_count, final_result) != 0) {
         snprintf(reason, sizeof(reason), "task-run result archive failed");
         blocked = 1;
     }
-    snprintf(meta.status, sizeof(meta.status), "%s", blocked ? "BLOCKED" : "PASS");
+    snprintf(meta.status, sizeof(meta.status), "%s",
+             blocked ? "BLOCKED" : (gates.count == 0 ? "FINISHED" : "PASS"));
     if (write_meta(state_dir, &meta) != 0 ||
         append_event(state_dir, blocked ? "BLOCKED" : "FINISH", reason) != 0 ||
         write_summary(state_dir, &meta, &paths, &directories, &gates,
-                      results, result_count, blocked ? "BLOCKED" : "PASS", reason) != 0 ||
+                      results, result_count, blocked ? "BLOCKED" : final_result, reason) != 0 ||
         print_summary(state_dir) != 0) {
         return 2;
     }

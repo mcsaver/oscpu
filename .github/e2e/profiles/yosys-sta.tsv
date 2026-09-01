@@ -1,3 +1,3 @@
 @include|npc-single||||
-yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools/memory + RV64 PPA workflow/architecture contract|综合/STA 与 RV64 PPA 合约入口和工具状态可见
+yosys-sta-contract|yosys-sta|e2e_yosys_sta_contract|yosys-sta|yosys-sta Makefile/tools + RV64 architecture/PPA contract|综合/STA 与 RV64 PPA 生产入口和工具状态可见
 yosys-sta-contract-fail-closed|yosys-sta|e2e_yosys_sta_contract_failure_propagation|yosys-sta|yosys-sta contract return-code path|综合/STA 合同失败不可被后续成功命令覆盖

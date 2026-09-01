@@ -1,28 +1,23 @@
 # YSYX AI Dev Environment Commercial v1
 
-这是当前工作区 AI 开发环境的新版可交付面。它把开发环境固定成三层：
-
-- Database：长期记忆、DB-backed stored documents、task-run/evidence 索引、runtime artifact 指针。
-- Skill：可直接读取的标准化处理规则，入口是 `.github/skills/agent-env-maintenance/SKILL.md`。
-- Agent：自动维护流程、profile 调度、review routing、branch health、state traceback 和 e2e 证据链。
+这是当前工作区 agent operating contract 与可选支撑工具的可交付面。核心行为是：从用户目标、可观察
+acceptance criteria 和实际 worktree 出发，直接完成安全、本地、可逆的工程动作，并用最小充分证据报告
+结果。DB、memory、agent-flow、task-run、E2E profile 和发布索引都是按需设施，不是普通任务的前置阶段。
 
 ## 交付定位
 
-本包面向“把工程 AI 开发环境作为商业项目交付”的场景，交付的不是一次性聊天记录，而是一套可审计、可复刻、可运维的工程系统。
+本包提供一个轻量的根合同、领域路由、专项 correctness 规则和显式 release 工具：
 
-核心卖点：
-
-- 用 DB-first memory 保存长期事实，避免上下文漂移。
-- 用 Skill 固化可复用处理规则，避免规则散落在对话里。
-- 用 Agent/e2e profile 把自动维护、验证、回归和证据包串成闭环。
-- 用 C 调度器完成任务分类、显式路径日志、约 40% 非阻断占用观测和 compact/durable 结果归档。
-- 用 runtime artifact boundary 把源码、证据索引和重型运行态 payload 分开。
+- `.github/AGENTS.md` 是通用行为真源；入口文件保持薄 shim。
+- 领域 instruction 保留 RTL、DiffTest、Linux、综合、STA、PPA 等真实工程边界。
+- `agent-flow`、memory 和 E2E 可在持久长跑、跨会话协作或正式发布时显式选用。
+- runtime artifact boundary 把源码、索引与重型 payload 分开。
+- commercial release 由单一维护入口完成合同、发布和 package 检查。
 
 ## 快速验证
 
 ```bash
 scripts/agent-maintain.sh --mode release
-scripts/agent-e2e.sh --profile agent-system --task-slug commercial-delivery-smoke
 ```
 
 ## 打包

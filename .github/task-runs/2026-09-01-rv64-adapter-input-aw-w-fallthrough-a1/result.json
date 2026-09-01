@@ -1,0 +1,203 @@
+{
+  "schema": "rv64-task-result/v1",
+  "run_id": "2026-09-01-rv64-adapter-input-aw-w-fallthrough-a1",
+  "classification": {
+    "primary": "local-performance-optimization",
+    "secondary": [
+      "rtl-correctness",
+      "causal-timing",
+      "full-core-exploratory-ab"
+    ]
+  },
+  "candidate": "adapter-input-aw-w-fall-through-v1",
+  "status": "RETAINED_LOCAL_EXPLORATORY",
+  "claim": "Remove one adapter admission cycle for complete, legal, naturally aligned single-beat writes while preserving owner, response and split-write semantics.",
+  "source_identity": {
+    "candidate_design_id": "sha256:2ebe2537fd1e58a86288506c993f3b321dc7bc2359731751c168f96f9f21291e",
+    "exact_predecessor_virtual_design_id": "sha256:5220635d6213fbcdfcce8722e6cfcfde290802ecd1b36cc4248e5522fd2f3175",
+    "production_rtl_file_count": 155,
+    "candidate_adapter_sha256": "0199aa2fd75a6ce6b2a087ea6ca2a509cdba11db287224fc4e2be0cdda79b421",
+    "exact_predecessor_adapter_sha256": "6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22",
+    "only_effective_rtl_source_difference": "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
+    "candidate_binary_sha256": "5a7ceb0d08355b4b7ced28c1114b11e6e936225dfaa694fbb6d361ac72fa4c26",
+    "exact_predecessor_binary_sha256": "7db77c7c27de8d71fb5b84135b1ad6373faca9ced4523a3d21bdb86327e87644",
+    "candidate_verilator_manifest_sha256": "4ccfbd3a992936c2e719b459dc5a90dc3ba17e71b9393c7aef8b3b17c5fc7cb0",
+    "exact_predecessor_verilator_manifest_sha256": "3e3802ccce9f4f9bee371402d8abe2f2cd5cf0a36dda9cd2f3f9d7a86cbeb14f"
+  },
+  "frozen_inputs": {
+    "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce",
+    "auto_conf_sha256": "ed0f2ab770451d3ae640978407f6e2eef1e39ff9dc93a0d3e4f88dabf4b59df4",
+    "autoconf_h_sha256": "ac5cd6496f3501c80b33f0ab4ee1e466805b526475d62a8ec7376b62935be5b9",
+    "product_defaults_sha256": "7b3b4b571366d6c70600ff0a5fd27624753d7153c6576f2a980ced31af0d8154",
+    "warning_override_sha256": "50d667e407257ace04f1adeb53bab43b592b1fbaf57e5db020afa4f3be1603a8",
+    "coremark_image_sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+    "dhrystone_image_sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+    "difftest": "ON",
+    "stats_config": "CONFIG_NPC_OOO_STATS=y"
+  },
+  "focused_verification": {
+    "adapter_tb": "PASS",
+    "e0_downstream_ready_matrix": {
+      "11": 1,
+      "10": 1,
+      "01": 1,
+      "00": 1
+    },
+    "upstream_assembly_order": {
+      "same_cycle": 2,
+      "aw_first": 1,
+      "w_first": 1
+    },
+    "exact_aw_w_fire_count": true,
+    "direct_to_q_live_payload_poison": true,
+    "reset_blocks_direct_offer": true,
+    "write_awsize_gt_3_fail_closed": true,
+    "invalid_misaligned_split_fallback_preserved": true,
+    "ooo_assert": "ON"
+  },
+  "causal_verification": {
+    "status": "PASS",
+    "candidate_store_terminal": [1, 3, 6],
+    "exact_predecessor_store_terminal": [2, 4, 7],
+    "candidate_peer_admission": [3, 5, 8],
+    "exact_predecessor_peer_admission": [4, 6, 9],
+    "candidate_peer_b_block": [1, 3, 6],
+    "b_delay_unit_slope_preserved": true,
+    "early_peer_admission": 0
+  },
+  "mutation_verification": {
+    "input_fallthrough_disable": {
+      "compile_success": true,
+      "oracle_detected": true,
+      "expected_failure": true,
+      "production_source_restored": true
+    },
+    "final_b_fallthrough_disable": {
+      "compile_success": true,
+      "oracle_detected": true,
+      "expected_failure": true,
+      "production_source_restored": true
+    }
+  },
+  "static_checks": {
+    "targeted_rtl_style": "PASS",
+    "verilator_lint": "PASS_WITH_EXISTING_WARNINGS_ONLY",
+    "bash_syntax_mutation_runners": "PASS",
+    "diff_check": "PASS",
+    "workspace_wide_style": "FAIL_UNRELATED_PREEXISTING_OooBranchLocalPht_MULTIPLE_MODULES"
+  },
+  "full_core_ab": {
+    "repetitions_per_design_workload": 1,
+    "runtime_arguments_equal": true,
+    "coremark": {
+      "roi": {
+        "exact_predecessor_cycles": 5262868,
+        "candidate_cycles": 5141086,
+        "cycle_delta": -121782,
+        "cycle_delta_percent": -2.313985454318824,
+        "retired_each": 3183617,
+        "exact_predecessor_cpi": 1.6531096548359931,
+        "candidate_cpi": 1.6148569378791482
+      },
+      "whole_run": {
+        "exact_predecessor_cycles": 5349799,
+        "candidate_cycles": 5226858,
+        "cycle_delta": -122941,
+        "cycle_delta_percent": -2.2980489547364304,
+        "commits_each": 3218532,
+        "exact_predecessor_cpi": 1.6621860525233243,
+        "candidate_cpi": 1.6239882033175372
+      },
+      "axi_write_request_cycles": {
+        "exact_predecessor": 303884,
+        "candidate": 302358
+      },
+      "axi_write_response_cycles": {
+        "exact_predecessor": 551102,
+        "candidate": 412096,
+        "delta": -139006
+      },
+      "good_trap_code_zero_each": true,
+      "counter_complete_available_conservation_each": true,
+      "counter_overflow_invalid_zero_each": true,
+      "phase_aligned_each": true
+    },
+    "dhrystone": {
+      "roi": {
+        "exact_predecessor_cycles": 9751462,
+        "candidate_cycles": 9151522,
+        "cycle_delta": -599940,
+        "cycle_delta_percent": -6.152308238497981,
+        "retired_each": 4250000,
+        "exact_predecessor_cpi": 2.2944616470588235,
+        "candidate_cpi": 2.153299294117647
+      },
+      "whole_run": {
+        "exact_predecessor_cycles": 9784102,
+        "candidate_cycles": 9184130,
+        "cycle_delta": -599972,
+        "cycle_delta_percent": -6.132111051172607,
+        "commits_each": 4260624,
+        "exact_predecessor_cpi": 2.2964011844274452,
+        "candidate_cpi": 2.1555833136179112
+      },
+      "axi_write_request_cycles": {
+        "exact_predecessor": 1279994,
+        "candidate": 1280000
+      },
+      "axi_write_response_cycles": {
+        "exact_predecessor": 2370000,
+        "candidate": 1770000,
+        "delta": -600000
+      },
+      "good_trap_code_zero_each": true,
+      "counter_complete_available_conservation_each": true,
+      "counter_overflow_invalid_zero_each": true,
+      "phase_aligned_each": false,
+      "declared_frozen_roi_boundary": "start_lane=1,end_lane=0 for both designs; all unknown buckets are zero"
+    }
+  },
+  "decision": {
+    "functional_and_causal": "RETAIN",
+    "local_exploratory_performance": "RETAIN",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "rollback_boundary": "adapter-input-aw-w-fall-through-v1 only; do not roll back T4I lane/split or T4N precise B terminal semantics"
+  },
+  "independent_review": {
+    "status": "RETAIN",
+    "must_fix": 0,
+    "scope": "RTL, focused TB, causal probe, mutations, specification and full-core A/B",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "non_blocking_hardening_recommendations": [
+      "Add a bridge+arbiter+adapter flush coincident with E0 direct handshake witness."
+    ],
+    "post_review_hardening_completed": [
+      "Poisoned upstream live AW/W payload after E0 in the 00 and one partial-accept focused cases.",
+      "Matched exact latency vectors in the final-B mutation runner.",
+      "Added a directed write AWSIZE>3 fail-closed case."
+    ]
+  },
+  "declared_gaps": [
+    "Only one run per design/workload was performed; this is not promotion evidence.",
+    "No fresh mapped synthesis, STA, area or power run was performed.",
+    "The candidate CoreMark shell-wrapper exit code was not separately persisted; the log itself records region termination_rc=0, GOOD TRAP, ebreak code=0 and complete counters.",
+    "The workspace-wide style target is blocked by an unrelated pre-existing multiple-module finding in OooBranchLocalPht.v; the targeted adapter style check passes."
+  ],
+  "evidence_sha256": {
+    "focused_adapter_tb": "6150f40689cada454d27626d9c567438952c6a9663892b06594d340aabf3c470",
+    "causal_candidate": "67bd02ecf2c910535e665d6598f23ae73173535174a21c13f044898cb15d45c4",
+    "causal_exact_predecessor_expected_fail": "aaf461a32b931657727ef4eb0ba079a81c397c7582cfe1dbc356f098937ae51b",
+    "input_fallthrough_mutation_result": "242f18eba30913ba6dcf44c7ec75da60aa45ed28dc9ac0dafd2b75a99834da90",
+    "input_fallthrough_mutation_diff": "1498eff63423709894fddcc39631557e2933c40583025f31eb738bd6401797e7",
+    "final_b_fallthrough_mutation_result": "cac9a52b66a4b0a45f12366a92677d5da22902b43739da69f2f4a822c6d1ed34",
+    "candidate_build_log": "ee0cb0649bb3d808d6054462cd9fa56da16ca7555d53546475cf9dec77dd9bb6",
+    "candidate_coremark_log": "f665fdf77bd53db8e950a4a40aa65c2b1483120327818c6561e789b96722a7b5",
+    "candidate_dhrystone_log": "de46bf51599e22f06226e37cd64e968858e5fd44561209eae926d5d9de7adf59",
+    "exact_predecessor_coremark_log": "8184b6429a9fc57e693e0bdc8487a9337d0a2e1b06138f01c061f79ffffc2ce8",
+    "exact_predecessor_dhrystone_log": "083d9dc1e3180b50d4bd7eba3dccc9fbee7c6fa175d966e147d436a87339ac07",
+    "independent_audit": "e54495518b60c76086b6526a513e209bff31e5805bd7de6e8c6c2770413cc841"
+  },
+  "next_action": "Quantify the exact current-MIQ-head same-cycle SQ allow/forward/replay opportunity with a read-only qualification probe before implementing SQ-query bubble fusion."
+}

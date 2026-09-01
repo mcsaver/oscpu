@@ -56,21 +56,15 @@ cd am-kernels/benchmarks/coremark && make ARCH=riscv32-nemu run
 cd am-kernels/kernels/hello && make ARCH=native run
 ```
 
-## 持久化记忆
+## 历史上下文与记录
 
-### 开始工作前
-1. 读取 `.github/memory/project-status.md` 了解项目当前状态
-2. 读取 `.github/memory/modules/am-kernels.md` 了解测试通过情况
-3. 若涉及 `riscv32-npc` 或 difftest，读取 `.github/memory/modules/npc.md`、`.github/memory/modules/difftest.md` 与 `.github/memory/modules/abstract-machine.md`
-4. 如果是调试任务，读取 `.github/memory/known-issues.md`
-
-### 完成工作后
-1. 更新 `.github/memory/modules/am-kernels.md` 记录测试结果
-2. 更新 `.github/memory/project-status.md` 更新进度
-3. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+先读取当前 workload、AM 接口和目标平台的直接源码/配置。只有需要历史通过状态、既有跨模块决定或
+可复用调试经验时才查询对应 memory/brief。普通测试运行不更新 project-status；只有稳定、跨会话事实
+才写 module memory/known-issues。
 
 ## 约束
-- 只修改 `am-kernels/` 目录下的文件（记忆文件除外）
+- 主要 ownership 是 `am-kernels/`；若 root cause 位于直接相关 AM/target consumer，先协调 ownership 后
+  在用户目标内完成修复，不把目录提示当作平台权限边界
 - 测试程序只能使用 AM API 和 klib，不能依赖宿主机的系统调用
 - 编写新测试时参考已有测试的代码风格
 - 测试应尽量能在 native/nemu/npc 三个平台上通用；若依赖某平台设备能力，需用 AM API 能力查询或清楚标注平台限制

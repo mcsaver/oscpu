@@ -1,18 +1,26 @@
-# software-flow e2e module
+# software-flow E2E module
 
-`software-flow` 是软件开发流程守门模块，用于防止 NEMU、NPC、工具脚本、guest check、QMP/GDB、virtio/device model 等软件产物只靠“构建通过”或人工判断收口。
+`software-flow` 是显式检查 AI 软件工程合同的轻量 profile，不作为普通软件任务的前置门，也不被 NEMU、
+NPC 或其它业务 profile 自动注入。普通开发直接围绕用户目标、调用链和 acceptance criteria 实现与验证。
 
-## 必须保留的循环
+## 可复用的方法
 
-- `software-dev-loop`: `scope-contract -> design-plan -> implement -> unit-or-contract-test -> integration-smoke -> regression-or-e2e -> review-record`
-- `software-bugfix-loop`: `reproduce -> collect-log -> localize-root-cause -> fix -> focused-test -> regression -> record`
-- `software-refactor-loop`: `inventory-callers -> preserve-contract -> mechanical-change -> focused-test -> consumer-regression -> record`
-- `hardware-aware-software-loop`: `scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record`
+下面是诊断或跨模块任务的参考模式，不是固定阶段、文件数门禁或完成许可：
 
-## 集成关系
+- bug：复现或读取直接证据 → 定位 root cause → 修复 → focused test；
+- refactor：确认 callers/consumer contract → 修改 → consumer-focused test；
+- hardware-aware software：明确 guest/ISA/device/system 可见语义 → 修改模型或工具 → 运行对应系统场景。
 
-NEMU-only 入口 `nemu-dev`/`nemu-ubuntu-focused` 和旧集成入口 `nemu-ubuntu` 都必须包含 `software-flow`。NPC-only 入口 `npc-dev` 也必须包含 `software-flow`，但不得引入 NEMU Ubuntu gate。场景隔离通过新增入口实现，不能删除旧 `nemu-ubuntu*` 集成功能。
+步骤可以合并、跳过或按失败新增。一个局部且清楚的修改不需要先生成 scope contract、design plan、review
+record、task-run 或 memory 条目。
 
-## 完成判定
+## 判定边界
 
-必须扫描 FAIL marker、BAD TRAP、assert、guest marker 和 task-run evidence；完成后必须更新 `.github/memory/modules/software-flow.md`。不能把脚本外层退出码当作唯一证据，也不能把构建通过单独当成软件任务完成。
+- 构建通过足以支持“能够构建”的 criterion，但不能自动支持运行时行为 claim。
+- 外层退出码、guest marker、GOOD/BAD TRAP、negative scan、日志或 trace 只在对应场景确实需要时检查。
+- NEMU reference 不代表 NPC/RTL；focused case 不代表完整 Linux/Ubuntu 或全量回归。
+- task-run、DB brief、memory 和独立 reviewer 只在跨会话长跑、release/security/forensic/publication、
+  难恢复高风险动作或用户明确要求时启用。
+
+`e2e_software_flow_contract` 只确认上述 outcome-first 合同仍可发现，不重验所有 agent、历史 memory 或旧
+task-run，也不把方法论文字当作业务代码 PASS。

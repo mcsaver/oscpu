@@ -1,6 +1,8 @@
 `include "define.v"
 
-// Registered logical-window -> standard AXI byte-lane adapter.
+// Owned logical-window -> standard AXI byte-lane adapter.  Transactions use
+// registered state except for the narrow legal aligned-write admission offer
+// documented below; backpressure always falls back to the same registers.
 //
 // Upstream contract:
 //   * address is the exact first-byte address;
@@ -200,6 +202,22 @@ module OooLsuAxiLaneAdapter #(
   wire eff_write_natural_w = naturally_aligned(eff_awaddr_w, eff_awsize_w);
   wire eff_write_mask_ok_w =
       (eff_wstrb_w == low_mask_from_size(eff_awsize_w));
+  wire [LANE_BITS-1:0] write_lane_w =
+      eff_awaddr_w[LANE_BITS-1:0];
+
+  // A complete, legal naturally aligned write may use the admission cycle as
+  // its first downstream send cycle.  This remains a VALID-only forward path:
+  // upstream READY above is derived exclusively from local state/holders and
+  // never from either downstream READY.  Partial/invalid/split commands retain
+  // the registered path so no externally visible beat can precede validation.
+  wire direct_write_offer_w = !rst && idle_w &&
+                              eff_aw_valid_w && eff_w_valid_w &&
+                              eff_write_size_ok_w && eff_write_mask_ok_w &&
+                              eff_write_natural_w;
+  wire [XLEN-1:0] direct_wdata_w =
+      eff_wdata_w << (write_lane_w * 8);
+  wire [STRB_W-1:0] direct_wstrb_w =
+      eff_wstrb_w << write_lane_w;
 
   assign u_axi_rvalid_o = (state_q == S_R_RESP);
   assign u_axi_rdata_o = u_rdata_q;
@@ -210,12 +228,14 @@ module OooLsuAxiLaneAdapter #(
   assign d_axi_arsize_o = d_arsize_q;
   assign d_axi_arprot_o = d_arprot_q;
   assign d_axi_rready_o = (state_q == S_R_DATA);
-  assign d_axi_awvalid_o = (state_q == S_W_SEND) && !d_aw_sent_q;
-  assign d_axi_awaddr_o = d_awaddr_q;
-  assign d_axi_awsize_o = d_awsize_q;
-  assign d_axi_wvalid_o = (state_q == S_W_SEND) && !d_w_sent_q;
-  assign d_axi_wdata_o = d_wdata_q;
-  assign d_axi_wstrb_o = d_wstrb_q;
+  assign d_axi_awvalid_o = direct_write_offer_w ||
+                           ((state_q == S_W_SEND) && !d_aw_sent_q);
+  assign d_axi_awaddr_o = direct_write_offer_w ? eff_awaddr_w : d_awaddr_q;
+  assign d_axi_awsize_o = direct_write_offer_w ? eff_awsize_w : d_awsize_q;
+  assign d_axi_wvalid_o = direct_write_offer_w ||
+                          ((state_q == S_W_SEND) && !d_w_sent_q);
+  assign d_axi_wdata_o = direct_write_offer_w ? direct_wdata_w : d_wdata_q;
+  assign d_axi_wstrb_o = direct_write_offer_w ? direct_wstrb_w : d_wstrb_q;
   assign d_axi_bready_o = (state_q == S_W_RESP);
 
   wire d_ar_fire_w = d_axi_arvalid_o && d_axi_arready_i;
@@ -227,8 +247,6 @@ module OooLsuAxiLaneAdapter #(
       d_araddr_q[LANE_BITS-1:0];
   wire [LANE_BITS-1:0] natural_read_lane_w =
       cmd_addr_q[LANE_BITS-1:0];
-  wire [LANE_BITS-1:0] write_lane_w =
-      eff_awaddr_w[LANE_BITS-1:0];
   wire [7:0] current_read_byte_w =
       d_axi_rdata_i >> (current_read_lane_w * 8);
   wire [XLEN-1:0] read_accum_with_byte_w =
@@ -327,9 +345,15 @@ module OooLsuAxiLaneAdapter #(
               cmd_split_q <= 1'b0;
               d_awaddr_q <= eff_awaddr_w;
               d_awsize_q <= eff_awsize_w;
-              d_wdata_q <= eff_wdata_w << (write_lane_w * 8);
-              d_wstrb_q <= eff_wstrb_w << write_lane_w;
-              state_q <= S_W_SEND;
+              d_wdata_q <= direct_wdata_w;
+              d_wstrb_q <= direct_wstrb_w;
+              // E0 acceptance is independent per AXI channel.  A channel that
+              // fires here is recorded as sent; S_W_SEND therefore retries
+              // only the unaccepted channel.  Dual acceptance proceeds
+              // directly to the registered downstream-B owner.
+              d_aw_sent_q <= d_aw_fire_w;
+              d_w_sent_q <= d_w_fire_w;
+              state_q <= (d_aw_fire_w && d_w_fire_w) ? S_W_RESP : S_W_SEND;
             end else begin
               cmd_split_q <= 1'b1;
               d_awaddr_q <= eff_awaddr_w;
@@ -498,6 +522,24 @@ module OooLsuAxiLaneAdapter #(
       if (final_b_fallthrough_w &&
           (!u_axi_bvalid_o || u_axi_bresp_o !== resp_with_b_w)) begin
         $error("[LANE-B-FALLTHROUGH] final B response mismatch @%0t", $time);
+        $fatal;
+      end
+      if ((state_q == S_IDLE) &&
+          (d_axi_awvalid_o || d_axi_wvalid_o) &&
+          (!direct_write_offer_w || !d_axi_awvalid_o || !d_axi_wvalid_o ||
+           !eff_write_size_ok_w || !eff_write_mask_ok_w ||
+           !eff_write_natural_w ||
+           d_axi_awaddr_o !== eff_awaddr_w ||
+           d_axi_awsize_o !== eff_awsize_w ||
+           d_axi_wdata_o !== direct_wdata_w ||
+           d_axi_wstrb_o !== direct_wstrb_w)) begin
+        $error("[LANE-W-DIRECT-LEGAL] illegal/incomplete direct write offer @%0t", $time);
+        $fatal;
+      end
+      if ((state_q == S_W_SEND) &&
+          ((d_aw_sent_q && d_axi_awvalid_o) ||
+           (d_w_sent_q && d_axi_wvalid_o))) begin
+        $error("[LANE-W-NO-RESEND] accepted downstream write channel reissued @%0t", $time);
         $fatal;
       end
       if (d_axi_arvalid_o &&

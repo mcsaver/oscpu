@@ -67,14 +67,16 @@ FSM=`S_IDLE`、`owner_q=0`、`is_write_q=0`、`rr_q=0`、`aw_seen_q=0`、
 
 ### 2.2 握手与稳定性
 
-1. IDLE 只在时钟沿捕获一个合法 request owner，不在同拍向上游返回 READY；因此选择
-   结果从下一拍开始稳定展示，切断 live contender -> downstream payload 的抖动路径。
+1. IDLE read winner 仍只在时钟沿捕获 owner，不在同拍返回 ARREADY。合法且 owner 精确已知的
+   IDLE write winner按 `ooo-dual-mem-arbiter-idle-write-admission.md` 当拍独立展示 AW/W；沿上锁
+   owner并以各 channel fire播种 seen。除此窄域外 IDLE 保持 quiet/fail-closed。
 2. read owner 从 `S_READ_ADDR` 保持到 `R` terminal；write owner 从
    `S_WRITE_DATA` 保持到 `B` terminal。AR/AW/W fire 均不得提前释放 owner。
 3. `AW` 与 `W` 各有 `seen` 位；已 fire 的 channel 必须撤下 VALID，未 fire 的 channel
    继续逐位保持。只有 `aw_seen_next && w_seen_next` 才进入 `S_WRITE_RESP`。
-4. 非 owner 的 `arready/awready/wready/rvalid/bvalid` 全为 0；下游 response READY 只取
-   当前 owner 对应的 `rready` 或 `bready`。
+4. 非 owner 的 `arready/awready/wready/rvalid/bvalid` 全为 0；direct write拍的 effective owner
+   是精确 `capture_owner_w`，注册拍是真源 `owner_q`。下游 response READY只取注册 owner对应的
+   `rready` 或 `bready`。
 5. 一个 lane 同拍同时呈现 read 与 write request 属于合同违例；`read-present=arvalid`，
    `write-present=awvalid||wvalid`。该检查在所有非 reset 状态成立。IDLE 中只要任一 lane
    违规，release 与 assert profile 都全局 fail-closed：本拍不捕获另一条合法 lane，也不更新
@@ -86,7 +88,8 @@ FSM=`S_IDLE`、`owner_q=0`、`is_write_q=0`、`rr_q=0`、`aw_seen_q=0`、
 
 合法依赖方向固定为：
 
-`lane request valid(Q/FSM)` -> `IDLE request census` -> `registered owner/type`
+`lane request valid(Q/FSM)` -> `IDLE request census` ->
+`read: registered owner/type | legal write: selected AW/W direct offer + edge owner/seen`
 -> `downstream request valid/payload` -> `downstream ready` -> `owner request fire`
 -> `registered response phase` -> `lane response valid` -> `lane response ready`
 -> `downstream response ready` -> `terminal` -> `IDLE/round-robin bit`。
@@ -182,8 +185,9 @@ station/device/response/drop/query/residency/idle/translate 接口，以及一�
 4. peer maintenance 是无反压一拍事件。producer 只在其本地授权 `B` terminal 产生一次；
    consumer 不返回 ready，也不得排队后再猜 owner。共享 arbiter 使同一拍至多一个 bridge
    获得真实 B terminal；若该结构条件未来改变，必须重新冻结双维护冲突合同。
-5. 两 bridge 到 F0 的 AXI payload/stall 合同完全继承 §2.2；wrapper 不增加 combinational
-   fall-through owner 或跨 lane response-ready 路径。
+5. 两 bridge 到 F0 的 AXI payload/stall 合同完全继承 §2.2；wrapper只允许专用 write-admission
+   规范定义的 IDLE selected-owner正向穿越，不增加 read fall-through、response组合授权或跨 lane
+   response-ready路径。
 
 #### 2.7.3 stall / ready DAG
 
@@ -194,13 +198,18 @@ station/device/response/drop/query/residency/idle/translate 接口，以及一�
 
 miss DAG 才在 cache decision 后追加：
 
-`bridgeN AXI Q -> F0 registered lane owner -> downstream request/response
--> exact laneN bridge terminal`。
+`bridgeN AXI Q -> F0 read registered owner / write IDLE direct admission+edge owner
+-> downstream request/response -> exact laneN bridge terminal`。
 
 peer maintenance DAG 独立为：
 
 `bridgeN authorized B terminal -> authorized local maintenance facts -> wrapper cross-wire
 -> peer cache valid clear / same-cycle hit suppression`。
+
+该DAG不得读取 shared-arbiter request READY。bridge的不可撤回事实由 registered
+`write_escaped_q`或 registered write state正在展示的 AW/W VALID建立；`aw_fire/w_fire`已被后一项
+严格吸收，禁止作为额外输入，否则会形成
+`peer ARVALID -> arbiter census -> writer READY -> maintenance -> peer cache -> peer ARVALID`组合环。
 
 禁止 `F0 state/owner/downstream ready` 回灌任一 cache-hit request READY；禁止 lane0 response
 READY 进入 lane1 request/response；禁止 peer invalidate 进入 SRAM enable/write 地址 owner。
@@ -256,7 +265,7 @@ F1 wrapper 不新增 architectural identity 状态；它只装配两份既有 br
 
 | 状态 | 输出/接受 | 迁移 |
 | --- | --- | --- |
-| `S_IDLE` | 所有 READY/VALID 为 0；计算两个合法 request predicate | 时钟沿按 `rr_q` 捕获 owner/type；无请求则保持 |
+| `S_IDLE` | read/response quiet；合法 write winner可当拍独立展示AW/W并只向winner返回READY | read沿上捕获owner后进`S_READ_ADDR`；write沿上按fire seed seen，双fire进`S_WRITE_RESP`，否则进`S_WRITE_DATA` |
 | `S_READ_ADDR` | 只路由 owner AR；R 不可见 | AR fire -> `S_READ_RESP` |
 | `S_READ_RESP` | 只路由 downstream R 到 owner | R terminal -> `S_IDLE`，`rr_q<=~owner_q` |
 | `S_WRITE_DATA` | 对未 seen 的 AW/W 独立路由 | 两者均 seen -> `S_WRITE_RESP` |
@@ -275,8 +284,10 @@ fairness 不是无条件周期承诺，而是 transaction-bounded 条件：若�
 ### 3.2 共享资源与关键路径
 
 共享资源只有外部 AXI master。两条 DTLB/D-cache hit 路径在未来 F1 位于仲裁器之前。
-F0 的关键组合路径是 registered owner -> 2:1 payload mux -> downstream channel，以及
-downstream response -> owner demux。IDLE contender 选择只写寄存器，不直接穿到 downstream。
+F0 的 response与 registered request关键路径仍包含 owner mux/demux。write-admission v1 另有
+`bridge registered payload -> IDLE census/RR owner mux -> downstream adapter` 正向组合锥；READY只
+来自 adapter本地 holder/state，不允许 target/response READY回灌 request选择。该新锥在 fresh
+mapped STA前固定 PPA unqualified。
 
 后续 2x bridge 初始实现允许复制 DTLB 和 32KB D-cache 以先闭合架构；这会使 cache macro
 容量翻倍，只能标记为 architecture prototype、PPA unqualified。F4 前应改为真正两 bank
@@ -343,13 +354,15 @@ Liberty/LEF/OOC 条件和 arch-stable freeze 前，任何 area/timing/power 数�
 - `ARB-WRITE-TERMINAL`：两 channel 完成前 B 不可见；
 - `ARB-READ-TERMINAL`：AR fire 前 R 不可见；
 - `ARB-RSP-ONEHOT`：R/B 不可广播到两个 lane；
-- `ARB-IDLE-QUIET`：IDLE 不展示下游 request/response ready。
+- `ARB-IDLE-LEGAL-WRITE-ONLY`：IDLE 只允许合法精确 winner 的write AW/W/READY；read、response、
+  illegal/unknown与reset保持quiet。
 
 定向 TB 必须分别在 release 与 `OOO_ASSERT` 下证明：
 
 1. lane0/lane1 单独 read；2. 两 lane 同时 read 的 round-robin terminal fairness；
 3. AR 长反压时 owner/payload 稳定；4. R 长反压时只对 owner 可见；
-5. AW-before-W、W-before-AW、同拍 AW/W；6. B 长反压时锁不释放；
+5. IDLE direct source/READY四象限、AW-before-W、W-before-AW、同拍 AW/W与partial-only retry；
+6. B 长反压时锁不释放；
 7. 当前 owner terminal 后等待 lane 最迟下一事务被选；8. 非 owner READY/VALID 全零。
 
 compile-success mutation 固定至少十二族：`read_release_on_ar`、

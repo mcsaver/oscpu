@@ -1,108 +1,93 @@
 ---
-description: "本地 RV64 CPU Architect Agent 的保守语义路由。只有存在开放的跨流水/事务/架构状态设计决策，并能形成正确性与 CPI/PPA 可证伪闭环时才启动；根因未知先探索，方案已定交给实现者。"
-applyTo: "npc/rv64/**"
+description: "本地 RV64 CPU Architect Agent 的语义路由。只有存在开放的跨流水/事务/架构状态设计决策，并能形成 correctness 与 CPI/PPA 可证伪闭环时才选择；classifier 仅为可选辅助。"
+applyTo: "npc/rv64/design/arch/**,scripts/cpu_architect_*.py,.codex/agents/cpu-architect.toml,.github/agents/cpu-architect.agent.md"
 ---
 
-# CPU Architect 路由与验证预算
+# CPU Architect 语义路由与验证边界
 
-本文件决定是否启动 `cpu_architect`。它不是 CPU 关键词匹配器，也不以文件数量、修改行数或用户是否说了
-“优化”作为启动条件。路由机器真源为
-`.github/ai-env/contracts/cpu-architect-routing-v1.json`，确定性入口为：
+本文件帮助选择 `cpu_architect` 的职责，不建立启动许可。分类看开放的工程决策及其语义深度，不看 CPU
+关键词、文件数量、修改行数或“优化”字样。用户/父任务给出的目标与 ownership 足以完成角色选择。
+
+`.github/ai-env/contracts/cpu-architect-routing-v1.json` 和下面的命令只用于歧义任务、路由规则开发或回归：
 
 ```bash
 python3 scripts/cpu_architect_route.py classify --input <task-packet.json>
 ```
 
-## 1. 路由类型
+不要求普通任务生成 task packet 或保存 classifier receipt。命令输出是 advisory，不能授予、撤销或阻止
+用户/父任务已放入范围的安全本地 inspect、edit、build、test、collect 与 analyze。
 
-| route | 责任 | 默认 owner |
+## 1. 语义职责
+
+| route | 适用语义 | 默认 owner |
 | --- | --- | --- |
-| `ARCHITECT` | 开放的微架构决策、Architecture IR 变换、因果实验与多目标取舍 | `cpu_architect` |
-| `EXPLORER` | 根因、模块、transaction 或周期边界尚未定位，只做轻量事实发现 | built-in explorer / `npc` 只读探索 |
+| `ARCHITECT` | 开放的微架构结构决策、跨流水/事务生命周期变换或 correctness+CPI/PPA 取舍 | `cpu_architect` |
+| `EXPLORER` | 根因、transaction、owner 或周期边界仍未知，以事实发现为主 | built-in explorer / `npc` |
 | `WORKER` | 方案已经确定，执行局部 RTL、TB、脚本或工具实现 | worker / 对应 domain agent |
-| `REVIEWER` | 候选已存在，仅审查不变量、证据边界或晋级资格 | 独立 reviewer |
-| `CLARIFY` | 缺少无法从仓库发现、且会实质改变设计的目标/授权 | 主 agent 向用户确认 |
-| `NON_ARCH` | 文档、环境、CI、报表、通用软件、状态汇报或概念解释 | 普通任务分类器 |
+| `REVIEWER` | 候选已存在，只审查不变量、证据边界或正式 promotion | 独立 reviewer |
+| `CLARIFY` | 缺少无法从仓库发现、且会实质改变目标或授权的信息 | 主 agent |
+| `NON_ARCH` | 文档、环境、CI、报表、普通软件、状态汇报或概念解释 | 普通 agent |
 
-## 2. `ARCHITECT` 硬门
+选择 `ARCHITECT` 时应同时看到以下语义：
 
-必须同时满足：
+1. 对象是当前工作区的本地 RV64 CPU spec、production RTL、testbench 或性能/EDA 证据。
+2. 存在尚未决定的结构选择，而不是已经批准的机械实现。
+3. 触及跨 module transaction、backpressure/recovery/lifecycle、流水周期边界、共享资源拓扑，或 commit、
+   precise trap、CSR/FENCE、memory ordering、redirect、architectural visibility 等架构不变量。
+4. acceptance criteria 包含 correctness，并至少包含 CPI、timing、area、power 或可量化 complexity 一项。
+5. 有本地事实支持一个可证伪的候选与 retain/rollback 实验；不足部分可以在同一授权范围内继续定向探索。
+6. 架构级编辑位于用户/父任务给出的变更范围内；classifier 不提供这项授权。
 
-1. 对象是当前工作区的本地 RV64 CPU spec、production RTL、testbench 或 EDA/性能证据。
-2. 存在尚未决定的结构选择，不是已经批准的机械实现。
-3. 至少触碰一类架构深度：跨 module transaction/背压/恢复/生命周期；流水周期边界或共享资源拓扑；
-   commit、precise trap、CSR、FENCE、memory ordering、redirect 或 architectural visibility 不变量。
-4. 目标可证伪：必须包含 correctness，并至少包含 CPI、timing、area、power、complexity 中一项。
-5. baseline、因果根因和本地 evidence path 足以形成
-   `current evidence → candidate transform → directed evidence → same-design measurement → retain/rollback`。
-6. 用户或父任务已授权架构级改动。
+若主要工作仍是定位根因，优先 `EXPLORER`；若 Architect 在进行中发现一个局部事实缺口，可以直接做安全、
+定向的读取、仿真或计数收集，不需要停下来取得新 receipt。方案已经固定时切给 `WORKER`；只裁决现有候选
+时使用 `REVIEWER`。
 
-任何硬门未知都不能靠高置信度、关键词或文件数绕过。根因/基线不足时先 `EXPLORER`；授权缺失时
-`CLARIFY`；方案固定时 `WORKER`；只有候选裁决时 `REVIEWER`。
+## 2. 本地证据与搜索范围
 
-## 3. 工作区发散范围
+先从 `npc/rv64/ARCHITECTURE.md` 或有界 registry query 定位当前 owner、production filelist、elaboration、
+dynamic、mapped 与 STA/PPA 边界，再读取直接相关的 spec/RTL/TB。通用大核结构只能提供搜索维度，不能替代
+当前核事实。
 
-通过 `ARCHITECT` 硬门后，先读取 `npc/rv64/ARCHITECTURE.md` 或执行
-`python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --capability <name>`，取得同一 snapshot 下的
-owner、filelist、NpcTop reachability、dynamic、mapped 与 STA/PPA 边界；再沿 EvidenceRef 打开所需 RTL/spec。
-registry/view/schema 的日常维护仍是 `WORKER/NON_ARCH`，不得反向触发 Architect。
+可探索 frontend、rename/dispatch、scheduler/issue、execution/bypass、LSQ/cache/MMU/interconnect、
+writeback/commit/trap/control 与 physical cone。结论按问题绑定到 source/spec、wave/assertion、counter、
+仿真或 EDA 报告；复杂场景可建立 Architecture IR，简单有界切片可直接用时序图、表格或文字说明。
 
-通用大核示例只作为搜索维度。先从本地源码和证据确认，再实例化为 IR 节点：
+以下任务不因接近 CPU 而启动 Architect：README/格式/命名、普通 lint、无开放取舍的单点 bug、单个 TB 或
+报表解析器、EDA 安装/CI 故障、registry/schema/view 维护、重复运行既有命令并汇总结果、只读状态和概念解释。
+一行 `commit_valid` 若改变 precise trap 可见性仍可能是架构决策；跨二十个文件的纯重命名仍是 `WORKER`。
 
-- frontend：取指供给、分支预测/RAS、packet/cache、redirect 与 outstanding transaction；
-- decode/rename/allocate：双发射配对、ProducerId、free-list/map/busy 与分配回滚；
-- scheduling/regread/bypass：issue/select、wakeup、bank/port、依赖与公平性；
-- execute/writeback/ROB：完成资格、长延迟单元、精确提交、异常与恢复；
-- memory/cache/MMU/bus：LSQ/MIQ/SQ、forward/replay、owner/epoch、AMO/LRSC、PMA/PMP、AXI；
-- control/system：CSR、trap/return、FENCE、序列化事务、flush/redirect 与架构可见性；
-- physical evidence：CPI attribution、关键路径/控制锥、WNS/TNS、逻辑/宏面积、合格功耗和系统层级。
+## 3. 最小充分验证
 
-只有被 `rg`、spec、波形、计数器、仿真或 EDA 报告确认的对象才进入 Architecture IR。不存在于当前核的
-ROB 深度、cache 层级、预测器 topology 或宽度参数不得从示例直接复制。
+候选至少提供机制→观测→指标的因果链、竞争解释、预测、反证条件、保持的不变量与回滚点。correctness 与
+至少一个可测指标都必须有直接证据；PPA 结论不能由 RTL 仿真代替，CPI 结论不能由 compile PASS 代替。
 
-## 4. 不启动的明确边界
+A/B 保持相同的相关 workload、config、tool/version、corner/constraints、seed/thread 与测量口径，并明确
+baseline/candidate source 差异。普通切片只记录支撑比较的相关身份，不强制完整 source manifest。
 
-- README、格式、命名、注释、端口机械贯穿或普通 lint；
-- 已知根因且没有开放结构取舍的单点 bug；
-- 单个 testbench、报表解析器、agent-flow、EDA 安装或 CI 故障；
-- 单独校验/整理 CapabilityGraph、ExperienceRecord、KnowledgeGap 或训练候选；这些是已启动架构切片的
-  证据维护，由普通 WORKER/NON_ARCH 工具完成，不能反向触发 Architect；
-- architecture registry 的 inventory、owner/lifecycle、树/图/网视图生成或 schema/报表维护；只有其中
-  暴露的真实产品 GAP 另行满足全部 `ARCHITECT` 硬门时，那个结构决策才路由给 Architect；
-- 重新执行一次已有综合/仿真并汇总结果；
-- 只读状态、RISC-V 概念解释或普通软件任务；
-- 只有“CoreMark 慢”“做到 200 MHz”而没有本地因果链与冻结基线的模糊请求。
+确定性输入、命令和 oracle 默认执行一次。随机、并发、已知 flaky、未固定 seed/thread、variable-PPA 噪声、
+机器异常或用户明确要求时才重复，并说明原因、次数、阈值和停止条件。A/B、正负向 oracle、不同 corner/
+config、mutation 或抽象层是互补证据，不是机械复验。
 
-一行 `commit_valid` 若改变 precise trap/commit visibility，仍可命中架构深度；跨 20 个文件的纯重命名仍是
-`WORKER`。分类看语义，不看表面规模。
+始终保持 ready/valid、backpressure、owner/epoch、cancel/flush、无丢失/重复、progress、precise trap、CSR/
+FENCE、memory ordering 与 architectural visibility 等受影响不变量。不得通过降低频率目标、删除约束、缩减
+workload、放宽 checker 或功能退化制造收益。
 
-## 5. 验证预算
+## 4. Ordinary、promotion 与 formal research
 
-确定性证据默认执行一次，必须绑定：
+- **ordinary architecture task**：无需 classifier receipt、固定 YAML 启动包、逐实验 Architecture IR/content
+  manifest、Grounded Experience Loop 或固定字段最终报告。以满足 acceptance criteria 的最小证据闭环为准。
+- **formal Architecture/Pareto promotion**：显式绑定真实 baseline/candidate source/source set、production
+  filelist/elaboration、workload/config、tool/version、corner/constraints 和原始 wave/counter/EDA provenance；
+  由独立 reviewer 复核身份、反例与 PASS/GAP，不机械重跑确定性命令。
+- **formal-research/learning**：仅在用户或任务明确 opt-in 时启用 CapabilityGraph、ExperienceRecord、
+  Meta-Critic、KnowledgeGap、prediction calibration 和 unseen exam；这些记录不能反向成为普通工程许可门。
 
-```text
-command + input/source manifest + config/design_id + tool/seed/thread + rc + parsed result + artifact pointer
-```
+## 5. 可选 classifier 的兼容语义
 
-只有下列情况才允许或要求重复同一命令：随机/并发/CDC/RDC/race、已有 flaky、未固定 seed/thread、
-wall-clock/analog/variable-PPA 噪声、机器/工具异常证据，或用户明确要求。重复必须写出 `repeat_reason`、
-次数、接受阈值与停止条件；没有理由的重复应取消。
+机器 JSON 保留现有字段和六路 taxonomy，以兼容 `scripts/cpu_architect_route.py` 及其测试。其中
+`architect_hard_gates` 是旧接口名，表示 classifier 使用的语义信号，不是 agent 权限 gate；
+`architecture_change_authorized` 只描述父任务现有范围，不会由 classifier 生成授权。
 
-`determinism=unknown` 本身不触发重跑：先冻结输入、seed/thread 与 oracle；仍无法判定时输出 GAP，不能
-用多跑几次代替实验设计。
-
-A/B baseline/candidate、正向/负向 oracle、不同 corner/config、不同 mutation 和实现后必要的不同层级证据，
-是互补实验，不是“复验”。高风险、migration、release 或正式架构晋级默认要求独立审查；若底层命令是
-确定性的，独立审查优先复算输入/命令/身份和检查反例，不机械重跑同一命令。
-
-## 6. 路由示例
-
-- 已确认 owner terminal → drain → trap/redirect 是 mapped critical path，需要重构生命周期并保持 CSR、
-  FENCE、precise trap，再用 TB/CPI/STA 决定保留：`ARCHITECT`。
-- “CoreMark 太慢”但根因未知：`EXPLORER`。
-- 按已批准方案实现一个 permit register：`WORKER`。
-- 判断已有候选是否可晋级 Pareto：`REVIEWER`。
-- 修改 traceability 正则或 CI timeout：`WORKER`/`NON_ARCH`。
-- 选择 ROB/IQ 深度并比较 CPI/timing/area：`ARCHITECT`；仅把已参数化 ROB 改到给定值：`WORKER`。
-- 测量失败后按既有 schema 补一条 KnowledgeGap：`WORKER`；只有该 gap 重新形成开放的本地结构取舍并
-  再次通过全部硬门，后续设计切片才是 `ARCHITECT`。
+典型判断：已确认跨生命周期 critical cone 且要用 TB/CPI/STA 比较结构候选是 `ARCHITECT`；“CoreMark 慢”
+但根因未知是 `EXPLORER`；按已批准方案实现寄存器是 `WORKER`；审查已有 Pareto 候选是 `REVIEWER`；修改
+trace parser 或 CI timeout 是 `WORKER/NON_ARCH`。

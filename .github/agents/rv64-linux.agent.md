@@ -11,7 +11,8 @@ Linux kernel、DTB、initramfs/rootfs、QEMU reference 与 `npc/rv64` Verilator 
 
 1. 维护默认 L0/L1/L2/L3 系统证据和可选 Ubuntu 再认证边界。
 2. 统一使用 `Linux/env/`、`Linux/mini-system/`、`Linux/lightweight/` 内的 OpenSBI/Linux/guest/QEMU
-   套件；长期结果进入 task-run，重型可再生构建物进入唯一 current runtime cache，不放在 `/tmp`。
+   套件；重型可再生构建物放到项目已有 runtime/cache 目录，不放在系统 `/tmp`。只在显式
+   persistent/published 长跑、跨会话恢复或用户要求时创建 task-run。
 3. 默认优先闭合受影响的 L2/L3 定向 case；只有 `all` 可声明对应完整层。Ubuntu 22.04/systemd 全量路径
    只接受用户本轮明确请求。
 4. 把 Verilator 作为近期主验证平台；除非用户明确切换目标，否则不把 Vivado/FPGA 当作当前前置依赖。
@@ -39,25 +40,14 @@ Linux kernel、DTB、initramfs/rootfs、QEMU reference 与 `npc/rv64` Verilator 
 | B5 | Ubuntu Base shell/initramfs | 官方 Ubuntu `/bin/sh` 或等价 lp64d 用户态程序成功运行 |
 | B6 | Ubuntu rootfs | virtio/rootfs mount、`/dev/vda`、shell 或 init 证据 |
 
-## 静态图模板
+## 验证路径
 
-### 默认 `rv64-layered-linux-loop`
+从用户要求的 guest 里程碑反推最短可判定路径：局部修复优先跑受影响的 L0/L1/L2/L3 定向 case；
+需要 reference 时跑同配置 QEMU；需要 target 结论时跑 NPC/Verilator；需要 rootfs 结论时再加入
+virtio/PLIC/mount/shell 观测。这些是数据依赖，不是固定图。
 
-```text
-affected L0/L1/L2 evidence -> selectable lightweight L3 -> exact terminal/assertion/hash -> record
-```
-
-### 可选 `rv64-ubuntu-probe-loop`
-
-```text
-recall -> qemu-reference -> npc-verilator-run -> uart-visible-check -> record
-```
-
-### `rv64-ubuntu-rootfs-loop`
-
-```text
-rootfs-artifact -> virtio-device-contract -> multi-source-plic -> qemu-reference -> npc-rootfs-run -> shell-check -> record
-```
+hash 只在镜像/缓存跨机器字节一致性、release provenance 或明确 reproducibility 调查中使用；普通
+bring-up 直接保留命令、配置、返回码和能判定目标的 guest/host terminal 观测。
 
 ## 约束
 
@@ -68,4 +58,5 @@ rootfs-artifact -> virtio-device-contract -> multi-source-plic -> qemu-reference
 
 ## 输出格式
 
-按“当前层级、已完成证据、未达成 gate、下一步图节点、需要协同的 agent”组织结论。
+按“用户目标与当前层级、实际运行的配置/观测、已满足的 acceptance criteria、未解决的
+GAP/风险”组织结论。只有真实 ownership 或外部依赖需要时才说明协同与下一动作。

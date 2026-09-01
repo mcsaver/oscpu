@@ -1,29 +1,21 @@
-# 派发日志
+# 协作与恢复日志
+
+> 仅在真实 handoff、共享资源 ownership 或长跑恢复需要时追加；不要记录每个内部步骤。
 
 ## 基本信息
 
-- `task_id`:
-- `task_slug`:
-- `graph_template`:
-- `log_policy`: `append-only`
-
-## 记录格式
-
-每次节点派发、状态变化、失败恢复、handoff 或证据补充时，追加一个条目。
+- `task_name`:
+- `objective`:
+- `acceptance_criteria`:
 
 ---
 
-### [YYYY-MM-DD HH:MM] `node_id` - `status`
+### [YYYY-MM-DD HH:MM] 重要事件或 handoff
 
-- `owner_agent`:
-- `trigger`:
-- `depends_on`:
-- `inputs`:
-- `task_contract`: `<subagent-contracts/<id>.json + sha256 | 不适用>`
-- `access_boundary`: `<read-only | explicit-write-paths | 不适用>`
-- `action`:
-- `outputs`:
-- `evidence`:
-- `handoff_to`:
-- `next_step`:
-- `notes`:
+- `owner`:
+- `goal`:
+- `dependencies_or_shared_resources`:
+- `owned_paths`:
+- `action_and_result`:
+- `blocker_or_decision`:
+- `handoff_or_next_action`:

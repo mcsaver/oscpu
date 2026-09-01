@@ -11,15 +11,15 @@ tools: [read, edit, search, execute, agent, todo]
 2. 明确 Vivado/FPGA 暂不作为当前任务前置，除非用户显式切换阶段。
 3. 审查 core/SoC 边界是否保持可综合：DPI、host C++、SDL、文件 IO 只能存在于仿真平台层，不能混入可综合 core。
 4. 为性能仿真建立“尽量真实”的约束：真实 AXI/ready-valid、有限 outstanding、明确 cache/LSQ/PLIC/virtio 协议，不用理想化一拍后门掩盖瓶颈。
-5. 为后续流片水准保留证据：lint、模块 testbench、全量回归、长期不变量、PPA/STA 下游入口。
+5. 为当前 claim 与后续流片保留相称的 lint、模块 testbench、代表回归、不变量和 PPA/STA 下游入口；
+   局部诊断不机械升级为全量 signoff。
 
 ## 开始工作前
 
-1. 读取 `.github/instructions/verilator-tapeout-realism.instructions.md`。
-2. 读取 `.github/instructions/npc-optimization-workflow.instructions.md`。
-3. 读取 `.github/instructions/rtl-generation-workflow.instructions.md`。
-4. RV64 性能/PPA 任务还必须读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md`。
-5. 读取 `.github/memory/modules/npc.md` 中性能、cache、OoO、Linux bring-up 与 Verilator 经验。
+1. 读取 `.github/instructions/verilator-tapeout-realism.instructions.md` 与直接相关 RTL/filelist/harness。
+2. CPI/cache/OoO 优化再读取 `npc-optimization-workflow`；RTL 实现读取 `rtl-generation-workflow`。
+3. 只有正式 RV64 PPA/promotion claim 才加载完整 PPA contract；普通 Verilator 诊断不自动升级为 signoff。
+4. 需要历史基线或已验证经验时才查询 npc memory。
 
 ## 判断标准
 
@@ -30,4 +30,5 @@ tools: [read, edit, search, execute, agent, todo]
 
 ## 输出格式
 
-说明当前验证平台、真实度假设、仿真-only 边界、可综合边界、性能证据、流片风险和下一步必须补的硬件 gate。
+说明当前验证平台、真实度假设、仿真-only 边界、可综合边界、性能证据、流片风险，以及仍未覆盖的真实
+硬件/签核范围。

@@ -1,103 +1,141 @@
-//严格axi：axi输入不能通过组合逻辑直接影响axi输出
-//axi可满吞吐的时，每周期发送一个请求
-//请求FIFO满载稳态不产生气泡
-//pc不被覆盖且保持顺序
+`timescale 1ns/1ps
+`default_nettype none
 
-module ifu (
-    input         clk_i,
-    input         rst_i,
+// 设计约束：
+// 1. AXI 输入不能通过组合逻辑直接影响 AXI 输出（status 是只读调试例外）。
+// 2. 有可用 credit 时，请求通道可以每周期发送一个请求。
+// 3. reservation 满载稳态（15 个 outstanding + 1 个 request stage）不产生气泡。
+// 4. 请求与响应严格同序，PC 不覆盖、不乱序。
+// 5. redirect 后，已被 AXI 接受的旧请求继续 drain，但旧响应不会交付给 ID。
 
-    // IFU → 指令存储器：请求通道
-    input         inst_req_ready_i,//axi有能力向ifu接受事物请求
-    output        inst_req_valid_o,//ifu有能力向axi发出事物请求
-    output [31:0] inst_req_pc_o,
+module ifu #(
+    parameter [31:0] RESET_PC = 32'h8000_0000,
+    // 当前简单五级流水允许一次 ID 预测和一次 EX 修正重叠，因此使用 2-bit epoch。
+    // 若未来允许更多 redirect 源连续触发，必须在 epoch 回绕前增加复用屏障。
+    parameter integer EPOCH_W = 2
+) (
+    input  wire        clk_i,
+    input  wire        rst_i,
 
-    // 指令存储器 → IFU：响应通道
-    input         inst_rsp_valid_i,//axi有能力向ifu发出事物
-    input  [31:0] inst_rsp_inst_i,
-    input         inst_rsp_error_i,
-    output        inst_rsp_ready_o,//ifu有能力向axi接受事物
+    // 顶层仲裁后的最终 redirect。valid/ready 每次握手表示一次新的重定向事件。
+    input  wire        redirect_valid_i,
+    input  wire [31:0] redirect_pc_i,
+    output wire        redirect_ready_o,
 
-    // IFU → ID：流水线交接
-    input         if_id_ready_i,//idu有能力向ifu接受事物
-    output reg if_id_valid_o,//ifu有能力向idu发出事物
-    output [31:0] if_id_pc_o,
-    output [31:0] if_id_inst_o,
-    output        if_id_error_o,
+    // IFU -> 指令存储器：请求通道
+    input  wire        inst_req_ready_i,
+    output wire        inst_req_valid_o,
+    output wire [31:0] inst_req_pc_o,
 
-    output [2:0] status//观察信号
+    // 指令存储器 -> IFU：响应通道
+    input  wire        inst_rsp_valid_i,
+    input  wire [31:0] inst_rsp_inst_i,
+    input  wire        inst_rsp_error_i,
+    output wire        inst_rsp_ready_o,
+
+    // IFU -> ID：流水线交接
+    input  wire        if_id_ready_i,
+    output reg         if_id_valid_o,
+    output wire [31:0] if_id_pc_o,
+    output wire [31:0] if_id_inst_o,
+    output wire        if_id_error_o,
+
+    // debug-only：实时观察本周期三个边界上的物理握手。
+    output wire [2:0]  status
 );
 
-// valid：发送方当前提供一个有效事务，并在反压时保持 payload。
-// ready：接收方当前有容量在本时钟沿接收事务。
-// valid && ready：本时钟沿完成一次模块边界上的事务交接。
+    localparam integer FIFO_DEPTH = 16;
 
-    //reg [1:0] state;
-    //wire [2:0] status;//req_fire/rsp_fire/id_fire一共三种事物，因此共8种情况
-
-    //debug-only:实时观察本周期握手，不参与控制
-    assign status = {req_fire, rsp_fire, id_fire};//理想流水线满载情况应该是status = 3'b111
-
-    //reg [1:0] next_state;
-
+    //--------------------------------------------------------------------------
+    // 边界握手事件
+    //--------------------------------------------------------------------------
     wire req_fire;
     wire rsp_fire;
     wire id_fire;
+    wire redirect_fire_w;
 
-    reg req_stage_valid_q;//还有一条已经准备好，可能随时被axi接受的请求
-    reg [31:0] req_stage_pc_q;//发出的要取的下一条指令的pc
+    assign req_fire         = inst_req_valid_o && inst_req_ready_i;
+    assign rsp_fire         = inst_rsp_valid_i && inst_rsp_ready_o;
+    assign id_fire          = if_id_valid_o && if_id_ready_i;
+    assign redirect_ready_o = !rst_i;
+    assign redirect_fire_w  = redirect_valid_i && redirect_ready_o;
+
+    assign status = {req_fire, rsp_fire, id_fire};
+
+    //--------------------------------------------------------------------------
+    // Request output stage：所有 AXI 请求输出只来自寄存器
+    //--------------------------------------------------------------------------
+    reg                     req_stage_valid_q;
+    reg [31:0]              req_stage_pc_q;
+    reg [EPOCH_W-1:0]       req_stage_epoch_q;
+    reg [31:0]              next_pc_q;
+    reg [EPOCH_W-1:0]       active_epoch_q;
+
+    wire [EPOCH_W-1:0] redirect_epoch_w;
 
     assign inst_req_valid_o = req_stage_valid_q;
-    assign inst_req_pc_o = req_stage_pc_q;
+    assign inst_req_pc_o    = req_stage_pc_q;
+    assign redirect_epoch_w = active_epoch_q + 1'b1;
 
-    assign req_fire = inst_req_valid_o && inst_req_ready_i;//request握手信号
-    assign rsp_fire = inst_rsp_valid_i && inst_rsp_ready_o;//response握手信号
-    assign id_fire = if_id_valid_o && if_id_ready_i;//ifid握手信号
+    //--------------------------------------------------------------------------
+    // Request owner FIFO：保存已被 AXI 接受、尚未返回的 {PC, epoch}
+    //--------------------------------------------------------------------------
+    reg [31:0]        req_pc_fifo [0:FIFO_DEPTH-1];
+    reg [EPOCH_W-1:0] req_epoch_fifo [0:FIFO_DEPTH-1];
+    reg [3:0]         req_wr_ptr_q;
+    reg [3:0]         req_rd_ptr_q;
+    reg [4:0]         outstanding_q;
+    reg [31:0]        req_head_pc_q;
+    reg [EPOCH_W-1:0] req_head_epoch_q;
 
-    //assign inst_req_pc_o = next_pc_q;//发出的要取的下一条指令的pc
+    wire [3:0] req_next_rd_ptr_w;
+    wire       req_fifo_empty_w;
+    wire [5:0] req_reserved_w;
+    wire       req_stage_can_load_w;
+    wire       req_credit_available_w;
 
-    //-----------------------请求通道
-    reg [31:0] next_pc_q;//下一条要请求的PC
-    reg [31:0] req_pc_fifo [0:15];//记录已发出但尚未返回的PC
-    reg [4:0] outstanding_q;//记录未返回请求数量
-    reg [31:0] req_head_pc_q;//队头pc寄存器
-    //reg [31:0] if_id_inst_fifo [0:15];//保存已经返回但ID尚未接受的指令
-
-    reg [3:0] req_wr_ptr_q;//req,write,pointer,q
-    reg [3:0] req_rd_ptr_q;//req,read,pointer,q
-
-    wire [3:0] req_next_rd_ptr_w = req_rd_ptr_q + 4'd1;
-    wire req_pc_fifo_full;
-    wire req_pc_fifo_empty;
-
-    wire [5:0] req_reserved_w;//已预留请求数量
-    wire req_stage_can_load_w;//判断请求槽能否装入新PC
-    wire req_credit_available_w;//如果当前有剩余credit，或者本周期归还一个credit，可以装载
-
-    assign req_reserved_w = {1'b0, outstanding_q} + (req_stage_valid_q ? 6'd1 : 6'd0);
+    assign req_next_rd_ptr_w    = req_rd_ptr_q + 4'd1;
+    assign req_fifo_empty_w     = (outstanding_q == 5'd0);
+    assign req_reserved_w       = {1'b0, outstanding_q}
+                                + (req_stage_valid_q ? 6'd1 : 6'd0);
     assign req_stage_can_load_w = !req_stage_valid_q || req_fire;
-    assign req_credit_available_w =
-            (req_reserved_w < 6'd16) ||
-            rsp_fire;
 
-    assign req_pc_fifo_full = (outstanding_q == 5'd16);
-    assign req_pc_fifo_empty = (outstanding_q == 5'd0);
+    // rsp_fire 归还的 credit 可以在同一时钟沿用于装载下一条 request stage。
+    // 它只影响寄存器 D 端，不形成 AXI input -> AXI output 的同拍组合路径。
+    assign req_credit_available_w = (req_reserved_w < 6'd16) || rsp_fire;
 
-    //assign inst_req_valid_o = !req_pc_fifo_full || rsp_fire;
-    //assign inst_req_pc_o = next_pc_q;
-
-    //------------------更新请求槽和next PC
+    // redirect 最高优先级，但不能覆盖一个 valid && !ready 的 AXI 请求。
+    // 此时 next_pc_q 保存 redirect target；旧 request 完成握手后再装入新路径请求。
     always @(posedge clk_i) begin
         if (rst_i) begin
             req_stage_valid_q <= 1'b0;
-            req_stage_pc_q <= 32'd0;
-            next_pc_q <= `RESET_PC;
+            req_stage_pc_q    <= 32'd0;
+            req_stage_epoch_q <= {EPOCH_W{1'b0}};
+            next_pc_q         <= RESET_PC;
+            active_epoch_q    <= {EPOCH_W{1'b0}};
+        end
+        else if (redirect_fire_w) begin
+            active_epoch_q <= redirect_epoch_w;
+            next_pc_q      <= redirect_pc_i;
+
+            if (req_stage_can_load_w) begin
+                if (req_credit_available_w) begin
+                    req_stage_valid_q <= 1'b1;
+                    req_stage_pc_q    <= redirect_pc_i;
+                    req_stage_epoch_q <= redirect_epoch_w;
+                    next_pc_q         <= redirect_pc_i + 32'd4;
+                end
+                else begin
+                    req_stage_valid_q <= 1'b0;
+                end
+            end
         end
         else if (req_stage_can_load_w) begin
             if (req_credit_available_w) begin
                 req_stage_valid_q <= 1'b1;
-                req_stage_pc_q <= next_pc_q;
-                next_pc_q <= next_pc_q + 32'd4;
+                req_stage_pc_q    <= next_pc_q;
+                req_stage_epoch_q <= active_epoch_q;
+                next_pc_q         <= next_pc_q + 32'd4;
             end
             else begin
                 req_stage_valid_q <= 1'b0;
@@ -105,130 +143,146 @@ module ifu (
         end
     end
 
-    //-----------请求pc fifo写入来源
+    // req_fire 发生时，stage 中的 PC 和 epoch 原子进入 owner FIFO。
     always @(posedge clk_i) begin
         if (rst_i) begin
             req_wr_ptr_q <= 4'd0;
         end
         else if (req_fire) begin
-            req_pc_fifo[req_wr_ptr_q] <= req_stage_pc_q;
-            req_wr_ptr_q <= req_wr_ptr_q + 1'b1;
+            req_pc_fifo[req_wr_ptr_q]    <= req_stage_pc_q;
+            req_epoch_fifo[req_wr_ptr_q] <= req_stage_epoch_q;
+            req_wr_ptr_q                 <= req_wr_ptr_q + 4'd1;
         end
     end
 
-    //------------------记录未返回请求数量，被压在fifo中的pc数量的更新逻辑
+    // outstanding 只追踪真实 AXI request/response 握手，redirect 不改变 ownership。
     always @(posedge clk_i) begin
         if (rst_i) begin
             outstanding_q <= 5'd0;
         end
         else begin
             case ({req_fire, rsp_fire})
-                2'b10: outstanding_q <= outstanding_q + 1'b1;
-                2'b01: outstanding_q <= outstanding_q - 1'b1;
-
+                2'b10: outstanding_q <= outstanding_q + 5'd1;
+                2'b01: outstanding_q <= outstanding_q - 5'd1;
                 default: outstanding_q <= outstanding_q;
             endcase
         end
     end
 
-    //------------------维护队头pc，保证同一拍读写且取得旧pc
+    // 缓存 owner FIFO 队头，保证 PC 与 epoch 始终同步推进。
     always @(posedge clk_i) begin
         if (rst_i) begin
-            req_rd_ptr_q <= 4'd0;
-            req_head_pc_q <= 32'd0;
+            req_rd_ptr_q     <= 4'd0;
+            req_head_pc_q    <= 32'd0;
+            req_head_epoch_q <= {EPOCH_W{1'b0}};
         end
-        else begin
-            if (rsp_fire) begin
-                req_rd_ptr_q <= req_rd_ptr_q + 1'b1;
-                //有一未返回的请求
-                if (outstanding_q > 5'd1) begin
-                    req_head_pc_q <= req_pc_fifo[req_next_rd_ptr_w];
-                end
-                //当请求握手成功，头指针指向请求槽
-                else if (req_fire) begin
-                    req_head_pc_q <= req_stage_pc_q;
-                end
+        else if (rsp_fire) begin
+            req_rd_ptr_q <= req_rd_ptr_q + 4'd1;
+
+            if (outstanding_q > 5'd1) begin
+                req_head_pc_q    <= req_pc_fifo[req_next_rd_ptr_w];
+                req_head_epoch_q <= req_epoch_fifo[req_next_rd_ptr_w];
             end
-            //fifo为空的情况
-            else if (req_fire && req_pc_fifo_empty) begin
-                req_head_pc_q <= req_stage_pc_q;
+            else if (req_fire) begin
+                // pop 最后一项并同拍 push 新项，新请求直接成为队头。
+                req_head_pc_q    <= req_stage_pc_q;
+                req_head_epoch_q <= req_stage_epoch_q;
             end
+        end
+        else if (req_fire && req_fifo_empty_w) begin
+            req_head_pc_q    <= req_stage_pc_q;
+            req_head_epoch_q <= req_stage_epoch_q;
         end
     end
 
-    //------------------响应（取到值）->ID响应FIFO
+    //--------------------------------------------------------------------------
+    // Response delivery FIFO：只保存当前 epoch、尚未被 ID 接受的响应
+    //--------------------------------------------------------------------------
+    reg [31:0] rsp_pc_fifo [0:FIFO_DEPTH-1];
+    reg [31:0] rsp_inst_fifo [0:FIFO_DEPTH-1];
+    reg        rsp_error_fifo [0:FIFO_DEPTH-1];
+    reg [3:0]  rsp_wr_ptr_q;
+    reg [3:0]  rsp_rd_ptr_q;
+    reg [4:0]  rsp_count_q;
 
-    reg [31:0] rsp_pc_fifo [0:15];
-    reg [31:0] rsp_inst_fifo [0:15];
-    reg rsp_error_fifo [0:15];
+    wire rsp_fifo_full_w;
+    wire req_head_stale_w;
+    wire rsp_drop_w;
+    wire rsp_enqueue_w;
 
-    reg [3:0] rsp_wr_ptr_q;//下一个给AXI响应应该写入哪个fifo槽位
-    reg [3:0] rsp_rd_ptr_q;//下一条给ID的指令位于哪个槽位
-    reg [4:0] rsp_count_q; //需要表示0~16
+    assign rsp_fifo_full_w  = (rsp_count_q == 5'd16);
+    assign req_head_stale_w = (req_head_epoch_q != active_epoch_q);
 
-    wire rsp_fifo_empty = (rsp_count_q == 5'd0);
-    wire rsp_fifo_full = (rsp_count_q == 5'd16);
+    // redirect 同拍返回的响应属于 redirect 之前的取指路径，也必须丢弃。
+    assign rsp_drop_w    = redirect_fire_w || req_head_stale_w;
+    assign rsp_enqueue_w = rsp_fire && !rsp_drop_w;
 
-    //FIFO头部直接连接ID
-    //assign if_id_valid_o = !rsp_fifo_empty;
-    assign if_id_pc_o = rsp_pc_fifo[rsp_rd_ptr_q];
-    assign if_id_inst_o = rsp_inst_fifo[rsp_rd_ptr_q];
+    // stale 响应不占 delivery FIFO，即使 FIFO 已满也必须继续接收并 drain。
+    // 该组合逻辑不依赖 inst_rsp_valid_i，因此不存在 AXI input -> AXI output 路径。
+    assign inst_rsp_ready_o = !req_fifo_empty_w
+                            && (rsp_drop_w || !rsp_fifo_full_w || id_fire);
+
+    assign if_id_pc_o    = rsp_pc_fifo[rsp_rd_ptr_q];
+    assign if_id_inst_o  = rsp_inst_fifo[rsp_rd_ptr_q];
     assign if_id_error_o = rsp_error_fifo[rsp_rd_ptr_q];
 
-    //wire id_fire = if_id_valid_o && if_id_ready_i;
-    //AXI响应到达的时候写入FIFO
-    //FIFO未满的时候可以接受响应
-    //即使FIFO当前满了，只要ID本周期取走一项，也可以同时写入新响应
-    assign inst_rsp_ready_o =
-        !req_pc_fifo_empty &&
-        (!rsp_fifo_full || id_fire);//fifo中的pc没满了，返回的inst没满，idfire代表一定可以放一个走，因此下一个周期更新可以给出请求
-
-
-    //更新逻辑
+    // redirect 只清空待交付给 ID 的年轻指令；owner FIFO 必须继续等待旧 AXI 响应。
     always @(posedge clk_i) begin
-        if (rst_i) begin
-            rsp_wr_ptr_q <= 4'd0;
-            rsp_rd_ptr_q <= 4'd0;
-            rsp_count_q <= 5'd0;
+        if (rst_i || redirect_fire_w) begin
+            rsp_wr_ptr_q  <= 4'd0;
+            rsp_rd_ptr_q  <= 4'd0;
+            rsp_count_q   <= 5'd0;
             if_id_valid_o <= 1'b0;
         end
         else begin
-            //AXI返回一条指令，压入响应FIFO
-            if (rsp_fire) begin
-                rsp_pc_fifo[rsp_wr_ptr_q] <= req_head_pc_q;
-                rsp_inst_fifo[rsp_wr_ptr_q] <= inst_rsp_inst_i;
+            if (rsp_enqueue_w) begin
+                rsp_pc_fifo[rsp_wr_ptr_q]    <= req_head_pc_q;
+                rsp_inst_fifo[rsp_wr_ptr_q]  <= inst_rsp_inst_i;
                 rsp_error_fifo[rsp_wr_ptr_q] <= inst_rsp_error_i;
-                rsp_wr_ptr_q <= rsp_wr_ptr_q + 1'b1;
-            end
-            //id完成握手后，当前指令已经被ID接受，下一个周期改为输出FIFO的下一条
-            if (id_fire) begin
-                rsp_rd_ptr_q <= rsp_rd_ptr_q + 1'b1;
+                rsp_wr_ptr_q                 <= rsp_wr_ptr_q + 4'd1;
             end
 
-            case ({rsp_fire, id_fire})
+            if (id_fire) begin
+                rsp_rd_ptr_q <= rsp_rd_ptr_q + 4'd1;
+            end
+
+            case ({rsp_enqueue_w, id_fire})
                 2'b10: begin
-                    //FIFO从空变成非空，或者继续增加
-                    rsp_count_q <= rsp_count_q + 5'd1;
-                    if_id_valid_o <= 5'b1;
+                    rsp_count_q   <= rsp_count_q + 5'd1;
+                    if_id_valid_o <= 1'b1;
                 end
                 2'b01: begin
-                    rsp_count_q <= rsp_count_q - 5'd1;
-
-                    //原来只有一项时，本拍消费后变空
+                    rsp_count_q   <= rsp_count_q - 5'd1;
                     if_id_valid_o <= (rsp_count_q > 5'd1);
                 end
                 2'b11: begin
-                    //同拍弹出旧头，压入新尾，占用数不变
-                    rsp_count_q <= rsp_count_q;
+                    rsp_count_q   <= rsp_count_q;
                     if_id_valid_o <= 1'b1;
                 end
                 default: begin
-                    rsp_count_q <= rsp_count_q;
+                    rsp_count_q   <= rsp_count_q;
                     if_id_valid_o <= if_id_valid_o;
                 end
             endcase
         end
     end
-    
+
+`ifndef SYNTHESIS
+    // 局部结构不变量；系统级顺序性由 testbench scoreboard 验证。
+    always @(posedge clk_i) begin
+        if (!rst_i) begin
+            if (req_reserved_w > 6'd16)
+                $fatal(1, "IFU request credit overflow");
+            if (outstanding_q > 5'd16)
+                $fatal(1, "IFU outstanding overflow");
+            if (rsp_count_q > 5'd16)
+                $fatal(1, "IFU response FIFO overflow");
+            if (if_id_valid_o != (rsp_count_q != 5'd0))
+                $fatal(1, "IFU if_id_valid/count mismatch");
+        end
+    end
+`endif
 
 endmodule
+
+`default_nettype wire

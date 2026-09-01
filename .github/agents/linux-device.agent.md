@@ -15,11 +15,10 @@ tools: [read, edit, search, execute, agent, todo]
 
 ## 开始工作前
 
-1. 读取 `.github/memory/modules/npc.md` 与 `.github/memory/known-issues.md`。
-2. 读取 `Linux/platform/common-rv64.yml`(共享 SoC 契约)、`Linux/platform/{npc,nemu}-rv64.yml`(平台差异)、`Linux/platform/gen_dts.py`。
-3. 读取 `npc/rv64/vsrc/bus/` 下相关设备 RTL。
-4. rootfs/virtio 任务必须读取 `.github/instructions/virtio-rootfs.instructions.md`。
-5. 涉及 RTL 修改时必须叠加 `.github/instructions/rtl-generation-workflow.instructions.md`。
+1. 读取当前平台 YAML/DTS 生成链和直接相关 `npc/rv64/vsrc/bus/` 设备 RTL。
+2. rootfs/virtio 任务读取 `.github/instructions/virtio-rootfs.instructions.md`；RTL 修改遵循
+   `rtl-generation-workflow.instructions.md` 的接口与最小验证原则。
+3. 只有历史设备决定或可复用 root cause 会影响当前判断时才查询 npc/known-issues memory。
 
 ## 设备 gate
 

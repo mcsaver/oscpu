@@ -2,6 +2,38 @@ name: Agent Maintain
 
 on:
   pull_request:
+    paths:
+      - "AGENTS.md"
+      - "AI_ENVIRONMENT.md"
+      - "CLAUDE.md"
+      - "GEMINI.md"
+      - "CONVENTIONS.md"
+      - ".windsurfrules"
+      - ".cursor/rules/**"
+      - ".codex/agents/**"
+      - ".github/AGENTS.md"
+      - ".github/copilot-instructions.md"
+      - ".github/agentic-hardware-blueprint.md"
+      - ".github/instructions/**"
+      - ".github/agents/**"
+      - ".github/skills/**"
+      - ".github/ai-env/**"
+      - ".github/e2e/**"
+      - ".github/workflows/agent-maintain.yml"
+      - ".claude/workflows/doc-lifecycle-audit.js"
+      - "scripts/agent-*"
+      - "scripts/package-ai-dev-env.sh"
+      - "scripts/e2e/**"
+      - "scripts/dev_memory/**"
+      - "scripts/github_index_db.py"
+      - "scripts/task-run-status.sh"
+      - "scripts/tests/test-agent-flow.sh"
+      - "scripts/tests/test-agent-operating-contract.py"
+      - "scripts/tests/test-agent-system-dual-role-contract.sh"
+      - "scripts/tests/test-rv64-soc-delivery-gates.sh"
+      - "scripts/tests/test-source-tree-artifact-hygiene.sh"
+      - "scripts/tests/test-task-run-status.sh"
+      - "deliverables/ai-dev-env-commercial-v1/**"
   schedule:
     - cron: "17 21 * * *"
   workflow_dispatch:
@@ -15,12 +47,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Rehydrate stored DB memory
+        if: github.event_name != 'pull_request'
         run: python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/stored-snapshot --yes
 
       - name: Rehydrate task-run DB evidence
+        if: github.event_name != 'pull_request'
         run: python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes
 
-      - name: Run deterministic final gate for pull requests
+      - name: Run lightweight component checks for pull requests
         if: github.event_name == 'pull_request'
         run: scripts/agent-maintain.sh --mode final
 

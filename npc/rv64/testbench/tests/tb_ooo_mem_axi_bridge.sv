@@ -33,6 +33,7 @@ module tb_ooo_mem_axi_bridge #(
   reg s2_active_tracker_mutate;
   reg s2_active_tval_mutate;
   reg s2_expected_effective_killed;
+  reg sq_idle_current_expected_override;
   reg [4:0] mem0_req_owner_token;
   wire [1:0] mem0_req_owner_kind = mem0_req_write ? 2'b01 : 2'b00;
   wire [1:0] mem0_req_mmu_epoch = 2'b01;
@@ -78,14 +79,16 @@ module tb_ooo_mem_axi_bridge #(
   wire [`STRB_W-1:0] mem0_sq_query_wstrb;
   reg mem0_sq_query_force_forward;
   reg mem0_sq_query_force_replay;
+  reg mem0_sq_query_force_inexact;
   reg mem0_sq_query_retry_ready;
   reg [`XLEN-1:0] mem0_sq_query_forward_data;
   wire mem0_sq_query_allow = mem0_sq_query_valid &&
-      !mem0_sq_query_force_forward && !mem0_sq_query_force_replay;
+      !mem0_sq_query_force_forward && !mem0_sq_query_force_replay &&
+      !mem0_sq_query_force_inexact;
   wire mem0_sq_query_forward = mem0_sq_query_valid &&
-      mem0_sq_query_force_forward;
+      mem0_sq_query_force_forward && !mem0_sq_query_force_inexact;
   wire mem0_sq_query_replay = mem0_sq_query_valid &&
-      mem0_sq_query_force_replay;
+      mem0_sq_query_force_replay && !mem0_sq_query_force_inexact;
   wire [31:0] mem0_owner_residency_mask;
   wire mem0_idle;
   reg [1:0] owner_kind_model [0:31];
@@ -93,6 +96,10 @@ module tb_ooo_mem_axi_bridge #(
   reg [`XLEN-1:0] owner_tval_model [0:31];
   integer owner_model_i;
   wire mem_translate_active;
+  wire tb_mem0_expected_valid = sq_idle_current_expected_override ?
+      mem0_station_query_valid : mem0_owner_query_valid;
+  wire [4:0] tb_mem0_expected_token = sq_idle_current_expected_override ?
+      mem0_station_query_token : mem0_owner_query_token;
 
   wire lsu_axi_arvalid;
   reg lsu_axi_arready;
@@ -206,13 +213,13 @@ module tb_ooo_mem_axi_bridge #(
     .mem0_req_owner_token_i(mem0_req_owner_token),
     .mem0_req_mmu_epoch_i(mem0_req_mmu_epoch),
     .mem0_req_fault_tval_i(mem0_req_fault_tval),
-    .mem0_expected_valid_i(mem0_owner_query_valid),
-    .mem0_expected_owner_kind_i(owner_kind_model[mem0_owner_query_token]),
-    .mem0_expected_owner_token_i(mem0_owner_query_token ^
+    .mem0_expected_valid_i(tb_mem0_expected_valid),
+    .mem0_expected_owner_kind_i(owner_kind_model[tb_mem0_expected_token]),
+    .mem0_expected_owner_token_i(tb_mem0_expected_token ^
         (s2_active_identity_mutate ? 5'b00001 : 5'b00000)),
-    .mem0_expected_mmu_epoch_i(owner_epoch_model[mem0_owner_query_token]),
-    .mem0_expected_tval_valid_i(mem0_owner_query_valid),
-    .mem0_expected_fault_tval_i(owner_tval_model[mem0_owner_query_token] ^
+    .mem0_expected_mmu_epoch_i(owner_epoch_model[tb_mem0_expected_token]),
+    .mem0_expected_tval_valid_i(tb_mem0_expected_valid),
+    .mem0_expected_fault_tval_i(owner_tval_model[tb_mem0_expected_token] ^
         (s2_active_tval_mutate ? {{(`XLEN-1){1'b0}}, 1'b1} : {`XLEN{1'b0}})),
     .mem0_expected_effective_killed_i(s2_expected_effective_killed),
     .mem0_tracker_expected_valid_i(mem0_owner_query_valid),
@@ -386,8 +393,10 @@ module tb_ooo_mem_axi_bridge #(
       s2_active_tracker_mutate = 1'b0;
       s2_active_tval_mutate = 1'b0;
       s2_expected_effective_killed = 1'b0;
+      sq_idle_current_expected_override = 1'b0;
       mem0_sq_query_force_forward = 1'b0;
       mem0_sq_query_force_replay = 1'b0;
+      mem0_sq_query_force_inexact = 1'b0;
       mem0_sq_query_retry_ready = 1'b1;
       mem0_sq_query_forward_data = {`XLEN{1'b0}};
       mem0_device_release = 1'b0;
@@ -5162,11 +5171,408 @@ module tb_ooo_mem_axi_bridge #(
     end
   endtask
 
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+  task automatic sq_idle_stats_reset_case;
+    begin
+      rst = 1'b1;
+      clear_inputs();
+      tick();
+      tick();
+      rst = 1'b0;
+      #1;
+      // The leaf bridge fixture normally derives current expected from the
+      // active-owner query.  For this S_IDLE-only probe, model the real backend
+      // MIQ current-head face explicitly from the registered station token.
+      sq_idle_current_expected_override = 1'b1;
+      mem0_sq_query_retry_ready = 1'b0;
+    end
+  endtask
+
+  task automatic sq_idle_stats_positive_case;
+    input [1023:0] label;
+    input force_forward;
+    input force_replay;
+    input force_inexact;
+    input [`XLEN-1:0] forward_data;
+    reg [4:0] expected_token;
+    reg [2:0] expected_decision;
+    localparam [`XLEN-1:0] LOAD_PA = 64'h0000_0000_8000_f200;
+    localparam [`XLEN-1:0] REPLACEMENT_PA =
+        64'h0000_0000_8000_f208;
+    localparam [`XLEN-1:0] LOAD_DATA =
+        64'hc011_ab1e_0000_f200;
+    begin
+      sq_idle_stats_reset_case();
+      mem0_sq_query_force_forward = force_forward;
+      mem0_sq_query_force_replay = force_replay;
+      mem0_sq_query_force_inexact = force_inexact;
+      mem0_sq_query_forward_data = forward_data;
+      expected_decision = force_inexact ? 3'b000 :
+                          force_replay ? 3'b100 :
+                          force_forward ? 3'b010 : 3'b001;
+
+      // Make the allow trajectory hot so its result cycle can prove that the
+      // replacement station immediately becomes the existing next-head fast
+      // lookup source.  Seeding uses the ordinary active path.
+      if (!(force_forward || force_replay || force_inexact)) begin
+        sq_idle_current_expected_override = 1'b0;
+        v8u_seed_hot_line(LOAD_PA, LOAD_DATA);
+        sq_idle_current_expected_override = 1'b1;
+        mem0_rsp_ready = 1'b1;
+      end
+      expected_token = mem0_req_owner_token;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_probe = 1'b0;
+      mem0_req_addr = LOAD_PA;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1({label, " request enters empty station"},
+                mem0_req_ready, 1'b1);
+      tick();
+      if (!(force_forward || force_replay || force_inexact)) begin
+        // Refill the station on the same edge that current allow transfers
+        // the old station payload into active and issues its SRAM lookup.
+        mem0_req_valid = 1'b1;
+        mem0_req_addr = REPLACEMENT_PA;
+        mem0_req_wstrb = 8'hff;
+      end else begin
+        mem0_req_valid = 1'b0;
+      end
+      #1;
+
+      tb_check1({label, " production current query nonvacuous"},
+                dut.station_current_head_sq_query_w, 1'b1);
+      tb_check1({label, " stats alias matches production"},
+                dut.stats_current_head_sq_probe_w, 1'b1);
+      tb_check1({label, " factored idle admission true"},
+                dut.idle_stage_advance_w, 1'b1);
+      tb_check1({label, " factored admission equals stage advance"},
+                dut.idle_stage_advance_w === dut.stage_advance_w, 1'b1);
+      tb_check1({label, " remains distinct from production lookahead"},
+                dut.station_sq_lookahead_query_w, 1'b0);
+      tb_check1({label, " has no active source"},
+                dut.active_sq_query_valid_w, 1'b0);
+      tb_check1({label, " exposes shared SQ query"},
+                mem0_sq_query_valid, 1'b1);
+      tb_check32({label, " exact current token"},
+                 {27'b0, mem0_sq_query_owner_token},
+                 {27'b0, expected_token});
+      tb_check32({label, " exact load identity"},
+                 {28'b0, mem0_sq_query_owner_kind,
+                  mem0_sq_query_mmu_epoch}, 32'h0000_0001);
+      tb_check64({label, " exact final PA"}, mem0_sq_query_paddr, LOAD_PA);
+      tb_check1({label, " final cached attr"},
+                mem0_sq_query_attr_valid &&
+                (mem0_sq_query_class == `OOO_MEM_CLASS_CACHED), 1'b1);
+      tb_check32({label, " legal byte mask"},
+                 {24'b0, mem0_sq_query_wstrb}, 32'h0000_00ff);
+      tb_check32({label, " observed SQ decision"},
+                 {29'b0, mem0_sq_query_replay,
+                  mem0_sq_query_forward, mem0_sq_query_allow},
+                 {29'b0, expected_decision});
+      tb_check1({label, " current lookup follows exact allow only"},
+                dut.station_current_head_lookup_fire_w,
+                !(force_forward || force_replay || force_inexact));
+      tb_check1({label, " D-cache lookup follows exact allow only"},
+                dut.dcache_lookup_en_w,
+                !(force_forward || force_replay || force_inexact));
+      tb_check1({label, " other lookup owners remain quiet"},
+                dut.active_sq_query_read_lookup_fire_w |
+                dut.station_sq_lookahead_lookup_fire_w, 1'b0);
+      if (!(force_forward || force_replay || force_inexact)) begin
+        tb_check64({label, " current lookup uses final PA"},
+                   dut.dcache_lookup_addr_w, LOAD_PA);
+        tb_check1({label, " current allow accepts replacement station"},
+                  mem0_req_ready, 1'b1);
+      end
+      tb_check1({label, " no retry action"},
+                dut.sq_query_retry_fire_w, 1'b0);
+      tb_check1({label, " no response/drop action"},
+                mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+      tb_check1({label, " no AXI action"},
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      tb_check32({label, " probe cycle remains S_IDLE"},
+                 {28'b0, dut.state_q}, 32'd0);
+
+      // Only an exact one-hot allow skips the registered query bubble.  Every
+      // other decision conservatively registers the same owner and payload.
+      tick();
+      mem0_req_valid = 1'b0;
+      // After station admission, model the backend's ordinary active/current
+      // head face rather than the S_IDLE station-current override.
+      sq_idle_current_expected_override = 1'b0;
+      #1;
+      if (!(force_forward || force_replay || force_inexact)) begin
+        tb_check32({label, " exact allow enters S_LOOKUP"},
+                   {28'b0, dut.state_q}, 32'd9);
+        tb_check32({label, " lookup active owner preserved"},
+                   {27'b0, dut.active_owner_token_q},
+                   {27'b0, expected_token});
+        tb_check64({label, " lookup active PA preserved"},
+                   dut.paddr_q, LOAD_PA);
+        tb_check1({label, " synchronous lookup pending preserved"},
+                  dut.u_dcache.lookup_pend_q, 1'b1);
+        tb_check1({label, " replacement remains in station"},
+                  dut.stg_valid_q, 1'b1);
+        tb_check32({label, " replacement station token preserved"},
+                   {27'b0, dut.stg_owner_token_q},
+                   {27'b0, (expected_token + 5'd1)});
+        tb_check64({label, " replacement station payload preserved"},
+                   dut.stg_addr_q, REPLACEMENT_PA);
+        tb_check1({label, " current hot result responds"},
+                  mem0_rsp_valid, 1'b1);
+        tb_check64({label, " current hot result data"},
+                   mem0_rsp_rdata, LOAD_DATA);
+        tb_check1({label, " replacement becomes next query"},
+                  dut.station_sq_lookahead_query_w, 1'b1);
+        tb_check1({label, " current source retires before next query"},
+                  dut.station_current_head_sq_query_w, 1'b0);
+        tb_check32({label, " next query names replacement"},
+                   {27'b0, mem0_sq_query_owner_token},
+                   {27'b0, (expected_token + 5'd1)});
+        tb_check1({label, " replacement next lookup aggregates"},
+                  dut.station_sq_lookahead_lookup_fire_w, 1'b1);
+        tb_check64({label, " replacement next lookup address"},
+                   dut.dcache_lookup_addr_w, REPLACEMENT_PA);
+
+        tick();
+        #1;
+        tb_check32({label, " replacement lookup enters S_LOOKUP"},
+                   {28'b0, dut.state_q}, 32'd9);
+        tb_check32({label, " replacement becomes active owner"},
+                   {27'b0, dut.active_owner_token_q},
+                   {27'b0, (expected_token + 5'd1)});
+        tb_check64({label, " replacement becomes active PA"},
+                   dut.paddr_q, REPLACEMENT_PA);
+        tb_check1({label, " replacement lookup pending"},
+                  dut.u_dcache.lookup_pend_q, 1'b1);
+        tb_check1({label, " station consumed by aggregation"},
+                  dut.stg_valid_q, 1'b0);
+
+        // A flush in the lookup-result cycle terminates the exact owner and
+        // cancels a potential speculative miss AR without a ghost response.
+        flush = 1'b1;
+        #1;
+        tb_check1({label, " lookup flush emits exact drop"},
+                  mem0_drop0_valid, 1'b1);
+        tb_check32({label, " lookup flush drop owner"},
+                   {27'b0, mem0_drop0_owner_token},
+                   {27'b0, (expected_token + 5'd1)});
+        tb_check1({label, " lookup flush suppresses response/target"},
+                  mem0_rsp_valid | dut.dcache_lookup_en_w |
+                  lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+        tick();
+        flush = 1'b0;
+        #1;
+        tb_check32({label, " lookup flush releases IDLE"},
+                   {28'b0, dut.state_q}, 32'd0);
+        tb_check1({label, " lookup flush clears macro pending"},
+                  dut.u_dcache.lookup_pend_q, 1'b0);
+        tb_check1({label, " lookup flush leaves no ghost terminal"},
+                  mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid, 1'b0);
+      end else begin
+        tb_check32({label, " fallback reaches S_SQ_QUERY"},
+                   {28'b0, dut.state_q}, 32'd12);
+        tb_check1({label, " active query owns fallback cycle"},
+                  dut.active_sq_query_valid_w, 1'b1);
+        tb_check32({label, " fallback owner token preserved"},
+                   {27'b0, mem0_sq_query_owner_token},
+                   {27'b0, expected_token});
+        tb_check64({label, " fallback final PA preserved"},
+                   mem0_sq_query_paddr, LOAD_PA);
+        tb_check1({label, " fallback cycle has no lookup/terminal"},
+                  dut.dcache_lookup_en_w | dut.sq_query_retry_fire_w |
+                  mem0_rsp_valid | mem0_drop0_valid | mem0_drop1_valid |
+                  lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+      end
+    end
+  endtask
+
+  task automatic sq_idle_stats_negative_case;
+    input [1023:0] label;
+    input req_write;
+    input req_probe;
+    input req_pretrans;
+    input req_attr_valid;
+    input [1:0] req_class;
+    input [`XLEN-1:0] req_addr;
+    input [`STRB_W-1:0] req_wstrb;
+    input bad_current_identity;
+    input current_killed;
+    input probe_flush;
+    begin
+      sq_idle_stats_reset_case();
+      mem0_req_valid = 1'b1;
+      mem0_req_write = req_write;
+      mem0_req_probe = req_probe;
+      mem0_req_pretrans = req_pretrans;
+      mem0_req_attr_valid = req_attr_valid;
+      mem0_req_class = req_class;
+      mem0_req_cacheable = req_attr_valid &&
+          (req_class == `OOO_MEM_CLASS_CACHED);
+      mem0_req_addr = req_addr;
+      mem0_req_wstrb = req_wstrb;
+      #1;
+      tb_check1({label, " request enters station"}, mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      s2_active_identity_mutate = bad_current_identity;
+      s2_expected_effective_killed = current_killed;
+      flush = probe_flush;
+      #1;
+      tb_check1({label, " does not qualify production current query"},
+                dut.station_current_head_sq_query_w, 1'b0);
+      tb_check1({label, " stats alias also remains low"},
+                dut.stats_current_head_sq_probe_w, 1'b0);
+      tb_check1({label, " does not expose SQ query"},
+                mem0_sq_query_valid, 1'b0);
+      tb_check1({label, " remains action quiet"},
+                dut.dcache_lookup_en_w | dut.sq_query_retry_fire_w |
+                mem0_rsp_valid |
+                ((!probe_flush) && (mem0_drop0_valid | mem0_drop1_valid)) |
+                lsu_axi_arvalid | lsu_axi_awvalid | lsu_axi_wvalid, 1'b0);
+    end
+  endtask
+
+  task automatic sq_idle_production_replay_has_no_lookup;
+    localparam [`XLEN-1:0] A_PA = 64'h0000_0000_8000_f400;
+    localparam [`XLEN-1:0] B_PA = 64'h0000_0000_8000_f408;
+    localparam [`XLEN-1:0] A_DATA = 64'ha4a4_0000_0000_0001;
+    localparam [`XLEN-1:0] B_DATA = 64'hb4b4_0000_0000_0002;
+    reg [4:0] a_token;
+    reg [4:0] b_token;
+    begin
+      sq_idle_stats_reset_case();
+      // Production S_LOOKUP uses the active/current expected face, unlike the
+      // S_IDLE station-current cases above.
+      sq_idle_current_expected_override = 1'b0;
+      v8u_seed_hot_line(A_PA, A_DATA);
+      v8u_seed_hot_line(B_PA, B_DATA);
+      mem0_rsp_ready = 1'b1;
+      a_token = mem0_req_owner_token;
+      b_token = a_token + 5'd1;
+
+      mem0_req_valid = 1'b1;
+      mem0_req_write = 1'b0;
+      mem0_req_probe = 1'b0;
+      mem0_req_addr = A_PA;
+      mem0_req_wstrb = 8'hff;
+      #1;
+      tb_check1("SQ-idle malformed production A enters station",
+                mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_addr = B_PA;
+      #1;
+      tb_check1("SQ-idle malformed production B refills station",
+                mem0_req_ready, 1'b1);
+      tick();
+      mem0_req_valid = 1'b0;
+      #1;
+      tb_check1("SQ-idle malformed production A active query",
+                dut.active_sq_query_valid_w, 1'b1);
+      tb_check32("SQ-idle malformed production A active token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, a_token});
+      tick();
+
+      // The backend directed case proves a malformed current-response face
+      // returns replay for this production station query.  At the bridge,
+      // that replay must suppress the B fast lookup even with response credit.
+      mem0_sq_query_force_replay = 1'b1;
+      #1;
+      tb_check1("SQ-idle malformed production owner query remains active",
+                mem0_owner_query_valid, 1'b1);
+      tb_check1("SQ-idle malformed production station query visible",
+                dut.station_sq_lookahead_query_w, 1'b1);
+      tb_check32("SQ-idle malformed production B station token",
+                 {27'b0, mem0_sq_query_owner_token}, {27'b0, b_token});
+      tb_check1("SQ-idle malformed production decision replays",
+                mem0_sq_query_replay, 1'b1);
+      tb_check1("SQ-idle malformed production has no station lookup",
+                dut.station_sq_lookahead_lookup_fire_w, 1'b0);
+      tb_check1("SQ-idle malformed production has no D-cache lookup",
+                dut.dcache_lookup_en_w, 1'b0);
+      tb_check1("SQ-idle malformed production is not stats-current",
+                dut.stats_current_head_sq_probe_w, 1'b0);
+      tb_check1("SQ-idle malformed production is not idle current",
+                dut.station_current_head_sq_query_w, 1'b0);
+      mem0_sq_query_force_replay = 1'b0;
+    end
+  endtask
+
+  task automatic run_sq_idle_fusion_qualification_focused;
+    begin
+      sq_idle_stats_positive_case(
+          "SQ-idle allow", 1'b0, 1'b0, 1'b0, {`XLEN{1'b0}});
+      sq_idle_stats_positive_case(
+          "SQ-idle forward", 1'b1, 1'b0, 1'b0,
+          64'h51d1_e000_f00d_0001);
+      sq_idle_stats_positive_case(
+          "SQ-idle replay", 1'b0, 1'b1, 1'b0, {`XLEN{1'b0}});
+      sq_idle_stats_positive_case(
+          "SQ-idle inexact", 1'b0, 1'b0, 1'b1, {`XLEN{1'b0}});
+
+      sq_idle_stats_negative_case(
+          "SQ-idle bad current identity", 1'b0, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f300, 8'hff,
+          1'b1, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle store", 1'b1, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f308, 8'hff,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle probe", 1'b0, 1'b1, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f310, 8'hff,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle noncached", 1'b0, 1'b0, 1'b1, 1'b1,
+          `OOO_MEM_CLASS_NC, 64'h0000_0000_8000_f318, 8'hff,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle invalid final-PA attr fault", 1'b0, 1'b0, 1'b1, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f320, 8'hff,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle line cross", 1'b0, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f324, 8'hff,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle illegal mask", 1'b0, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f330, 8'h05,
+          1'b0, 1'b0, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle killed current", 1'b0, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f338, 8'hff,
+          1'b0, 1'b1, 1'b0);
+      sq_idle_stats_negative_case(
+          "SQ-idle flush", 1'b0, 1'b0, 1'b0, 1'b0,
+          `OOO_MEM_CLASS_RSVD, 64'h0000_0000_8000_f340, 8'hff,
+          1'b0, 1'b0, 1'b1);
+      sq_idle_production_replay_has_no_lookup();
+      $display("[SQ-IDLE-FUSION-QUAL-BRIDGE][PASS] allow_lookup=1 lookup_owner_pending=1 lookup_flush_drop=1 registered_fallback=3 negatives=9 malformed_production_no_lookup=1");
+    end
+  endtask
+`endif
+
   wire unused_outputs =
       mem0_rsp_error | mem0_rsp_page_fault | (|lsu_axi_wstrb) |
       mem_translate_active | mem0_rsp_cacheable;
 
-`ifdef V13R_STORE_B_MULTICYCLE_HOLD_FOCUSED
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+  initial begin
+    tb_errors = 0;
+    clk = 1'b0;
+    rst = 1'b1;
+    clear_inputs();
+    tick();
+    tick();
+    rst = 1'b0;
+    #1;
+    run_sq_idle_fusion_qualification_focused();
+    tb_finish("tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification");
+  end
+`elsif V13R_STORE_B_MULTICYCLE_HOLD_FOCUSED
   initial begin
     tb_errors = 0;
     clk = 1'b0;

@@ -53,6 +53,14 @@ module tb_ooo_lsu_axi_lane_adapter;
   integer d_ar_fires;
   integer d_aw_fires;
   integer d_w_fires;
+  integer input_ft_cases;
+  integer input_ft_11;
+  integer input_ft_10;
+  integer input_ft_01;
+  integer input_ft_00;
+  integer input_ft_same_cycle;
+  integer input_ft_aw_first;
+  integer input_ft_w_first;
 
   OooLsuAxiLaneAdapter dut (
     .clk(clk),
@@ -541,15 +549,208 @@ module tb_ooo_lsu_axi_lane_adapter;
     end
   endtask
 
+  task automatic input_write_fallthrough_case(
+      input logic [63:0] addr,
+      input logic accept_aw_e0,
+      input logic accept_w_e0,
+      input integer order,
+      input logic poison_after_e0,
+      input logic [1:0] response);
+    reg [63:0] pattern;
+    reg [63:0] expected_data;
+    reg [7:0] expected_strb;
+    integer lane;
+    integer before_aw;
+    integer before_w;
+    begin
+      pattern = 64'h0000_0000_8877_6655;
+      lane = addr[2:0];
+      expected_data = pattern << (lane * 8);
+      expected_strb = 8'h0f << lane;
+      before_aw = d_aw_fires;
+      before_w = d_w_fires;
+      input_ft_cases = input_ft_cases + 1;
+      case ({accept_aw_e0, accept_w_e0})
+        2'b11: input_ft_11 = input_ft_11 + 1;
+        2'b10: input_ft_10 = input_ft_10 + 1;
+        2'b01: input_ft_01 = input_ft_01 + 1;
+        default: input_ft_00 = input_ft_00 + 1;
+      endcase
+      case (order)
+        1: input_ft_aw_first = input_ft_aw_first + 1;
+        2: input_ft_w_first = input_ft_w_first + 1;
+        default: input_ft_same_cycle = input_ft_same_cycle + 1;
+      endcase
+
+      $display("[CASE] input AW/W fall-through ready=%0d%0d order=%0d",
+               accept_aw_e0, accept_w_e0, order);
+      u_axi_split_allowed_i = 1'b0;
+      u_axi_awaddr_i = addr;
+      u_axi_awsize_i = 3'd2;
+      u_axi_wdata_i = pattern;
+      u_axi_wstrb_i = 8'h0f;
+      d_axi_awready_i = accept_aw_e0;
+      d_axi_wready_i = accept_w_e0;
+      u_axi_awvalid_i = 1'b0;
+      u_axi_wvalid_i = 1'b0;
+
+      case (order)
+        1: begin
+          u_axi_awvalid_i = 1'b1;
+          #1;
+          check1("fall-through AW-first upstream accept",
+                 u_axi_awready_o, 1'b1);
+          check1("incomplete AW has no downstream AW",
+                 d_axi_awvalid_o, 1'b0);
+          check1("incomplete AW has no downstream W",
+                 d_axi_wvalid_o, 1'b0);
+          lsa_tick();
+          u_axi_awvalid_i = 1'b0;
+          #1;
+          check1("held AW blocks read", u_axi_arready_o, 1'b0);
+          u_axi_wvalid_i = 1'b1;
+        end
+        2: begin
+          u_axi_wvalid_i = 1'b1;
+          #1;
+          check1("fall-through W-first upstream accept",
+                 u_axi_wready_o, 1'b1);
+          check1("incomplete W has no downstream AW",
+                 d_axi_awvalid_o, 1'b0);
+          check1("incomplete W has no downstream W",
+                 d_axi_wvalid_o, 1'b0);
+          lsa_tick();
+          u_axi_wvalid_i = 1'b0;
+          #1;
+          check1("held W blocks read", u_axi_arready_o, 1'b0);
+          u_axi_awvalid_i = 1'b1;
+        end
+        default: begin
+          u_axi_awvalid_i = 1'b1;
+          u_axi_wvalid_i = 1'b1;
+        end
+      endcase
+
+      #1;
+      check1("complete natural write offers direct AW",
+             d_axi_awvalid_o, 1'b1);
+      check1("complete natural write offers direct W",
+             d_axi_wvalid_o, 1'b1);
+      check64("direct AW address", d_axi_awaddr_o, addr);
+      check3("direct AW size", d_axi_awsize_o, 3'd2);
+      check64("direct W lane data", d_axi_wdata_o, expected_data);
+      check8("direct W lane strobe", d_axi_wstrb_o, expected_strb);
+      check1("complete write keeps read blocked", u_axi_arready_o, 1'b0);
+
+      lsa_tick();
+      if (poison_after_e0) begin
+        // Once both upstream halves have fired, the producer may immediately
+        // change its live payload.  The registered fallback must not observe
+        // any of these deliberately incompatible values.
+        u_axi_awaddr_i = 64'hdead_c0de_0000_0007;
+        u_axi_awsize_i = 3'd7;
+        u_axi_wdata_i = 64'hbad0_f00d_cafe_5a5a;
+        u_axi_wstrb_i = 8'ha5;
+      end
+      u_axi_awvalid_i = 1'b0;
+      u_axi_wvalid_i = 1'b0;
+      #1;
+      check1("E0 AW acceptance count",
+             d_aw_fires == before_aw + accept_aw_e0, 1'b1);
+      check1("E0 W acceptance count",
+             d_w_fires == before_w + accept_w_e0, 1'b1);
+      check1("accepted AW is not resent",
+             d_axi_awvalid_o, !accept_aw_e0);
+      check1("accepted W is not resent",
+             d_axi_wvalid_o, !accept_w_e0);
+      check64("fallback AW address", d_axi_awaddr_o, addr);
+      check3("fallback AW size", d_axi_awsize_o, 3'd2);
+      check64("fallback W lane data", d_axi_wdata_o, expected_data);
+      check8("fallback W lane strobe", d_axi_wstrb_o, expected_strb);
+
+      if (!(accept_aw_e0 && accept_w_e0)) begin
+        d_axi_awready_i = 1'b1;
+        d_axi_wready_i = 1'b1;
+        lsa_tick();
+      end
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
+      #1;
+      check1("logical write emits exactly one downstream AW",
+             d_aw_fires == before_aw + 1, 1'b1);
+      check1("logical write emits exactly one downstream W",
+             d_w_fires == before_w + 1, 1'b1);
+      if (!accept_aw_e0)
+        check1("unaccepted AW fallback fires exactly once",
+               d_aw_fires == before_aw + 1, 1'b1);
+      if (!accept_w_e0)
+        check1("unaccepted W fallback fires exactly once",
+               d_w_fires == before_w + 1, 1'b1);
+      check1("AW is quiet while awaiting B", d_axi_awvalid_o, 1'b0);
+      check1("W is quiet while awaiting B", d_axi_wvalid_o, 1'b0);
+
+      u_axi_bready_i = 1'b1;
+      d_axi_bresp_i = response;
+      d_axi_bvalid_i = 1'b1;
+      #1;
+      check1("fall-through case downstream B ready",
+             d_axi_bready_o, 1'b1);
+      check1("fall-through case upstream B visible",
+             u_axi_bvalid_o, 1'b1);
+      check2("fall-through case B response", u_axi_bresp_o, response);
+      lsa_tick();
+      d_axi_bvalid_i = 1'b0;
+      u_axi_bready_i = 1'b0;
+      #1;
+      check1("fall-through case B terminates once", u_axi_bvalid_o, 1'b0);
+      check1("fall-through case returns idle", u_axi_awready_o, 1'b1);
+    end
+  endtask
+
+  task automatic reset_blocks_input_write_fallthrough;
+    integer before_aw;
+    integer before_w;
+    begin
+      before_aw = d_aw_fires;
+      before_w = d_w_fires;
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
+      u_axi_awaddr_i = 64'h0000_0000_0000_8400;
+      u_axi_awsize_i = 3'd2;
+      u_axi_wdata_i = 64'h0000_0000_4433_2211;
+      u_axi_wstrb_i = 8'h0f;
+      u_axi_awvalid_i = 1'b1;
+      u_axi_wvalid_i = 1'b1;
+      rst = 1'b1;
+      #1;
+      check1("reset masks direct input AW", d_axi_awvalid_o, 1'b0);
+      check1("reset masks direct input W", d_axi_wvalid_o, 1'b0);
+      lsa_tick();
+      u_axi_awvalid_i = 1'b0;
+      u_axi_wvalid_i = 1'b0;
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
+      rst = 1'b0;
+      lsa_tick();
+      check1("reset input test emits no downstream AW",
+             d_aw_fires == before_aw, 1'b1);
+      check1("reset input test emits no downstream W",
+             d_w_fires == before_w, 1'b1);
+      check1("reset input test returns idle", u_axi_awready_o, 1'b1);
+    end
+  endtask
+
   task automatic final_b_response_case(input logic [1:0] response,
                                        input logic stall_upstream);
     begin
-      d_axi_awready_i = 1'b1;
-      d_axi_wready_i = 1'b1;
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
       u_axi_bready_i = 1'b0;
       launch_write(64'h0000_0000_0000_8100 + response,
                    3'd0, 64'h5a, 8'h01, 1'b0, 0);
       wait_d_aw_w();
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
       lsa_tick();
       d_axi_awready_i = 1'b0;
       d_axi_wready_i = 1'b0;
@@ -587,11 +788,13 @@ module tb_ooo_lsu_axi_lane_adapter;
 
   task automatic reset_blocks_final_b_fallthrough;
     begin
-      d_axi_awready_i = 1'b1;
-      d_axi_wready_i = 1'b1;
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
       launch_write(64'h0000_0000_0000_8200,
                    3'd0, 64'ha5, 8'h01, 1'b0, 0);
       wait_d_aw_w();
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
       lsa_tick();
       d_axi_awready_i = 1'b0;
       d_axi_wready_i = 1'b0;
@@ -649,6 +852,48 @@ module tb_ooo_lsu_axi_lane_adapter;
     end
   endtask
 
+  task automatic oversized_write_fail_closed;
+    integer before_aw;
+    integer before_w;
+    begin
+      $display("[CASE] write AWSIZE>3 fail-closed");
+      before_aw = d_aw_fires;
+      before_w = d_w_fires;
+      d_axi_awready_i = 1'b1;
+      d_axi_wready_i = 1'b1;
+      u_axi_bready_i = 1'b0;
+
+      // WSTRB=0 matches the adapter's invalid-size low-mask result, so the
+      // sole rejection reason is the unsupported AWSIZE itself.  Even PMEM's
+      // split permission must not turn an over-wide request into side effects.
+      launch_write(64'h0000_0000_0001_3000, 3'd4,
+                   64'h0123_4567_89ab_cdef, 8'h00, 1'b1, 0);
+      check1("oversized write presents no downstream AW",
+             d_axi_awvalid_o, 1'b0);
+      check1("oversized write presents no downstream W",
+             d_axi_wvalid_o, 1'b0);
+      check1("oversized write emits no downstream AW",
+             d_aw_fires == before_aw, 1'b1);
+      check1("oversized write emits no downstream W",
+             d_w_fires == before_w, 1'b1);
+      check1("oversized write returns upstream B",
+             u_axi_bvalid_o, 1'b1);
+      check2("oversized write returns DECERR",
+             u_axi_bresp_o, 2'b11);
+
+      u_axi_bready_i = 1'b1;
+      lsa_tick();
+      u_axi_bready_i = 1'b0;
+      d_axi_awready_i = 1'b0;
+      d_axi_wready_i = 1'b0;
+      #1;
+      check1("oversized write DECERR terminates once",
+             u_axi_bvalid_o, 1'b0);
+      check1("oversized write returns adapter idle",
+             u_axi_awready_o, 1'b1);
+    end
+  endtask
+
   task automatic reset_inputs;
     begin
       u_axi_split_allowed_i = 1'b0;
@@ -682,6 +927,14 @@ module tb_ooo_lsu_axi_lane_adapter;
     d_ar_fires = 0;
     d_aw_fires = 0;
     d_w_fires = 0;
+    input_ft_cases = 0;
+    input_ft_11 = 0;
+    input_ft_10 = 0;
+    input_ft_01 = 0;
+    input_ft_00 = 0;
+    input_ft_same_cycle = 0;
+    input_ft_aw_first = 0;
+    input_ft_w_first = 0;
     reset_inputs();
     rst = 1'b1;
     repeat (3) lsa_tick();
@@ -709,6 +962,31 @@ module tb_ooo_lsu_axi_lane_adapter;
     aligned_read(64'h7000, 3'd3, 1'b0);
     aligned_write(64'h8000, 3'd3, order, 1'b0);
 
+    // A complete, legal single-beat write is offered downstream in the same
+    // cycle that the second upstream half arrives.  Exercise every independent
+    // downstream AW/W acceptance outcome plus same-cycle/AW-first/W-first
+    // upstream assembly, and prove that accepted channels are never resent.
+    input_write_fallthrough_case(64'h8300, 1'b1, 1'b1, 0, 1'b0, 2'b00);
+    input_write_fallthrough_case(64'h8304, 1'b1, 1'b0, 1, 1'b1, 2'b10);
+    input_write_fallthrough_case(64'h8308, 1'b0, 1'b1, 2, 1'b0, 2'b11);
+    input_write_fallthrough_case(64'h830c, 1'b0, 1'b0, 0, 1'b1, 2'b00);
+    check1("input fall-through case count", input_ft_cases == 4, 1'b1);
+    check1("input fall-through matrix 11", input_ft_11 == 1, 1'b1);
+    check1("input fall-through matrix 10", input_ft_10 == 1, 1'b1);
+    check1("input fall-through matrix 01", input_ft_01 == 1, 1'b1);
+    check1("input fall-through matrix 00", input_ft_00 == 1, 1'b1);
+    check1("input fall-through same-cycle order",
+           input_ft_same_cycle == 2, 1'b1);
+    check1("input fall-through AW-first order",
+           input_ft_aw_first == 1, 1'b1);
+    check1("input fall-through W-first order",
+           input_ft_w_first == 1, 1'b1);
+    $display("[WITNESS] input-aw-w-fallthrough cases=%0d matrix=11:%0d,10:%0d,01:%0d,00:%0d order=same:%0d,aw-first:%0d,w-first:%0d",
+             input_ft_cases, input_ft_11, input_ft_10, input_ft_01,
+             input_ft_00, input_ft_same_cycle, input_ft_aw_first,
+             input_ft_w_first);
+    reset_blocks_input_write_fallthrough();
+
     // A real final B is visible in S_W_RESP.  A ready owner consumes it in the
     // same cycle; a stalled owner gets the exact registered fallback.
     final_b_response_case(2'b00, 1'b0);
@@ -730,6 +1008,7 @@ module tb_ooo_lsu_axi_lane_adapter;
     rejected_write(64'h1_0006, 3'd2, 8'h0f, 1'b0);
     rejected_write(64'h1_1000, 3'd2, 8'h05, 1'b1);
     rejected_write(64'h1_2000, 3'd2, 8'h00, 1'b1);
+    oversized_write_fail_closed();
 
     if (errors == 0) begin
       $display("[PASS] tb_ooo_lsu_axi_lane_adapter");

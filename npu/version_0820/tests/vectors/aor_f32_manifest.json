@@ -1,0 +1,416 @@
+{
+  "schema": "aor-f32-exp-log-manifest-v1",
+  "status": "DRAFT_BLOCKED_ON_NAN_CODEGEN_EVIDENCE",
+  "profile": "AOR_AARCH64_FMA_RNE_V1",
+  "source": {
+    "project": "ARM-software/optimized-routines",
+    "commit": "67126040cf80f956676fbf473c2d9bebdb475283",
+    "license_choice": "MIT",
+    "files": [
+      "math/expf.c",
+      "math/exp2f_data.c",
+      "math/logf.c",
+      "math/logf_data.c"
+    ]
+  },
+  "build_profile": {
+    "target": "aarch64",
+    "language": "C99",
+    "flags": [
+      "-O3",
+      "-frounding-math",
+      "-fexcess-precision=standard",
+      "-ffp-contract=fast",
+      "-fno-math-errno"
+    ],
+    "macros": {
+      "WANT_ROUNDING": 1,
+      "WANT_ERRNO": 0,
+      "WANT_ERRNO_UFLOW": 0,
+      "HAVE_FAST_ROUND": 1,
+      "HAVE_FAST_LROUND": 1,
+      "HAVE_FAST_FMA": 1,
+      "TOINT_INTRINSICS": 1,
+      "EXP2F_TABLE_BITS": 5,
+      "EXP2F_POLY_ORDER": 3,
+      "LOGF_TABLE_BITS": 4,
+      "LOGF_POLY_ORDER": 4
+    }
+  },
+  "fp_profile": {
+    "arithmetic_rounding": "RNE",
+    "integer_rounding": "RMM_TIES_AWAY",
+    "tininess_detection": "AFTER_ROUNDING",
+    "flush_to_zero": 0,
+    "default_nan": 0,
+    "trapping": 0
+  },
+  "flags_profile": {
+    "revision": "AOR_STEP_STICKY_V1",
+    "accumulate_f64_add_mul_fma": 1,
+    "suppress_f64_to_i32_conversion_inexact": 1,
+    "require_exact_f32_to_f64": 1,
+    "require_exact_i32_to_f64": 1,
+    "accumulate_final_f64_to_f32": 1
+  },
+  "nan_target_evidence": {
+    "compiler_version": null,
+    "isa_revision": null,
+    "fpcr_raw": null,
+    "disassembly_sha256": null,
+    "probe_sha256": null
+  },
+  "raw_syntax": {
+    "f32_regex": "^0x[0-9a-f]{8}$",
+    "f64_regex": "^0x[0-9a-f]{16}$"
+  },
+  "exp32": {
+    "dag_revision": "AOR_SCALAR_EXPF_FMA_RNE_V1",
+    "table_bits": 5,
+    "table_length": 32,
+    "table_index": "u64(k)&31",
+    "scale_expression": "u64(tab[idx]+u64(u64(k)<<47))",
+    "table_exponent_shift": 47,
+    "table_raw64": [
+      "0x3ff0000000000000",
+      "0x3fefd9b0d3158574",
+      "0x3fefb5586cf9890f",
+      "0x3fef9301d0125b51",
+      "0x3fef72b83c7d517b",
+      "0x3fef54873168b9aa",
+      "0x3fef387a6e756238",
+      "0x3fef1e9df51fdee1",
+      "0x3fef06fe0a31b715",
+      "0x3feef1a7373aa9cb",
+      "0x3feedea64c123422",
+      "0x3feece086061892d",
+      "0x3feebfdad5362a27",
+      "0x3feeb42b569d4f82",
+      "0x3feeab07dd485429",
+      "0x3feea47eb03a5585",
+      "0x3feea09e667f3bcd",
+      "0x3fee9f75e8ec5f74",
+      "0x3feea11473eb0187",
+      "0x3feea589994cce13",
+      "0x3feeace5422aa0db",
+      "0x3feeb737b0cdc5e5",
+      "0x3feec49182a3f090",
+      "0x3feed503b23e255d",
+      "0x3feee89f995ad3ad",
+      "0x3feeff76f2fb5e47",
+      "0x3fef199bdd85529c",
+      "0x3fef3720dcef9069",
+      "0x3fef5818dcfba487",
+      "0x3fef7c97337b9b5f",
+      "0x3fefa4afa2a490da",
+      "0x3fefd0765b6e4540"
+    ],
+    "used_raw64": {
+      "invln2_scaled": "0x40471547652b82fe",
+      "C0": "0x3ebc6af84b912394",
+      "C1": "0x3f2ebfce50fac4f3",
+      "C2": "0x3f962e42ff0c52d6",
+      "one": "0x3ff0000000000000"
+    },
+    "unused_raw64": {
+      "shift_scaled": "0x42e8000000000000",
+      "unscaled_C0": "0x3fac6af84b912394",
+      "unscaled_C1": "0x3fcebfce50fac4f3",
+      "unscaled_C2": "0x3fe62e42ff0c52d6",
+      "shift": "0x4338000000000000"
+    },
+    "threshold_raw32": {
+      "special_gate_88": "0x42b00000",
+      "overflow_strict_gt": "0x42b17217",
+      "underflow_to_zero_strict_lt": "0xc2cff1b4",
+      "inactive_errno": "0xc2ce8ecf"
+    },
+    "bit_constants": {
+      "positive_infinity": "0x7f800000",
+      "negative_infinity": "0xff800000",
+      "top12_shift": 20,
+      "abstop_mask": "0x000007ff",
+      "infinity_top12": "0x000007f8"
+    },
+    "helper_raw32": {
+      "underflow_factor": "0x10000000",
+      "overflow_factor": "0x70000000"
+    },
+    "dag": [
+      "xd=f32_to_f64_exact(x)",
+      "z=mul64(invln2_scaled,xd)",
+      "kd=round_integral64_rmm_preserve_negative_zero(z)",
+      "k=f64_to_i32_rmm(z)",
+      "r=sub64(z,kd)",
+      "idx=u64(k)&31",
+      "t=u64(table_raw64[idx]+u64(u64(k)<<47))",
+      "s=bitcast_u64_to_f64(t)",
+      "p01=fma64(C0,r,C1)",
+      "r2=mul64(r,r)",
+      "p2=fma64(C2,r,one)",
+      "p=fma64(p01,r2,p2)",
+      "y=mul64(p,s)",
+      "out=f64_to_f32_rne_tininess_after(y)"
+    ]
+  },
+  "log32": {
+    "dag_revision": "AOR_SCALAR_LOGF_FMA_RNE_V1",
+    "table_bits": 4,
+    "table_length": 16,
+    "off_raw32": "0x3f330000",
+    "table_raw64": [
+      ["0x3ff661ec79f8f3be", "0xbfd57bf7808caade"],
+      ["0x3ff571ed4aaf883d", "0xbfd2bef0a7c06ddb"],
+      ["0x3ff49539f0f010b0", "0xbfd01eae7f513a67"],
+      ["0x3ff3c995b0b80385", "0xbfcb31d8a68224e9"],
+      ["0x3ff30d190c8864a5", "0xbfc6574f0ac07758"],
+      ["0x3ff25e227b0b8ea0", "0xbfc1aa2bc79c8100"],
+      ["0x3ff1bb4a4a1a343f", "0xbfba4e76ce8c0e5e"],
+      ["0x3ff12358f08ae5ba", "0xbfb1973c5a611ccc"],
+      ["0x3ff0953f419900a7", "0xbfa252f438e10c1e"],
+      ["0x3ff0000000000000", "0x0000000000000000"],
+      ["0x3fee608cfd9a47ac", "0x3faaa5aa5df25984"],
+      ["0x3feca4b31f026aa0", "0x3fbc5e53aa362eb4"],
+      ["0x3feb2036576afce6", "0x3fc526e57720db08"],
+      ["0x3fe9c2d163a1aa2d", "0x3fcbc2860d224770"],
+      ["0x3fe886e6037841ed", "0x3fd1058bc8a07ee1"],
+      ["0x3fe767dcf5534862", "0x3fd4043057b6ee09"]
+    ],
+    "used_raw64": {
+      "ln2": "0x3fe62e42fefa39ef",
+      "A0": "0xbfd00ea348b88334",
+      "A1": "0x3fd5575b0be00b6a",
+      "A2": "0xbfdffffef20a4123",
+      "one": "0x3ff0000000000000",
+      "negative_one": "0xbff0000000000000"
+    },
+    "unused_raw64": {
+      "invln10": "0x3fdbcb7b1526e50e"
+    },
+    "bit_constants": {
+      "positive_zero": "0x00000000",
+      "negative_zero": "0x80000000",
+      "positive_one": "0x3f800000",
+      "positive_infinity": "0x7f800000",
+      "minimum_normal": "0x00800000",
+      "normal_span": "0x7f000000",
+      "sign": "0x80000000",
+      "twice_nan_cutoff": "0xff000000",
+      "exponent_clear": "0xff800000",
+      "index_shift": 19,
+      "exponent_shift": 23,
+      "subnormal_scale": "0x4b000000",
+      "subnormal_exponent_adjust": "0x0b800000"
+    },
+    "dag": [
+      "if_rounding_and_x_is_positive_one_return_positive_zero",
+      "classify_with_u32_wrap_and_fail_closed_nan_raw",
+      "positive_subnormal_exact_normalize_then_u32_subtract_23_shift_23",
+      "tmp=u32(ix-off_raw32)",
+      "i=(tmp>>19)&15",
+      "k=asr32(tmp,23)",
+      "iz=u32(ix-(tmp&exponent_clear))",
+      "z=f32_to_f64_exact(bitcast_u32_to_f32(iz))",
+      "r=fma64(z,invc[i],negative_one)",
+      "k64=i32_to_f64_exact(k)",
+      "y0=fma64(k64,ln2,logc[i])",
+      "r2=mul64(r,r)",
+      "q0=fma64(A1,r,A2)",
+      "q1=fma64(A0,r2,q0)",
+      "tail=add64(y0,r)",
+      "y=fma64(q1,r2,tail)",
+      "out=f64_to_f32_rne_tininess_after(y)"
+    ]
+  },
+  "special_results": {
+    "exp32": {
+      "negative_infinity": {"result_raw32": "0x00000000", "flags": []},
+      "positive_infinity": {"result_raw32": "0x7f800000", "flags": []},
+      "finite_overflow": {"result_raw32": "0x7f800000", "flags": ["OF", "NX"]},
+      "finite_underflow_to_zero": {"result_raw32": "0x00000000", "flags": ["UF", "NX"]}
+    },
+    "log32": {
+      "positive_one": {"result_raw32": "0x00000000", "flags": []},
+      "positive_zero": {"result_raw32": "0xff800000", "flags": ["DZ"]},
+      "negative_zero": {"result_raw32": "0xff800000", "flags": ["DZ"]},
+      "positive_infinity": {"result_raw32": "0x7f800000", "flags": []}
+    }
+  },
+  "nan_policy": {
+    "concrete_result_raw32": "REJECT_UNTIL_TARGET_EVIDENCE_IS_COMPLETE",
+    "quiet_nan_api_flags": [],
+    "signaling_nan_api_flags": ["NV"],
+    "negative_log_api_flags": ["NV"]
+  },
+  "mutation_audit": {
+    "schema": "aor-f32-mutation-audit-v1",
+    "search_order": "first difference in the frozen stable domain order",
+    "difference_fields": [
+      "intermediate_raw64",
+      "intermediate_flags",
+      "final_raw32",
+      "api_flags"
+    ],
+    "exp_domain": {
+      "anchors_raw32": [
+        "0x00800000",
+        "0x3a800000",
+        "0x3e800000",
+        "0x3f000000",
+        "0x3f800000",
+        "0x40000000",
+        "0x41000000",
+        "0x42b00000",
+        "0x42b17217"
+      ],
+      "include_sign_bit_twin": 1,
+      "inclusive_radius_raw": 2048,
+      "ordering": "raw32 ascending after union and deduplication",
+      "filter": "finite and normal-DAG path only",
+      "raw_candidate_union_count": 73746
+    },
+    "log_domain": {
+      "table_base_expression": "u32(0x3f330000+(index<<19)), index=0..15",
+      "table_base_inclusive_radius_raw": 2048,
+      "positive_subnormal_seeds_raw32": [
+        "0x00000001",
+        "0x00000002",
+        "0x00000003",
+        "0x003fffff",
+        "0x00400000",
+        "0x007fffff"
+      ],
+      "subnormal_inclusive_radius_raw": 64,
+      "ordering": "domain_id order shown by table index then seed index, raw32 ascending within each domain",
+      "filter": "positive finite nonzero",
+      "overlap_policy": "retain candidates in each distinct domain_id"
+    },
+    "outcomes": [
+      {
+        "mutation": "M09",
+        "definition": "p01: FMA(C0,r,C1) -> ADD(MUL(C0,r),C1)",
+        "status": "WITNESS",
+        "candidates_examined": 8230,
+        "witness": {
+          "input_raw32": "0x3e7ff823",
+          "comparison_stage": "p01",
+          "strict_intermediate_raw64": "0x3f2ea5abe5da46fb",
+          "mutant_intermediate_raw64": "0x3f2ea5abe5da46fc",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0x3fa459af",
+          "mutant_final_raw32": "0x3fa459af",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      },
+      {
+        "mutation": "M10",
+        "definition": "p2: FMA(C2,r,ONE) -> ADD(MUL(C2,r),ONE)",
+        "status": "WITNESS",
+        "candidates_examined": 6313,
+        "witness": {
+          "input_raw32": "0x3a8000a7",
+          "comparison_stage": "p2",
+          "strict_intermediate_raw64": "0x3ff0040005380343",
+          "mutant_intermediate_raw64": "0x3ff0040005380344",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0x3f802004",
+          "mutant_final_raw32": "0x3f802004",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      },
+      {
+        "mutation": "M11",
+        "definition": "p: FMA(p01,r2,p2) -> ADD(MUL(p01,r2),p2)",
+        "status": "GAP_NO_WITNESS_IN_BOUNDED_DOMAIN",
+        "candidates_examined": 71698
+      },
+      {
+        "mutation": "M12",
+        "definition": "polynomial: strict parallel tree -> Horner FMA(FMA(FMA(C0,r,C1),r,C2),r,ONE)",
+        "status": "WITNESS",
+        "candidates_examined": 4100,
+        "witness": {
+          "input_raw32": "0x3a7ff802",
+          "comparison_stage": "p",
+          "strict_intermediate_raw64": "0x3ff00400600af2f1",
+          "mutant_intermediate_raw64": "0x3ff00400600af2f2",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0x3f802003",
+          "mutant_final_raw32": "0x3f802003",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      },
+      {
+        "mutation": "M23",
+        "definition": "r: FMA(z,invc,NEG_ONE) -> ADD(MUL(z,invc),NEG_ONE)",
+        "status": "WITNESS",
+        "candidates_examined": 1,
+        "witness": {
+          "domain_id": "table-base-00",
+          "input_raw32": "0x3f32f800",
+          "comparison_stage": "r",
+          "strict_intermediate_raw64": "0x3f97391028644091",
+          "mutant_intermediate_raw64": "0x3f97391028644080",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0xbeb7475a",
+          "mutant_final_raw32": "0xbeb7475a",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      },
+      {
+        "mutation": "M24",
+        "definition": "y0: FMA(k64,LN2,logc) -> ADD(MUL(k64,LN2),logc)",
+        "status": "WITNESS",
+        "candidates_examined": 65557,
+        "witness": {
+          "domain_id": "subnormal-seed-00",
+          "input_raw32": "0x00000005",
+          "comparison_stage": "y0",
+          "strict_intermediate_raw64": "0xc0596b3fadcccd65",
+          "mutant_intermediate_raw64": "0xc0596b3fadcccd64",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0xc2cb56c8",
+          "mutant_final_raw32": "0xc2cb56c8",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      },
+      {
+        "mutation": "M26",
+        "definition": "tail/final: FMA(q1,r2,ADD(y0,r)) -> ADD(FMA(q1,r2,y0),r)",
+        "status": "WITNESS",
+        "candidates_examined": 19,
+        "witness": {
+          "domain_id": "table-base-00",
+          "input_raw32": "0x3f32f812",
+          "comparison_stage": "y",
+          "strict_intermediate_raw64": "0xbfd6e8e4c5f86c19",
+          "mutant_intermediate_raw64": "0xbfd6e8e4c5f86c1a",
+          "strict_intermediate_flags": ["NX"],
+          "mutant_intermediate_flags": ["NX"],
+          "strict_final_raw32": "0xbeb74726",
+          "mutant_final_raw32": "0xbeb74726",
+          "strict_api_flags": ["NX"],
+          "mutant_api_flags": ["NX"],
+          "difference_fields": ["intermediate_raw64"]
+        }
+      }
+    ],
+    "witness_count": 6,
+    "gap_count": 1
+  }
+}

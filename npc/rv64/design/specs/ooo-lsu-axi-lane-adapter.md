@@ -1,6 +1,7 @@
 # 规范：OooLsuAxiLaneAdapter（逻辑 byte window → 标准 AXI lane/split）
 
-> 模块：`vsrc/memory/OooLsuAxiLaneAdapter.v`。状态：**T4I 已实施并验证**。
+> 模块：`vsrc/memory/OooLsuAxiLaneAdapter.v`。状态：**T4I lane/split 已实施；
+> `adapter-input-aw-w-fall-through-v1` 已完成 focused/causal、exact full-core A/B 与独立审计**。
 > 本规范关闭 `OooMemAxiBridge` 历史 exact-address/low-window 扩展与当前 NpcTop
 > 64-bit AXI slave ABI 之间的语义缺口。
 
@@ -91,13 +92,21 @@ R_IDLE --u_AR.fire(valid size)--> R_AR --d_AR.fire--> R_DATA --d_R.fire--+
 ### 3.2 Write FSM
 
 ```text
-W_COLLECT --AW/W 均已收--> W_SEND --AW&&W 均完成--> W_B --B.fire--+
-     ^                         | AW/W 独立 hold                        |
-     +<----------- u_B.fire -- W_RESP <-------------------------------+
-                         split&&!last -> W_SEND(next byte)
+                            natural+legal complete
+                         +-- E0 direct AW/W offer --+
+                         |     11 -> W_B             |
+W_COLLECT --AW/W 均已收--+     10/01/00 -> W_SEND --+-- AW&&W 均完成 --> W_B
+     ^                   |                             | AW/W 独立 hold     |
+     |                   +-- split/slow -> W_SEND ----+                    |
+     +<------------------------- u_B.fire -- W_RESP <--------- B.fire -----+
+                                                     split&&!last -> W_SEND(next byte)
 ```
 
 - `W_COLLECT`：独立锁存 AW 与 W；收下任一半通道即建立 write owner；
+- `E0 direct`：仅当完整命令 size/mask 合法且自然对齐时，同拍向下游呈现 AW/W。两个
+  downstream READY 独立采样：`11` 直接进入 `W_B`；`10/01` 只标记已接收的通道；`00`
+  不标记任何通道。无论哪种结果，完整 logical command 与标准 lane payload 都在该边沿写入
+  原有 payload q；
 - `W_SEND`：分别跟踪 `aw_done/w_done`，两者完成前 payload 不变；
 - `W_B`：收对应 B，首个非-OKAY 粘滞保留；若仍有 byte，继续下一个 beat；
 - `W_RESP`：只向上游呈现一次聚合 B。
@@ -107,6 +116,11 @@ W_COLLECT --AW/W 均已收--> W_SEND --AW&&W 均完成--> W_B --B.fire--+
 非自然对齐且获得 split 授权时，每个 byte 使用 `AWSIZE=0`、
 `AWADDR=base+index`、one-hot lane。size 超出总线宽度、空/稀疏/超宽 `wstrb`
 或禁止 split 的 misaligned 请求均 fail closed，不发下游通道。
+
+E0 direct 是 **VALID-only 前向路径**。`u_awready/u_wready` 仍只由 `W_COLLECT` 与本地
+AW/W holder 决定，不读取 downstream READY。若 E0 只接收一个通道，`W_SEND` 必须只重发
+另一个通道；已接收通道不得再次拉高 VALID。misaligned（包括允许 split）、invalid size 与
+非精确 low-contiguous mask 一律不进入 direct path。
 
 ## 4. 不变量
 
@@ -118,20 +132,34 @@ W_COLLECT --AW/W 均已收--> W_SEND --AW&&W 均完成--> W_B --B.fire--+
 - **LSA-I5 owner 不被 flush 撤销**：adapter 无 flush 输入；reset 外已接收事务必到聚合 response。
 - **LSA-I6 write→read 物理顺序**：存在 AW half/W half/微写/待消费 B 时，不接收新 read。
 - **LSA-I7 无组合环**：所有上游 ready 来自本地 FF/FSM，下游 ready 不反传到同拍上游 ready。
+- **LSA-I8 direct 精确一次**：IDLE 中的下游 AW/W 只能来自完整、合法、自然对齐的同一逻辑
+  write；E0 已握手的通道不得在 `W_SEND` 重发，未握手通道保持逐位稳定直至 fire。
 
-LSA-I1/I3/I4/I6 必须落 `OOO_ASSERT` 立即断言，并用 mutation-negative 证明非真空。
+LSA-I1/I3/I4/I6/I8 必须落 `OOO_ASSERT` 立即断言，并用 mutation-negative 证明非真空。
 
 ## 5. 关键路径与时序考量
 
-上游 admission 与下游 ready 之间用寄存状态切断；地址加一、lane shift 与 byte select 只驱动
-已注册的下游 payload，不进入 backend/translation/cache hit 控制锥。自然对齐 miss/store 多一拍
-adapter capture；D-cache hit 不经过 adapter。misaligned 最多 8 笔，属于正确性慢路。
+上游 admission 与下游 ready 之间仍由本地 ready 公式切断，不形成 READY 组合环。自然对齐
+single-beat write 不再固定支付 adapter capture 拍；新增的 VALID/payload 前向锥为：
+
+```text
+bridge/arbiter registered AW/W
+  -> adapter complete + size/mask/alignment validation
+  -> lane shift + AW/W output mux
+  -> crossbar input capture
+```
+
+地址加一与 split byte select 仍只走已注册慢路。该变换可能增加宽 payload mux、lane shift 与
+VALID decode 的组合深度/翻转；focused 仿真和 lint 不能代替 fresh mapped STA，当前不得据此
+宣称 5 ns timing、面积或 PPA 合格。D-cache hit 不经过 adapter；misaligned 最多 8 笔，仍是
+正确性慢路。
 
 ## 6. 验证计划
 
 - 模块 TB：aligned B/H/W/D read/write 的 lane+size；15 组合法自然 lane；
   SH@7/SW@6/SD@1 逐 byte split；AW-first/W-first/同拍、AR/AW/W stall、R/B backpressure、
-  粘滞 error、稀疏/zero WSTRB 拒绝、write 阻止 read；
+  粘滞 error、稀疏/zero WSTRB 拒绝、write 阻止 read；E0 downstream `11/10/01/00` 四矩阵，
+  每个 logical write 恰好一次 AW 与一次 W，reset 屏蔽 direct offer；
 - bridge TB：cacheable line read 保持 aligned 8B+fill；uncacheable read 改 exact addr/原 size+no fill；
   Sv39 leaf 同合同；misaligned PMEM store 不走早期 B decouple；
 - bus/device TB：AxiCrossbar 的 AWSIZE owner/hold；UART/CLINT/PLIC 标准 lane；
@@ -142,13 +170,36 @@ adapter capture；D-cache hit 不经过 adapter。misaligned 最多 8 笔，属�
 PASS；UART/CLINT/PLIC 4/4 PASS；real DPI lane+guard suite PASS；完整 module **100/100** PASS。
 系统软件、fresh STA 与冻结网表证据由对应 task-run 收口，不在本段预支。
 
+`adapter-input-aw-w-fall-through-v1` 的新增 focused witness 覆盖 E0 `11/10/01/00 =
+1/1/1/1`，upstream assembly `same/AW-first/W-first = 2/1/1`，并以 fire counter 证明每个通道
+exactly once；E0 `10/00` admission 后 poison 上游 live payload，fallback 仍逐位来自原始 q，
+另有独立 write `AWSIZE>3` 静默 DECERR witness。相同 owner-timing causal probe 的禁用变体为
+`store_terminal=2/4/7`、
+`peer_admission=4/6/9`；启用后分别为 `1/3/6`、`3/5/8`。B-delay unit slope、
+`peer_b_block=1/3/6`、zero early peer admission 均不变，故该 oracle 只观测到入口减少一拍，
+没有把最终 B 或 peer ordering 提前。
+
+2026-09-01 的 exact-predecessor full-core A/B 使用同一当前源码树、config、冻结镜像、ROI 与
+runtime 参数，唯一 RTL source 差异是 adapter。CoreMark ROI 为
+`5,262,868 -> 5,141,086` cycles（`-121,782`，`-2.313985%`），retired 均为
+`3,183,617`；Dhrystone ROI 为 `9,751,462 -> 9,151,522` cycles（`-599,940`，
+`-6.152308%`），retired 均为 `4,250,000`。两边均为 GOOD TRAP/code 0、DiffTest on，
+且 performance counter `complete/available/conservation=1`、`overflow/invalid_events=0`。
+Dhrystone 的冻结 ROI 在两边同为 `start_lane=1,end_lane=0,phase_aligned=0`，unknown bucket
+仍全零。每个 design/workload 仅一轮，故结论严格限于 retained local exploratory A/B；
+没有 fresh mapped synthesis/STA/area/power，不构成 PPA 或 5 ns timing 结论。
+
 ## 7. 风险与回退
 
 - misaligned MMIO/PTE 不获得 split 授权，adapter 本地返回 DECERR 且不发下游，
   因而不会为了对齐而扩大设备 read/write side effect。aligned MMIO 始终只发一笔。
 - plain store 的设备动态 B error 由 T4N late-B owner 精确接收；adapter 只负责聚合 split B，
   backend/SQ 保持 ROB owner 到该聚合 terminal，见 `ooo-store-bresp-precise-terminal.md`。
-- 若性能回退超预算，允许给 aligned single 增加经证明无组合环的 bypass；不得回退 lane/split 语义。
+- input fall-through 只移动合法自然对齐 single write 的 transport admission，不允许提前 store
+  retirement、B terminal、SQ launch 或 side-effect authorization；flush 后 escaped write 仍由 bridge
+  drain/drop 到唯一真实 B。
+- 若 full-core A/B 或 fresh mapped timing 回退超预算，回退范围仅限 input fall-through；不得回退
+  T4I lane/split 语义或 T4N precise B terminal。
 
 ## 8. 变更记录
 
@@ -157,3 +208,7 @@ PASS；UART/CLINT/PLIC 4/4 PASS；real DPI lane+guard suite PASS；完整 module
 - 2026-07-14（T4I implementation）：RTL、顶层连接、AWSIZE owner 及 device/DPI lane
   已落地；所有 store 改为等聚合 B；按 `STRB_W` 派生 lane 并拒绝超 bus size。
 - 2026-07-14（T4N）：聚合 B 成为 plain-store ROB terminal，SLVERR/DECERR 精确归属。
+- 2026-09-01（adapter input AW/W fall-through）：合法自然对齐 single write 增加 VALID-only E0
+  前向路径；冻结 `11/10/01/00` 独立接受、no-resend、reset、错误/split 慢路与 causal `-1 cycle`
+  oracle。exact-predecessor full-core A/B 在 CoreMark/Dhrystone 两个冻结 ROI 分别观测到
+  `-2.313985%/-6.152308%` cycles；仅保留为本地探索性证据，fresh mapped STA/PPA 仍未资格化。

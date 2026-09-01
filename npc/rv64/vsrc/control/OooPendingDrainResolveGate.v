@@ -9,6 +9,10 @@ module OooPendingDrainResolveGate #(
   input [ISSUE_COUNT_W-1:0] issue_count_i,
   input synth_lane1_ret_pending_i,
   input synth_lane1_branch_drop_pending_i,
+  // Q-only frontend Tensor/residual owner.  It stays high on the transfer
+  // edge; ROB count becomes non-zero on the next edge, closing the ownership
+  // handoff without a ready/valid combinational bypass.
+  input tensor_pre_rob_owner_live_i,
   input direct_frontend_flush_i,
   input stop_pending_i,
   input backend_drained_q_i,
@@ -72,6 +76,7 @@ module OooPendingDrainResolveGate #(
                              (issue_count_i == {ISSUE_COUNT_W{1'b0}}) &&
                              !synth_lane1_ret_pending_i &&
                              !synth_lane1_branch_drop_pending_i &&
+                             !tensor_pre_rob_owner_live_i &&
                              mem_retire_quiet_i;
 
   assign jump_dispatch_valid_o = pending_jump_resolve_ready_i &&

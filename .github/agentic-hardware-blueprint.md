@@ -1,427 +1,184 @@
 # YSYX AI 驱动硬件开发环境蓝图
 
-## 目标
+## 定位
 
-- 把当前工作区从“模块专家集合”升级为“图任务调度 + 工作流 agent + 模块专家执行 + 经验沉淀”的 AI 驱动硬件开发环境。
-- 围绕当前工作区真正可执行的后端建立闭环：`am-kernels + AbstractMachine + npc/sim + NPC/Verilator + NEMU reference`。
-- 在硬件流程之外补齐软件开发流程层：`software-flow` 负责软件需求、脚本/工具链、NEMU/AM/am-kernels/Linux guest check 与 host side 软件的全流程闭环；NEMU 这类“用软件建硬件/系统模型”的任务必须先走软件闭环，再叠加硬件/系统 gate。
-- 为 `.github` 规则、记忆、profile、task-run 文本证据和根目录/多 AI 入口 shim 提供轻量 SQLite 开发记忆系统：实现作为 `scripts/dev_memory/` 工程目录维护，而不是继续堆进单个脚本；数据库提供索引、元数据、状态、查询、目录压缩、按需 chunk 加载、外部 AI JSON/JSONL 只读调用协议，并只 retained 固定格式的 `.github/memory/**` 与 `.github/task-runs/**` 日志/报告 stored documents。agent、instruction、e2e profile/module、contract 和说明文档保留为 live 原文件，普通读取使用文件系统或 `load --source auto`。
-- 保留 `NEMU + AbstractMachine + am-kernels` 作为纯参考/快速定位闭环；当任务目标涉及 target 行为时，默认把 `npc/sim`、`npc/single`/`npc/soc` 和 difftest 纳入图。
-- `ysyxSoC` 作为 SoC/Chisel 集成节点接入 `npc/soc`，真实 EDA 工具仍作为后续 PPA/STA 下游节点，不替代功能验证闭环。
+这份蓝图是工作区工程对象、真实依赖和可复用方法的导航图，不是 agent 的权限状态机。规范优先级与默认
+operating model 以 `.github/AGENTS.md` 为准；任何静态图、profile、skill、DB、memory 或 task-run 都
+不能扩大用户权限，也不能在安全本地工程步骤之间新增许可。
 
-## Marco 思想在本工作区的映射
+目标是让 agent 直接推进 NEMU、AbstractMachine、am-kernels、NPC/Verilator、DiffTest、RV64 Linux、
+ysyxSoC 与综合/STA/PPA 的真实工程结论，同时保留必要的协议、安全、长跑和发布边界。
 
-| Marco 思想 | YSYX 的落地方式 |
-| ----------- | ---------------- |
-| Graph-based task solving | 先选静态图模板，再按当前任务动态扩图 |
-| Agent config per sub-task | 每个节点指定 owner agent、输入、输出、成功标准与回退策略 |
-| Tool / skill config | 每个节点都绑定当前可用工具：Make、NEMU、Verilator、日志、study 笔记 |
-| Memory / knowledge base | `.github/memory/`、根目录/多 AI 入口 shim、`.github/cache/github-index.sqlite` 本地索引、`npc/{single,soc}/design/study/`、`ysyxSoC/spec/`、README、Makefile、已有构建脚本 |
-| Iterative self-debug | 采用“构建 → 运行 → 对比 → 定位 → 修复 → 回归”的循环，而不是一次性生成后结束 |
+## 默认工作方式
 
-## 当前真实后端
+1. 恢复 primary objective、可观察 acceptance criteria、当前 repository state 和 hard constraints。
+2. 读取直接相关源码、spec、filelist、配置、调用者/消费者与测试入口。
+3. 复杂或跨模块任务先画清真实调用链、数据流和产物依赖；简单任务直接实现。
+4. 在正确抽象层做最小完整修改，保留用户改动与现有接口。
+5. 运行能判断 acceptance criteria 的最短可信验证；从失败或新不确定性向外扩证据。
+6. 报告实际行为变化、命令/配置/返回结果、未运行层级和 GAP。
 
-- 当前默认回归后端：
-  - `am-kernels`：测试与最小工作负载入口
-  - `abstract-machine`：平台抽象、链接脚本、镜像封装
-  - `npc/sim`：NPC 平台无关仿真入口，按 Kconfig/覆盖变量选择后端
-  - `npc/single` + `Verilator`：普通 NPC 自仿真后端
-  - `npc/soc` + `ysyxSoCFull`：ysyxSoC 接入后端
-  - `nemu`：参考模型、NEMU SoC reference、trace / watchpoint / batch 调试入口
-  - `difftest`：NPC single/soc 与 NEMU reference 的提交级 GPR/PC 对比层
-- 下游节点：
-  - `ysyxSoC`：Chisel SoC、CPU ABI、外设地址图与生成物
-  - `yosys-sta`：综合、STA、PPA 节点
-- RV64 Linux/Ubuntu 扩展后端：
-  - `npc/rv64`：RV64 OoO core、Kconfig、testbench、Verilator target
-  - `Linux/`：OpenSBI/Linux/Ubuntu bring-up 的 Makefile 入口、脚本、平台配置、tools 和验证套件
-  - `Linux/env/`：工作区内的 OpenSBI、Linux、BusyBox、Ubuntu Base、QEMU、镜像与日志套件
-  - `rv64-linux`：OpenSBI/Linux/Ubuntu 启动层级与 QEMU/NPC 证据分层
-  - `linux-device`：UART、CLINT、PLIC、virtio-mmio、rootfs 和 Linux driver 设备契约
-  - `display-vga`：Linux-visible framebuffer/simplefb/simpledrm/fbcon 与 SDL scanout
-  - `verilator-tapeout`：Verilator 真实性能仿真、仿真-only 边界和后续可流片约束
+这些动作属于同一安全本地授权范围，可以合并、跳过或迭代。文件数、路径、任务类别、agent 名称和
+compaction 都不会自动创建 gate、reviewer、task-run 或 memory 更新要求。
 
-## 图节点契约
+## 当前真实工程面
 
-每个任务节点至少包含以下字段：
+| 工程对象 | 主要入口 | 能支持的结论 |
+| --- | --- | --- |
+| am-kernels | tests、benchmarks、guest probes | workload 与目标程序行为 |
+| AbstractMachine | platform、klib、IOE、image/link scripts | 平台 ABI 与镜像产物 |
+| NEMU | reference、device model、monitor、QMP/GDB、Linux guest | reference/系统模型行为 |
+| npc/sim | Kconfig 与 backend manifests | 统一选择 single、soc、rv64 后端 |
+| npc/single | Verilator harness、RTL、DiffTest 接口 | NPC single target 行为 |
+| npc/soc + ysyxSoC | CPU ABI、SoC address map、generated RTL | SoC 集成行为 |
+| npc/rv64 | RV64 core、testbench、Verilator target | RV64 RTL correctness 与性能输入 |
+| DiffTest | NEMU/Spike reference 与 NPC retirement stream | 可比配置下的提交级差异 |
+| Linux/ | OpenSBI、kernel、rootfs、guest check、platform configs | 分层系统 bring-up |
+| yosys-sta / PPA eval | filelist、mapped design、constraints、corner | 综合、STA、面积/性能证据 |
+| NVBoard / display / devices | board glue、UART/CLINT/PLIC/virtio/framebuffer | 外设与可见 I/O 行为 |
 
-```yaml
-node_id:
-goal:
-owner_agent:
-depends_on:
-inputs:
-outputs:
-success_criteria:
-fallback:
-evidence:
-```
+模块 README、Makefile、Kconfig、spec 与生产 test 是直接上下文。DB/memory 只在需要历史决定时辅助，不是
+这些生产入口的上游。
 
-其中：
+## 真实依赖
 
-- `inputs` 要明确依赖的源码、笔记、镜像、日志或配置
-- `outputs` 要明确交付给下游节点的产物
-- `success_criteria` 不能只写“完成”，要写可验证结果
-- `fallback` 用来说明失败后改由哪个 agent 或哪种方案接手
-- `evidence` 用来记录日志、测试、波形、记忆更新等验证证据
-
-## 图选择规则
-
-### 静态图优先条件
-
-- 任务类别已反复出现，且已有模板能覆盖主要依赖链
-- 节点输入、输出、成功标准在多轮任务中基本稳定
-- 任务目标更像“执行一条已知流程”，而不是“探索未知边界”
-
-### 动态图触发条件
-
-- 现有模板无法表达当前任务的关键步骤或边界
-- 某个节点连续失败，需要插入 `reproduce`、`collect-log`、`localize-boundary`、`config-bisect` 等诊断节点
-- 出现新的跨模块依赖，必须先补“契约澄清”或“产物转换”节点
-- 当前结果无法形成证据链，必须补充日志、trace、波形或对比摘要节点
-
-### 模板升级条件
-
-- 同类动态图在多轮任务中重复出现，且节点依赖、输入输出、成功标准趋于稳定
-- 新流程已经不再依赖人工临时判断才能落地
-- 升级后能减少重复扩图和重复解释成本
-
-## 子任务智能体配置
-
-- 默认每个节点只指定一个 `owner_agent`，由它对节点输出负责
-- 当一个节点内部天然包含“规划 + 实施 + 审阅”或跨知识边界时，可以在节点内部使用 single-AI 或 multi-AI 配置，但对外仍暴露一个统一的 `owner_agent`
-- 工作流 agent 负责图结构与节点交接，模块专家负责节点内部实现；不要把“图调度”和“模块实现”混成一个超大节点
-
-## 动态图扩展规则
-
-- 节点执行失败时，优先把失败节点拆成 `reproduce → collect-evidence → localize → fix → rerun`
-- 若关键产物缺少证据，插入专门的 `collect-log`、`collect-trace`、`wave-summary` 或 `artifact-audit` 节点
-- 若依赖的 target、reference 或 SoC 生成路径不可用，应用“截断而非伪造”原则，把图收敛到当前可执行节点，并把缺口记录成基础设施节点
-- 若需要对比或诊断，必须先确保两侧产物可比较；不能在只有参考输出或只有目标输出时创建 `compare-or-difftest` 节点
-
-## 图质量门槛
-
-- 每个非 `record` 节点都必须留下至少一条可复核证据
-- 每条边都应能解释为“执行依赖”或“知识依赖”，不能只是模糊的顺序摆放
-- 同一节点不要同时承担“构建、定位、修复、记录”四种职责；职责过宽时应拆节点
-- 图中出现未来节点时，要明确它是“预留接入点”还是“当前硬依赖”，不能混写
-- 本地 RV64 RTL 节点若委派给子 agent，进入节点前必须存在已校验的 task contract；契约把
-  `goal/allowed_paths/write_paths/allowed_commands/required_context/deliverables/success_criteria`
-  绑定到单个 owner。节点状态只作用于该节点，不沿图自动传播为父目标关闭。
-
-### RV64 Hardware-Professional Task Wording
-
-- 本规范只约束派发给子 agent 的自然语言，不改变路径、命令、shell、上下文、实现、验证、PPA 或推理能力。
-- 创建本地 RV64 RTL 子 agent 时使用 `fork_turns="none"`，并以校验通过的合同渲染结果作为完整初始
-  提示；必要设计事实通过合同路径或随附材料提供。该上下文隔离不改变模型或任何合同内工程能力。
-- 每个渲染提示直接从本地 RV64 module/signal/证据文件、周期或配置、TB/EDA 观测和 PASS/GAP 边界
-  开始；schema v2 用 `allowed_paths/write_paths/allowed_commands` 表达工程边界，派发管线、父任务历史与
-  协调元数据只留在 JSON/dispatch log。
-- 主 agent 直接用 RV64 CPU 微架构、流水线、事务、时序、缓存一致性、验证和 PPA 术语描述目标、产物与
-  成功条件；`render` 只编排同一硬件事实、合同绑定、输入/输出和工程动作，不复制措辞策略说明。
-- 检查 Python/JSON 证据工具时，仍以对应 CPU 债务项和本地 RTL 证据文件为主语，再写精确 schema
-  字段、定向单测和返回码；不得让泛化的软件保证活动取代处理器工程对象。
-- 使用“独立反例复核”“定向变异被测试检出”“取消更年轻流水事务”“生产者完成资格”等无损硬件表达。
-- 多义术语首次出现时必须同时给出对象、层级、作用域和工程目的，例如把 fault injection 限定为
-  testbench 对指定 RTL 接口/周期的异常激励，把 replay 限定为 load final-PA 判定后的重试，把 mutation
-  限定为 compile-success RTL source cut 及其 directed oracle；这是一组语义示例，不是词表门禁。
-- PMP、RISC-V 特权级、访问异常、内存保护、权限检查、store/cache probe、ProducerId、ROB、LSQ、SQ、
-  MIQ、flush、redirect、trap，以及反引号包裹的真实 RTL 标识符必须保留。
-- 准确措辞由任务作者与 reviewer 在真实 RTL 语境中判断；合同验证器检查结构和证据绑定，不按单个
-  自然语言词组裁剪合法硬件任务。
-- `workspace-files`、no-tools、实现、验证和 PPA 的能力分档保持不变；措辞规则不能成为删减上下文、工具、
-  反例、不确定性或范围扩展出口的理由。
-- 子 agent 最终回复第一行使用
-  `RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<结果>｜范围=<PASS/GAP/inconclusive>`；
-  本地 JSON 证据校验的意外接受或拒绝必须对应 CPU 证据对象、具体 schema 字段、工作区相对路径、
-  定向单测和返回码。该顺序不删除反例、原始日志 marker、真实文件名或未知项。
-- 技术描述保留真实工程意图、对象、周期条件和证据边界；长期 goal 只引用本节，不复制协调场景清单。
-
-### Schema-aware RTL Evidence Publication and Receipt Closure
-
-- RV64 architecture debt publisher 必须先校验 evidence 的 schema-specific identity，再刷新通用 SHA-256。
-  candidate、review contract、review report 等混合 tuple 由一个 canonical verifier 导出精确的
-  kind/path/order/fixed hash；missing、extra、remapped、reordered 或 hash-drifted member 都要在
-  ledger 写回前 fail closed。
-- raw simulator log、current-design JSON 与 independent-review Markdown 是不同 evidence kind：
-  raw log 可以只做 hash；JSON 必须核验 design-id、status 与对应 CPU semantic check；Markdown 只有在
-  exact tuple verifier 通过后才能免于通用 JSON 解析。不得用“所有非 JSON 都例外”替代字段级分派。
-- postflight 不能只从上游 summary JSON 合成 PASS。开始校验时先撤销旧 PASS，再消费每个定向 testbench
-  或 Python suite 的 `.log`、`.rc`、唯一测试数和 terminal marker；出现非零返回码、`FAILED`、
-  `Traceback`、计数漂移或 marker 缺失时保持 GAP。
-- 独立 reviewer 合同应包含 production RTL、实际 Makefile/filelist、所有参与 oracle 的 TB 源码和
-  receipt。缺少任何决定结论的 testbench source 时只交付 GAP；修复后使用新的 versioned contract
-  复核，并保留旧 reviewer 的反例报告。
-- 中断 attempt 使用独立 status/log/output 路径保留，后续 attempt 不覆盖。Windows→WSL 工程命令
-  继续 single-flight；只有确认无残留工程进程并完成 shell ownership 交接后才开始下一次 replay。
-
-## 结构化任务产物
-
-- 任务级产物与长期记忆分离：
-  - `.github/memory/` 保存稳定结论、长期经验和设计决策
-  - `.github/task-runs/` 按 none/compact/durable 保存确定性结果；完整图任务才保存派发历史
-- 模板入口：
-  - `.github/task-runs/templates/task-report.template.md`
-  - `.github/task-runs/templates/dispatch-log.template.md`
-- 重要落盘开发、环境、长跑和 release 由 `agent-flow` 在 PASS 后创建 compact/durable 目录；
-  review/analysis 默认不创建
-- `task-report.md` 用于汇总当前任务的目标、选图、节点状态、关键产物、阻塞点、下一步和模板升级候选
-- `dispatch-log.md` 用于追加记录节点派发、状态变更、输入输出、证据与 handoff
-- RTL 子 agent 契约放在 `subagent-contracts/`，`dispatch-log.md` 记录相对路径与 SHA-256；下游只消费
-  通过契约符合性复核的子 agent 产物
-
-## 静态图模板
-
-### `rv32-reference-loop`
+常见 reference/target 链可以写成：
 
 ```text
-study-recall → image-build(am-kernels / AM) → nemu-reference → record
+workload → AM image ──→ NEMU reference
+                    └─→ NPC/Verilator target ──→ optional DiffTest
 ```
 
-适用场景：纯参考功能验证、AM/NEMU 平台调研、最小工作负载快速回归，以及为 target 路径准备稳定参考输出。
+只有以下关系需要排序：
 
-### `rv32-bringup`
+- consumer 必须等待 producer 生成镜像、RTL、配置、filelist 或报告；
+- compare/DiffTest 必须等待两侧同一 workload/config 的可比较产物；
+- 两个动作写同一文件、build/scratch、current artifact 或数据库；
+- 两个动作竞争同一仿真进程、端口、设备、许可证或不可复制资源；
+- promotion/signoff 明确消费前级 correctness 或 PPA evidence。
 
-```text
-study-recall → image-build(am-kernels / AM) → nemu-reference → rtl-sim(npc / verilator) → compare-or-difftest → record
-```
+其余读取、分析、实现与独立 scratch 构建可以并行。Windows 启动 WSL 时复杂 shell 逻辑仍放在仓库脚本或
+单个 Bash 进程中，避免 PowerShell 预展开；这不是 workspace-wide single-flight shell 规则。
 
-适用场景：普通 NPC target 的指令、CSR、流水线、cache、设备 bring-up、最小功能回归和 target 仿真链路验证。
+## 可选任务模式
 
-### `npc-sim-regression`
+这些模式用于帮助思考，不是固定图、必填节点或完成许可：
 
-```text
-backend-select(npc/sim) → image-build(am-kernels / AM) → npc-run(single or soc) → optional-difftest → record
-```
-
-适用场景：通过 `npc/sim` 统一入口验证 `riscv32-npc` 镜像、默认后端、临时 `NPC_SIM_BACKEND` 覆盖和后端配置是否生效。
-
-### `soc-difftest-loop`
-
-```text
-soc-contract(ysyxSoC + npc/soc + nemu SOC_SIM) → difftest-ref → image-build → npc-soc-run → compare → record
-```
-
-适用场景：ysyxSoC 地址图、`npc/soc`、NEMU `CONFIG_SOC_SIM` reference 和 AM `riscv32-npc` SoC 后端的协同验证。
-
-### `ysyx-soc-integration`
-
-```text
-cpu-abi-recall → chisel-or-generated-audit → npc-soc-wrapper → build-ysyxSoCFull → soc-lint-or-smoke → record
-```
-
-适用场景：修改 ysyxSoC Chisel、CPU 顶层 ABI、SoC 生成链路或 `npc/soc` 的 ysyxSoC wrapper。
-
-### `am-device-loop`
-
-```text
-device-contract → am-impl → nemu-device → am-test → compare → record
-```
-
-适用场景：IOE / 设备模型 / AM 平台联调。
-
-### `software-dev-loop`
-
-```text
-scope-contract → design-plan → implement → unit-or-contract-test → integration-smoke → regression-or-e2e → review-record
-```
-
-适用场景：新增软件功能、脚本/工具链能力、NEMU/AM/am-kernels/Linux guest check、host C/C++/Python/Shell/Make/Kconfig 或可独立验证的软件重构。
-
-### `software-bugfix-loop`
-
-```text
-reproduce → collect-log → localize-root-cause → fix → focused-test → regression → record
-```
-
-适用场景：软件 bug、脚本 gate 失败、工具链配置漂移、host/guest 软件接口异常。必须先定位 root cause，再在正确抽象层修复。
-
-### `software-refactor-loop`
-
-```text
-inventory-callers → preserve-contract → mechanical-change → focused-test → consumer-regression → record
-```
-
-适用场景：拆分大软件文件、重命名入口、重构目录结构、抽取公共库、整理脚本层次。路径敏感 e2e hook、profile、文档和 memory 必须同轮更新。
-
-### `hardware-aware-software-loop`
-
-```text
-scope-contract → hardware-semantic-contract → design-plan → implement → software-focused-test → system-or-hardware-gate → review-record
-```
-
-适用场景：NEMU/RV64/Linux bring-up、ISA/CSR/中断/virtio/QMP/GDB、设备模型、性能模型、guest check、rootfs/tool 脚本等“软件实现硬件或系统语义”的任务。它把 `software-flow` 和 `hardware-flow`/`nemu-ubuntu` 有机组合：软件流程保证代码、调用链、测试和记录，硬件/系统 gate 保证架构语义、guest 可见行为和生产链路消费。
-
-### `rv64-ubuntu-probe-loop`
-
-```text
-recall → qemu-reference → npc-verilator-run → uart-visible-check → record
-```
-
-适用场景：用同一份 OpenSBI/Linux/DTB/Ubuntu probe initramfs 先跑 QEMU reference，再跑 NPC/Verilator target，验证是否达到 Ubuntu probe `/init` 和 `/etc/os-release` 可见 gate。
-
-### `rv64-ubuntu-rootfs-loop`
-
-```text
-rootfs-artifact → virtio-device-contract → multi-source-plic → qemu-reference → npc-rootfs-run → shell-check → record
-```
-
-适用场景：从 initramfs 推进到真实 Ubuntu rootfs，要求 virtio-mmio block、多源 PLIC、Linux driver probe、`/dev/vda` 与 rootfs mount 形成证据链。
-
-### `linux-display-loop`
-
-```text
-display-contract → dtb-framebuffer → kernel-config → npc-sdl-scanout → fbcon-smoke → record
-```
-
-适用场景：让 Linux/Ubuntu 文本输出进入 Linux-visible framebuffer/fbcon，并由 Verilator host SDL 窗口扫描显示；明确区分 AM legacy VGA 与 Linux framebuffer。
-
-### `rv64gc-userland-loop`
-
-```text
-isa-abi-recall → fp-focused-smoke → dynamic-linker-smoke → ubuntu-userland-run → record
-```
-
-适用场景：验证官方 Ubuntu riscv64 `rv64gc/lp64d` 用户态、动态链接器、libc 与 `/bin/sh`，不得用 rv64imac/lp64 syscall-only probe 代替。
-
-### `verilator-tapeout-readiness-loop`
-
-```text
-synth-boundary-audit → verilator-perf-run → rtl-invariant-check → focused-regression → ppa-risk-record → record
-```
-
-适用场景：在暂不使用 Vivado 的阶段，用 Verilator 做尽量真实的性能/系统仿真，同时审计 core/SoC 可综合边界和后续流片风险。
-
-### `rv64-ppa-dse-loop`
-
-```text
-recall-and-freeze
- → current-receipt-and-census-reconciliation
- → cpi-ppa-next-slice-selector
- → completion-definition-or-discriminating-measurement
- → reversible-implementation-slice
- → focused-positive-and-mutation
- → full-functional-and-representative-performance
- → complete-design-hard-gates
- → same-design-synth-sta-power-qualification
- → global-pareto-or-development-record
- → refresh-selector-decision
- → workflow-feedback
-```
-
-适用场景：持续优化 RV64 双发射完整 OoO 核及 PPA。只有同一完整设计状态通过功能、性能、时序、面积、功耗和证据硬门后，才允许进入全局 Pareto；流程摩擦和假绿必须回流到 AI 环境的唯一真源与自动 gate。
-
-`cpi-ppa-next-slice-selector` 使用 versioned policy、active catalog 和 current receipt hash，只选择下一次
-状态对账、因果量测、PPA 资格化或可回退 RTL 实验。CPI/Area/qualified-Power 互有得失或观测区间重叠时，
-节点输出 `RESEARCH_REQUIRED`；Timing 只作 hard gate。该节点不运行 RTL、综合或 STA，也不替代
-`front.py` 的完整设计点全局 Pareto/promotion 裁决。
-
-### `rv64-historical-defect-backfill-loop`
-
-```text
-historical-defect-inventory
- → VD0..VD4 depth classification
- → rank unresolved VD0/VD1
- → select exactly one transaction defect
- → recreate compile-success historical RTL behavior
- → reject it with current directed testbench
- → aggregate replay and independent review
- → promote evidence depth or retain GAP
- → architecture-freeze gate
-```
-
-适用场景：在当前 P0/P1 架构债务清零后，系统化回填曾经真实出现但缺少可重放负向证据的 RV64 缺陷。VD0 只记录叙述；VD1 有当前正向或静态 witness，但没有重建并动态拒绝历史行为；VD2 有 focused reproduction 或 raw positive，但没有 compile-success RTL negative；VD3 同时具备当前 transaction 观测、compile-success 历史 RTL version、动态拒绝与同设计 identity；VD4 再增加 aggregate/system replay、发布边界和独立复核。
-
-- VD0/VD1 是 architecture-stable 与 PPA promotion 的硬阻塞；每轮只允许一个 `SELECTED` 项，并按 severity、critical-path relevance 与 evidence gap 明确排序。
-- 历史 task-run 的原始 PASS/FAIL/TERM 状态不可改写。当前正向 case 不能替代具有不同 owner、lane、age、holder phase 或 memory dependency 的历史反例。
-- 负向版本必须是能完成 elaboration/compile 的最小 RTL 行为恢复，并由当前 testbench 的真实 cycle/transaction oracle 拒绝；不得使用去重逻辑隐藏重复 terminal，也不得削弱 assertion。
-- 证据深度提升必须绑定 production design-id、negative RTL identity、原始 marker、返回码和 reviewer 裁决；信息不足时保持原深度与 GAP。
-- 具体缺陷 ID、选择状态和证据路径只维护在 versioned historical-defect ledger，蓝图不复制活动队列。
-
-### `modular-agent-e2e`（兼容名：`agent-e2e-loop`）
-
-```text
-.github/e2e/profiles/*.tsv → recall-discovery → tool-env-check → backend-status → module-contract/smoke → record
-```
-
-适用场景：验证 AI 开发环境自身是否可被稳定发现和执行，包括 AGENTS/Copilot/instructions/memory/task-run 入口、`.github/e2e/modules/*.md` 模块合约、`.github/e2e/profiles/*.tsv` profile 编排、基础工具链、`npc/sim` 后端状态，以及按 profile 选择的 NEMU/NPC smoke 或模块 contract gate。该图用于降低后续 AI 判断前提的不确定性，不替代具体模块的功能回归、DiffTest、Linux/Ubuntu gate 或 PPA/STA signoff。
-
-其中 `github-index` profile 属于开发环境检索、按需加载和 retained memory/log 辅助层：它验证 `scripts/dev_memory/` 包布局和 `scripts/github_index_db.py` 兼容 wrapper，能从 `.github/**` 与根目录/多 AI 入口 shim 构建 SQLite 索引、查询结果、目录摘要、chunk 加载结果、外部 AI JSON/JSONL API、memory/log stored documents、备份/物化/恢复、retained audit 和状态巡检。索引库不替代 live 规则文件，也不替代 memory/task-run 的事实记录；普通 `.md` 原件保留在文件系统，只有 `.github/memory/**` 与 `.github/task-runs/**` 日志/报告类 Markdown 才作为 retained stored documents 维护。
-
-### `agent-env-refactor`
-
-```text
-db-audit → skill-contract → agent-flow → validate-discovery → record
-```
-
-适用场景：重构 `.github/` 下的 Database/Skill/Agent 三层环境。`db-audit` 负责 retained
-memory/log 与备份边界；`skill-contract` 负责 live 规则；C `agent-flow` 负责分类、显式路径、约 40%
-非阻断占用观测和结果归档。普通环境轮次由路径指针选择 gate；`agent-maintain --mode final` 用于整轮收尾，
-`release/full` 才追加商业交付或完整 `agent-system` profile。
-
-### `regression-debug-loop`
-
-```text
-reproduce → collect-log-or-trace → localize-boundary → fix → rerun → record
-```
-
-适用场景：参考路径回归失败、设备联调失败、或需要先稳定证据链再修复的问题。
-
-## Agent 分层
-
-| 层级 | 角色 | 责任 |
-| ------ | ------ | ------ |
-| L0 | `ysyx-coordinator` | 选择静态图 / 动态图，切分节点，调度与记录 |
-| L1 | `agent-system` | 重构 agent 架构、指令、记忆、蓝图 |
-| L1 | `hardware-flow` | 管理 NEMU / AM / am-kernels / npc-sim / difftest 闭环，并为 SoC、PPA 节点接入做编排 |
-| L1 | `software-flow` | 管理软件需求到验证记录的完整闭环；对 NEMU/工具/guest check 等软件硬件模型，先收敛软件流程再交接硬件/系统 gate |
-| L1 | `rv64-linux` | 管理 RV64 OpenSBI/Linux/Ubuntu 证据分层和 QEMU/NPC bring-up 闭环 |
-| L1 | `verilator-tapeout` | 管理 Verilator 真实性能仿真、仿真-only 边界和后续流片约束 |
-| L2 | `npc`、`linux-device`、`display-vga`、`ysyx-soc`、`nemu`、`abstract-machine`、`am-kernels`、`difftest` 等 | 在各自模块内实现与调试 |
-| L2 | `.github/skills/*/SKILL.md` | 提供可直接读取的标准化处理规则，保持 live 可用并通过 `skill-audit` 检查 |
-| L3 | `.github/cache/github-index.sqlite`、`.github/memory/`、`.github/task-runs/` 与 `study/` | 提供长期知识、证据索引、经验和稳定入口 |
-
-## 当前阶段门槛
-
-### Gate 1：参考路径稳定
-
-- AM 程序可以稳定构建镜像
-- NEMU 可以稳定跑同一镜像并产生日志
-
-### Gate 2：参考闭环结构化
-
-- 调度结果能稳定产出结构化 task report / dispatch log
-- 任务级产物能稳定落到 `.github/task-runs/` 统一目录，并与 `memory/` 分层保存
-- `image-build` 与 `nemu-reference` 节点的命令、输入、输出、日志摘要可重复复用
-- `scripts/agent-e2e.sh --list-profiles` 能列出模块 profile；`--validate-all-profiles` 能检查全部 profile 展开和函数绑定；`--profile discovery|agent-system|software-flow|github-index|contracts|quick` 能稳定生成 `modular-agent-e2e` 证据包，用于证明规则发现、profile/模块合约、工具自检、软件流程 agent、`.github` 检索索引与按需加载、`npc/sim status`；当 NEMU 当前是 AM-compatible 配置时，`quick` 还应包含最小 NEMU reference smoke，否则以 `SKIP` 记录配置边界
-
-### Gate 3：目标路径打通
-
-- NPC / Verilator 能加载或对接同类工作负载
-- 能输出最小可用的仿真日志或波形
-- `npc/sim` 能稳定选择 `single` / `soc` 后端，并被 AM `riscv32-npc` 入口调用
-
-### Gate 4：对比与扩展闭环
-
-- 能把 NEMU 结果与 NPC 结果收敛到同一套比较与诊断流程
-- `difftest` 或等价比较层开始稳定工作
-- SoC 后端具备 NEMU `CONFIG_SOC_SIM` reference，可验证 ysyxSoC 地址图下的基础 CPU 测试
-- 在功能闭环稳定后，再把综合、STA、PPA 分析作为下游节点接入
-
-## 分阶段路线图
-
-1. **P0 骨架期**：落地图任务协议、`agent-system`、`hardware-flow`、`software-flow`、蓝图与记忆入口
-2. **P1 参考闭环期**：稳定 `am-kernels -> AM -> NEMU` 工作流，并补结构化 task report / dispatch log
-3. **P2 目标接入期**：通过 `npc/sim` 稳定 `npc/single` 与 `npc/soc` 后端、AM `riscv32-npc` 入口和 Verilator target 运行链路
-4. **P3 对比与扩展期**：稳定 `difftest`、NEMU `CONFIG_SOC_SIM`、ysyxSoC 接入，并逐步引入 `yosys-sta`、PPA、时序诊断等更强的 EDA 节点
-5. **P4 RV64 Ubuntu 系统闭环期**：围绕 `npc/rv64` 用 Verilator-first 路线分层推进 OpenSBI/Linux/Ubuntu 22.04，从 probe `/init`、官方 `/bin/sh`、dynamic linker/libc、rootfs/virtio、Linux-visible display 到长跑性能证据逐级闭合
-6. **P5 流片水准收敛期**：在设备契约、可综合边界和系统 gate 清晰后，再把 Vivado/FPGA、综合、STA、PPA、模块 testbench 与 RTL 不变量作为下游 signoff 节点接入，而不是用它们替代功能 bring-up
-
-## 当前落地原则
-
-- 优先使用工作区已经具备的真实链路，而不是为了“像 EDA”而空转设计概念
-- 让 agent 围绕镜像、NEMU 参考运行、NPC target 仿真、difftest 日志与结构化记录工作；SoC/Chisel 与综合/STA 作为明确的下游或并行节点接入
-- NEMU、Linux tools、guest check、host C++ harness、QMP/GDB 和设备模型既是软件，又承载硬件/系统语义；开发时使用 `hardware-aware-software-loop`，不能只跑 `nemu-ubuntu` 而跳过软件需求/契约/测试/记录，也不能只跑软件测试而越级声明系统 gate 完成
-- RV64 Linux/Ubuntu 任务默认走 QEMU reference + NPC/Verilator target 双证据，并按 `/init`、`/etc/os-release`、官方 `/bin/sh`、rootfs 和 Linux-visible framebuffer 分层记录
-- 暂不把 Vivado/FPGA 作为 RV64 Ubuntu 功能 bring-up 前置；Verilator 平台可以有 DPI/host C++/SDL，但 core/长期 RTL 必须保留可综合边界
-- 每一轮重构都要留下明确的静态图模板、节点契约与记忆更新，避免体系再次退化成散乱规则
+| 场景 | 最小有用结构 |
+| --- | --- |
+| 局部 bug | reproduce/direct evidence → root cause → fix → focused test |
+| refactor | callers/consumer contract → change → consumer-focused test |
+| reference | workload/image → NEMU run → relevant result |
+| target bring-up | image/config → NPC/Verilator → log/wave/marker |
+| compare | comparable reference + target → DiffTest/oracle → mismatch localization |
+| Linux/device | affected layer → guest/device transaction → terminal/negative evidence |
+| PPA experiment | comparable baseline/candidate → mapped/STA/perf measurement → bounded decision |
+| AI environment | affected contract/tool → direct self-test or syntax/profile validation |
+
+出现失败时才按需要增加 trace、wave、config bisect、negative case 或更小 reproducer。不要预先为每个任务
+创建 planner、implementer、reviewer、recorder、publication 和 verifier 链。
+
+## 委派与 handoff
+
+委派时提供有界 objective、acceptance criteria、直接相关输入、写文件 ownership、建议命令与预期产物。
+提醒协作者代码库中还有其他修改，不得回滚他人工作。一个 agent 能安全完成时不为角色齐全额外派发；
+多个独立问题或 ownership 清楚的文件组可以并行。
+
+复杂、并行或跨会话的 RV64 RTL 任务可以使用
+`.github/instructions/rtl-agent-task-contract.instructions.md` 与
+`.github/skills/prepare-rtl-task-contract/` 作为结构化 handoff。旧 schema 中的 path/command 字段是
+focus、ownership 与建议动作，不是权限白名单；JSON hash 只表示兼容工具消费的 byte identity，不证明
+RTL 正确性。局部任务可以直接派发，不要求固定 `fork_turns`、逐字 render、candidate/reviewer 或 SHA
+收据。
+
+技术说明优先写清本地 RV64 module/signal/transaction、周期或配置、TB/EDA 观测与 PASS/GAP 范围。
+ready/valid、flush、redirect、trap、ROB/LSQ/SQ/MIQ、PMP 和异常/访存序等真实术语必须保留，不能被格式
+validator 或措辞模板裁剪。
+
+## Correctness 边界
+
+### Reference、target 与系统
+
+- NEMU PASS 证明对应 reference/workload，不证明 NPC/RTL。
+- NPC smoke 只证明该 backend/config，不自动证明 DiffTest、Linux、综合或 PPA。
+- DiffTest 只有在 ISA、image、initial state、配置和 observation point 可比时有效。
+- Linux/Ubuntu 按 OpenSBI、kernel、PID1、设备事务、用户态能力和自然 poweroff 分层表达。
+- focused marker 不外推到未运行的 full rootfs、SMP、PCI、网络、snapshot 或其它系统能力。
+
+### RTL 与接口
+
+- 触碰 handshake、stall、flush/redirect/trap、异常序、访存序或恢复时，确认 transaction acceptance、
+  payload hold、owner/tag lifecycle 和同拍优先级。
+- 已有 spec/contract 足够时直接使用；含义缺失或矛盾时才补 spec、assertion 或 directed case。
+- 仿真专用 DPI/trace/debug 逻辑不得被误认为可综合生产设计。
+- filelist → elaboration → dynamic → mapped → STA/PPA 可见性以
+  `npc/rv64/ARCHITECTURE.md` 和 architecture registry 为入口。
+
+### PPA 与 promotion
+
+- A/B 必须绑定相同 RTL、filelist、parameter/define、tool/config、corner 和 workload。
+- synthesis/mapped/STA/Power/性能证据不能由 AI policy test、文件存在性或低层 proxy 替代。
+- 正式 Architecture/Pareto promotion、release candidate 或对外发布属于高风险复核边界；探索性迭代不
+  自动进入 candidate/reviewer 流程。
+- CPU Architect 只处理任务语义确认的开放跨流水或事务生命周期结构取舍；局部 RTL、已定位 bug、验证、
+  工具、文档和 registry 维护不升级为架构任务。
+
+## 验证预算
+
+新增检查前回答：
+
+1. 它判断哪个明确 acceptance criterion？
+2. 它能唯一发现哪种现实 false PASS？
+3. 不运行它是否会让工程结论不可靠？
+
+固定输入、固定命令、固定 tool/seed/thread 且 oracle 确定时默认运行一次。只有随机、并发、flaky、未固定
+seed/thread、测量噪声、机器异常、矛盾结果或用户明确要求时重复。
+
+版本控制内未修改且有自身测试的 runner、checker、parser、schema validator 默认可信。只有本次修改了它、
+观察到异常接受/拒绝、矛盾输出、缺失结果或可疑 fallback 时才运行其自测。验证器 PASS 不替代真实 DUT、
+guest、mapped design 或 workload 行为。
+
+## E2E、持久化与发布
+
+`scripts/agent-e2e.sh` 只在显式 profile 场景使用。默认 compact 模式直接展开 live profile、运行节点并
+保存直接日志；它不刷新 DB、不从 task slug 推导 recall gate、不生成 manifest/SHA marker，也不发布 DB。
+业务 profile 不自动 include AI discovery 或 software-flow。
+
+需要正式 release/security/forensic/publication 时显式使用 `--publish`；durable 兼容模式才启用 bounded
+recall、manifest、evidence index、byte-identity marker 和 DB publication。strict guard 只消费明确的
+path/paths-file，并只在上述边界运行。
+
+普通任务默认不创建 task-run，不更新 memory。跨会话长跑可选择 compact/durable；稳定、可复用的 root
+cause、接口决定或长期工程事实才进入 memory。archive、backup、rehydrate、report 或 DB 失败只影响对应
+persistence/publication criterion，不得改写原始 workload 的 PASS/FAIL。
+
+persistent/published 长跑仍必须 fail-closed：non-zero exit、timeout、HUP/INT/TERM、中断、缺 terminal
+evidence 或 cleanup 未完成都不得记录 PASS。需要恢复状态时使用 `scripts/task-run-status.sh`，但普通
+短命令不套长跑协议。
+
+## 明确禁止的反模式
+
+- 根据 changed paths 或文件数自动派生 gate；
+- 把 safe local read/edit/build/test 拆成逐阶段许可；
+- 先全量加载 memory/DB/旧 task-run，再读取当前源码；
+- 用 task slug、SHA、marker、seal、review 状态或 profile resolve 证明业务正确性；
+- 普通任务强制 task-run、memory 更新、独立 reviewer 或 release guard；
+- 每轮预防性重验 verifier，随后才运行真实 DUT/workload；
+- 用全局单 shell 或全局单 agent 代替具体资源冲突分析；
+- compaction 后根据旧流程阶段推导新义务；
+- 让 module ownership、agent 路由或 structured handoff 变成权限边界；
+- 用 AI 环境自检 PASS 替代 RTL、DiffTest、Linux、综合、STA 或 PPA 证据。
+
+## 稳定入口
+
+- 规范：`.github/AGENTS.md`
+- 环境说明：`AI_ENVIRONMENT.md`
+- 可选生命周期工具：`scripts/agent-flow.sh`
+- 显式 E2E：`scripts/agent-e2e.sh`
+- release maintenance：`scripts/agent-maintain.sh --mode release`
+- 长跑状态：`scripts/task-run-status.sh`
+- RV64 架构入口：`npc/rv64/ARCHITECTURE.md`
+- 架构机器查询：`python3 npc/rv64/eval/ppa/tools/architecture_registry.py query`
+
+最终工程结论应先说明“哪个真实对象在什么配置下发生了什么”，再列修改、直接证据和未覆盖范围。图、
+agent、DB 和记录系统只在它们确实减少歧义、支持协作或满足发布要求时出现。

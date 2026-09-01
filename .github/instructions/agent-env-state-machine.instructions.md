@@ -1,62 +1,40 @@
-# Agent Env State Machine
+# Agent Environment State Compatibility
 
-本文件定义 AI 开发环境重做任务的 Agent 层状态机。它把报告中提到的 FSM、state traceback、reviewer/inspector 和验证器要求，收敛成当前仓库可执行的最小规则。
+本文件为旧 state_traceback、agent-system profile 和已发布 task-run 提供兼容说明。日常工作不再要求
+七状态 FSM、固定 traceback、Reviewer/Inspector 双角色或 rebuild matrix。
 
-## 两级状态机
+## Default recovery
 
-- 普通 `review/analysis/docs/development/verification` 使用
-  `classify -> work -> verify -> finish`；只读 review/analysis 不进入 persist、profile 或 guard。
-- `environment/longrun/cleanup/release` 才使用下述七状态审计模型。状态由
-  `scripts/agent-flow.c` 的 event/decision/evidence log 汇总，目标轮次末尾一次性检查。
-- 下述完整 state traceback 是 durable/release/显式 agent-system task-run 的要求；compact task-run
-  只保存修改目录、验证证据、工程决策轨迹、选中门禁和 bounded log。
+新任务、上下文压缩或旧会话恢复时，按以下顺序重建状态：
 
-## 状态
+1. primary objective；
+2. 用户显式 acceptance criteria；
+3. 实际 repository/worktree 状态；
+4. 明确 hard constraints；
+5. 当前 build/test/EDA evidence。
 
-1. `recall_context`：读取 AGENTS、copilot instructions、memory、known issues、相关 instructions/skills 和当前 task-run 历史。
-2. `classify_layer`：把任务归类到 Database、Skill、Agent 或 cross-layer，不允许直接改快照目录当作 active config。
-3. `plan_graph`：选择 e2e profile 或定义本轮节点；跨层任务默认以 `agent-system` profile 留证。
-4. `implement`：按层落地修改。Database 只写入 retained memory/log stored document 与 backup；Skill 保持 live `SKILL.md`；Agent 修改 profile/script/policy/workflow 等活文件。
-5. `verify`：用 `agent-flow evidence` 登记真实开发验证；目标末尾由 `finish` 按路径运行固定 gate。
-   AI 环境整轮审计使用 `agent-maintain --mode final`，release 使用 `--mode release`。
-6. `inspect`：由 `agent-system` 视角复核报告追踪矩阵、policy、retention、task-run report、profile resolve、关键 evidence 和 FAIL marker。
-7. `persist`：生成 compact/durable task-run；只有稳定跨会话结论才更新 memory/DB。Git stage、DB
-   backup/snapshot 和完整 profile publication 不属于普通任务的默认动作。
+恢复后直接走 inspect → act → targeted validation → report。旧记录中的临时 plan_graph、authorization
+phase、marker、seal、禁止继续或审计配额不会自动恢复；只有仍直接对应 hard invariant 的内容有效。
 
-## 回退
+## Failure escalation
 
-- `verify` 失败时回退到 `implement`，并把失败 evidence 作为下一轮输入。
-- `inspect` 发现证据不足时回退到 `plan_graph` 或 `verify`，不能把弱证据写成完成。
-- `persist` 发现 retained DB、markdown coverage 或 backup 不一致时回退到 `implement`，优先修复长期记忆一致性。
+- 实现或验证失败：保留失败输出，提出一个可证伪的根因假设，回到最接近问题的源码、配置或输入。
+- 结果矛盾、缺失或 verifier 异常：先隔离 runner/verifier 故障，再决定是否需要专项审计。
+- acceptance criterion 仍不确定：增加一个能区分候选原因的定向检查，不无界扩图或重复命令。
+- 范围扩大到破坏性、外部副作用、release/security 或用户选择：暂停并取得相应授权。
+- 显式 persistent/published 长跑被中断、证据未完成或 cleanup 失败：记录 FAIL/GAP，不得推断 PASS。
 
-## state_traceback
+普通失败不要求生成 task-run、state audit、独立 reviewer 或 inspector。
 
-每个 `agent-system` task-run 必须在 `task-report.md` 和 `run-manifest.json` 中写出 `state_traceback`，至少包含：
+## Legacy artifacts
 
-- `state_sequence`：`recall_context -> classify_layer -> plan_graph -> implement -> verify -> inspect -> persist`
-- `current_state`：成功 run 必须为 `persist`；失败 run 通常停在 `verify` 或 `inspect`。
-- `failure_state`：失败时记录触发回退的状态；成功时为 `无` 或空字符串。
-- `rollback_target`：失败时记录下一轮应回退到的状态，例如 `implement` 或 `plan_graph`。
-- `failure_reason`：失败证据摘要；不能只写泛化结论。
-- `reviewer`：默认 `ysyx-coordinator`。
-- `inspector`：默认 `agent-system`。
-- `evidence_policy`：说明本次状态判断依赖 task-report、dispatch-log、run-manifest 和 evidence-index。
+已存在的 durable/release/publication task-run 若其 schema 要求 state_traceback，可以继续写
+state_sequence、current_state、failure_state、rollback_target 和 failure_reason；这些字段用于兼容旧
+consumer，不是普通任务的 permission gate。
 
-## Reviewer / Inspector
+Reviewer/Inspector 只在高风险、难恢复、正式 Architecture/Pareto promotion、release、migration、
+security、对外发布或用户明确要求时使用。审查者寻找实际反例、覆盖缺口和越级结论，不机械重跑同一
+确定性命令。
 
-- `ysyx-coordinator` 负责把用户目标映射到图任务和 domain agent。
-- `agent-system` 负责 inspector 职责：检查三层边界、policy、report matrix、e2e profile、task-run 证据和 memory 写回。
-- 只有 `risk=high`、release、migration、难恢复的破坏性操作、正式 Architecture/Pareto promotion、
-  对外发布或用户明确要求时执行实现者/审查者风险触发双角色复核；落盘、跨模块或长跑本身不触发，
-  reviewer 也不机械重跑同一确定性命令。冲突记录为“已由证据关闭”或“剩余风险/下一步”。
-- domain agents 只负责各自模块执行，不负责关闭整个 AI 环境重做目标。
-- `agent-system` profile 必须执行 `state-machine-traceback` 节点，验证状态机和 `state_traceback` 字段进入 task-run 证据。
-- `agent-system` profile 必须执行 `reviewer-inspector-gate` 节点，验证 R7 被 review routing 映射到 `agent-layer`，且 `ysyx-coordinator`/`agent-system` 的 reviewer/inspector 关系不是只停留在文档。
-- `python3 scripts/github_index_db.py state-audit` 是本机制的最小自动审计入口。
-
-## 完成门槛
-
-- 报告矩阵中的每个 requirement 必须至少有 `status`、`evidence`、`verification` 和 `next_action`。
-- `implemented` 只能用于当前仓库已有自动 gate 或 task-run evidence 支撑的项目。
-- `partial` 和 `planned` 必须保留下一步，不能被最终回复扩写成整体完成。
-- 长期目标完成前，必须对照 `.github/ai-env/contracts/agent-env-rebuild-matrix.json` 逐项审计，而不是只看本轮命令是否为 0。
+agent-env-rebuild-matrix、state-traceability contract、state-audit 以及 agent-system 中对应节点只在明确
+维护这些对象或兼容已发布证据时运行。它们不得阻止普通安全本地 inspect/edit/build/test/collect/analyze。

@@ -107,9 +107,10 @@ module OooMemAxiBridge #(
   output [4:0] mem0_owner_query_token_o,
   output mem0_station_query_valid_o,
   output [4:0] mem0_station_query_token_o,
-  // v8t/F3 final-PA store-queue query.  Payload is a direct view of the
-  // registered active load and is held in S_SQ_QUERY until one exact
-  // allow/forward/replay decision is returned.
+  // Final-PA store-queue query.  Payload is either the registered active load
+  // or one exact station owner.  An idle current-head exact allow may issue
+  // the station lookup immediately; all other current-head results register
+  // the owner in S_SQ_QUERY before any action.
   output mem0_sq_query_valid_o,
   output [1:0] mem0_sq_query_owner_kind_o,
   output [4:0] mem0_sq_query_owner_token_o,
@@ -520,8 +521,12 @@ module OooMemAxiBridge #(
   wire visible_rsp_uses_active_w;
   wire active_sq_query_valid_w;
   wire station_sq_lookahead_query_w;
+  wire station_current_head_sq_query_w;
+  wire stats_current_head_sq_probe_w;
+  wire sq_query_station_payload_source_w;
   wire active_sq_query_read_lookup_fire_w;
   wire station_sq_lookahead_lookup_fire_w;
+  wire station_current_head_lookup_fire_w;
   wire [`XLEN-1:0] req_cache_addr_w;
   wire req_effective_attr_valid_w;
   wire [1:0] req_effective_class_w;
@@ -559,6 +564,14 @@ module OooMemAxiBridge #(
       (stg_owner_kind_q == mem0_station_expected_owner_kind_i) &&
       (stg_owner_token_q == mem0_station_expected_owner_token_i) &&
       (stg_mmu_epoch_q == mem0_station_expected_mmu_epoch_i);
+  // The current-head query compares the station payload that is about to
+  // become active with the MIQ current-head face.  The independent station
+  // tracker face is station_expected_identity_match_w above; the active
+  // tracker face is intentionally invalid while the FSM is S_IDLE.
+  wire station_current_expected_identity_match_w = mem0_expected_valid_i &&
+      (stg_owner_kind_q == mem0_expected_owner_kind_i) &&
+      (stg_owner_token_q == mem0_expected_owner_token_i) &&
+      (stg_mmu_epoch_q == mem0_expected_mmu_epoch_i);
   wire active_sticky_identity_match_w = active_owner_verified_q &&
       (active_owner_kind_q == verified_owner_kind_q) &&
       (active_owner_token_q == verified_owner_token_q) &&
@@ -591,12 +604,17 @@ module OooMemAxiBridge #(
   // 刀D 融合谓词: S_LOOKUP 命中拍组合响应(load hit 流 1 拍/load)。声明先行、
   // assign 在 dcache hit 判定之后(iverilog14 net-decl-assign 前向引用禁令的
   // 拆声明修复形态)。谓词含 !cpu_kill(p42 型污染防线: 被 kill load 禁经融合臂交付)。
-  wire stage_advance_w = stg_valid_q && !dcache_rmw_busy_w &&
+  // Factor the state-independent admission terms so the S_IDLE current-head
+  // query does not inherit the S_RESP/S_LOOKUP response-credit cone.  In
+  // S_IDLE, idle_stage_advance_w is strictly equivalent to stage_advance_w.
+  wire stage_advance_common_w = stg_valid_q && !dcache_rmw_busy_w &&
+      (!cpu_kill_w || stg_nokill_q) && !control_full_flush_barrier_i;
+  wire idle_stage_advance_w = (state_q == S_IDLE) &&
+                              stage_advance_common_w;
+  wire stage_advance_w = stage_advance_common_w &&
                          ((state_q == S_IDLE) ||
                           ((state_q == S_RESP) && rsp_ready_w) ||
-                          (lookup_hit_fusion_w && rsp_ready_w)) &&
-                         (!cpu_kill_w || stg_nokill_q) &&
-                         !control_full_flush_barrier_i;
+                          (lookup_hit_fusion_w && rsp_ready_w));
   assign mem0_owner_query_valid_o = (state_q != S_IDLE);
   assign mem0_owner_query_token_o = active_owner_token_q;
   // Tracker lookup observes the registered station, not its downstream
@@ -607,28 +625,29 @@ module OooMemAxiBridge #(
   wire sq_query_owner_exact_w = active_expected_identity_match_w &&
       active_tracker_identity_match_w && active_sticky_identity_match_w &&
       !mem0_expected_effective_killed_i;
-  // Present either the ordinary registered active query or, on a retiring
-  // cache hit, the registered station load.  The station source is still a
-  // final-PA query: backend accepts it only as the exact MIQ next head on the
-  // same edge that current head is consumed.  Both sources share one SQ CAM.
+  // Present the ordinary registered active query or one of two disjoint
+  // production station queries through the shared SQ CAM: lookahead names the
+  // exact MIQ next head while current-head names the exact current head at the
+  // idle station-admission boundary.  Each source keeps its own action
+  // qualification below.
   assign active_sq_query_valid_w = (state_q == S_SQ_QUERY) &&
       (active_owner_kind_q == MEM_OWNER_LOAD) && !cpu_kill_w;
   assign mem0_sq_query_valid_o = active_sq_query_valid_w ||
-                                 station_sq_lookahead_query_w;
-  assign mem0_sq_query_owner_kind_o = station_sq_lookahead_query_w ?
+                                 sq_query_station_payload_source_w;
+  assign mem0_sq_query_owner_kind_o = sq_query_station_payload_source_w ?
       stg_owner_kind_q : active_owner_kind_q;
-  assign mem0_sq_query_owner_token_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_owner_token_o = sq_query_station_payload_source_w ?
       stg_owner_token_q : active_owner_token_q;
-  assign mem0_sq_query_mmu_epoch_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_mmu_epoch_o = sq_query_station_payload_source_w ?
       stg_mmu_epoch_q : active_mmu_epoch_q;
-  assign mem0_sq_query_paddr_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_paddr_o = sq_query_station_payload_source_w ?
       req_cache_addr_w : paddr_q;
-  assign mem0_sq_query_attr_valid_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_attr_valid_o = sq_query_station_payload_source_w ?
       req_effective_attr_valid_w : access_attr_valid_q;
-  assign mem0_sq_query_class_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_class_o = sq_query_station_payload_source_w ?
       req_effective_class_w :
       (access_attr_valid_q ? access_class_q : `OOO_MEM_CLASS_RSVD);
-  assign mem0_sq_query_wstrb_o = station_sq_lookahead_query_w ?
+  assign mem0_sq_query_wstrb_o = sq_query_station_payload_source_w ?
       stg_wstrb_q : wstrb_q;
   wire sq_query_decision_onehot_w =
       (mem0_sq_query_allow_i && !mem0_sq_query_forward_i &&
@@ -637,7 +656,7 @@ module OooMemAxiBridge #(
        !mem0_sq_query_replay_i) ||
       (!mem0_sq_query_allow_i && !mem0_sq_query_forward_i &&
        mem0_sq_query_replay_i);
-  wire sq_query_retry_fire_w = mem0_sq_query_valid_o &&
+  wire sq_query_retry_fire_w = active_sq_query_valid_w &&
       sq_query_decision_onehot_w && mem0_sq_query_replay_i &&
       mem0_sq_query_retry_ready_i && !control_full_flush_barrier_i;
   wire req_write_w = stg_write_q;
@@ -728,6 +747,31 @@ module OooMemAxiBridge #(
       !req_data_pmp_fault_w && !req_data_pma_fault_w &&
       req_dcacheable_w && !req_line_cross_w &&
       normalized_wstrb_legal(stg_wstrb_q);
+  // Current MIQ head at the idle station->active boundary.  This production
+  // source is always present: an exact one-hot allow may launch the synchronous
+  // cache lookup on the admission edge; forward/replay/inexact decisions keep
+  // the original registered S_SQ_QUERY fallback and own no action here.
+  assign station_current_head_sq_query_w =
+      idle_stage_advance_w &&
+      station_expected_identity_match_w &&
+      station_current_expected_identity_match_w &&
+      !mem0_expected_effective_killed_i && !flush_i && !mmu_flush_i &&
+      !req_write_w && !stg_probe_q &&
+      (stg_owner_kind_q == MEM_OWNER_LOAD) &&
+      (!req_translate_w || req_dtlb_hit_w) &&
+      !req_typed_page_fault_w && !req_dtlb_perm_fault_w &&
+      !req_data_pmp_fault_w && !req_data_pma_fault_w &&
+      req_dcacheable_w && !req_line_cross_w &&
+      normalized_wstrb_legal(stg_wstrb_q);
+  // Qualification counters observe the production predicate rather than a
+  // second independently-derived cone.
+`ifdef CONFIG_NPC_OOO_STATS
+  assign stats_current_head_sq_probe_w = station_current_head_sq_query_w;
+`else
+  assign stats_current_head_sq_probe_w = 1'b0;
+`endif
+  assign sq_query_station_payload_source_w = station_sq_lookahead_query_w ||
+                                              station_current_head_sq_query_w;
   wire [`XLEN-1:0] walk_pte_addr_w =
       pte_addr(walk_ppn_q, addr_q, walk_level_q);
   wire [`XLEN-1:0] walk_leaf_paddr_w =
@@ -790,8 +834,7 @@ module OooMemAxiBridge #(
   // even before READY.  The kill-edge capture is deliberately stricter than
   // the later maintenance use: all three owner views must still name the
   // exact edge-old transaction, and a retirement (nokill) store is excluded.
-  wire write_irrevocably_presented_w = write_escaped_q || aw_fire_w ||
-      w_fire_w ||
+  wire write_irrevocably_presented_w = write_escaped_q ||
       (((state_q == S_WRITE_REQ) || (state_q == S_AD_UPDATE)) &&
        (lsu_axi_awvalid_o || lsu_axi_wvalid_o));
   wire killed_write_maintenance_capture_w =
@@ -856,8 +899,24 @@ module OooMemAxiBridge #(
       station_sq_lookahead_query_w && rsp_ready_w &&
       sq_query_decision_onehot_w &&
       mem0_sq_query_allow_i && req_dcacheable_w;
+  // Plain case/default makes an X/Z-bearing or non-onehot backend result a
+  // fail-closed registered fallback rather than an uncertain SRAM enable.
+  reg station_current_head_allow_exact_r;
+  always @(*) begin
+    station_current_head_allow_exact_r = 1'b0;
+    case ({mem0_sq_query_allow_i, mem0_sq_query_forward_i,
+           mem0_sq_query_replay_i})
+      3'b100: station_current_head_allow_exact_r = 1'b1;
+      default: station_current_head_allow_exact_r = 1'b0;
+    endcase
+  end
+  assign station_current_head_lookup_fire_w =
+      station_current_head_sq_query_w &&
+      station_current_head_allow_exact_r &&
+      req_dcacheable_w;
   wire sq_query_read_lookup_fire_w = active_sq_query_read_lookup_fire_w ||
-      station_sq_lookahead_lookup_fire_w;
+      station_sq_lookahead_lookup_fire_w ||
+      station_current_head_lookup_fire_w;
   // Historical white-box TB probe names remain observational aliases only;
   // neither alias owns target admission after v8t/F3.
   wire req_read_lookup_fire_w = sq_query_read_lookup_fire_w;
@@ -865,10 +924,12 @@ module OooMemAxiBridge #(
   wire walk_lookup_payload_owner_w = (state_q == S_WALK_R);
   wire dcache_lookup_en_w =
       !dcache_rmw_busy_w && sq_query_read_lookup_fire_w;
-  // Address bits are the registered final PA only.  The SQ compare/class
-  // decision reaches lookup enable but never enters this macro address cone.
+  // Active queries use their registered final PA.  Both exact station sources
+  // use the fully checked admission-time final PA; SQ decision bits qualify
+  // enable only and never select address bits.
   wire [`XLEN-1:0] dcache_lookup_addr_w =
-      station_sq_lookahead_lookup_fire_w ? req_cache_addr_w : paddr_q;
+      (station_sq_lookahead_lookup_fire_w ||
+       station_current_head_lookup_fire_w) ? req_cache_addr_w : paddr_q;
   wire dcache_lookup_hit_w;
   wire [`XLEN-1:0] dcache_lookup_line_w;
   // S_LOOKUP 判决: 跨线阻断统一用锁存 read_cross_q(accept 拍按 VA 低 3 位判,
@@ -1334,12 +1395,14 @@ module OooMemAxiBridge #(
         // v8t/F3 ordinary loads stop at a registered final-PA boundary before
         // any cache/NC/IO target admission.  Atomic/LR reads retain their
         // existing ROB-head singleton routing and never query the plain SQ.
-        // v8u/F4 is the sole exception to the extra state: when the retiring
-        // hit and exact next-head SQ allow already fired this station's
-        // synchronous cache lookup, the newly active owner enters S_LOOKUP
-        // directly so next cycle's SRAM result has the matching active Q.
+        // Exact station allow is the sole exception to the extra state.  A
+        // retiring-hit next head or an idle current head may already have
+        // fired this station's synchronous cache lookup; the newly active
+        // owner enters S_LOOKUP directly so next cycle's SRAM result has the
+        // matching active Q.  Forward/replay/inexact remain S_SQ_QUERY.
         if (stg_owner_kind_q == MEM_OWNER_LOAD) begin
-          state_q <= station_sq_lookahead_lookup_fire_w ?
+          state_q <= (station_sq_lookahead_lookup_fire_w ||
+                      station_current_head_lookup_fire_w) ?
                      S_LOOKUP : S_SQ_QUERY;
         end else if (req_dcacheable_w) begin
           state_q <= S_LOOKUP;
@@ -1661,13 +1724,13 @@ module OooMemAxiBridge #(
           // keeps every active payload bit stable.
           if (control_full_flush_barrier_i) begin
             state_q <= S_SQ_QUERY;
-          end else if (mem0_sq_query_valid_o && sq_query_decision_onehot_w &&
+          end else if (active_sq_query_valid_w && sq_query_decision_onehot_w &&
               mem0_sq_query_forward_i) begin
             rsp_rdata_q <= mem0_sq_query_forward_data_i;
             rsp_error_q <= 1'b0;
             rsp_page_fault_q <= 1'b0;
             state_q <= S_RESP;
-          end else if (mem0_sq_query_valid_o &&
+          end else if (active_sq_query_valid_w &&
                        sq_query_decision_onehot_w &&
                        mem0_sq_query_allow_i) begin
             if (access_cacheable_w)
@@ -1896,12 +1959,28 @@ module OooMemAxiBridge #(
       ((state_q == S_LOOKUP) || (state_q == S_DEVICE_WAIT)) &&
       lsu_axi_arvalid_o;
   always @(posedge clk) begin
+    if (!rst &&
+        (idle_stage_advance_w !==
+         ((state_q == S_IDLE) && stage_advance_w))) begin
+      $error("[SQ-IDLE-STATS-ADVANCE-EQUIV] factored S_IDLE admission diverged from stage_advance @%0t",
+             $time);
+      $fatal;
+    end
     if (!rst && control_full_flush_barrier_i &&
         (mem0_req_ready_o || stage_advance_w || v9o_preowner_ar_w)) begin
       $error("[V9O-MEM-C0] request/station/pre-owner AR escaped barrier @%0t",
              $time);
       $fatal;
     end
+`ifdef CONFIG_NPC_OOO_STATS
+    if (!rst &&
+        (stats_current_head_sq_probe_w !==
+         station_current_head_sq_query_w)) begin
+      $error("[SQ-IDLE-STATS-ALIAS] qualification probe diverged from production current-head predicate @%0t",
+             $time);
+      $fatal;
+    end
+`endif
   end
 
   // V8W OOO-4 selective branch-recovery contract.  The recovery authority is
@@ -2085,14 +2164,16 @@ module OooMemAxiBridge #(
                $time);
         $fatal;
       end
-      if (station_sq_lookahead_lookup_fire_w && !req_dcacheable_w) begin
-        $error("[V8U-SQ-LOOKAHEAD-CACHE-CLASS] non-CACHED station query issued lookup @%0t",
+      if ((station_sq_lookahead_lookup_fire_w ||
+           station_current_head_lookup_fire_w) && !req_dcacheable_w) begin
+        $error("[V8U-SQ-STATION-CACHE-CLASS] non-CACHED station query issued lookup @%0t",
                $time);
         $fatal;
       end
       if (dcache_lookup_en_w &&
           (!(active_sq_query_read_lookup_fire_w ||
-             station_sq_lookahead_lookup_fire_w) ||
+             station_sq_lookahead_lookup_fire_w ||
+             station_current_head_lookup_fire_w) ||
            !mem0_sq_query_valid_o ||
            !mem0_sq_query_allow_i || !sq_query_decision_onehot_w)) begin
         $error("[V8T-SQ-QUERY-CACHE-AUTH] lookup bypassed exact SQ allow @%0t",
@@ -2105,9 +2186,10 @@ module OooMemAxiBridge #(
                $time);
         $fatal;
       end
-      if (station_sq_lookahead_lookup_fire_w &&
+      if ((station_sq_lookahead_lookup_fire_w ||
+           station_current_head_lookup_fire_w) &&
           (dcache_lookup_addr_w !== req_cache_addr_w)) begin
-        $error("[V8U-SQ-LOOKAHEAD-CACHE-PA] station lookup address differs from final PA @%0t",
+        $error("[V8U-SQ-STATION-CACHE-PA] station lookup address differs from final PA @%0t",
                $time);
         $fatal;
       end
@@ -2380,12 +2462,13 @@ module OooMemAxiBridge #(
                $time);
         $fatal;
       end
-      // F3 active query and F4 exact station lookahead are the only lookup
-      // owners; PTW receive, A/D B and an unqualified station advance remain
-      // forbidden direct lookup sources.
+      // F3 active query plus exact next/current station allows are the only
+      // lookup owners; PTW receive, A/D B and an unqualified station advance
+      // remain forbidden direct lookup sources.
       if (dcache_lookup_en_w &&
           !((state_q == S_SQ_QUERY) ||
-            station_sq_lookahead_lookup_fire_w)) begin
+            station_sq_lookahead_lookup_fire_w ||
+            station_current_head_lookup_fire_w)) begin
         $error("[V8U-SQ-QUERY-LOOKUP-STATE] 非授权 query 拍出现 dcache lookup @%0t",
                $time);
         $fatal;
@@ -2416,6 +2499,31 @@ module OooMemAxiBridge #(
                      state_q, stg_owner_token_q, $time);
             $fatal;
           end
+        end else if (station_current_head_sq_query_w) begin
+          if ((state_q != S_IDLE) || mem0_owner_query_valid_o ||
+              !stage_advance_w ||
+              !station_expected_identity_match_w ||
+              !station_current_expected_identity_match_w ||
+              mem0_expected_effective_killed_i ||
+              (stg_owner_kind_q != MEM_OWNER_LOAD) || req_write_w ||
+              stg_probe_q || !req_effective_attr_valid_w ||
+              !req_dcacheable_w || req_line_cross_w ||
+              !normalized_wstrb_legal(stg_wstrb_q) ||
+              ({mem0_sq_query_owner_kind_o,
+                mem0_sq_query_owner_token_o,
+                mem0_sq_query_mmu_epoch_o,
+                mem0_sq_query_paddr_o,
+                mem0_sq_query_attr_valid_o,
+                mem0_sq_query_class_o,
+                mem0_sq_query_wstrb_o} !==
+               {stg_owner_kind_q, stg_owner_token_q,
+                stg_mmu_epoch_q, req_cache_addr_w,
+                req_effective_attr_valid_w, req_effective_class_w,
+                stg_wstrb_q})) begin
+            $display("[SQ-IDLE-CURRENT-EXACT] query escaped exact current-head station payload state=%0d token=%0d @%0t",
+                     state_q, stg_owner_token_q, $time);
+            $fatal;
+          end
         end else if ((state_q != S_SQ_QUERY) ||
                      (active_owner_kind_q != MEM_OWNER_LOAD) ||
                      !sq_query_owner_exact_w || cpu_kill_w ||
@@ -2440,23 +2548,35 @@ module OooMemAxiBridge #(
                    access_attr_valid_q, access_class_q, wstrb_q, $time);
           $fatal;
         end
+        if (({1'b0, active_sq_query_valid_w} +
+             {1'b0, station_sq_lookahead_query_w} +
+             {1'b0, station_current_head_sq_query_w}) !== 2'd1) begin
+          $display("[SQ-IDLE-SOURCE-ONEHOT] active/lookahead/current source was not onehot @%0t",
+                   $time);
+          $fatal;
+        end
         if (station_sq_lookahead_lookup_fire_w &&
             (!rsp_ready_w || !stage_advance_w)) begin
           $display("[V8U-SQ-LOOKAHEAD-READY] station lookup fired without current response advance @%0t",
                    $time);
           $fatal;
         end
-        case ({mem0_sq_query_allow_i, mem0_sq_query_forward_i,
-               mem0_sq_query_replay_i})
-          3'b100,
-          3'b010,
-          3'b001: begin end
-          default: begin
-            $display("[V8T-SQ-QUERY-ONEHOT] decision is not known one-hot @%0t",
-                     $time);
-            $fatal;
-          end
-        endcase
+        // The idle current-head source treats a malformed/non-onehot result
+        // as a conservative registered fallback.  Registered active and
+        // retiring-hit next-head sources retain their strict onehot contract.
+        if (!station_current_head_sq_query_w) begin
+          case ({mem0_sq_query_allow_i, mem0_sq_query_forward_i,
+                 mem0_sq_query_replay_i})
+            3'b100,
+            3'b010,
+            3'b001: begin end
+            default: begin
+              $display("[V8T-SQ-QUERY-ONEHOT] decision is not known one-hot @%0t",
+                       $time);
+              $fatal;
+            end
+          endcase
+        end
         if (!station_sq_lookahead_query_w &&
             (mem0_sq_query_forward_i || mem0_sq_query_replay_i) &&
             (dcache_lookup_en_w || lsu_axi_arvalid_o ||
@@ -2477,6 +2597,32 @@ module OooMemAxiBridge #(
                    $time);
           $fatal;
         end
+        if (station_current_head_sq_query_w) begin
+          if (station_current_head_allow_exact_r) begin
+            if (!station_current_head_lookup_fire_w ||
+                !dcache_lookup_en_w ||
+                active_sq_query_read_lookup_fire_w ||
+                station_sq_lookahead_lookup_fire_w ||
+                sq_query_retry_fire_w || mem0_sq_query_retry_ready_i ||
+                mem0_rsp_valid_o || mem0_drop0_valid_o ||
+                mem0_drop1_valid_o || peer_maintenance_valid_o ||
+                lsu_axi_arvalid_o || lsu_axi_awvalid_o ||
+                lsu_axi_wvalid_o) begin
+              $display("[SQ-IDLE-CURRENT-ALLOW-ACTION] exact allow was not lookup-only @%0t",
+                       $time);
+              $fatal;
+            end
+          end else if (station_current_head_lookup_fire_w ||
+                       dcache_lookup_en_w || sq_query_retry_fire_w ||
+                       mem0_sq_query_retry_ready_i || mem0_rsp_valid_o ||
+                       mem0_drop0_valid_o || mem0_drop1_valid_o ||
+                       peer_maintenance_valid_o || lsu_axi_arvalid_o ||
+                       lsu_axi_awvalid_o || lsu_axi_wvalid_o) begin
+            $display("[SQ-IDLE-CURRENT-FALLBACK-QUIET] forward/replay/inexact decision caused an action @%0t",
+                     $time);
+            $fatal;
+          end
+        end
       end
       // A station fast lookup is captured by the synchronous macro on the
       // same edge as station->active.  Before this edge can retire the result,
@@ -2488,7 +2634,7 @@ module OooMemAxiBridge #(
             assert_station_fast_owner_r) ||
            (paddr_q !== assert_station_fast_paddr_r) ||
            !access_cacheable_w || !u_dcache.lookup_pend_q)) begin
-        $display("[V8U-SQ-LOOKAHEAD-RETURN-OWNER] synchronous cache result lost station owner state=%0d token=%0d @%0t",
+        $display("[SQ-STATION-FAST-RETURN-OWNER] synchronous cache result lost station owner/paddr/pending state=%0d token=%0d @%0t",
                  state_q, active_owner_token_q, $time);
         $fatal;
       end
@@ -2691,7 +2837,8 @@ module OooMemAxiBridge #(
                                    mem0_sq_query_forward_i;
       assert_sq_query_retry_fire_r <= sq_query_retry_fire_w;
       assert_station_fast_lookup_r <=
-          station_sq_lookahead_lookup_fire_w;
+          station_sq_lookahead_lookup_fire_w ||
+          station_current_head_lookup_fire_w;
       assert_station_fast_owner_r <=
           {stg_owner_kind_q, stg_owner_token_q, stg_mmu_epoch_q,
            stg_fault_tval_q};

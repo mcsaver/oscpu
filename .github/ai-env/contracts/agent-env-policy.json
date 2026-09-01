@@ -1,59 +1,58 @@
 {
   "schema_version": 1,
+  "purpose": "Workspace AI tooling policy. It records defaults and explicit assurance boundaries; it does not grant or revoke permission for safe local engineering work.",
+  "operating_contract": {
+    "source": ".github/AGENTS.md",
+    "primary_objective_first": true,
+    "acceptance_criteria_driven": true,
+    "safe_local_operations_are_one_scope": true,
+    "self_created_permission_gates_forbidden": true,
+    "failure_driven_evidence_escalation": true,
+    "compaction_recovery_order": [
+      "primary_objective",
+      "explicit_acceptance_criteria",
+      "repository_state",
+      "hard_constraints",
+      "current_validation_evidence"
+    ]
+  },
   "layers": {
     "database": {
-      "role": "long-term-memory",
+      "role": "optional-long-term-memory-and-persistent-run-index",
       "db": ".github/cache/github-index.sqlite",
-      "backup_roots": [
-        ".github/db-backup",
-        ".github/db-backup/stored-snapshot",
-        ".github/db-backup/task-runs"
-      ],
-      "raw_evidence_policy": "index-only",
-      "artifact_store_roots": [
-        ".github/runtime-artifacts",
-        ".github/task-runs/*/evidence"
-      ]
+      "backup_roots": [],
+      "active_instruction_source": false
     },
     "skill": {
-      "role": "standardized-processing-rules",
+      "role": "reusable-advisory-methods",
       "live_roots": [
         ".github/skills"
       ],
-      "live_rule_kinds": [
-        "skill"
-      ]
+      "may_create_permission_boundaries": false
     },
     "agent": {
-      "role": "automatic-maintenance-flow",
-      "profile": "agent-system",
+      "role": "optional-execution-and-recording-tools",
       "maintainer": "scripts/agent-maintain.sh",
       "live_roots": [
         ".github/agents",
         ".codex/agents"
-      ]
+      ],
+      "may_expand_user_authority": false
     }
   },
   "agent_tools": {
-    "allowed_tools": [
-      "agent",
-      "edit",
-      "execute",
-      "read",
-      "search",
-      "todo"
-    ],
-    "missing_tools_exemptions": [
-      ".github/agents/nemu.agent.md",
-      ".github/agents/npc.agent.md"
-    ],
-    "allow_mcp_servers": false
+    "authority": "platform-and-user",
+    "enforcement": "platform-owned",
+    "workspace_allowlist_is_advisory": true,
+    "allow_mcp_servers_decided_by_platform": true
   },
   "lightweight_workflow": {
     "instruction": ".github/instructions/agent-lightweight-workflow.instructions.md",
     "controller_source": "scripts/agent-flow.c",
     "controller_entry": "scripts/agent-flow.sh",
+    "controller_required_for_ordinary_tasks": false,
     "state_root": ".github/runtime-artifacts/agent-flow",
+    "task_classes_are_descriptive": true,
     "task_classes": [
       "review",
       "analysis",
@@ -65,50 +64,40 @@
       "cleanup",
       "release"
     ],
-    "overhead_target_percent_approx": 40,
-    "overhead_target_blocks_delivery": false,
-    "gate_frequency": "goal-round-finish-only",
-    "changed_path_source": "explicit-agent-flow-log",
-    "git_worktree_enumeration": false,
-    "read_only_review_runs_guard": false,
+    "gate_selection": "explicit-only",
+    "changed_paths_create_gates": false,
+    "changed_paths_may_suggest_checks": true,
+    "default_archive_mode": "none",
     "task_run_modes": [
       "none",
       "compact",
       "durable"
     ],
-    "private_token_reasoning_archived": false,
-    "structured_engineering_decision_trace": true
+    "task_run_requires_explicit_selection": true,
+    "zero_gate_finish_result": "FINISHED_NO_GATES",
+    "zero_gate_finish_is_engineering_pass": false,
+    "private_token_reasoning_archived": false
   },
   "validation_budget": {
-    "policy": "risk-and-uncertainty-driven",
-    "deterministic_default_execution_count": 1,
-    "deterministic_same_command_rerun_required": false,
-    "evidence_binding_fields": [
-      "command",
-      "input_or_configuration",
-      "design_id_when_applicable",
-      "tool_seed_and_threads_when_applicable",
-      "return_code",
-      "parsed_result",
-      "artifact"
+    "policy": "acceptance-criterion-risk-and-observed-uncertainty-driven",
+    "new_check_questions": [
+      "which explicit acceptance criterion does this check evaluate",
+      "which realistic false PASS does it uniquely detect",
+      "could omitting it cause a wrong engineering conclusion"
     ],
+    "versioned_verifier_default": "trusted-until-observed-anomaly",
+    "deterministic_default_execution_count": 1,
     "repeat_triggers": [
       "random_or_stochastic",
       "concurrency",
       "known_flaky_behavior",
       "unpinned_seed_or_threads",
-      "ppa_or_wall_clock_measurement_noise",
-      "known_machine_instability",
+      "measurement_noise",
+      "observed_machine_instability",
+      "contradictory_results",
       "user_explicit_request"
     ],
-    "repeat_requires_reason_threshold_and_stop_condition": true,
-    "distinct_evidence_is_not_repetition": [
-      "baseline_vs_candidate",
-      "positive_vs_negative_oracle",
-      "different_corner_or_configuration",
-      "different_mutation",
-      "different_abstraction_layer"
-    ],
+    "file_count_or_path_triggers_assurance": false,
     "independent_review_triggers": [
       "risk_high",
       "release",
@@ -117,20 +106,42 @@
       "formal_architecture_or_pareto_promotion",
       "external_publication",
       "user_explicit_request"
-    ],
-    "file_count_or_non_trivial_label_triggers_review": false
+    ]
+  },
+  "specialized_assurance": {
+    "persistent_longrun": {
+      "trigger": "explicit-persistent-or-published-run",
+      "status_helper": "scripts/task-run-status.sh",
+      "interrupted_or_incomplete_may_pass": false,
+      "hash_required_only_for_byte-identity-criteria": true
+    },
+    "release": {
+      "trigger": "explicit-release-publication-or-commercial-delivery",
+      "command": "scripts/agent-maintain.sh --mode release",
+      "fail_closed": true
+    },
+    "hash_and_sha": {
+      "ordinary_task_identity": false,
+      "allowed_criteria": [
+        "byte_identity",
+        "cache_integrity",
+        "release_provenance",
+        "supply_chain_or_security",
+        "persistence",
+        "reproducibility",
+        "forensic"
+      ]
+    }
   },
   "retention": {
-    "db_owned_markdown_must_be_shim": true,
-    "task_run_markdown_archive": true,
+    "ordinary_task_run_default": "none",
+    "memory_update_required": false,
+    "stable_cross_session_facts_only": true,
     "raw_evidence_fulltext_in_db": false,
-    "raw_evidence_index_required": true,
-    "runtime_artifact_contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json",
-    "runtime_artifact_store_required": true,
-    "large_runtime_artifacts_externalized": true,
-    "waveform_artifacts_externalized": true
+    "runtime_artifact_contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json"
   },
   "traceability": {
+    "scope": "explicit-release-publication-or-legacy-full-profile",
     "matrix": ".github/ai-env/contracts/agent-env-rebuild-matrix.json",
     "schema_contract": ".github/ai-env/contracts/agent-env-schema-contract.json",
     "observability_contract": ".github/ai-env/contracts/agent-env-observability.json",
@@ -140,111 +151,49 @@
     "review_routing": ".github/ai-env/contracts/agent-env-review-routing.json",
     "branch_health_dashboard": ".github/ai-env/contracts/agent-env-branch-health.json",
     "rtl_task_contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
-    "source_report": "user-supplied:deep-research-report.md",
-    "required_ids": [
-      "R1",
-      "R2",
-      "R3",
-      "R4",
-      "R5",
-      "R6",
-      "R7",
-      "R8",
-      "R9"
-    ]
+    "ordinary_task_completion_dependency": false
   },
-  "task_delegation": {
-    "contract": ".github/ai-env/contracts/agent-env-rtl-task-contract.json",
-    "instruction": ".github/instructions/rtl-agent-task-contract.instructions.md",
-    "skill": ".github/skills/prepare-rtl-task-contract/SKILL.md",
-    "generator": ".github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py",
-    "profile_node": "rtl-task-contract",
-    "local_rtl_material_source": "declared-workspace-paths",
-    "contract_before_dispatch_required": true,
-    "hardware_wording_profile_required": true,
-    "positive_local_scope_preamble_required": true,
-    "ambiguous_terms_require_hardware_context": true,
-    "final_response_hardware_evidence_first_required": true,
-    "rendered_prompt_platform_meta_forbidden": true,
-    "rendered_prompt_coordination_meta_forbidden": true,
-    "rendered_prompt_style": "compact-rv64-hardware-evidence",
-    "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
-    "subagent_context_mode": "rendered-contract-only",
-    "full_history_inheritance_forbidden": true,
-    "wording_profile_changes_capabilities": false,
-    "wording_keyword_blacklist_forbidden": true
-  },
+  "task_delegation": {},
   "task_routing": {
     "cpu_architect": {
       "policy": ".github/ai-env/contracts/cpu-architect-routing-v1.json",
       "classifier": "scripts/cpu_architect_route.py",
-      "custom_agent": ".codex/agents/cpu-architect.toml",
-      "required_route": "ARCHITECT",
-      "keyword_or_file_count_triggering": false,
-      "learning_record_maintenance_triggers_architect": false,
-      "grounded_learning_policy": ".github/ai-env/contracts/cpu-architect-learning-v1.json"
+      "routing_is_advisory": true,
+      "architect_scope": "open-cross-pipeline-or-transaction-lifecycle-tradeoff"
     }
   },
   "state_machine": {
     "instruction": ".github/instructions/agent-env-state-machine.instructions.md",
     "contract": ".github/ai-env/contracts/agent-env-state-traceability.json",
-    "audit_command": "python3 scripts/github_index_db.py state-audit",
-    "states": [
-      "recall_context",
-      "classify_layer",
-      "plan_graph",
-      "implement",
-      "verify",
-      "inspect",
-      "persist"
-    ],
-    "inspector": "agent-system",
-    "coordinator": "ysyx-coordinator",
-    "traceback_required": true,
-    "adversarial_personas_required": false,
-    "adversarial_personas_policy": "risk-triggered",
-    "deterministic_same_command_rerun_required": false,
-    "conflict_resolution_required": true,
-    "reviewer_profile_nodes": [
-      "state-machine-traceback",
-      "reviewer-inspector-gate"
-    ]
+    "ordinary_tasks_require_traceback": false,
+    "scope": "legacy-full-profile-or-explicit-publication"
   },
   "observability": {
-    "task_run_report_required": false,
-    "task_run_policy": "class-dependent-none-compact-durable",
-    "trace_id_required": true,
-    "run_manifest_required": true,
-    "observability_contract": ".github/ai-env/contracts/agent-env-observability.json",
-    "profile_resolve_required": true,
-    "evidence_index_required": true,
-    "memory_update_required": false,
-    "branch_health_report_required": false
-  },
-  "branch_health": {
-    "dashboard": ".github/ai-env/contracts/agent-env-branch-health.json",
-    "review_routing": ".github/ai-env/contracts/agent-env-review-routing.json",
-    "report_command": "python3 scripts/github_index_db.py branch-health-report",
-    "audit_command": "python3 scripts/github_index_db.py branch-health-audit"
+    "ordinary_task_report_required": false,
+    "ordinary_trace_id_required": false,
+    "ordinary_run_manifest_required": false,
+    "ordinary_profile_resolve_required": false,
+    "ordinary_evidence_index_required": false,
+    "publication_contract": ".github/ai-env/contracts/agent-env-observability.json"
   },
   "runtime_artifacts": {
     "contract": ".github/ai-env/contracts/agent-env-runtime-artifacts.json",
-    "audit_command": "python3 scripts/github_index_db.py artifact-audit",
-    "profile_nodes": [
-      "runtime-artifact-boundary"
-    ],
-    "raw_evidence_policy": "index-only",
-    "artifact_store_root": ".github/runtime-artifacts"
+    "artifact_store_root": ".github/runtime-artifacts",
+    "applies_when_payload_is_persisted": true
   },
   "delivery": {
     "contract": ".github/ai-env/contracts/agent-env-delivery.json",
-    "audit_command": "python3 scripts/github_index_db.py delivery-audit",
     "delivery_root": "deliverables/ai-dev-env-commercial-v1",
-    "archive_root": ".github/archive/legacy-ai-dev-env-2026-06-13",
-    "package_script": "scripts/package-ai-dev-env.sh"
+    "package_script": "scripts/package-ai-dev-env.sh",
+    "explicit_boundary": true
   },
   "ci": {
     "required_workflow": ".github/workflows/agent-maintain.yml",
+    "pull_request_mode": "lightweight-agent-components",
+    "release_events": [
+      "schedule",
+      "workflow_dispatch"
+    ],
     "required_commands": [
       "python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/stored-snapshot --yes",
       "python3 scripts/github_index_db.py rehydrate --backup-dir .github/db-backup/task-runs --yes",

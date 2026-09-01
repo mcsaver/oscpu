@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
-  "purpose": "Runtime artifact boundary contract for separating source-controlled AI environment files from volatile execution payloads.",
+  "scope": "explicit-persistent-published-release-security-or-forensic-task-runs",
+  "ordinary_task_dependency": false,
+  "purpose": "Runtime artifact boundary for payloads that are explicitly persisted or published; ordinary local tasks do not need a task-run, manifest, evidence index, hash, or database record.",
   "owner_layer": "database",
   "audit_command": "python3 scripts/github_index_db.py artifact-audit",
   "source_surface": {

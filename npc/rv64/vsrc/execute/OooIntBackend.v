@@ -41,6 +41,26 @@ module OooIntBackend #(
   input [`REG_ADDR_W-1:0] dispatch0_rs2_arch_i,
   input [`REG_ADDR_W-1:0] dispatch0_rd_arch_i,
   input [`XLEN-1:0] dispatch0_imm_i,
+  input dispatch0_is_tensor_i,
+  input [63:0] dispatch0_tensor_bits_i,
+  input dispatch0_tensor_is_64_i,
+  input dispatch0_tensor_required_i,
+  input [7:0] dispatch0_tensor_opclass_i,
+
+  output tensor_cmd_valid_o,
+  input tensor_cmd_ready_i,
+  output [63:0] tensor_cmd_bits_o,
+  output [`XLEN-1:0] tensor_cmd_rs_value_o,
+  output [PRODUCER_ID_W-1:0] tensor_cmd_producer_id_o,
+  output tensor_cmd_is_64_o,
+  output tensor_cmd_required_o,
+  output [7:0] tensor_cmd_opclass_o,
+  input tensor_terminal_valid_i,
+  output tensor_terminal_ready_o,
+  input [PRODUCER_ID_W-1:0] tensor_terminal_producer_id_i,
+  input tensor_terminal_error_i,
+  input [7:0] tensor_terminal_error_code_i,
+  output tensor_serialize_o,
 
   input dispatch1_valid_i,
   input dispatch1_optional_i,
@@ -573,6 +593,7 @@ module OooIntBackend #(
   wire [PHY_REG_ADDR_W-1:0] fpst_read_preg_w;
   wire [`XLEN-1:0] fpst_read_data_w;
   wire [PHY_REG_ADDR_W-1:0] fp_gpr_read_addr_w;
+  wire fp_gpr_read_fire_w;
   wire [`XLEN-1:0] fp_gpr_read_data_w;
   wire fpwb_valid_w;
   wire [PRODUCER_ID_W-1:0] fpwb_producer_id_w;
@@ -605,6 +626,46 @@ module OooIntBackend #(
   wire rob_recover_active_w;
   wire dispatch0_dbe_ready_w;
   wire dispatch1_dbe_ready_w;
+  wire tensor_owner_valid_w;
+  wire tensor_serialize_active_w;
+  wire [PRODUCER_ID_W-1:0] tensor_owner_producer_id_w;
+  wire [`XLEN-1:0] tensor_owner_pc_unused_w;
+  wire [`XLEN-1:0] tensor_owner_next_pc_unused_w;
+  wire tensor_alloc_ready_w;
+  wire tensor_completion_valid_w;
+  wire tensor_completion_ready_w;
+  wire tensor_completion_rob_open_w;
+  wire tensor_sent_w;
+  wire tensor_cmd_fire_unused_w;
+  wire tensor_terminal_match_unused_w;
+  wire tensor_completion_fire_unused_w;
+  wire tensor_stale_terminal_drop_unused_w;
+  wire tensor_stale_completion_drop_unused_w;
+  wire [31:0] tensor_issued_count_unused_w;
+  wire [31:0] tensor_terminal_count_unused_w;
+  wire [31:0] tensor_completion_count_unused_w;
+  wire [31:0] tensor_wait_head_cycles_unused_w;
+  wire [31:0] tensor_wait_drain_cycles_unused_w;
+  wire [31:0] tensor_npu_backpressure_cycles_unused_w;
+  wire [31:0] tensor_serialize_cycles_unused_w;
+  wire [PRODUCER_ID_W-1:0] tensor_completion_producer_id_w;
+  wire [`XLEN-1:0] tensor_completion_data_w;
+  wire tensor_completion_error_w;
+  wire [7:0] tensor_completion_error_code_w;
+  wire tensor_src_read_valid_w;
+  wire [PHY_REG_ADDR_W-1:0] tensor_src_read_preg_w;
+  wire tensor_src_read_ready_w;
+  wire [PHY_REG_ADDR_W-1:0] shared_gpr_read_addr_w;
+  // FP actual-use launch has fixed priority.  Tensor may retain a request but
+  // receives a grant only when FP did not fire; neither grant nor read data is
+  // allowed to feed back into FP issue readiness.
+  assign tensor_src_read_ready_w = tensor_src_read_valid_w &&
+                                   !fp_gpr_read_fire_w;
+  assign shared_gpr_read_addr_w = fp_gpr_read_fire_w ? fp_gpr_read_addr_w :
+      tensor_src_read_valid_w ? tensor_src_read_preg_w :
+                                {PHY_REG_ADDR_W{1'b0}};
+  wire tensor_dispatch_permit_w = dispatch0_is_tensor_i ?
+      tensor_alloc_ready_w : !tensor_owner_valid_w;
   wire checkpoint_restore_new_req_w =
       checkpoint_restore_i && !checkpoint_restore_seen_q;
   wire checkpoint_restore_apply_w;
@@ -621,9 +682,12 @@ module OooIntBackend #(
   wire [4:0] wb0_fflags_w;
   wire [4:0] wb1_fflags_w;
   assign dispatch0_ready_o = dispatch0_dbe_ready_w && d0_fp_ok_w &&
+                             tensor_dispatch_permit_w &&
                              !checkpoint_restore_hold_w &&
                              !control_full_flush_barrier_w;
   assign dispatch1_ready_o = dispatch1_dbe_ready_w && d1_fp_ok_w &&
+                             !tensor_owner_valid_w &&
+                             !dispatch0_is_tensor_i &&
                              !checkpoint_restore_hold_w &&
                              !control_full_flush_barrier_w;
   wire dispatch0_fire_w;
@@ -641,6 +705,7 @@ module OooIntBackend #(
   wire dispatch1_src1_ready_w;
   wire [PHY_REG_ADDR_W-1:0] dispatch1_src2_preg_w;
   wire dispatch1_src2_ready_w;
+  wire rob_empty_w;
   wire [ROB_INDEX_W-1:0] rob_head_idx_w;
   wire rob_head_valid_w;
   wire [PRODUCER_ID_W-1:0] rob_head_producer_id_w;
@@ -727,6 +792,11 @@ module OooIntBackend #(
       ({{((1 << PRODUCER_ID_W)-1){1'b0}}, 1'b1} <<
        branch_resolve_payload_producer_id_w) :
       {(1 << PRODUCER_ID_W){1'b0}};
+  wire [(1 << PRODUCER_ID_W)-1:0] tensor_producer_live_mask_w =
+      tensor_owner_valid_w ?
+      ({{((1 << PRODUCER_ID_W)-1){1'b0}}, 1'b1} <<
+       tensor_owner_producer_id_w) :
+      {(1 << PRODUCER_ID_W){1'b0}};
   wire [(1 << PRODUCER_ID_W)-1:0]
       checkpoint_irrevocable_write_live_mask_w =
       checkpoint_irrevocable_write_q ?
@@ -746,6 +816,7 @@ module OooIntBackend #(
       clmul_owner_producer_live_mask_w |
       fp_producer_live_mask_w |
       pending_system_producer_live_mask_w |
+      tensor_producer_live_mask_w |
       transient_producer_live_mask_w;
   // Complete mask is driven by OooDispatchBackend after its local resident
   // integer-IQ mask is ORed with the external contributors above.
@@ -841,6 +912,7 @@ module OooIntBackend #(
     .producer_live_mask_i(external_producer_live_mask_w),
     .producer_live_mask_o(producer_live_mask_w),
     .dispatch0_valid_i(dispatch0_valid_i && d0_fp_ok_w &&
+                       tensor_dispatch_permit_w &&
                        !checkpoint_restore_hold_w),
     .dispatch0_ready_o(dispatch0_dbe_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
@@ -861,11 +933,14 @@ module OooIntBackend #(
     .dispatch0_fp_st_src_preg_i(fpst0_query_preg_w),
     .dispatch0_fp_st_src_ready_i(fpst0_query_ready_w),
     .dispatch0_imm_i(dispatch0_imm_i),
+    .dispatch0_is_tensor_i(dispatch0_is_tensor_i),
     .dispatch0_bht_idx_i(dispatch0_bht_idx_i),
     .dispatch0_pred_taken_i(dispatch0_pred_taken_i),
     .dispatch1_bht_idx_i(dispatch1_bht_idx_i),
     .dispatch1_pred_taken_i(dispatch1_pred_taken_i),
     .dispatch1_valid_i(dispatch1_valid_i && d1_fp_ok_w &&
+                       !tensor_owner_valid_w &&
+                       !dispatch0_is_tensor_i &&
                        !checkpoint_restore_hold_w),
     .dispatch1_optional_i(dispatch1_optional_i),
     .dispatch1_ready_o(dispatch1_dbe_ready_w),
@@ -931,6 +1006,13 @@ module OooIntBackend #(
     .completion7_query_valid_i(mem1_completion_query_valid_w),
     .completion7_query_producer_id_i(mem1_completion_producer_id_w),
     .completion7_query_match_o(mem1_completion_rob_open_w),
+    // The irreversible SENT/COMPLETE owner is a side-effect-free resident
+    // probe.  Keep the dynamic ROB-open lookup parallel with terminal arrival
+    // so the direct completion path does not serially begin at terminal_valid.
+    // WB claims below remain qualified by tensor_completion_valid_w.
+    .completion8_query_valid_i(tensor_sent_w),
+    .completion8_query_producer_id_i(tensor_completion_producer_id_w),
+    .completion8_query_match_o(tensor_completion_rob_open_w),
     .resolve_query_valid_i(branch_resolve_query_valid_w),
     .resolve_query_producer_id_i(branch_resolve_query_producer_id_w),
     .resolve_query_match_o(branch_resolve_rob_open_w),
@@ -1057,6 +1139,7 @@ module OooIntBackend #(
     .walk1_fp_new_pdest_o(walk1_fp_new_w),
     .rob_head_valid_o(rob_head_valid_w),
     .free_count_o(free_count_o),
+    .rob_empty_o(rob_empty_w),
     .rob_count_o(rob_count_o),
     .issue_count_o(issue_count_o)
 	  );
@@ -1436,7 +1519,7 @@ module OooIntBackend #(
     .read2_data_o(issue1_src1_data_w),
     .read3_addr_i(issue1_src2_preg_w),
     .read3_data_o(issue1_src2_data_w),
-    .read8_addr_i(fp_gpr_read_addr_w),
+    .read8_addr_i(shared_gpr_read_addr_w),
     .read8_data_o(fp_gpr_read_data_w),
     .write0_valid_i(gpr_wb0_write_valid_w),
     .write0_addr_i(wb0_pdest_w),
@@ -1445,6 +1528,187 @@ module OooIntBackend #(
     .write1_addr_i(wb1_pdest_w),
     .write1_data_i(wb1_data_w)
   );
+
+  // Direct-NPU execution owner.  Allocation shares the exact ROB birth edge;
+  // command launch waits for the same head/drain facts used by serialized
+  // architectural operations.  Once accepted by the external link it is
+  // deliberately non-cancellable and only a tagged terminal can complete it.
+  // The prospective EMPTY-owner launch authority is intentionally limited to
+  // an edge-old empty ROB.  Do not replace this with count==same-edge commits:
+  // that would need a typed post-commit no-trap/no-control-flush guarantee.
+  wire tensor_alloc_launch_open_w = rob_empty_w &&
+      !checkpoint_capture_i && !checkpoint_quiesce_i &&
+      !checkpoint_restore_i && !checkpoint_restore_hold_w &&
+      !flush_i && !branch_resolve_mispredict_w &&
+      !control_full_flush_barrier_w && !rob_recover_active_w;
+  OooTensorRobSidecar #(
+    .PRODUCER_ID_W(PRODUCER_ID_W),
+    .PHY_REG_ADDR_W(PHY_REG_ADDR_W)
+  ) u_tensor_rob_sidecar (
+    .clk(clk),
+    .rst(rst),
+    .alloc_valid_i(dispatch0_fire_w && dispatch0_is_tensor_i),
+    .alloc_ready_o(tensor_alloc_ready_w),
+    .alloc_launch_open_i(tensor_alloc_launch_open_w),
+    .alloc_producer_id_i(dispatch0_producer_id_w),
+    .alloc_pc_i(dispatch0_pc_i),
+    .alloc_next_pc_i(dispatch0_next_pc_i),
+    .alloc_cmd_bits_i(dispatch0_tensor_bits_i),
+    .alloc_cmd_is_64_i(dispatch0_tensor_is_64_i),
+    .alloc_required_i(dispatch0_tensor_required_i),
+    .alloc_opclass_i(dispatch0_tensor_opclass_i),
+    .alloc_src_preg_i(dispatch0_src1_preg_w),
+    .alloc_src_ready_i(dispatch0_tensor_is_64_i ||
+                       dispatch0_src1_ready_w),
+    .src_read_valid_o(tensor_src_read_valid_w),
+    .src_read_preg_o(tensor_src_read_preg_w),
+    .src_read_ready_i(tensor_src_read_ready_w),
+    .src_read_value_i(fp_gpr_read_data_w),
+    .wake0_valid_i(wb0_valid_w &&
+                   (wb0_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
+    .wake0_preg_i(wb0_pdest_w),
+    .wake0_value_i(wb0_data_w),
+    .wake1_valid_i(wb1_valid_w &&
+                   (wb1_pdest_w != {PHY_REG_ADDR_W{1'b0}})),
+    .wake1_preg_i(wb1_pdest_w),
+    .wake1_value_i(wb1_data_w),
+    .prelaunch_kill_valid_i(1'b0),
+    .prelaunch_kill_producer_id_i({PRODUCER_ID_W{1'b0}}),
+    .prelaunch_flush_i(flush_i || checkpoint_restore_apply_w ||
+                       branch_resolve_mispredict_w),
+    .rob_head_valid_i(rob_head_valid_w),
+    .rob_head_producer_id_i(rob_head_producer_id_w),
+    .rob_head_launch_open_i(rob_head_launch_open_w),
+    .mem_idle_i(mem_idle_o),
+    .mem_retire_quiet_i(mem_retire_quiet_o),
+    .cmd_valid_o(tensor_cmd_valid_o),
+    .cmd_ready_i(tensor_cmd_ready_i),
+    .cmd_producer_id_o(tensor_cmd_producer_id_o),
+    .cmd_bits_o(tensor_cmd_bits_o),
+    .cmd_rs_value_o(tensor_cmd_rs_value_o),
+    .cmd_is_64_o(tensor_cmd_is_64_o),
+    .cmd_required_o(tensor_cmd_required_o),
+    .cmd_opclass_o(tensor_cmd_opclass_o),
+    .terminal_valid_i(tensor_terminal_valid_i),
+    .terminal_ready_o(tensor_terminal_ready_o),
+    .terminal_producer_id_i(tensor_terminal_producer_id_i),
+    .terminal_data_i({`XLEN{1'b0}}),
+    .terminal_error_i(tensor_terminal_error_i),
+    .terminal_error_code_i(tensor_terminal_error_code_i),
+    .completion_valid_o(tensor_completion_valid_w),
+    .completion_ready_i(tensor_completion_ready_w),
+    .completion_query_match_i(tensor_completion_rob_open_w),
+    .completion_producer_id_o(tensor_completion_producer_id_w),
+    .completion_data_o(tensor_completion_data_w),
+    .completion_error_o(tensor_completion_error_w),
+    .completion_error_code_o(tensor_completion_error_code_w),
+    .owner_valid_o(tensor_owner_valid_w),
+    .serialize_active_o(tensor_serialize_active_w),
+    .owner_producer_id_o(tensor_owner_producer_id_w),
+    .owner_pc_o(tensor_owner_pc_unused_w),
+    .owner_next_pc_o(tensor_owner_next_pc_unused_w),
+    .sent_o(tensor_sent_w),
+    .cmd_fire_o(tensor_cmd_fire_unused_w),
+    .terminal_match_o(tensor_terminal_match_unused_w),
+    .completion_fire_o(tensor_completion_fire_unused_w),
+    .stale_terminal_drop_o(tensor_stale_terminal_drop_unused_w),
+    .stale_completion_drop_o(tensor_stale_completion_drop_unused_w),
+    .issued_count_o(tensor_issued_count_unused_w),
+    .terminal_count_o(tensor_terminal_count_unused_w),
+    .completion_count_o(tensor_completion_count_unused_w),
+    .wait_head_cycles_o(tensor_wait_head_cycles_unused_w),
+    .wait_drain_cycles_o(tensor_wait_drain_cycles_unused_w),
+    .npu_backpressure_cycles_o(tensor_npu_backpressure_cycles_unused_w),
+    .serialize_cycles_o(tensor_serialize_cycles_unused_w)
+  );
+  assign tensor_serialize_o = tensor_serialize_active_w;
+
+`ifdef OOO_ASSERT
+  reg tensor_alloc_direct_head_check_q;
+  reg [PRODUCER_ID_W-1:0] tensor_alloc_direct_pid_q;
+  reg tensor_alloc_owner_birth_check_q;
+  reg [PRODUCER_ID_W-1:0] tensor_alloc_owner_birth_pid_q;
+  // read8 is an actual-use arbiter, not an address/valid heuristic.  FP owns
+  // the cycle only when its issue packet launches a GPR-consuming op; Tensor
+  // receives a grant only with a resident request and no such FP launch.
+  always @(posedge clk) begin
+    if (rst) begin
+      tensor_alloc_direct_head_check_q <= 1'b0;
+      tensor_alloc_direct_pid_q <= {PRODUCER_ID_W{1'b0}};
+      tensor_alloc_owner_birth_check_q <= 1'b0;
+      tensor_alloc_owner_birth_pid_q <= {PRODUCER_ID_W{1'b0}};
+    end else begin
+      if (tensor_alloc_owner_birth_check_q &&
+          (!tensor_owner_valid_w ||
+           (tensor_owner_producer_id_w !==
+            tensor_alloc_owner_birth_pid_q))) begin
+        $error("[TENSOR-ALLOC-OWNER-BIRTH] accepted Tensor PID=%h did not become the exact registered Sidecar owner @%0t",
+               tensor_alloc_owner_birth_pid_q, $time);
+        $fatal;
+      end
+      tensor_alloc_owner_birth_check_q <=
+          dispatch0_fire_w && dispatch0_is_tensor_i;
+      if (dispatch0_fire_w && dispatch0_is_tensor_i)
+        tensor_alloc_owner_birth_pid_q <= dispatch0_producer_id_w;
+
+      if ((rob_empty_w !== 1'b0) && (rob_empty_w !== 1'b1)) begin
+        $error("[TENSOR-ALLOC-DIRECT-ROB-EMPTY-KNOWN] explicit ROB empty authority is unknown @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_cmd_fire_unused_w && !tensor_owner_valid_w &&
+          !(dispatch0_fire_w && dispatch0_is_tensor_i && rob_empty_w &&
+            tensor_alloc_launch_open_w && mem_idle_o &&
+            mem_retire_quiet_o && !checkpoint_capture_i &&
+            !checkpoint_quiesce_i && !checkpoint_restore_i &&
+            !checkpoint_restore_hold_w && !flush_i &&
+            !branch_resolve_mispredict_w &&
+            !control_full_flush_barrier_w && !rob_recover_active_w)) begin
+        $error("[TENSOR-ALLOC-DIRECT-AUTH] EMPTY-owner command escaped actual empty-ROB allocation authority @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_cmd_fire_unused_w && !tensor_owner_valid_w &&
+          (mem_req_valid_o || mem1_req_valid_o)) begin
+        $error("[TENSOR-ALLOC-DIRECT-MEM] direct allocation command overlapped a CPU memory request @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_alloc_direct_head_check_q &&
+          (!rob_head_valid_w || !rob_head_launch_open_w ||
+           (rob_head_producer_id_w !== tensor_alloc_direct_pid_q))) begin
+        $error("[TENSOR-ALLOC-DIRECT-ROB-BIRTH] direct command did not produce the exact registered ROB head @%0t",
+               $time);
+        $fatal;
+      end
+      tensor_alloc_direct_head_check_q <=
+          tensor_cmd_fire_unused_w && !tensor_owner_valid_w;
+      if (tensor_cmd_fire_unused_w && !tensor_owner_valid_w)
+        tensor_alloc_direct_pid_q <= tensor_cmd_producer_id_o;
+
+      if (tensor_src_read_ready_w && !tensor_src_read_valid_w)
+        $error("[TENSOR-SHARED-READ8-GRANT] grant asserted without request @%0t",
+               $time);
+      if (fp_gpr_read_fire_w && tensor_src_read_ready_w)
+        $error("[TENSOR-SHARED-READ8-PRIORITY] Tensor grant overlapped FP actual-use fire @%0t",
+               $time);
+      if (fp_gpr_read_fire_w &&
+          (shared_gpr_read_addr_w !== fp_gpr_read_addr_w))
+        $error("[FP-SHARED-READ8-ADDRESS] FP fire did not own read8 address @%0t",
+               $time);
+      if (tensor_src_read_ready_w &&
+          (shared_gpr_read_addr_w !== tensor_src_read_preg_w))
+        $error("[TENSOR-SHARED-READ8-ADDRESS] Tensor grant did not own read8 address @%0t",
+               $time);
+      if (tensor_owner_valid_w && tensor_src_read_valid_w &&
+          rob_head_valid_w &&
+          (rob_head_producer_id_w == tensor_owner_producer_id_w) &&
+          fp_gpr_read_fire_w)
+        $error("[TENSOR-HEAD-FP-READ8-CONFLICT] exact-head Tensor wait overlapped FP GPR fire @%0t",
+               $time);
+    end
+  end
+`endif
 
   // R3.2 forwarding is strictly EX-register -> consumer.  PRF remains
   // stored-only; no WB/result combinational arm is added inside the PRF.
@@ -2686,15 +2950,17 @@ module OooIntBackend #(
        miq1_head_mmu_epoch_w);
 
   // v8u/F4 final-PA query identity.  The ordinary F3 path compares the bridge
-  // active query with the current MIQ head.  A station-sourced query is
-  // identified by the independent station tracker face and may compare with
-  // next-head while the current response Q names the exact current owner.
-  // This read-only qualification deliberately excludes response READY so the
-  // SQ decision cannot feed back into the response-credit cone.  The bridge
-  // still requires the exact current-response handshake before the station
-  // lookup may fire or the station owner may become active.  The next entry
-  // remains resident: lookahead never owns the queue pop or retry-holder
-  // credit.
+  // active query with the current MIQ head.  A station query has two disjoint
+  // production faces: current-head admission has no registered active owner,
+  // while next-head lookahead requires both that active owner and its exact
+  // current response.  Current-head admission may record only a strict ALLOW;
+  // FORWARD/REPLAY fall back through the registered F3 path.  Neither station
+  // face receives retry credit or owns an MIQ pop.
+  //
+  // Current-head classification deliberately excludes response READY so the
+  // SQ decision cannot feed back into the response-credit cone.  The next
+  // entry remains resident until the exact current-response handshake pops its
+  // predecessor.
   wire [PRODUCER_ID_W-1:0] mem_sq_query_producer_id_w =
       mem_owner_producer_id_table_w[
           mem_sq_query_owner_token_i*PRODUCER_ID_W +: PRODUCER_ID_W];
@@ -2746,28 +3012,60 @@ module OooIntBackend #(
       (miq1_head_owner_token_w == mem1_sq_query_owner_token_i) &&
       (miq1_head_mmu_epoch_w == mem1_sq_query_mmu_epoch_i);
   wire mem_sq_query_next_miq_exact_w = mem_sq_query_station_source_w &&
-      mem_current_rsp_exact_candidate_w && miq_next_head_load_w &&
+      mem_owner_query_valid_i && mem_current_rsp_exact_candidate_w &&
+      miq_next_head_load_w &&
       (miq_next_head_owner_kind_w == mem_sq_query_owner_kind_i) &&
       (miq_next_head_owner_token_w == mem_sq_query_owner_token_i) &&
       (miq_next_head_mmu_epoch_w == mem_sq_query_mmu_epoch_i);
   wire mem1_sq_query_next_miq_exact_w =
-      mem1_sq_query_station_source_w && mem1_current_rsp_exact_candidate_w &&
+      mem1_sq_query_station_source_w && mem1_owner_query_valid_i &&
+      mem1_current_rsp_exact_candidate_w &&
       miq1_next_head_load_w &&
       (miq1_next_head_owner_kind_w == mem1_sq_query_owner_kind_i) &&
       (miq1_next_head_owner_token_w == mem1_sq_query_owner_token_i) &&
       (miq1_next_head_mmu_epoch_w == mem1_sq_query_mmu_epoch_i);
+  // Only an S_IDLE bridge station can name the current MIQ head through this
+  // production source.  Lookahead runs with the registered active-owner query
+  // face valid; if its current response is absent or malformed it must remain
+  // fail-closed replay, even when the station tuple aliases the current head.
+  wire mem_sq_query_current_miq_exact_w =
+      mem_sq_query_station_source_w &&
+      !mem_owner_query_valid_i &&
+      !mem_current_rsp_exact_candidate_w && miq_head_load_w &&
+      (miq_head_owner_kind_w == mem_sq_query_owner_kind_i) &&
+      (miq_head_owner_token_w == mem_sq_query_owner_token_i) &&
+      (miq_head_mmu_epoch_w == mem_sq_query_mmu_epoch_i);
+  wire mem1_sq_query_current_miq_exact_w =
+      mem1_sq_query_station_source_w &&
+      !mem1_owner_query_valid_i &&
+      !mem1_current_rsp_exact_candidate_w && miq1_head_load_w &&
+      (miq1_head_owner_kind_w == mem1_sq_query_owner_kind_i) &&
+      (miq1_head_owner_token_w == mem1_sq_query_owner_token_i) &&
+      (miq1_head_mmu_epoch_w == mem1_sq_query_mmu_epoch_i);
+  // Preserve the qualification XMR names while making the source always-on.
+  wire mem_sq_query_stats_current_miq_exact_w =
+      mem_sq_query_current_miq_exact_w;
+  wire mem1_sq_query_stats_current_miq_exact_w =
+      mem1_sq_query_current_miq_exact_w;
+  wire mem_sq_query_selected_current_miq_exact_w =
+      mem_sq_query_head_miq_exact_w || mem_sq_query_current_miq_exact_w;
+  wire mem1_sq_query_selected_current_miq_exact_w =
+      mem1_sq_query_head_miq_exact_w || mem1_sq_query_current_miq_exact_w;
   wire mem_sq_query_selected_miq_exact_w =
-      mem_sq_query_head_miq_exact_w || mem_sq_query_next_miq_exact_w;
+      mem_sq_query_selected_current_miq_exact_w ||
+      mem_sq_query_next_miq_exact_w;
   wire mem1_sq_query_selected_miq_exact_w =
-      mem1_sq_query_head_miq_exact_w || mem1_sq_query_next_miq_exact_w;
+      mem1_sq_query_selected_current_miq_exact_w ||
+      mem1_sq_query_next_miq_exact_w;
+  wire mem_sq_query_use_next_w = mem_sq_query_next_miq_exact_w;
+  wire mem1_sq_query_use_next_w = mem1_sq_query_next_miq_exact_w;
   wire [ROB_INDEX_W-1:0] mem_sq_query_selected_rob_w =
-      mem_sq_query_station_source_w ? miq_next_head_rob_w : miq_head_rob_w;
+      mem_sq_query_use_next_w ? miq_next_head_rob_w : miq_head_rob_w;
   wire [ROB_INDEX_W-1:0] mem1_sq_query_selected_rob_w =
-      mem1_sq_query_station_source_w ? miq1_next_head_rob_w :
-                                       miq1_head_rob_w;
-  wire mem_sq_query_selected_killed_w = mem_sq_query_station_source_w ?
+      mem1_sq_query_use_next_w ? miq1_next_head_rob_w : miq1_head_rob_w;
+  wire mem_sq_query_selected_killed_w = mem_sq_query_use_next_w ?
       miq_next_head_effective_killed_w : miq_head_effective_killed_w;
-  wire mem1_sq_query_selected_killed_w = mem1_sq_query_station_source_w ?
+  wire mem1_sq_query_selected_killed_w = mem1_sq_query_use_next_w ?
       miq1_next_head_effective_killed_w : miq1_head_effective_killed_w;
   wire mem_sq_query_tracker_exact_w =
       mem_sq_query_selected_miq_exact_w &&
@@ -2807,12 +3105,37 @@ module OooIntBackend #(
   wire sq_query1_replay_w;
   wire [`XLEN-1:0] sq_query1_forward_data_w;
 
+  // Current-head fusion is a functional same-cycle path, so an unknown or
+  // non-onehot StoreQueue decision must fail closed before it reaches the LQ
+  // write enable.  Keep the legacy active/next disposition behavior below;
+  // their established assertion contract still diagnoses malformed decisions.
+  reg sq_query0_strict_allow_r;
+  reg sq_query1_strict_allow_r;
+  always @(*) begin
+    sq_query0_strict_allow_r = 1'b0;
+    case ({sq_query0_allow_w, sq_query0_forward_w, sq_query0_replay_w})
+      3'b100: sq_query0_strict_allow_r = 1'b1;
+      default: sq_query0_strict_allow_r = 1'b0;
+    endcase
+  end
+  always @(*) begin
+    sq_query1_strict_allow_r = 1'b0;
+    case ({sq_query1_allow_w, sq_query1_forward_w, sq_query1_replay_w})
+      3'b100: sq_query1_strict_allow_r = 1'b1;
+      default: sq_query1_strict_allow_r = 1'b0;
+    endcase
+  end
+
   assign lq_query0_update_w = ENABLE_DUAL_MEM &&
       mem_sq_query_pre_lq_exact_w && lq_query0_open_w &&
-      (sq_query0_allow_w || sq_query0_forward_w || sq_query0_replay_w);
+      ((mem_sq_query_current_miq_exact_w && sq_query0_strict_allow_r) ||
+       (!mem_sq_query_current_miq_exact_w &&
+        (sq_query0_allow_w || sq_query0_forward_w || sq_query0_replay_w)));
   assign lq_query1_update_w = ENABLE_DUAL_MEM &&
       mem1_sq_query_pre_lq_exact_w && lq_query1_open_w &&
-      (sq_query1_allow_w || sq_query1_forward_w || sq_query1_replay_w);
+      ((mem1_sq_query_current_miq_exact_w && sq_query1_strict_allow_r) ||
+       (!mem1_sq_query_current_miq_exact_w &&
+        (sq_query1_allow_w || sq_query1_forward_w || sq_query1_replay_w)));
 
   // Default-off reusable wrappers retain the legacy VA issue gate and merely
   // pass bank0 loads through this new bridge state.  Canonical dual mode owns
@@ -5909,34 +6232,49 @@ module OooIntBackend #(
   assign muldiv_resp_ready_w = muldiv_rsp_to_wb0_w || muldiv_rsp_to_wb1_w;
   assign clmul_resp_ready_w = clmul_rsp_to_wb0_w || clmul_rsp_to_wb1_w;
 
-  assign wb0_valid_w =
+  wire wb0_base_valid_w =
       ex0_wb_valid_w || mem_wb0_valid_w || mem1_wb0_valid_w ||
       muldiv_wb0_valid_w || clmul_wb0_valid_w || fpwb_wb0_valid_w;
+  wire wb1_base_valid_w =
+      ex1_wb_valid_w || mem_wb1_valid_w || mem1_wb1_valid_w ||
+      muldiv_wb1_valid_w || clmul_wb1_valid_w || fpwb_wb1_valid_w;
+  wire tensor_wb0_claim_w = tensor_completion_valid_w &&
+      tensor_completion_rob_open_w && !wb0_base_valid_w;
+  wire tensor_wb1_claim_w = tensor_completion_valid_w &&
+      tensor_completion_rob_open_w && wb0_base_valid_w && !wb1_base_valid_w;
+  assign tensor_completion_ready_w = !tensor_completion_rob_open_w ||
+      tensor_wb0_claim_w || tensor_wb1_claim_w;
+  assign wb0_valid_w = wb0_base_valid_w || tensor_wb0_claim_w;
   assign wb0_producer_id_w = ex0_wb_valid_w ? ex0_producer_id_q :
       mem_rsp_to_wb0_w ? mem_completion_producer_id_w :
       mem1_rsp_to_wb0_w ? mem1_completion_producer_id_w :
       muldiv_rsp_to_wb0_w ? muldiv_resp_producer_id_w :
       clmul_rsp_to_wb0_w ? clmul_resp_producer_id_w :
-                           fpwb_producer_id_w;
+      fpwb_wb0_valid_w ? fpwb_producer_id_w :
+                         tensor_completion_producer_id_w;
   assign wb0_rob_idx_w = ex0_wb_valid_w ? ex0_rob_idx_q :
                          mem_rsp_to_wb0_w ? miq_head_rob_w :
                          mem1_rsp_to_wb0_w ? miq1_head_rob_w :
                          muldiv_rsp_to_wb0_w ? muldiv_resp_rob_idx_w :
                          clmul_rsp_to_wb0_w ? clmul_resp_rob_idx_w :
-                                              fpwb_rob_idx_w;
+                         fpwb_wb0_valid_w ? fpwb_rob_idx_w :
+                         tensor_completion_producer_id_w[ROB_INDEX_W-1:0];
   assign wb0_pdest_w = ex0_wb_valid_w ? ex0_pdest_q :
                        mem_rsp_to_wb0_w ? mem_rsp_int_pdest_w :
                        mem1_rsp_to_wb0_w ? mem1_rsp_int_pdest_w :
                        muldiv_rsp_to_wb0_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb0_w ? clmul_resp_pdest_w :
-                       (fpwb_rd_en_w ? fpwb_pdest_w
-                                     : {PHY_REG_ADDR_W{1'b0}});
+                       fpwb_wb0_valid_w ?
+                         (fpwb_rd_en_w ? fpwb_pdest_w
+                                       : {PHY_REG_ADDR_W{1'b0}}) :
+                         {PHY_REG_ADDR_W{1'b0}};
   assign wb0_data_w = ex0_wb_valid_w ? ex0_result_q :
                       mem_rsp_to_wb0_w ? mem_rsp_wb_data_w :
                       mem1_rsp_to_wb0_w ? mem1_rsp_wb_data_w :
                       muldiv_rsp_to_wb0_w ? muldiv_resp_data_w :
                       clmul_rsp_to_wb0_w ? clmul_resp_data_w :
-                                           fpwb_data_w;
+                      fpwb_wb0_valid_w ? fpwb_data_w :
+                                         tensor_completion_data_w;
   assign wb0_exception_w = ex0_wb_valid_w ? ex0_exception_q :
                            mem_rsp_to_wb0_w ?
                              ((miq_probe_wb_fire_w || miq_drain_wb_fire_w) ?
@@ -5944,47 +6282,54 @@ module OooIntBackend #(
                            mem1_rsp_to_wb0_w ?
                              (miq1_probe_wb_fire_w ? mem1_rsp_fault_w :
                                                     mem1_rsp_error_i) :
-                                               1'b0;
+                           tensor_wb0_claim_w ? tensor_completion_error_w :
+                                                1'b0;
   assign wb0_cause_w = ex0_wb_valid_w ? ex0_cause_q :
                        mem_rsp_to_wb0_w ? mem_rsp_wb_cause_w :
                        mem1_rsp_to_wb0_w ? mem1_rsp_wb_cause_w :
+                       tensor_wb0_claim_w ? `EXC_ILLEGAL_INST :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb0_tval_w = ex0_wb_valid_w ? ex0_tval_q :
                       mem_rsp_to_wb0_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
                       mem1_rsp_to_wb0_w ? miq1_head_addr_w :
-                                          {`XLEN{1'b0}};
+                      tensor_wb0_claim_w ?
+                        {{(`XLEN-32){1'b0}}, tensor_cmd_bits_o[31:0]} :
+                        {`XLEN{1'b0}};
   assign wb0_fflags_w = fpwb_wb0_valid_w ? fpwb_fflags_w : 5'b00000;
   assign wb1_fflags_w = fpwb_wb1_valid_w ? fpwb_fflags_w : 5'b00000;
-  assign wb1_valid_w =
-      ex1_wb_valid_w || mem_wb1_valid_w || mem1_wb1_valid_w ||
-      muldiv_wb1_valid_w || clmul_wb1_valid_w || fpwb_wb1_valid_w;
+  assign wb1_valid_w = wb1_base_valid_w || tensor_wb1_claim_w;
   assign wb1_producer_id_w = ex1_wb_valid_w ? ex1_producer_id_q :
       mem_rsp_to_wb1_w ? mem_completion_producer_id_w :
       mem1_rsp_to_wb1_w ? mem1_completion_producer_id_w :
       muldiv_rsp_to_wb1_w ? muldiv_resp_producer_id_w :
       clmul_rsp_to_wb1_w ? clmul_resp_producer_id_w :
-                           fpwb_producer_id_w;
+      fpwb_wb1_valid_w ? fpwb_producer_id_w :
+                         tensor_completion_producer_id_w;
   assign wb1_rob_idx_w = ex1_wb_valid_w ? ex1_rob_idx_q :
                          mem_rsp_to_wb1_w ? miq_head_rob_w :
                          mem1_rsp_to_wb1_w ? miq1_head_rob_w :
                          muldiv_rsp_to_wb1_w ? muldiv_resp_rob_idx_w :
                          clmul_rsp_to_wb1_w ? clmul_resp_rob_idx_w :
-                                              fpwb_rob_idx_w;
+                         fpwb_wb1_valid_w ? fpwb_rob_idx_w :
+                         tensor_completion_producer_id_w[ROB_INDEX_W-1:0];
   assign wb1_pdest_w = ex1_wb_valid_w ? ex1_pdest_q :
                        mem_rsp_to_wb1_w ? mem_rsp_int_pdest_w :
                        mem1_rsp_to_wb1_w ? mem1_rsp_int_pdest_w :
                        muldiv_rsp_to_wb1_w ? muldiv_resp_pdest_w :
                        clmul_rsp_to_wb1_w ? clmul_resp_pdest_w :
-                       (fpwb_rd_en_w ? fpwb_pdest_w
-                                     : {PHY_REG_ADDR_W{1'b0}});
+                       fpwb_wb1_valid_w ?
+                         (fpwb_rd_en_w ? fpwb_pdest_w
+                                       : {PHY_REG_ADDR_W{1'b0}}) :
+                         {PHY_REG_ADDR_W{1'b0}};
   assign wb1_data_w = ex1_wb_valid_w ? ex1_result_q :
                       mem_rsp_to_wb1_w ? mem_rsp_wb_data_w :
                       mem1_rsp_to_wb1_w ? mem1_rsp_wb_data_w :
                       muldiv_rsp_to_wb1_w ? muldiv_resp_data_w :
                       clmul_rsp_to_wb1_w ? clmul_resp_data_w :
-                                           fpwb_data_w;
+                      fpwb_wb1_valid_w ? fpwb_data_w :
+                                         tensor_completion_data_w;
   assign wb1_exception_w = ex1_wb_valid_w ? ex1_exception_q :
                            mem_rsp_to_wb1_w ?
                              ((miq_probe_wb_fire_w || miq_drain_wb_fire_w) ?
@@ -5992,17 +6337,21 @@ module OooIntBackend #(
                            mem1_rsp_to_wb1_w ?
                              (miq1_probe_wb_fire_w ? mem1_rsp_fault_w :
                                                     mem1_rsp_error_i) :
-                                               1'b0;
+                           tensor_wb1_claim_w ? tensor_completion_error_w :
+                                                1'b0;
   assign wb1_cause_w = ex1_wb_valid_w ? ex1_cause_q :
                        mem_rsp_to_wb1_w ? mem_rsp_wb_cause_w :
                        mem1_rsp_to_wb1_w ? mem1_rsp_wb_cause_w :
+                       tensor_wb1_claim_w ? `EXC_ILLEGAL_INST :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb1_tval_w = ex1_wb_valid_w ? ex1_tval_q :
                       mem_rsp_to_wb1_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
                       mem1_rsp_to_wb1_w ? miq1_head_addr_w :
-                                          {`XLEN{1'b0}};
+                      tensor_wb1_claim_w ?
+                        {{(`XLEN-32){1'b0}}, tensor_cmd_bits_o[31:0]} :
+                        {`XLEN{1'b0}};
 
   // P0-A: write-enable 在各 WB owner 的本地 pdest 上完成 p0 过滤后再 OR。
   // 这保持 formal-WB payload/ROB/exception/execute-valid 完全不变，同时把
@@ -6103,6 +6452,42 @@ module OooIntBackend #(
         $error("[INT-WB1-WRITE-VALID-EQUIV] local=%b legacy=%b sources=%b @%0t",
                gpr_wb1_write_valid_w, gpr_wb1_legacy_write_valid_w,
                wb1_source_onehot_w, $time);
+      if (tensor_wb0_claim_w && tensor_wb1_claim_w) begin
+        $error("[TENSOR-WB-CLAIM-ONEHOT0] both formal WB lanes claimed @%0t",
+               $time);
+        $fatal;
+      end
+      if ((tensor_wb0_claim_w || tensor_wb1_claim_w) &&
+          (!tensor_completion_valid_w || !tensor_completion_rob_open_w)) begin
+        $error("[TENSOR-WB-CLAIM-AUTH] claim escaped completion-valid/exact-open authority @%0t",
+               $time);
+        $fatal;
+      end
+      if ((tensor_wb0_claim_w && wb0_base_valid_w) ||
+          (tensor_wb1_claim_w && (!wb0_base_valid_w || wb1_base_valid_w))) begin
+        $error("[TENSOR-WB-CLAIM-BASE-OWNER] Tensor claim overrode or skipped a base WB owner @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_completion_valid_w && !tensor_completion_rob_open_w &&
+          (!tensor_completion_ready_w || tensor_wb0_claim_w ||
+           tensor_wb1_claim_w)) begin
+        $error("[TENSOR-WB-DIRECT-STALE] stale completion did not accept without a formal WB claim @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_completion_valid_w && tensor_completion_rob_open_w &&
+          (tensor_completion_ready_w !==
+           (!wb0_base_valid_w || !wb1_base_valid_w))) begin
+        $error("[TENSOR-WB-CREDIT] completion ready disagrees with the two formal WB credits @%0t",
+               $time);
+        $fatal;
+      end
+      if (tensor_completion_valid_w && !tensor_sent_w) begin
+        $error("[TENSOR-WB-OWNER] completion escaped the irreversible SENT/COMPLETE owner @%0t",
+               $time);
+        $fatal;
+      end
       if (muldiv_actual_claim_w &&
           (!muldiv_completion_rob_open_w || muldiv_same_edge_claimed_w ||
            muldiv_fp_pending_owned_w)) begin
@@ -6507,6 +6892,7 @@ module OooIntBackend #(
     .int_wake1_valid_i(gpr_wb1_write_valid_w),
     .int_wake1_preg_i(wb1_pdest_w),
     .gpr_read_addr_o(fp_gpr_read_addr_w),
+    .gpr_read_fire_o(fp_gpr_read_fire_w),
     .gpr_read_data_i(fp_gpr_read_data_w),
     .fpwb_valid_o(fpwb_valid_w),
     .fpwb_producer_id_o(fpwb_producer_id_w),
@@ -8039,11 +8425,62 @@ module OooIntBackend #(
         end
         if (mem_sq_query_station_source_w &&
             (mem_sq_query_retry_ready_o ||
+             (mem_sq_query_current_miq_exact_w &&
+              mem_sq_query_next_miq_exact_w) ||
              (mem_sq_query_exact_w &&
-              (!mem_current_rsp_exact_candidate_w ||
-               !mem_sq_query_next_miq_exact_w)) ||
+              !(mem_sq_query_current_miq_exact_w ||
+                mem_sq_query_next_miq_exact_w)) ||
              (!mem_sq_query_exact_w && !mem_sq_query_replay_o))) begin
           $display("[V8U-SQ-LOOKAHEAD0-EXACT] station query violated current-owner/next-head/retry contract @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem_sq_query_station_source_w && mem_owner_query_valid_i &&
+            !mem_current_rsp_exact_candidate_w &&
+            (mem_sq_query_current_miq_exact_w ||
+             mem_sq_query_exact_w || mem_sq_query_allow_o ||
+             mem_sq_query_forward_o || !mem_sq_query_replay_o ||
+             lq_query0_update_w)) begin
+          $display("[SQ-IDLE-PRODUCTION0-MALFORMED-CURRENT] production station query escaped fail-closed replay @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem_sq_query_current_miq_exact_w &&
+            (mem_owner_query_valid_i || mem_current_rsp_exact_candidate_w ||
+             mem_sq_query_next_miq_exact_w || mem_sq_query_use_next_w ||
+             (mem_sq_query_selected_rob_w !== miq_head_rob_w) ||
+             (mem_sq_query_selected_killed_w !==
+              miq_head_effective_killed_w) ||
+             (lq_query0_update_w !==
+              (mem_sq_query_exact_w && sq_query0_strict_allow_r)) ||
+             (lq_query0_update_w &&
+              (mem_sq_query_forward_o || mem_sq_query_replay_o)) ||
+             mem_sq_query_retry_ready_o || mem_sq_retry0_capture_w ||
+             miq_queue_pop_valid_w)) begin
+          $display("[SQ-CURRENT0-ALLOW-ONLY] current-head station query violated head/allow-only/LQ/retry/pop ownership @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem_sq_query_station_source_w && !mem_owner_query_valid_i &&
+            !mem_sq_query_current_miq_exact_w &&
+            (mem_sq_query_exact_w || mem_sq_query_allow_o ||
+             mem_sq_query_forward_o || !mem_sq_query_replay_o ||
+             lq_query0_update_w || mem_sq_query_retry_ready_o ||
+             mem_sq_retry0_capture_w)) begin
+          $display("[SQ-CURRENT0-FALLBACK-QUIET] inexact current-head station query escaped fail-closed fallback @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem_sq_query_next_miq_exact_w &&
+            (!mem_owner_query_valid_i ||
+             !mem_current_rsp_exact_candidate_w ||
+             mem_sq_query_current_miq_exact_w ||
+             !mem_sq_query_use_next_w ||
+             (mem_sq_query_selected_rob_w !== miq_next_head_rob_w) ||
+             (mem_sq_query_selected_killed_w !==
+              miq_next_head_effective_killed_w) ||
+             (mem_sq_query_exact_w && !lq_query0_update_w))) begin
+          $display("[V8U-SQ-LOOKAHEAD0-NO-FALLBACK] production next-head query lost next identity/LQ update contract @%0t",
                    $time);
           $fatal;
         end
@@ -8073,11 +8510,64 @@ module OooIntBackend #(
         end
         if (mem1_sq_query_station_source_w &&
             (mem1_sq_query_retry_ready_o ||
+             (mem1_sq_query_current_miq_exact_w &&
+              mem1_sq_query_next_miq_exact_w) ||
              (mem1_sq_query_exact_w &&
-              (!mem1_current_rsp_exact_candidate_w ||
-               !mem1_sq_query_next_miq_exact_w)) ||
+              !(mem1_sq_query_current_miq_exact_w ||
+                mem1_sq_query_next_miq_exact_w)) ||
              (!mem1_sq_query_exact_w && !mem1_sq_query_replay_o))) begin
           $display("[V8U-SQ-LOOKAHEAD1-EXACT] station query violated current-owner/next-head/retry contract @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem1_sq_query_station_source_w && mem1_owner_query_valid_i &&
+            !mem1_current_rsp_exact_candidate_w &&
+            (mem1_sq_query_current_miq_exact_w ||
+             mem1_sq_query_exact_w || mem1_sq_query_allow_o ||
+             mem1_sq_query_forward_o || !mem1_sq_query_replay_o ||
+             lq_query1_update_w)) begin
+          $display("[SQ-IDLE-PRODUCTION1-MALFORMED-CURRENT] production station query escaped fail-closed replay @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem1_sq_query_current_miq_exact_w &&
+            (mem1_owner_query_valid_i ||
+             mem1_current_rsp_exact_candidate_w ||
+             mem1_sq_query_next_miq_exact_w || mem1_sq_query_use_next_w ||
+             (mem1_sq_query_selected_rob_w !== miq1_head_rob_w) ||
+             (mem1_sq_query_selected_killed_w !==
+              miq1_head_effective_killed_w) ||
+             (lq_query1_update_w !==
+              (mem1_sq_query_exact_w && sq_query1_strict_allow_r)) ||
+             (lq_query1_update_w &&
+              (mem1_sq_query_forward_o || mem1_sq_query_replay_o)) ||
+             mem1_sq_query_retry_ready_o || mem_sq_retry1_capture_w ||
+             miq1_queue_pop_valid_w)) begin
+          $display("[SQ-CURRENT1-ALLOW-ONLY] current-head station query violated head/allow-only/LQ/retry/pop ownership @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem1_sq_query_station_source_w &&
+            !mem1_owner_query_valid_i &&
+            !mem1_sq_query_current_miq_exact_w &&
+            (mem1_sq_query_exact_w || mem1_sq_query_allow_o ||
+             mem1_sq_query_forward_o || !mem1_sq_query_replay_o ||
+             lq_query1_update_w || mem1_sq_query_retry_ready_o ||
+             mem_sq_retry1_capture_w)) begin
+          $display("[SQ-CURRENT1-FALLBACK-QUIET] inexact current-head station query escaped fail-closed fallback @%0t",
+                   $time);
+          $fatal;
+        end
+        if (mem1_sq_query_next_miq_exact_w &&
+            (!mem1_owner_query_valid_i ||
+             !mem1_current_rsp_exact_candidate_w ||
+             mem1_sq_query_current_miq_exact_w ||
+             !mem1_sq_query_use_next_w ||
+             (mem1_sq_query_selected_rob_w !== miq1_next_head_rob_w) ||
+             (mem1_sq_query_selected_killed_w !==
+              miq1_next_head_effective_killed_w) ||
+             (mem1_sq_query_exact_w && !lq_query1_update_w))) begin
+          $display("[V8U-SQ-LOOKAHEAD1-NO-FALLBACK] production next-head query lost next identity/LQ update contract @%0t",
                    $time);
           $fatal;
         end

@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
-  "purpose": "Executable state-machine, rollback, and risk-triggered reviewer/inspector contract for the three-layer AI development environment.",
+  "scope": "legacy-full-profile-or-explicit-publication",
+  "ordinary_task_required": false,
+  "active_default": false,
+  "purpose": "Compatibility schema for previously published state_traceback payloads. It does not prescribe the sequence, permission state, reviewer, inspector, or persistence behavior of ordinary tasks.",
   "state_machine_doc": ".github/instructions/agent-env-state-machine.instructions.md",
   "profile": ".github/e2e/profiles/agent-system.tsv",
   "audit_command": "python3 scripts/github_index_db.py state-audit",
@@ -67,10 +70,9 @@
       "evidence_field": "failure_state"
     }
   ],
-  "completion_gate": {
-    "matrix_requirement": "R7",
-    "required_status": "implemented",
-    "required_profile": "agent-system",
-    "required_run_manifest_field": "state_traceback"
+  "legacy_compatibility_check": {
+    "explicit_command_only": true,
+    "historical_run_manifest_field": "state_traceback",
+    "ordinary_completion_dependency": false
   }
 }

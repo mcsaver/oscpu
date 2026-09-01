@@ -1,0 +1,93 @@
+{
+  "schema": "npc-rv64-local-exploratory-ab-result-v1",
+  "run_id": "2026-09-01-rv64-sq-current-allow-fusion-a1",
+  "candidate": "sq-current-head-allow-lookup-fusion-v1",
+  "decision": "RETAIN_LOCAL_EXPLORATORY",
+  "rtl_design_id": "sha256:78108874864cbfe2bb9a9c9753e3e7ae6dcf8f865aeb0d891c6cf4a566bb6cec",
+  "production_rtl_file_count": 155,
+  "candidate_binary_sha256": "e461627031f31147d18cc9e32e5ac0a0f5994001293d0303ffbbe61d60316f26",
+  "predecessor": {
+    "candidate": "sq-idle-fusion-qualification-a1",
+    "rtl_design_id": "sha256:769a81eb256c21112a76e9c46eb57f8a98a637fba7c0a04687a132bfb1dea1ab",
+    "binary_sha256": "f08709fb16a6d2cd98bcb8b2acf4ea1da13469ea81d37c800330a3b0ef608e64"
+  },
+  "source_sha256": {
+    "npc/rv64/vsrc/memory/OooMemAxiBridge.v": "5d68269fa3c016d953ff10cc5f11ad4ec3bdbfe3a567ac7e395b278439df2265",
+    "npc/rv64/vsrc/execute/OooIntBackend.v": "552331ef62c7150f58cd370be88a2bc80adc571a415342ce3d0accae1085ca34",
+    "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv": "df48a06b73a9905e9a5da794186931f282abdf0f7d021886afad3f777479d7f4",
+    "npc/rv64/testbench/tests/tb_ooo_int_backend.sv": "525aa794f5f61ac83e350834373523b7fbeee967f88492c3fa4e5120bed87788"
+  },
+  "workloads": {
+    "coremark": {
+      "good_trap": true,
+      "difftest": "ON",
+      "termination_code": 0,
+      "baseline_roi_cycles": 5141086,
+      "candidate_roi_cycles": 4785064,
+      "roi_cycle_delta": -356022,
+      "roi_cycle_reduction_percent": 6.925034905076,
+      "speedup_percent": 7.440276660876,
+      "baseline_roi_retired": 3183617,
+      "candidate_roi_retired": 3183617,
+      "baseline_full_cycles": 5226858,
+      "candidate_full_cycles": 4868641,
+      "full_cycle_delta": -358217,
+      "baseline_full_commits": 3218532,
+      "candidate_full_commits": 3218519,
+      "post_roi_cycle_derived_reporting_delta": true,
+      "crc_match": true,
+      "baseline_roi_allow": 470188,
+      "candidate_roi_allow": 497125,
+      "baseline_allow_realization_percent": 75.719074072499,
+      "candidate_fire_realization_percent": 71.616193110385
+    },
+    "dhrystone": {
+      "good_trap": true,
+      "difftest": "ON",
+      "termination_code": 0,
+      "baseline_roi_cycles": 9151522,
+      "candidate_roi_cycles": 8481505,
+      "roi_cycle_delta": -670017,
+      "roi_cycle_reduction_percent": 7.321372335662,
+      "speedup_percent": 7.899741850061,
+      "baseline_roi_retired": 4250000,
+      "candidate_roi_retired": 4250000,
+      "baseline_full_cycles": 9184130,
+      "candidate_full_cycles": 8512990,
+      "full_cycle_delta": -671140,
+      "baseline_full_commits": 4260624,
+      "candidate_full_commits": 4260624,
+      "functional_output_match": true,
+      "baseline_roi_allow": 800015,
+      "candidate_roi_allow": 810015,
+      "baseline_allow_realization_percent": 83.7505546771,
+      "candidate_fire_realization_percent": 82.716616358956
+    }
+  },
+  "aggregate": {
+    "geomean_speedup_percent": 7.669764168069,
+    "both_roi_non_regressing": true,
+    "both_roi_strictly_improved": true
+  },
+  "verification": {
+    "focused_backend": "PASS",
+    "focused_bridge": "PASS_AFTER_V8T_SOURCE_AUTH_FIX",
+    "v8s_dual_memory": "PASS",
+    "v9r_sq_retry_handoff": "PASS",
+    "v11l_retry_holder_direct": "PASS",
+    "load_queue": "PASS",
+    "bridge_backend_wrapper_regression": "PASS",
+    "verilator_lint_stats_enabled": "PASS_NO_UNOPTFLAT",
+    "verilator_lint_non_stats": "PASS",
+    "sq_receipts": "PASS_COMPLETE_AVAILABLE_CONSERVING_ZERO_ERROR",
+    "independent_rtl_must_fix": 0,
+    "git_diff_check": "PASS"
+  },
+  "claim_boundary": {
+    "functional_and_local_cpi": "QUALIFIED",
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "physical_gap": "same-identity non-stats mapped synthesis/STA/area/power not run",
+    "rollback_boundary": "current-head allow lookup plus station-current LQ update only"
+  }
+}

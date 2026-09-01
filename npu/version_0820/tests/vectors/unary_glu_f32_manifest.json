@@ -1,0 +1,162 @@
+{
+  "schema": "unary-glu-f32-manifest-v1",
+  "profile": "TENSOR_NPU_UNARY_GLU_F32_RNE_V1",
+  "status": "QUALIFIED_FINITE_EXTERNAL_INPUTS",
+  "aor_binding": {
+    "profile": "AOR_AARCH64_FMA_RNE_V1",
+    "generator_sha256": "d18d79a44940d2e7ce915b64bc6cf65383f2307d9d16ec792d6e4077c2d59e95",
+    "manifest_canonical_sha256": "4d7b403b5f835adfc4465f920a9322ddf71b7568aaf0f1790c84e0b81371f004",
+    "vectors_sha256": "e635c1ce963bb814f746dc828d715bd6cc39841f11ed8551aa7b15f128fcaa41"
+  },
+  "constants_raw32": {
+    "canonical_internal_nan": "0x7fc00000",
+    "one": "0x3f800000",
+    "positive_infinity": "0x7f800000",
+    "twenty": "0x41a00000"
+  },
+  "external_input_profile": {
+    "nonfinite_action": "UNSUPPORTED_BEFORE_CHILD_ZERO_CHILD_ZERO_COMMIT",
+    "sigmoid_consumed": [
+      "src0_finite"
+    ],
+    "silu_consumed": [
+      "src0_finite"
+    ],
+    "softplus_consumed": [
+      "src0_finite"
+    ],
+    "swiglu_consumed": [
+      "src0_finite",
+      "src1_finite"
+    ]
+  },
+  "flags_profile": {
+    "revision": "IEEE754_F32_RNE_TININESS_AFTER_STICKY_V1",
+    "bit_order": [
+      "NV",
+      "DZ",
+      "OF",
+      "UF",
+      "NX"
+    ],
+    "sticky_rule": "OR_EVERY_ACTUAL_CHILD_ONLY",
+    "tininess": "AFTER_ROUNDING_TWO_STAGE_PRECISION_THEN_ENCODING",
+    "internal_infinity": "LEGAL_IEEE_DATA"
+  },
+  "primitive_contract": {
+    "add": "EXACT_SIGNED_DYADIC_SINGLE_RNE_PACK",
+    "multiply": "EXACT_DYADIC_PRODUCT_SINGLE_RNE_PACK",
+    "division": "EXACT_INTEGER_RATIONAL_SINGLE_RNE_PACK",
+    "rounding": "RNE",
+    "tininess_after": "UNBOUNDED_PRECISION_ROUND_THEN_DIRECT_FINAL_ENCODING_ROUND",
+    "host_real_arithmetic": "FORBIDDEN"
+  },
+  "operations": {
+    "SIGMOID": {
+      "dag": [
+        "e=AOR_EXP32(NEG_LOCAL(src0))",
+        "d=FP32_ADD_RNE(ONE,e)",
+        "y=FP32_DIV_RNE(ONE,d)"
+      ],
+      "fast_path": null
+    },
+    "SOFTPLUS": {
+      "dag": [
+        "e=AOR_EXP32(src0)",
+        "d=FP32_ADD_RNE(ONE,e)",
+        "y=AOR_LOG32(d)"
+      ],
+      "fast_path": "ordered_finite_src0_strict_gt_TWENTY_raw_bitcopy_zero_child"
+    },
+    "SILU": {
+      "dag": [
+        "e=AOR_EXP32(NEG_LOCAL(src0))",
+        "d=FP32_ADD_RNE(ONE,e)",
+        "y=FP32_DIV_RNE(src0,d)"
+      ],
+      "fast_path": null
+    },
+    "SWIGLU": {
+      "dag": [
+        "e=AOR_EXP32(NEG_LOCAL(src0))",
+        "d=FP32_ADD_RNE(ONE,e)",
+        "s=FP32_DIV_RNE(src0,d)",
+        "y=FP32_MUL_RNE(s,src1)"
+      ],
+      "fast_path": null
+    }
+  },
+  "mutation_audit": {
+    "definitions": [
+      {
+        "id": "SILU_RECIPROCAL_MUL",
+        "strict": "DIV32(src0,d)",
+        "mutant": "MUL32(src0,DIV32(ONE,d))"
+      },
+      {
+        "id": "SWIGLU_NUMERATOR_FIRST",
+        "strict": "MUL32(DIV32(src0,d),src1)",
+        "mutant": "DIV32(MUL32(src0,src1),d)"
+      },
+      {
+        "id": "SWIGLU_ROLE_SWAP",
+        "strict": "SWIGLU(src0,src1)",
+        "mutant": "SWIGLU(src1,src0)"
+      }
+    ],
+    "search_domains": {
+      "ordering": "domain_list_then_unsigned_raw_then_gate_list",
+      "inclusive_radius_raw": 2048,
+      "silu_anchors_raw32": [
+        "0x00000001",
+        "0x00800000",
+        "0x3a800000",
+        "0x3e800000",
+        "0x3f000000",
+        "0x3f800000",
+        "0x40000000",
+        "0x41000000",
+        "0x41a00000",
+        "0x80000001",
+        "0x80800000",
+        "0xba800000",
+        "0xbe800000",
+        "0xbf000000",
+        "0xbf800000",
+        "0xc0000000",
+        "0xc1000000",
+        "0xc1a00000"
+      ],
+      "swiglu_gates_raw32": [
+        "0x3f800001",
+        "0x3f000000",
+        "0x40000000",
+        "0xbf800001",
+        "0xbf000000",
+        "0xc0000000",
+        "0x00000001",
+        "0x80000001",
+        "0x7f7fffff",
+        "0xff7fffff"
+      ],
+      "role_pairs_raw32": [
+        [
+          "0x3f800000",
+          "0x40000000"
+        ],
+        [
+          "0xbf800000",
+          "0x40000000"
+        ],
+        [
+          "0x40000000",
+          "0x3f800000"
+        ],
+        [
+          "0x00000001",
+          "0x3f800000"
+        ]
+      ]
+    }
+  }
+}

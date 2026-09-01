@@ -49,6 +49,7 @@ module tb_ooo_serialized_mem_terminal_permit;
   ) drain_gate (
     .rob_count_i(rob_count),
     .issue_count_i(issue_count),
+    .tensor_pre_rob_owner_live_i(1'b0),
     .synth_lane1_ret_pending_i(1'b0),
     .synth_lane1_branch_drop_pending_i(1'b0),
     .direct_frontend_flush_i(1'b0),

@@ -12,6 +12,19 @@ module tb_ooo_core_top_glue;
   reg commit_ready;
   reg fetch_req_admit;
 
+  wire tensor_cmd_valid;
+  reg tensor_cmd_ready;
+  wire [63:0] tensor_cmd_bits;
+  wire [`XLEN-1:0] tensor_cmd_rs_value;
+  wire [`OOO_PRODUCER_ID_W-1:0] tensor_cmd_producer_id;
+  wire tensor_cmd_is_64;
+  wire tensor_cmd_required;
+  wire [7:0] tensor_cmd_opclass;
+  reg tensor_terminal_valid;
+  wire tensor_terminal_ready;
+  reg [`OOO_PRODUCER_ID_W-1:0] tensor_terminal_producer_id;
+  wire tensor_serialize;
+
   wire fetch_req_valid;
   wire fetch_req_ready;
   wire [`XLEN-1:0] fetch_req_pc;
@@ -188,7 +201,24 @@ module tb_ooo_core_top_glue;
   reg saw_fetch_fault_raw_fp_response;
   reg saw_fetch_fault_static_zero_enqueue;
   reg saw_fetch_fault_static_zero_fifo;
+  reg saw_tensor_pair_fifo_head;
+  reg saw_tensor_pair_post_trap_commit;
+  integer tensor_pair_head_pop_count;
+  integer tensor_pair_handoff_count;
+  integer tensor_pair_trap_ex_count;
+  integer tensor_pair_trap_redirect_count;
+  integer tensor_pair_recovery_squash_cycles;
+  integer tensor_pair_handoff_escape_count;
+  reg saw_tensor_pair_recovery_squash;
+`ifdef TENSOR_PRE_ROB_FOCUSED
+  integer tensor_focus_cmd_fire_count;
+  reg [2:0] tensor_focus_fetch_delay_cfg;
+  reg [2:0] tensor_focus_fetch_delay_q;
+  reg tensor_focus_fetch_pending_q;
+  reg tensor_focus_mem_req_admit;
+`endif
   reg [4:0] program_mode;
+  reg [2:0] tensor_focus_variant;
   reg [`XLEN-1:0] fault_addr;
   reg [`XLEN-1:0] data_mem_word;
   localparam [1:0] FETCH_RESP_ACCESS_FAULT = 2'b01;
@@ -221,6 +251,10 @@ module tb_ooo_core_top_glue;
   localparam [4:0] MODE_CSR_JALR_RECOVERY = 5'd25;
   localparam [4:0] MODE_CSR_JALR_CALLBACK_CHAIN = 5'd26;
   localparam [4:0] MODE_CSR_STOP_HOLD_OVERLAP = 5'd27;
+  localparam [4:0] MODE_TENSOR_PAIR_TRAP = 5'd28;
+  localparam [4:0] MODE_TENSOR_PRE_ROB_IRQ = 5'd29;
+  localparam [4:0] MODE_TENSOR_PRE_ROB_DIRECT = 5'd30;
+  localparam [4:0] MODE_TENSOR_PRE_ROB_BRANCH_KILL = 5'd31;
   // Deliberately use a raw instruction whose 18-bit T3W static pack is
   // non-zero.  PacketDecode must replace it with a NOP on the fault path,
   // and the FIFO must store the sanitized NOP's all-zero static pack.
@@ -237,12 +271,26 @@ module tb_ooo_core_top_glue;
   wire [`XLEN-1:0] tb_csr_time_w = {`XLEN{1'b0}};
   wire tb_csr_irq_software_w = 1'b0;
   wire tb_csr_irq_timer_w = 1'b0;
-  wire tb_csr_irq_external_w = 1'b0;
+  reg tb_csr_irq_external_w;
   `include "tb_ooo_core_top_glue_csr.svh"
 
   OooCoreTopGlue dut (
     .clk(clk),
     .rst(rst),
+    .tensor_cmd_valid_o(tensor_cmd_valid),
+    .tensor_cmd_ready_i(tensor_cmd_ready),
+    .tensor_cmd_bits_o(tensor_cmd_bits),
+    .tensor_cmd_rs_value_o(tensor_cmd_rs_value),
+    .tensor_cmd_producer_id_o(tensor_cmd_producer_id),
+    .tensor_cmd_is_64_o(tensor_cmd_is_64),
+    .tensor_cmd_required_o(tensor_cmd_required),
+    .tensor_cmd_opclass_o(tensor_cmd_opclass),
+    .tensor_terminal_valid_i(tensor_terminal_valid),
+    .tensor_terminal_ready_o(tensor_terminal_ready),
+    .tensor_terminal_producer_id_i(tensor_terminal_producer_id),
+    .tensor_terminal_error_i(1'b0),
+    .tensor_terminal_error_code_i(8'b0),
+    .tensor_serialize_o(tensor_serialize),
     .head0_context_permit_i(1'b1),
     .fencei_retire_permit_i(1'b1),
     .head0_retire_candidate_valid_o(head0_retire_candidate_valid),
@@ -585,6 +633,36 @@ module tb_ooo_core_top_glue;
   function [`INST_W-1:0] inst_mret;
     begin
       inst_mret = 32'h3020_0073;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_tensor_tiu_lo;
+    begin
+      inst_tensor_tiu_lo = {`INST_W{1'b0}};
+      inst_tensor_tiu_lo[25] = 1'b1;
+      inst_tensor_tiu_lo[19:15] = 5'd3;
+      inst_tensor_tiu_lo[14:12] = 3'b011;
+      inst_tensor_tiu_lo[11:7] = 5'd2;
+      inst_tensor_tiu_lo[6:0] = 7'b1011011;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_tensor_tiu_hi;
+    begin
+      inst_tensor_tiu_hi = {`INST_W{1'b0}};
+      inst_tensor_tiu_hi[31:25] = 7'b0000101;
+      inst_tensor_tiu_hi[14:12] = 3'b011;
+      inst_tensor_tiu_hi[6:0] = 7'b1011011;
+    end
+  endfunction
+
+  function [`INST_W-1:0] inst_tensor_config;
+    begin
+      // CONFIG is the architected 32-bit Tensor SINGLE encoding.  Keep rs1=x0
+      // so source readiness cannot obscure the frontend ownership oracle.
+      inst_tensor_config = {`INST_W{1'b0}};
+      inst_tensor_config[14:12] = 3'b100;
+      inst_tensor_config[6:0] = 7'b1011011;
     end
   endfunction
 
@@ -965,6 +1043,170 @@ module tb_ooo_core_top_glue;
               default:       program_word = inst_beq_self();
             endcase
           end
+          MODE_TENSOR_PRE_ROB_IRQ: begin
+            case (addr)
+              // Enable M-mode external interrupts through architectural CSR
+              // writes, then put the LO in lane1 so PairOwner must enter a
+              // registered cross-packet WAIT_HI state before seeing the HI.
+              32'h8000_0000: program_word = inst_addi(5'd1, 5'd0, 12'd8);
+              32'h8000_0004: program_word = inst_csrrw(5'd0, `CSR_MSTATUS,
+                                                       5'd1);
+              32'h8000_0008: program_word = inst_lui(5'd1, 20'h00001);
+              32'h8000_000c: program_word = inst_addi(5'd1, 5'd1, 12'h800);
+              32'h8000_0010: program_word = inst_csrrw(5'd0, `CSR_MIE,
+                                                       5'd1);
+              32'h8000_0014: program_word = inst_addi(5'd2, 5'd0, 12'd2);
+              32'h8000_0018: program_word = inst_tensor_tiu_lo();
+              32'h8000_001c: program_word = inst_tensor_tiu_hi();
+              32'h8000_0020: program_word = inst_addi(5'd3, 5'd0, 12'd3);
+              32'h8000_0024: program_word = inst_addi(5'd4, 5'd0, 12'd4);
+              32'h8000_0028: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
+          MODE_TENSOR_PRE_ROB_DIRECT: begin
+            case (addr)
+              // Variants 0/1 retain a complete pair followed by a real
+              // JAL/JALR FIFO head for resident-owner exclusion.  Variants
+              // 2..5 put a SINGLE in slot0 and a Tensor/system/JAL/fault in
+              // slot1; normalization must cut slot1 and refetch it at PC+4.
+              // Variant 6 is the sole safe 32-bit residual (exact NOP).
+              // Variant 7 uses C.NOP: decompression produces the same 0x13,
+              // but its +2 successor requires a packet cut and refetch.
+              32'h8000_0000: program_word =
+                  (tensor_focus_variant < 3'd2) ?
+                      inst_tensor_tiu_lo() : inst_tensor_config();
+              32'h8000_0004: begin
+                case (tensor_focus_variant)
+                  3'd0, 3'd1: program_word = inst_tensor_tiu_hi();
+                  3'd2:       program_word = inst_tensor_config();
+                  3'd3:       program_word =
+                      inst_csrrs(5'd0, `CSR_MSTATUS, 5'd0);
+                  3'd4:       program_word = inst_jal(5'd0, 21'd8);
+                  3'd5:       program_word =
+                      inst_addi(5'd12, 5'd0, 12'd12);
+                  3'd6:       program_word =
+                      inst_addi(5'd0, 5'd0, 12'd0);
+                  default:    program_word =
+                      {inst_c_ebreak(), 16'h0001};
+                endcase
+              end
+              32'h8000_0008: program_word =
+                  (tensor_focus_variant == 3'd0) ?
+                      inst_jal(5'd0, 21'd8) :
+                  (tensor_focus_variant == 3'd1) ?
+                      inst_jalr(5'd0, 5'd0, 12'd0) :
+                      inst_addi(5'd13, 5'd0, 12'd13);
+              32'h8000_000c: program_word = inst_addi(5'd6, 5'd0, 12'd6);
+              32'h8000_0010: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
+          MODE_TENSOR_PRE_ROB_BRANCH_KILL: begin
+            case (tensor_focus_variant)
+              2'd0: begin
+                case (addr)
+                  // The memory boundary holds an older load-dependent BEQ
+                  // unresolved while the fall-through lane1 LO establishes
+                  // WAIT_HI.  The TB also withholds the following fetch, so
+                  // recovery kills WAIT_HI itself rather than a successor.
+                  32'h8000_0000: program_word =
+                      inst_auipc(5'd2, 20'h00000);
+                  32'h8000_0004: program_word =
+                      inst_addi(5'd3, 5'd0, 12'd3);
+                  32'h8000_0008: program_word =
+                      inst_lw(5'd1, 5'd2, 12'h040);
+                  32'h8000_000c: program_word =
+                      inst_beq(13'd20, 5'd1, 5'd0);
+                  32'h8000_0010: program_word =
+                      inst_addi(5'd6, 5'd0, 12'd6);
+                  32'h8000_0014: program_word = inst_tensor_tiu_lo();
+                  32'h8000_0018: program_word = inst_tensor_tiu_hi();
+                  32'h8000_001c: program_word =
+                      inst_addi(5'd7, 5'd0, 12'd7);
+                  32'h8000_0020: program_word = inst_ebreak();
+                  default:       program_word = inst_beq_self();
+                endcase
+              end
+              2'd1: begin
+                case (addr)
+                  // Two sequential SINGLEs execute behind the delayed BEQ.
+                  // The first naturally occupies the ROB Tensor sidecar while
+                  // command ready is low; the second therefore remains a
+                  // registered pre-ROB Tensor until selective recovery.
+                  32'h8000_0000: program_word =
+                      inst_auipc(5'd2, 20'h00000);
+                  32'h8000_0004: program_word =
+                      inst_addi(5'd3, 5'd0, 12'd3);
+                  32'h8000_0008: program_word =
+                      inst_lw(5'd1, 5'd2, 12'h040);
+                  32'h8000_000c: program_word =
+                      inst_beq(13'd20, 5'd1, 5'd0);
+                  32'h8000_0010: program_word = inst_tensor_config();
+                  32'h8000_0014: program_word = inst_tensor_config();
+                  32'h8000_0018: program_word =
+                      inst_addi(5'd8, 5'd0, 12'd8);
+                  32'h8000_001c: program_word =
+                      inst_addi(5'd9, 5'd0, 12'd9);
+                  32'h8000_0020: program_word = inst_ebreak();
+                  default:       program_word = inst_beq_self();
+                endcase
+              end
+              default: begin
+                case (addr)
+                  // Hold the load request until the malformed-pair packet is
+                  // allowed to refetch.  The natural memory/execute latency
+                  // then resolves the older BEQ on the first cycle where
+                  // malformed-pair error+residual are registered.
+                  32'h8000_0000: program_word =
+                      inst_auipc(5'd2, 20'h00000);
+                  32'h8000_0004: program_word =
+                      inst_addi(5'd3, 5'd0, 12'd3);
+                  32'h8000_0008: program_word =
+                      inst_lw(5'd1, 5'd2, 12'h040);
+                  32'h8000_000c: program_word =
+                      inst_beq(13'd20, 5'd1, 5'd0);
+                  32'h8000_0010: program_word = inst_tensor_tiu_lo();
+                  32'h8000_0014: program_word =
+                      inst_addi(5'd10, 5'd0, 12'd10);
+                  32'h8000_0018: program_word =
+                      inst_addi(5'd11, 5'd0, 12'd11);
+                  32'h8000_001c: program_word =
+                      inst_addi(5'd12, 5'd0, 12'd12);
+                  32'h8000_0020: program_word = inst_ebreak();
+                  default:       program_word = inst_beq_self();
+                endcase
+              end
+            endcase
+          end
+          MODE_TENSOR_PAIR_TRAP: begin
+            case (addr)
+              // Install a real trap handler, then present a normalized
+              // custom-2 LO and an ordinary ADDI in one fetch packet.  The
+              // ADDI is not a legal Tensor HI, so PairOwner must consume the
+              // packet as a precise malformed-pair trap and never dispatch
+              // the residual word across the trap boundary.
+              32'h8000_0000: program_word = inst_auipc(5'd7, 20'h00000);
+              32'h8000_0004: program_word = inst_addi(5'd7, 5'd7, 12'h030);
+              32'h8000_0008: program_word = inst_csrrw(5'd0, `CSR_MTVEC,
+                                                       5'd7);
+              32'h8000_000c: program_word = inst_tensor_tiu_lo();
+              32'h8000_0010: program_word = inst_addi(5'd9, 5'd0, 12'd9);
+              32'h8000_0014: program_word = inst_addi(5'd10, 5'd0, 12'd10);
+              32'h8000_0018: program_word = inst_beq_self();
+              // Handler reads the precise typed payload and then commits an
+              // ordinary integer instruction after trap flush/recovery.
+              32'h8000_0030: program_word = inst_csrrs(5'd13, `CSR_MCAUSE,
+                                                       5'd0);
+              32'h8000_0034: program_word = inst_csrrs(5'd14, `CSR_MEPC,
+                                                       5'd0);
+              32'h8000_0038: program_word = inst_csrrs(5'd15, `CSR_MTVAL,
+                                                       5'd0);
+              32'h8000_003c: program_word = inst_addi(5'd11, 5'd0, 12'd11);
+              32'h8000_0040: program_word = inst_ebreak();
+              default:       program_word = inst_beq_self();
+            endcase
+          end
           MODE_FETCH_ACCESS_FAULT: begin
             case (addr)
               // Install a real handler before injecting the fault.  CSR
@@ -1096,6 +1338,10 @@ module tb_ooo_core_top_glue;
       run = 1'b1;
       commit_ready = 1'b1;
       fetch_req_admit = 1'b1;
+      tensor_cmd_ready = 1'b1;
+      tensor_terminal_valid = 1'b0;
+      tensor_terminal_producer_id = {`OOO_PRODUCER_ID_W{1'b0}};
+      tb_csr_irq_external_w = 1'b0;
       fetch_rsp_valid = 1'b0;
       fetch_rsp_inst0 = {`INST_W{1'b0}};
       fetch_rsp_inst1 = {`INST_W{1'b0}};
@@ -1161,6 +1407,22 @@ module tb_ooo_core_top_glue;
       saw_fetch_fault_raw_fp_response = 1'b0;
       saw_fetch_fault_static_zero_enqueue = 1'b0;
       saw_fetch_fault_static_zero_fifo = 1'b0;
+      saw_tensor_pair_fifo_head = 1'b0;
+      saw_tensor_pair_post_trap_commit = 1'b0;
+      tensor_pair_head_pop_count = 0;
+      tensor_pair_handoff_count = 0;
+      tensor_pair_trap_ex_count = 0;
+      tensor_pair_trap_redirect_count = 0;
+      tensor_pair_recovery_squash_cycles = 0;
+      tensor_pair_handoff_escape_count = 0;
+      saw_tensor_pair_recovery_squash = 1'b0;
+`ifdef TENSOR_PRE_ROB_FOCUSED
+      tensor_focus_cmd_fire_count = 0;
+      tensor_focus_fetch_delay_cfg = 3'd0;
+      tensor_focus_fetch_delay_q = 3'd0;
+      tensor_focus_fetch_pending_q = 1'b0;
+      tensor_focus_mem_req_admit = 1'b1;
+`endif
       program_mode = mode_i;
       fault_addr = fault_addr_i;
       `TB_TICK(clk);
@@ -1170,8 +1432,41 @@ module tb_ooo_core_top_glue;
   endtask
 
   assign fetch_req_ready = fetch_req_admit &&
+`ifdef TENSOR_PRE_ROB_FOCUSED
+                           !tensor_focus_fetch_pending_q &&
+`endif
                            (!fetch_rsp_valid || fetch_rsp_ready);
-  assign mem_req_ready = !mem_rsp_valid || mem_rsp_ready;
+  assign mem_req_ready =
+`ifdef TENSOR_PRE_ROB_FOCUSED
+                         tensor_focus_mem_req_admit &&
+`endif
+                         (!mem_rsp_valid || mem_rsp_ready);
+
+  // Deterministic one-entry Tensor device model.  It accepts a command and
+  // returns the exact full ProducerId on the following cycle, holding the
+  // terminal until the production sidecar accepts it.
+  always @(posedge clk) begin
+    if (rst || flush) begin
+      tensor_terminal_valid <= 1'b0;
+      tensor_terminal_producer_id <= {`OOO_PRODUCER_ID_W{1'b0}};
+    end else begin
+      if (tensor_terminal_valid && tensor_terminal_ready)
+        tensor_terminal_valid <= 1'b0;
+      if (tensor_cmd_valid && tensor_cmd_ready) begin
+        tensor_terminal_valid <= 1'b1;
+        tensor_terminal_producer_id <= tensor_cmd_producer_id;
+      end
+    end
+  end
+
+`ifdef TENSOR_PRE_ROB_FOCUSED
+  always @(posedge clk) begin
+    if (rst)
+      tensor_focus_cmd_fire_count <= 0;
+    else if (tensor_cmd_valid && tensor_cmd_ready)
+      tensor_focus_cmd_fire_count <= tensor_focus_cmd_fire_count + 1;
+  end
+`endif
 
   always @(posedge clk) begin
     if (rst || flush) begin
@@ -1181,14 +1476,41 @@ module tb_ooo_core_top_glue;
       fetch_rsp_inst1 <= {`INST_W{1'b0}};
       fetch_rsp_resp0 <= 2'b00;
       fetch_rsp_resp1 <= 2'b00;
+`ifdef TENSOR_PRE_ROB_FOCUSED
+      tensor_focus_fetch_delay_q <= 3'd0;
+      tensor_focus_fetch_pending_q <= 1'b0;
+`endif
     end else begin
       if (fetch_rsp_valid && fetch_rsp_ready) begin
         fetch_rsp_valid <= 1'b0;
       end
 
+`ifdef TENSOR_PRE_ROB_FOCUSED
+      if (tensor_focus_fetch_pending_q) begin
+        if (tensor_focus_fetch_delay_q == 3'd1) begin
+          tensor_focus_fetch_delay_q <= 3'd0;
+          tensor_focus_fetch_pending_q <= 1'b0;
+          fetch_rsp_valid <= 1'b1;
+        end else begin
+          tensor_focus_fetch_delay_q <=
+              tensor_focus_fetch_delay_q - 3'd1;
+        end
+      end
+`endif
+
       if (fetch_req_valid && fetch_req_ready) begin
         fetch_req_owner_pc <= fetch_req_pc;
+`ifdef TENSOR_PRE_ROB_FOCUSED
+        if (tensor_focus_fetch_delay_cfg != 3'd0) begin
+          fetch_rsp_valid <= 1'b0;
+          tensor_focus_fetch_delay_q <= tensor_focus_fetch_delay_cfg;
+          tensor_focus_fetch_pending_q <= 1'b1;
+        end else begin
+          fetch_rsp_valid <= 1'b1;
+        end
+`else
         fetch_rsp_valid <= 1'b1;
+`endif
         fetch_rsp_inst0 <= program_word(fetch_req_pc);
         fetch_rsp_inst1 <= program_word(fetch_req_pc + 32'd4);
         fetch_rsp_resp0 <= (fetch_req_pc == fault_addr) ?
@@ -1322,6 +1644,15 @@ module tb_ooo_core_top_glue;
       saw_fetch_fault_raw_fp_response <= 1'b0;
       saw_fetch_fault_static_zero_enqueue <= 1'b0;
       saw_fetch_fault_static_zero_fifo <= 1'b0;
+      saw_tensor_pair_fifo_head <= 1'b0;
+      saw_tensor_pair_post_trap_commit <= 1'b0;
+      tensor_pair_head_pop_count <= 0;
+      tensor_pair_handoff_count <= 0;
+      tensor_pair_trap_ex_count <= 0;
+      tensor_pair_trap_redirect_count <= 0;
+      tensor_pair_recovery_squash_cycles <= 0;
+      tensor_pair_handoff_escape_count <= 0;
+      saw_tensor_pair_recovery_squash <= 1'b0;
     end else begin
       if (control_full_flush_barrier_prev && !flush) begin
         if (!dut.control_event_apply_valid_w ||
@@ -1391,6 +1722,97 @@ module tb_ooo_core_top_glue;
       if (dut.control_event_apply_valid_w &&
           (dut.control_event_apply_reason_w == `REDIR_REASON_TRAP))
         saw_typed_trap_apply <= 1'b1;
+      if (program_mode == MODE_TENSOR_PAIR_TRAP) begin
+        // Non-vacuity: observe the LO/mismatch pair after real fetch response
+        // normalization and FIFO storage, before PairOwner consumes it.
+        if (dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_000c) &&
+            (dut.head_pc1_w == 64'h0000_0000_8000_0010) &&
+            (dut.head_inst0_w == inst_tensor_tiu_lo()) &&
+            (dut.head_inst1_w == inst_addi(5'd9, 5'd0, 12'd9)))
+          saw_tensor_pair_fifo_head <= 1'b1;
+
+        if (dut.u_frontend.tensor_head_pop_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_000c))
+          tensor_pair_head_pop_count <= tensor_pair_head_pop_count + 1;
+
+        // The production ready is the arbiter's exact capture grant.  On that
+        // handoff cycle the resident pair trap must close every ordinary FIFO,
+        // residual and Tensor transfer path.
+        if (dut.tensor_pair_trap_valid_w &&
+            dut.tensor_pair_trap_ready_w) begin
+          tensor_pair_handoff_count <= tensor_pair_handoff_count + 1;
+          if ((dut.tensor_pair_trap_pc_w !=
+               64'h0000_0000_8000_000c) ||
+              (dut.tensor_pair_trap_cause_w != `EXC_ILLEGAL_INST) ||
+              (dut.tensor_pair_trap_tval_w !=
+               {{(`XLEN-`INST_W){1'b0}}, inst_tensor_tiu_lo()})) begin
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] Tensor pair handoff payload pc=%h cause=%0d tval=%h",
+                     dut.tensor_pair_trap_pc_w,
+                     dut.tensor_pair_trap_cause_w,
+                     dut.tensor_pair_trap_tval_w);
+          end
+          if (dut.can_run_w ||
+              dut.u_frontend.core_dispatch0_fire_w ||
+              (dut.u_frontend.core_dispatch1_valid_w &&
+               dut.u_frontend.dispatch1_ready_w) ||
+              dut.u_frontend.fifo_pop_w ||
+              dut.u_frontend.tensor_dispatch_ready_w ||
+              dut.u_frontend.tensor_residual_ready_w) begin
+            tensor_pair_handoff_escape_count <=
+                tensor_pair_handoff_escape_count + 1;
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] Tensor pair handoff leaked dispatch/pop run=%0d d0=%0d d1=%0d pop=%0d tensor=%0d residual=%0d",
+                     dut.can_run_w,
+                     dut.u_frontend.core_dispatch0_fire_w,
+                     dut.u_frontend.core_dispatch1_valid_w &&
+                         dut.u_frontend.dispatch1_ready_w,
+                     dut.u_frontend.fifo_pop_w,
+                     dut.u_frontend.tensor_dispatch_ready_w,
+                     dut.u_frontend.tensor_residual_ready_w);
+          end
+        end
+
+        if (tb_csr_trap_ex_valid_w) begin
+          tensor_pair_trap_ex_count <= tensor_pair_trap_ex_count + 1;
+          if ((tb_csr_trap_ex_pc_w !=
+               64'h0000_0000_8000_000c) ||
+              (tb_csr_trap_ex_cause_w != `EXC_ILLEGAL_INST) ||
+              (tb_csr_trap_ex_tval_w !=
+               {{(`XLEN-`INST_W){1'b0}}, inst_tensor_tiu_lo()})) begin
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] Tensor pair trap-ex payload pc=%h cause=%0d tval=%h",
+                     tb_csr_trap_ex_pc_w, tb_csr_trap_ex_cause_w,
+                     tb_csr_trap_ex_tval_w);
+          end
+          if (!dut.frontend_control_event_valid_w ||
+              (dut.frontend_control_event_reason_w !=
+               `REDIR_REASON_TRAP) ||
+              (dut.frontend_control_event_backend_action_w !=
+               `OOO_BACKEND_ACTION_NONE)) begin
+            tb_errors = tb_errors + 1;
+            $display("[CHECK-FAIL] Tensor pair trap-ex lacks immediate typed redirect valid=%0d reason=%0d action=%0d",
+                     dut.frontend_control_event_valid_w,
+                     dut.frontend_control_event_reason_w,
+                     dut.frontend_control_event_backend_action_w);
+          end else begin
+            tensor_pair_trap_redirect_count <=
+                tensor_pair_trap_redirect_count + 1;
+          end
+        end
+        if (dut.trap_redirect_squash_q) begin
+          tensor_pair_recovery_squash_cycles <=
+              tensor_pair_recovery_squash_cycles + 1;
+          saw_tensor_pair_recovery_squash <= 1'b1;
+        end
+        if (saw_tensor_pair_recovery_squash &&
+            ((commit0_valid &&
+              (commit0_pc == 64'h0000_0000_8000_003c)) ||
+             (commit1_valid &&
+              (commit1_pc == 64'h0000_0000_8000_003c))))
+          saw_tensor_pair_post_trap_commit <= 1'b1;
+      end
       if (pending_csr_commit_prev) begin
         if (dut.control_event_apply_valid_w) begin
           tb_errors = tb_errors + 1;
@@ -1820,7 +2242,705 @@ module tb_ooo_core_top_glue;
   end
 `endif
 
-`ifdef V8Z_FRONTEND_II1_FOCUSED
+`ifdef TENSOR_PRE_ROB_FOCUSED
+  task automatic tensor_focus_check_irq_barrier;
+    input [1023:0] label;
+    input expect_can_run_i;
+    begin
+      tb_check1({label, " owner live"},
+                dut.tensor_pre_rob_owner_live_w, 1'b1);
+      tb_check1({label, " expected IFU run state"},
+                dut.can_run_w, expect_can_run_i);
+      tb_check1({label, " ordinary FIFO pop closed"},
+                dut.u_frontend.normal_fifo_pop_w, 1'b0);
+      tb_check1({label, " direct flush closed"},
+                dut.direct_frontend_flush_w, 1'b0);
+      tb_check1({label, " IRQ capture closed"},
+                dut.u_control_plane.pending_system_capture_irq_w, 1'b0);
+      tb_check1({label, " combinational drained closed"},
+                dut.backend_drained_w, 1'b0);
+      tb_check1({label, " registered drained closed"},
+                dut.backend_drained_q, 1'b0);
+      tb_check1({label, " drain-complete closed"},
+                dut.drain_complete_w, 1'b0);
+      tb_check1({label, " IRQ trap acceptance closed"},
+                tb_csr_trap_irq_valid_w, 1'b0);
+    end
+  endtask
+
+  task automatic run_tensor_resident_direct_case;
+    input [2:0] variant_i;
+    integer cycle_i;
+    reg saw_resident_head;
+    begin
+      tensor_focus_variant = variant_i;
+      reset_dut(MODE_TENSOR_PRE_ROB_DIRECT, 32'h0000_0000);
+      saw_resident_head = 1'b0;
+      for (cycle_i = 0; (cycle_i < 80) && !saw_resident_head;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (dut.tensor_pre_rob_owner_live_w &&
+            dut.u_frontend.tensor_dispatch_valid_w &&
+            dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_0008)) begin
+          saw_resident_head = 1'b1;
+          tb_check1("resident Tensor closes ordinary can_run",
+                    dut.can_run_w, 1'b0);
+          tb_check1("resident Tensor closes ordinary FIFO pop",
+                    dut.u_frontend.normal_fifo_pop_w, 1'b0);
+          tb_check1("resident Tensor closes direct frontend flush",
+                    dut.direct_frontend_flush_w, 1'b0);
+          tb_check1("resident Tensor closes lane1 backend dispatch",
+                    dut.u_frontend.core_dispatch1_valid_w &&
+                        dut.u_frontend.dispatch1_ready_w, 1'b0);
+          tb_check1("resident Tensor owns any lane0 backend fire",
+                    !dut.u_frontend.core_dispatch0_fire_w ||
+                        dut.u_frontend.core_dispatch0_tensor_w, 1'b1);
+          tb_check1("resident Tensor still transfers to ROB",
+                    dut.u_frontend.tensor_dispatch_ready_w, 1'b1);
+          if (variant_i == 3'd0) begin
+            tb_check1("younger FIFO exposes real JAL",
+                      dut.u_frontend.head0_jal_raw_w, 1'b1);
+            tb_check1("younger JAL direct fire is suppressed",
+                      dut.u_frontend.direct_jal0_fire_w, 1'b0);
+          end else begin
+            tb_check1("younger FIFO exposes real JALR",
+                      dut.u_frontend.head0_jalr_raw_w, 1'b1);
+            tb_check1("younger JALR direct fire is suppressed",
+                      dut.u_frontend.direct_jump_spec_fire_w, 1'b0);
+          end
+        end
+        if (!saw_resident_head)
+          `TB_TICK(clk);
+      end
+      tb_check1("resident Tensor overlaps a younger direct FIFO head",
+                saw_resident_head, 1'b1);
+      $display("[TENSOR-PRE-ROB-DIRECT] kind=%0s live=1 normal_pop=0 direct_flush=0 tensor_transfer=1 PASS",
+               (variant_i == 3'd0) ? "JAL" : "JALR");
+    end
+  endtask
+
+  task automatic run_tensor_single_packet_cut_case;
+    input [2:0] variant_i;
+    integer cycle_i;
+    reg saw_cut;
+    reg saw_refetch_request;
+    reg saw_refetch_head;
+    reg saw_semantic;
+    begin
+      tensor_focus_variant = variant_i;
+      reset_dut(MODE_TENSOR_PRE_ROB_DIRECT,
+                (variant_i == 3'd5) ?
+                    64'h0000_0000_8000_0004 : 64'h0);
+      saw_cut = 1'b0;
+      saw_refetch_request = 1'b0;
+      saw_refetch_head = 1'b0;
+      saw_semantic = 1'b0;
+      for (cycle_i = 0; (cycle_i < 180) && !saw_semantic;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (dut.u_frontend.fetch_rsp_enqueue_w &&
+            (dut.u_frontend.fetch_dec0_pc_w ==
+             64'h0000_0000_8000_0000) &&
+            (dut.u_frontend.fetch_dec0_inst_w == inst_tensor_config())) begin
+          saw_cut = 1'b1;
+          tb_check1("SINGLE packet-cut classifies slot0",
+                    dut.u_frontend.fetch_dec0_tensor_packet_cut_w, 1'b1);
+          tb_check1("SINGLE packet-cut invalidates slot1",
+                    dut.u_frontend.fetch_slot1_valid_w, 1'b0);
+          tb_check32("SINGLE packet-cut next PC is slot1 PC",
+                     dut.u_frontend.fetch_pred_next_pc_w,
+                     32'h8000_0004);
+          tb_check1("SINGLE packet-cut is a fetch control stop",
+                    dut.u_frontend.fetch_dec0_control_stop_nb_w, 1'b1);
+          tb_check1("successful SINGLE cannot create residual shadow",
+                    dut.u_frontend.tensor_residual_valid_w, 1'b0);
+          if (variant_i == 3'd5)
+            tb_check32("cut slot1 carries the injected raw fetch fault",
+                       {30'b0, fetch_rsp_resp1},
+                       {30'b0, FETCH_RESP_ACCESS_FAULT});
+        end
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0004))
+          saw_refetch_request = 1'b1;
+        if (dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_0004)) begin
+          saw_refetch_head = 1'b1;
+          if (variant_i == 3'd2)
+            tb_check32("refetched slot1 preserves Tensor encoding",
+                       dut.head_inst0_w, inst_tensor_config());
+          else if (variant_i == 3'd3)
+            tb_check1("refetched slot1 re-enters full system decode",
+                      dut.head0_csr_raw_w, 1'b1);
+          else if (variant_i == 3'd4)
+            tb_check1("refetched slot1 re-enters full JAL decode",
+                      dut.u_frontend.head0_jal_raw_w, 1'b1);
+          else
+            tb_check32("refetched slot1 preserves fetch-fault response",
+                       {30'b0, dut.head_resp0_w},
+                       {30'b0, FETCH_RESP_ACCESS_FAULT});
+        end
+        case (variant_i)
+          3'd2: saw_semantic = saw_refetch_head &&
+                               (tensor_focus_cmd_fire_count >= 2);
+          3'd3: saw_semantic = saw_refetch_head && tb_csr_commit_w;
+          3'd4: saw_semantic = saw_refetch_head &&
+                               dut.u_frontend.direct_jal0_fire_w;
+          default: saw_semantic = saw_refetch_head &&
+                                  tb_csr_trap_ex_valid_w &&
+                                  (tb_csr_trap_ex_pc_w ==
+                                   64'h0000_0000_8000_0004);
+        endcase
+        if (!saw_semantic)
+          `TB_TICK(clk);
+      end
+      tb_check1("SINGLE slot1 packet cut observed", saw_cut, 1'b1);
+      tb_check1("cut slot1 receives an exact PC+4 refetch request",
+                saw_refetch_request, 1'b1);
+      tb_check1("cut slot1 reaches a new FIFO head", saw_refetch_head, 1'b1);
+      tb_check1("refetched slot1 executes its complete semantics",
+                saw_semantic, 1'b1);
+      tb_check1("successful SINGLE leaves no residual owner",
+                dut.u_frontend.tensor_residual_valid_w, 1'b0);
+      $display("[TENSOR-SINGLE-PACKET-CUT] variant=%0d cut=1 refetch_pc=80000004 semantic=1 residual=0 PASS",
+               variant_i);
+    end
+  endtask
+
+  task automatic run_tensor_nop_boundary_case;
+    input compressed_i;
+    integer cycle_i;
+    reg saw_normalization;
+    reg saw_residual;
+    reg saw_safe_provenance;
+    reg saw_residual_dispatch;
+    reg saw_refetch_request;
+    reg saw_refetch_head;
+    reg saw_nop_commit;
+    begin
+      tensor_focus_variant = compressed_i ? 3'd7 : 3'd6;
+      reset_dut(MODE_TENSOR_PRE_ROB_DIRECT, 32'h0000_0000);
+      saw_normalization = 1'b0;
+      saw_residual = 1'b0;
+      saw_safe_provenance = 1'b0;
+      saw_residual_dispatch = 1'b0;
+      saw_refetch_request = 1'b0;
+      saw_refetch_head = 1'b0;
+      saw_nop_commit = 1'b0;
+      for (cycle_i = 0; (cycle_i < 180) && !saw_nop_commit;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (dut.u_frontend.fetch_rsp_enqueue_w &&
+            (dut.u_frontend.fetch_dec0_pc_w ==
+             64'h0000_0000_8000_0000) &&
+            (dut.u_frontend.fetch_dec0_inst_w == inst_tensor_config())) begin
+          saw_normalization = 1'b1;
+          tb_check32("Tensor NOP boundary slot1 normalizes to ADDI x0,x0,0",
+                     dut.u_frontend.fetch_dec1_inst_w, 32'h0000_0013);
+          if (compressed_i) begin
+            tb_check32("C.NOP keeps a two-byte normalized successor",
+                       dut.u_frontend.fetch_dec1_next_pc_w,
+                       32'h8000_0006);
+            tb_check1("C.NOP is not eligible for safe residual replay",
+                      dut.u_frontend.fetch_dec0_tensor_safe_nop_residual_w,
+                      1'b0);
+            tb_check1("C.NOP forces a Tensor packet cut",
+                      dut.u_frontend.fetch_dec0_tensor_packet_cut_w, 1'b1);
+            tb_check1("C.NOP is invalidated from the original packet",
+                      dut.u_frontend.fetch_slot1_valid_w, 1'b0);
+            tb_check32("C.NOP cut redirects to its exact PC",
+                       dut.u_frontend.fetch_pred_next_pc_w,
+                       32'h8000_0004);
+          end else begin
+            tb_check32("32-bit NOP keeps a four-byte normalized successor",
+                       dut.u_frontend.fetch_dec1_next_pc_w,
+                       32'h8000_0008);
+            tb_check1("exact 32-bit NOP is the safe residual class",
+                      dut.u_frontend.fetch_dec0_tensor_safe_nop_residual_w,
+                      1'b1);
+            tb_check1("exact 32-bit NOP does not cut the packet",
+                      dut.u_frontend.fetch_dec0_tensor_packet_cut_w, 1'b0);
+            tb_check1("exact 32-bit NOP remains a valid slot1",
+                      dut.u_frontend.fetch_slot1_valid_w, 1'b1);
+          end
+        end
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0004))
+          saw_refetch_request = 1'b1;
+        if (dut.u_frontend.tensor_residual_valid_w) begin
+          saw_residual = 1'b1;
+          tb_check32("safe residual holds exact NOP PC",
+                     dut.u_frontend.tensor_residual_pc_w,
+                     32'h8000_0004);
+          tb_check32("safe residual holds exact NOP bits",
+                     dut.u_frontend.tensor_residual_inst_w,
+                     32'h0000_0013);
+          tb_check1("resident residual is production-safe NOP",
+                    dut.u_frontend.tensor_residual_safe_nop_w, 1'b1);
+        end
+        if (dut.u_frontend.tensor_residual_safe_nop_q)
+          saw_safe_provenance = 1'b1;
+        if (dut.u_frontend.tensor_residual_ready_w) begin
+          saw_residual_dispatch = 1'b1;
+          tb_check32("safe residual dispatch preserves PC",
+                     dut.u_frontend.core_dispatch0_pc_w,
+                     32'h8000_0004);
+          tb_check32("safe residual dispatch preserves PC+4",
+                     dut.u_frontend.core_dispatch0_next_pc_w,
+                     32'h8000_0008);
+          tb_check32("safe residual dispatch preserves NOP bits",
+                     dut.u_frontend.core_dispatch0_inst_w,
+                     32'h0000_0013);
+        end
+        if (compressed_i && dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_0004)) begin
+          saw_refetch_head = 1'b1;
+          tb_check32("refetched C.NOP is decompressed to ADDI x0,x0,0",
+                     dut.head_inst0_w, 32'h0000_0013);
+          tb_check32("refetched C.NOP keeps architectural PC+2",
+                     dut.head_next_pc0_w, 32'h8000_0006);
+        end
+        if (commit0_valid &&
+            (commit0_pc == 64'h0000_0000_8000_0004)) begin
+          saw_nop_commit = 1'b1;
+          tb_check32("NOP commit preserves normalized bits",
+                     commit0_inst, 32'h0000_0013);
+          tb_check32(compressed_i ?
+                         "C.NOP commit preserves PC+2" :
+                         "32-bit NOP commit preserves PC+4",
+                     commit0_next_pc,
+                     compressed_i ? 32'h8000_0006 : 32'h8000_0008);
+        end
+        if (commit1_valid &&
+            (commit1_pc == 64'h0000_0000_8000_0004)) begin
+          saw_nop_commit = 1'b1;
+          tb_check32("NOP commit preserves normalized bits",
+                     commit1_inst, 32'h0000_0013);
+          tb_check32(compressed_i ?
+                         "C.NOP commit preserves PC+2" :
+                         "32-bit NOP commit preserves PC+4",
+                     commit1_next_pc,
+                     compressed_i ? 32'h8000_0006 : 32'h8000_0008);
+        end
+        if (!saw_nop_commit)
+          `TB_TICK(clk);
+      end
+      tb_check1("Tensor NOP boundary normalization observed",
+                saw_normalization, 1'b1);
+      tb_check1("Tensor NOP boundary reaches architectural commit",
+                saw_nop_commit, 1'b1);
+      if (compressed_i) begin
+        tb_check1("C.NOP never enters residual storage",
+                  saw_residual, 1'b0);
+        tb_check1("C.NOP never raises registered safe-NOP provenance",
+                  saw_safe_provenance, 1'b0);
+        tb_check1("C.NOP never dispatches through residual mux",
+                  saw_residual_dispatch, 1'b0);
+        tb_check1("C.NOP receives an exact PC refetch",
+                  saw_refetch_request, 1'b1);
+        tb_check1("C.NOP refetch reaches the FIFO head",
+                  saw_refetch_head, 1'b1);
+        $display("[TENSOR-CNOP-CUT] decompressed=00000013 residual=0 refetch_pc=80000004 next_pc=80000006 commit=1 PASS");
+      end else begin
+        tb_check1("32-bit exact NOP enters residual storage",
+                  saw_residual, 1'b1);
+        tb_check1("32-bit exact NOP carries registered provenance",
+                  saw_safe_provenance, 1'b1);
+        tb_check1("32-bit exact NOP dispatches through residual mux",
+                  saw_residual_dispatch, 1'b1);
+        tb_check1("32-bit residual NOP needs no PC+4 refetch",
+                  saw_refetch_request, 1'b0);
+        $display("[TENSOR-32B-NOP-RESIDUAL] residual=1 dispatch_pc=80000004 next_pc=80000008 commit=1 PASS");
+      end
+      tb_check1("safe-NOP provenance clears after terminal replay",
+                dut.u_frontend.tensor_residual_safe_nop_q, 1'b0);
+    end
+  endtask
+
+  task automatic run_tensor_irq_case;
+    input [2:0] response_delay_i;
+    integer cycle_i;
+    reg saw_lo_packet_request;
+    reg saw_hi_request;
+    reg saw_hi_cut;
+    reg saw_wait;
+    reg saw_wait_progress;
+    reg saw_tensor_transfer;
+    reg saw_slot1_refetch;
+    begin
+      tensor_focus_variant = 3'd0;
+      reset_dut(MODE_TENSOR_PRE_ROB_IRQ, 32'h0000_0000);
+      saw_lo_packet_request = 1'b0;
+      saw_hi_request = 1'b0;
+      saw_hi_cut = 1'b0;
+      saw_wait = 1'b0;
+      saw_wait_progress = 1'b0;
+      saw_tensor_transfer = 1'b0;
+      saw_slot1_refetch = 1'b0;
+
+      for (cycle_i = 0; (cycle_i < 220) && !saw_wait;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0014))
+          saw_lo_packet_request = 1'b1;
+        if (dut.u_frontend.tensor_pair_pending_unused_w)
+          saw_wait = 1'b1;
+        if (!saw_wait) begin
+          `TB_TICK(clk);
+          if (saw_lo_packet_request)
+            fetch_req_admit = 1'b0;
+        end
+      end
+      tb_check1("LO packet request was accepted before WAIT_HI",
+                saw_lo_packet_request, 1'b1);
+      tb_check1("cross-packet LO reaches WAIT_HI", saw_wait, 1'b1);
+      tb_check1("WAIT_HI starts with fetch admission closed",
+                fetch_req_admit, 1'b0);
+      tb_check1("WAIT_HI has no outstanding fetch before ready",
+                dut.u_frontend.outstanding_valid_q, 1'b0);
+      tb_check1("WAIT_HI has no held response before ready",
+                fetch_rsp_valid, 1'b0);
+      tb_check1("WAIT_HI has no delayed TB response before ready",
+                tensor_focus_fetch_pending_q, 1'b0);
+
+      tb_csr_irq_external_w = 1'b1;
+      #1;
+      tb_check1("architectural CSR enables raw external IRQ",
+                tb_csr_irq_pending_w, 1'b1);
+      tensor_focus_check_irq_barrier(
+          "WAIT_HI with no outstanding fetch and later raw IRQ", 1'b1);
+      tb_check1("WAIT_HI requests its next packet without admission",
+                fetch_req_valid, 1'b1);
+      tb_check32("WAIT_HI requests the exact HI packet PC",
+                 fetch_req_pc, 32'h8000_001c);
+
+      tensor_focus_fetch_delay_cfg = response_delay_i;
+      fetch_req_admit = 1'b1;
+      for (cycle_i = 0; (cycle_i < 12) && !saw_hi_request;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        tensor_focus_check_irq_barrier(
+            "WAIT_HI reopens IFU under later raw IRQ", 1'b1);
+        if (fetch_req_valid && fetch_req_ready) begin
+          tb_check32("reopened WAIT_HI accepts exact HI request",
+                     fetch_req_pc, 32'h8000_001c);
+          saw_hi_request = 1'b1;
+        end
+        `TB_TICK(clk);
+      end
+      tb_check1("WAIT_HI accepts a fresh HI request after ready",
+                saw_hi_request, 1'b1);
+      tensor_focus_fetch_delay_cfg = 3'd0;
+
+      for (cycle_i = 0; cycle_i < response_delay_i;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        tensor_focus_check_irq_barrier(
+            "WAIT_HI holds across delayed HI response", 1'b1);
+        tb_check1("configured HI response is not early",
+                  fetch_rsp_valid, 1'b0);
+        tb_check1("delayed HI response remains owned by TB model",
+                  tensor_focus_fetch_pending_q, 1'b1);
+        `TB_TICK(clk);
+      end
+      #1;
+      tensor_focus_check_irq_barrier(
+          "WAIT_HI sees delayed HI response under raw IRQ", 1'b1);
+      tb_check1("configured HI response becomes valid on time",
+                fetch_rsp_valid, 1'b1);
+      tb_check32("delayed response keeps the exact HI owner PC",
+                 fetch_req_owner_pc, 32'h8000_001c);
+      tb_check1("delayed HI response is accepted into the frontend",
+                fetch_rsp_ready, 1'b1);
+      tb_check1("delayed HI response enqueues exactly once",
+                dut.u_frontend.fetch_rsp_enqueue_w, 1'b1);
+      if (dut.u_frontend.fetch_rsp_enqueue_w &&
+          (dut.u_frontend.fetch_dec0_pc_w ==
+           64'h0000_0000_8000_001c) &&
+          (dut.u_frontend.fetch_dec0_inst_w == inst_tensor_tiu_hi())) begin
+        saw_hi_cut = 1'b1;
+        tb_check1("cross-packet HI cuts its raw slot1",
+                  dut.u_frontend.fetch_dec0_tensor_packet_cut_w, 1'b1);
+        tb_check1("cross-packet HI invalidates raw slot1",
+                  dut.u_frontend.fetch_slot1_valid_w, 1'b0);
+        tb_check32("cross-packet HI refetch PC",
+                   dut.u_frontend.fetch_pred_next_pc_w,
+                   32'h8000_0020);
+      end
+      `TB_TICK(clk);
+
+      for (cycle_i = 0; (cycle_i < 24) && !saw_wait_progress;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        tensor_focus_check_irq_barrier(
+            "WAIT_HI with matching FIFO head and later raw IRQ", 1'b1);
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0020))
+          saw_slot1_refetch = 1'b1;
+        if (dut.fifo_has_packet_w &&
+            (dut.head_pc_w == 64'h0000_0000_8000_001c) &&
+            dut.u_frontend.tensor_head_pop_w) begin
+          saw_wait_progress = 1'b1;
+          tb_check1("WAIT_HI consumes only its matching HI under IRQ",
+                    dut.u_frontend.normal_fifo_pop_w, 1'b0);
+        end
+        `TB_TICK(clk);
+      end
+      tb_check1("WAIT_HI continues to matching HI under raw IRQ",
+                saw_wait_progress, 1'b1);
+
+      for (cycle_i = 0; (cycle_i < 24) && !saw_tensor_transfer;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0020))
+          saw_slot1_refetch = 1'b1;
+        if (dut.u_frontend.tensor_dispatch_valid_w) begin
+          tensor_focus_check_irq_barrier(
+              "resident Tensor with later raw IRQ", 1'b0);
+          tb_check1("successful HI packet creates no residual",
+                    dut.u_frontend.tensor_residual_valid_w, 1'b0);
+          if (dut.u_frontend.tensor_dispatch_ready_w)
+            saw_tensor_transfer = 1'b1;
+        end
+        `TB_TICK(clk);
+      end
+      tb_check1("resident Tensor transfers to ROB under raw IRQ",
+                saw_tensor_transfer, 1'b1);
+      tb_csr_irq_external_w = 1'b0;
+      #1;
+      tb_check1("raw IRQ did not register while pre-ROB owner was live",
+                dut.pending_system_irq_q, 1'b0);
+      tb_check1("cross-packet HI normalization was observed",
+                saw_hi_cut, 1'b1);
+
+      for (cycle_i = 0; (cycle_i < 160) && !saw_slot1_refetch;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (fetch_req_valid && fetch_req_ready &&
+            (fetch_req_pc == 64'h0000_0000_8000_0020))
+          saw_slot1_refetch = 1'b1;
+        if (!saw_slot1_refetch)
+          `TB_TICK(clk);
+      end
+      tb_check1("HI-cut slot1 is refetched at its exact PC",
+                saw_slot1_refetch, 1'b1);
+      repeat (80) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check32("HI-cut ordinary slot1 executes after refetch",
+                 gpr(5'd3), 32'd3);
+      tb_check1("HI-cut successful command leaves no residual",
+                dut.u_frontend.tensor_residual_valid_w, 1'b0);
+      $display("[TENSOR-PRE-ROB-IRQ] delay=%0d no_outstanding=1 wait_ifu_progress=1 irq_capture=0 drained=0 tensor_transfer=1 hi_slot1_refetch=1 PASS",
+               response_delay_i);
+    end
+  endtask
+
+  task automatic run_tensor_branch_kill_case;
+    input [2:0] variant_i;
+    integer cycle_i;
+    reg saw_state;
+    reg saw_kill;
+    reg saw_error_birth_edge;
+    reg saw_held_load_request;
+    reg saw_target_exit;
+    reg block_fetch_after_edge;
+    reg error_fetch_reopened;
+    begin
+      tensor_focus_variant = variant_i;
+      reset_dut(MODE_TENSOR_PRE_ROB_BRANCH_KILL, 32'h0000_0000);
+      tensor_focus_mem_req_admit = 1'b0;
+      if (variant_i == 3'd1)
+        tensor_cmd_ready = 1'b0;
+      saw_state = 1'b0;
+      saw_kill = 1'b0;
+      saw_error_birth_edge = 1'b0;
+      saw_held_load_request = 1'b0;
+      saw_target_exit = 1'b0;
+      block_fetch_after_edge = 1'b0;
+      error_fetch_reopened = 1'b0;
+      for (cycle_i = 0; (cycle_i < 220) && !saw_kill;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        block_fetch_after_edge = 1'b0;
+        if (fetch_req_valid && fetch_req_ready &&
+            (((variant_i == 3'd0) &&
+              (fetch_req_pc == 64'h0000_0000_8000_0010)) ||
+             ((variant_i == 3'd2) &&
+              (fetch_req_pc == 64'h0000_0000_8000_0008))))
+          block_fetch_after_edge = 1'b1;
+        if ((variant_i == 3'd2) && !fetch_req_admit &&
+            mem_req_valid && !error_fetch_reopened) begin
+          saw_held_load_request = 1'b1;
+          error_fetch_reopened = 1'b1;
+          fetch_req_admit = 1'b1;
+          tensor_focus_mem_req_admit = 1'b1;
+        end
+        case (variant_i)
+          3'd0: if (dut.u_frontend.tensor_pair_pending_unused_w) begin
+                  saw_state = 1'b1;
+                  if (!tensor_focus_mem_req_admit) begin
+                    tb_check1("WAIT_HI release sees held older load request",
+                              mem_req_valid, 1'b1);
+                    tb_check1("WAIT_HI kill stimulus has no outstanding fetch",
+                              dut.u_frontend.outstanding_valid_q, 1'b0);
+                    tb_check1("WAIT_HI kill stimulus has no held response",
+                              fetch_rsp_valid, 1'b0);
+                    tensor_focus_mem_req_admit = 1'b1;
+                  end
+                end
+          3'd1: if (dut.u_frontend.tensor_dispatch_valid_w &&
+                     (dut.u_frontend.tensor_dispatch_pc_w ==
+                      64'h0000_0000_8000_0014)) begin
+                  saw_state = 1'b1;
+                  if (!tensor_focus_mem_req_admit) begin
+                    tb_check1("resident Tensor release sees held older load request",
+                              mem_req_valid, 1'b1);
+                    tensor_focus_mem_req_admit = 1'b1;
+                  end
+                end
+          default: begin
+            if (dut.u_frontend.tensor_head_pop_w &&
+                (dut.head_pc_w == 64'h0000_0000_8000_0010)) begin
+              saw_error_birth_edge = 1'b1;
+              tb_check1("error birth follows held-load release",
+                        error_fetch_reopened, 1'b1);
+            end
+            if (dut.u_frontend.tensor_pair_error_valid_w &&
+                dut.u_frontend.tensor_residual_valid_w)
+                     saw_state = 1'b1;
+          end
+        endcase
+        if ((variant_i == 3'd2) &&
+            dut.tensor_pair_trap_valid_w &&
+            dut.tensor_pair_trap_ready_w &&
+            !dut.u_frontend.tensor_pair_branch_kill_w) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] malformed-pair owner escaped before selective recovery");
+        end
+        if (dut.u_frontend.tensor_pair_branch_kill_w &&
+            dut.tensor_pre_rob_owner_live_w) begin
+          saw_kill = 1'b1;
+          tb_check1("selective kill sees the requested resident state",
+                    saw_state, 1'b1);
+          if (variant_i == 3'd0)
+            tb_check1("selective kill directly overlaps WAIT_HI",
+                      dut.u_frontend.tensor_pair_pending_unused_w, 1'b1);
+          else if (variant_i == 3'd1) begin
+            tb_check1("selective kill directly overlaps second Tensor",
+                      dut.u_frontend.tensor_dispatch_valid_w, 1'b1);
+            tb_check32("selective kill keeps second Tensor identity",
+                       dut.u_frontend.tensor_dispatch_pc_w,
+                       32'h8000_0014);
+          end else begin
+            tb_check1("selective kill directly overlaps pair error",
+                      dut.u_frontend.tensor_pair_error_valid_w, 1'b1);
+            tb_check1("selective kill directly overlaps residual shadow",
+                      dut.u_frontend.tensor_residual_valid_w, 1'b1);
+          end
+          tb_check1("selective kill exposes no PairOwner head pop",
+                    dut.u_frontend.tensor_head_pop_w, 1'b0);
+          tb_check1("selective kill exposes no Tensor ROB handoff",
+                    dut.u_frontend.tensor_dispatch_ready_w, 1'b0);
+          tb_check1("selective kill exposes no residual handoff",
+                    dut.u_frontend.tensor_residual_ready_w, 1'b0);
+          tb_check1("selective kill exposes no pair-trap handoff",
+                    dut.tensor_pair_trap_valid_w &&
+                        dut.tensor_pair_trap_ready_w, 1'b0);
+          tb_check32("wrong-path Tensor issued no external command",
+                     tensor_focus_cmd_fire_count, 32'd0);
+        end
+        `TB_TICK(clk);
+        if (block_fetch_after_edge)
+          fetch_req_admit = 1'b0;
+      end
+      tb_check1("selective branch recovery reaches requested pre-ROB owner",
+                saw_kill, 1'b1);
+      if (variant_i == 3'd2)
+        tb_check1("malformed-pair error/residual resident birth observed",
+                  saw_error_birth_edge, 1'b1);
+      if (variant_i == 3'd2)
+        tb_check1("malformed-pair timing first held the load request",
+                  saw_held_load_request, 1'b1);
+      fetch_req_admit = 1'b1;
+      tensor_focus_mem_req_admit = 1'b1;
+      tensor_cmd_ready = 1'b1;
+      #1;
+      tb_check1("branch recovery clears aggregate pre-ROB owner",
+                dut.tensor_pre_rob_owner_live_w, 1'b0);
+      tb_check1("branch recovery clears WAIT_HI",
+                dut.u_frontend.tensor_pair_pending_unused_w, 1'b0);
+      tb_check1("branch recovery clears Tensor resident",
+                dut.u_frontend.tensor_dispatch_valid_w, 1'b0);
+      tb_check1("branch recovery clears residual shadow",
+                dut.u_frontend.tensor_residual_valid_w, 1'b0);
+      tb_check1("branch recovery clears pair error",
+                dut.u_frontend.tensor_pair_error_valid_w, 1'b0);
+      for (cycle_i = 0; (cycle_i < 120) && !saw_target_exit;
+           cycle_i = cycle_i + 1) begin
+        #1;
+        if (exit_valid)
+          saw_target_exit = 1'b1;
+        if (!saw_target_exit)
+          `TB_TICK(clk);
+      end
+      if (!saw_target_exit) begin
+        `TB_TICK(clk);
+        #1;
+      end
+      tb_check1("branch recovery target reaches ebreak",
+                saw_target_exit, 1'b1);
+      if (variant_i == 3'd0)
+        tb_check32("WAIT_HI wrong-path ordinary word is squashed",
+                   gpr(5'd7), 32'd0);
+      else if (variant_i == 3'd1) begin
+        tb_check32("Tensor wrong-path word 0 is squashed",
+                   gpr(5'd8), 32'd0);
+        tb_check32("Tensor wrong-path word 1 is squashed",
+                   gpr(5'd9), 32'd0);
+      end else begin
+        tb_check32("error residual shadow never retires",
+                   gpr(5'd10), 32'd0);
+        tb_check32("error younger word is squashed",
+                   gpr(5'd11), 32'd0);
+      end
+      tb_check32("selectively killed Tensor path issues no command",
+                 tensor_focus_cmd_fire_count, 32'd0);
+      if (saw_kill && saw_target_exit)
+        $display("[TENSOR-PRE-ROB-BRANCH-KILL] variant=%0d state=1 kill_handoff=0 clear=1 target=1 PASS",
+                 variant_i);
+    end
+  endtask
+`endif
+
+`ifdef TENSOR_PRE_ROB_FOCUSED
+  initial begin : tensor_pre_rob_focused
+    tb_errors = 0;
+
+    run_tensor_resident_direct_case(3'd0);
+    run_tensor_resident_direct_case(3'd1);
+
+    run_tensor_single_packet_cut_case(3'd2);
+    run_tensor_single_packet_cut_case(3'd3);
+    run_tensor_single_packet_cut_case(3'd4);
+    run_tensor_single_packet_cut_case(3'd5);
+
+    run_tensor_nop_boundary_case(1'b0);
+    run_tensor_nop_boundary_case(1'b1);
+
+    run_tensor_irq_case(3'd2);
+    run_tensor_irq_case(3'd3);
+
+    run_tensor_branch_kill_case(3'd0);
+    run_tensor_branch_kill_case(3'd1);
+    run_tensor_branch_kill_case(3'd2);
+
+    tb_finish("tb_ooo_core_top_glue");
+  end
+`elsif V8Z_FRONTEND_II1_FOCUSED
   integer v8z_request_count;
   integer v8z_response_count;
   integer v8z_enqueue_count;
@@ -3709,6 +4829,57 @@ module tb_ooo_core_top_glue;
                {27'b0, rob_count}, 32'd0);
     tb_check32("fetch fault issue queue drains before handler ebreak",
                {28'b0, issue_count}, 32'd0);
+
+    reset_dut(MODE_TENSOR_PAIR_TRAP, 32'h0000_0000);
+    repeat (240) begin
+      `TB_TICK(clk);
+      #1;
+    end
+
+    tb_check1("Tensor pair LO/mismatch reaches real FIFO head",
+              saw_tensor_pair_fifo_head, 1'b1);
+    tb_check32("Tensor pair malformed packet has one PairOwner pop",
+               tensor_pair_head_pop_count, 32'd1);
+    tb_check32("Tensor pair trap handoff occurs exactly once",
+               tensor_pair_handoff_count, 32'd1);
+    tb_check32("Tensor pair handoff has no dispatch/FIFO escape",
+               tensor_pair_handoff_escape_count, 32'd0);
+    tb_check32("Tensor pair precise trap-ex occurs exactly once",
+               tensor_pair_trap_ex_count, 32'd1);
+    tb_check32("Tensor pair trap emits one immediate typed redirect",
+               tensor_pair_trap_redirect_count, 32'd1);
+    tb_check1("Tensor pair trap reaches recovery squash",
+              saw_tensor_pair_recovery_squash, 1'b1);
+    tb_check1("Tensor pair recovery squash is non-vacuous",
+              tensor_pair_recovery_squash_cycles != 0, 1'b1);
+    tb_check1("Tensor pair handler commits after trap recovery",
+              saw_tensor_pair_post_trap_commit, 1'b1);
+    tb_check1("Tensor pair handler reaches ebreak", exit_valid, 1'b1);
+    tb_check1("Tensor pair architectural trap is CSR-handled",
+              trap_valid, 1'b0);
+    tb_check1("Tensor pair handler exits by ebreak",
+              exit_is_ebreak, 1'b1);
+    tb_check32("Tensor pair mismatch residual never dispatches",
+               gpr(5'd9), 32'd0);
+    tb_check32("Tensor pair younger ordinary instruction is squashed",
+               gpr(5'd10), 32'd0);
+    tb_check32("Tensor pair post-trap ordinary instruction commits",
+               gpr(5'd11), 32'd11);
+    tb_check32("Tensor pair handler reads illegal-instruction cause",
+               gpr(5'd13), `EXC_ILLEGAL_INST);
+    tb_check32("Tensor pair handler reads precise LO PC",
+               gpr(5'd14), 32'h8000_000c);
+    tb_check32("Tensor pair handler reads precise LO tval low",
+               gpr(5'd15), inst_tensor_tiu_lo());
+    tb_check32("Tensor pair handler reads zero-extended LO tval high",
+               gpr(5'd15) >> 32, 32'd0);
+    tb_check32("Tensor pair trap retires setup and handler only",
+               commit_total, 32'd7);
+    tb_check32("Tensor pair trap drains ROB before handler ebreak",
+               {27'b0, rob_count}, 32'd0);
+    tb_check32("Tensor pair trap drains issue queue before handler ebreak",
+               {28'b0, issue_count}, 32'd0);
+    $display("[TENSOR-PAIR-PRODUCTION-SMOKE] fifo=1 pop=1 handoff=1 escape=0 trap-ex=1 redirect=1 squash=1 recovery-commit=1 PASS");
 
     // V9O focused source-to-apply integration.  Force the already-verified
     // queue-head C0 source and matching legacy trap request for one edge, then

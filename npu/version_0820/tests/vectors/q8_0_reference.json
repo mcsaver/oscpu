@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "oracle": {
+    "project": "ggml-org/llama.cpp",
+    "commit": "95c409c13625a23da2aa37270339ce9179215a18",
+    "quantize_function": "quantize_row_q8_0_ref",
+    "dot_function": "ggml_vec_dot_q8_0_q8_0_generic",
+    "rounding_note": "These vectors contain no half-way integer quantization ties."
+  },
+  "format": {
+    "logical_elements_per_block": 32,
+    "block_size_bytes": 34,
+    "scale": {
+      "offset_bytes": 0,
+      "size_bytes": 2,
+      "encoding": "IEEE-754 binary16 little-endian"
+    },
+    "quants": {
+      "offset_bytes": 2,
+      "count": 32,
+      "encoding": "signed int8 two's-complement"
+    }
+  },
+  "vectors": [
+    {
+      "id": "q8_0_zero_block",
+      "input_f32": [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      "expected_scale_half_bits": "0x0000",
+      "expected_block_bytes_hex": "00000000000000000000000000000000000000000000000000000000000000000000",
+      "self_dot": {
+        "expected_int32_sum": 0,
+        "expected_f32_bits": "0x00000000"
+      }
+    },
+    {
+      "id": "q8_0_unit_scale_signed",
+      "input_f32": [
+        -127.0, -64.0, -1.0, 0.0, 1.0, 63.0, 64.0, 127.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+      ],
+      "expected_scale_half_bits": "0x3c00",
+      "expected_block_bytes_hex": "003c81c0ff00013f407f000000000000000000000000000000000000000000000000",
+      "self_dot": {
+        "expected_int32_sum": 44421,
+        "expected_f32_bits": "0x472d8500"
+      }
+    }
+  ]
+}

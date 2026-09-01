@@ -111,6 +111,10 @@ module OooFrontend #(
   input rst,
   input run_i,
   input stop_pending_q,
+  // Actual capture grant from the pending-trap owner.  This is intentionally
+  // not a level-ready: PairOwner releases its error only on the same edge that
+  // the existing precise-trap sequencer accepts the typed payload.
+  input tensor_pair_trap_ready_i,
   input synth_lane1_branch_drop_pending_q,
   input synth_lane1_ret_pending_q,
   input system_csr_dispatch_fire_w,
@@ -165,6 +169,19 @@ module OooFrontend #(
   output [`XLEN-1:0] core_dispatch0_next_pc_w,
   output [`XLEN-1:0] core_dispatch0_pc_w,
   output core_dispatch0_valid_w,
+  output core_dispatch0_tensor_w,
+  output [63:0] core_dispatch0_tensor_bits_w,
+  output core_dispatch0_tensor_is_64_w,
+  output core_dispatch0_tensor_required_w,
+  output [7:0] core_dispatch0_tensor_opclass_w,
+  output tensor_pair_trap_valid_o,
+  output [`XLEN-1:0] tensor_pair_trap_pc_o,
+  output [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause_o,
+  output [`XLEN-1:0] tensor_pair_trap_tval_o,
+  // Q-only frontend owner fact.  It remains asserted through the exact
+  // PairOwner/residual -> ROB handoff edge so ControlPlane cannot observe a
+  // false empty window while an older Tensor transaction is transferring.
+  output tensor_pre_rob_owner_live_o,
   output [`INST_W-1:0] core_dispatch1_inst_w,
   output [`XLEN-1:0] core_dispatch1_next_pc_w,
   output [`XLEN-1:0] core_dispatch1_pc_w,
@@ -441,6 +458,8 @@ module OooFrontend #(
   wire fetch_pred0_taken_w;
   wire fetch_pred1_taken_w;
   wire fetch_slot1_valid_w;
+  wire fetch_dec0_tensor_safe_nop_residual_w;
+  wire fetch_dec0_tensor_packet_cut_w;
   wire [`XLEN-1:0] fetch_pred_next_pc_w;
   wire fetch_pred_taken_block_w;
   wire fetch_pred_taken_redirect_w;
@@ -487,6 +506,33 @@ module OooFrontend #(
   wire fifo_head_slot1_valid_w;
   wire head_slot1_valid_w;
   wire fifo_pop_w;
+  wire normal_fifo_pop_w;
+  wire tensor_head0_claim_w;
+  wire tensor_head1_claim_w;
+  wire tensor_head_pop_w;
+  wire tensor_residual_valid_w;
+  wire tensor_residual_ready_w;
+  wire [`XLEN-1:0] tensor_residual_pc_w;
+  wire [`INST_W-1:0] tensor_residual_inst_w;
+  wire [1:0] tensor_residual_resp_w;
+  reg tensor_residual_safe_nop_q;
+  wire tensor_dispatch_valid_w;
+  wire tensor_dispatch_ready_w;
+  wire [`XLEN-1:0] tensor_dispatch_pc_w;
+  wire [`XLEN-1:0] tensor_dispatch_next_pc_w;
+  wire [63:0] tensor_dispatch_bits_w;
+  wire tensor_dispatch_is_64_w;
+  wire tensor_dispatch_required_w;
+  wire [7:0] tensor_dispatch_opclass_w;
+  wire tensor_dispatch_cross_packet_unused_w;
+  wire tensor_pair_error_valid_w;
+  wire tensor_pair_error_ready_w;
+  wire [`XLEN-1:0] tensor_pair_error_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] tensor_pair_error_cause_w;
+  wire [`XLEN-1:0] tensor_pair_error_tval_w;
+  wire [1:0] tensor_pair_error_code_unused_w;
+  wire tensor_pair_pending_unused_w;
+  wire tensor_pair_serialize_unused_w;
   wire fifo_reserve_available_w;
   wire fifo_storage_head_valid_w;
   wire fifo_storage_pop_w;
@@ -619,12 +665,17 @@ module OooFrontend #(
   wire stop_head_w;
   wire dbranch_dispatch_fire_w;  // domain-A: head0 分支普通 dispatch fire(FIFO pop 源)
   wire stop_pending_busy_w;
+  wire tensor_pre_rob_ordinary_block_w;
 
 
   OooFrontendRunGate #(
     .FETCH_COUNT_W(FETCH_COUNT_W)
   ) u_frontend_run_gate (
-    .run_i(run_i),
+    // Tensor/error residency suppresses the ordinary FIFO/direct domain.
+    // WAIT_HI is different: its head claim still blocks ordinary dispatch,
+    // but IFU request/response flow must remain live until the matching HI
+    // packet arrives (including while a later raw IRQ is pending).
+    .run_i(run_i && !tensor_pre_rob_ordinary_block_w),
     .core_trap_flush_i(core_trap_flush_q),
     .core_serial_flush_i(core_serial_flush_q),
     .stop_pending_i(stop_pending_q),
@@ -632,7 +683,12 @@ module OooFrontend #(
     .pending_branch_i(pending_branch_q),
     .pending_jump_i(pending_jump_q),
     .pending_mem_i(pending_mem_q),
-    .pending_arch_trap_i(pending_arch_trap_q),
+    // The registered PairOwner error is already a resident synchronous trap.
+    // Use it as a local barrier before PendingTrapExit registers its owner on
+    // the handoff edge; the pair capture path deliberately does not depend on
+    // can_run_w, so this cannot self-deadlock.
+    .pending_arch_trap_i(pending_arch_trap_q ||
+                         tensor_pair_error_valid_w),
     .pending_system_i(pending_system_q),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending_q),
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
@@ -655,9 +711,132 @@ module OooFrontend #(
   );
 
 
-  OooFetchHeadPairGate u_fetch_head_pair_gate (
-    .fifo_has_packet_i(fifo_has_packet_w),
+  // Direct Tensor owner sits beside the normalized FIFO head.  It claims only
+  // custom-2 SINGLE/LO roles; ordinary decode remains the owner for all other
+  // words and for orphan HI.  A command transfers to the ROB sidecar exactly
+  // when the selected lane0 backend dispatch fires.
+  // Every backend branch resolve is older than this pre-ROB owner.  A
+  // mispredict/misaligned recovery therefore kills WAIT_HI, Tensor, residual
+  // and pair-error state before it may pop or allocate on the recovery edge.
+  wire tensor_pair_branch_kill_w =
+      (branch_spec_resolve_valid_w && branch_spec_restore_w) ||
+      branch_resolve_untracked_w ||
+      (core_branch_resolve_valid_w &&
+       (core_branch_resolve_mispredict_w ||
+        core_branch_resolve_misaligned_w));
+  wire tensor_pair_flush_w =
+      flush_i || core_trap_flush_q || core_serial_flush_q ||
+      direct_frontend_flush_w || trap_redirect_squash_q ||
+      control_full_flush_barrier_i || tensor_pair_branch_kill_w;
+  // Only an IDLE PairOwner birth follows the ordinary frontend/IRQ admission
+  // boundary.  WAIT_HI is already an older resident owner and must retain
+  // visibility of the matching HI word even while a raw IRQ is pending.  Do
+  // not consume the aggregate tensor_pair_flush_w here: it contains the
+  // decode-derived direct_frontend_flush_w and would close a structural loop
+  // through PairOwner claim -> direct fire -> flush -> new-birth admission.
+  wire tensor_pair_new_birth_open_w =
+      can_run_w && !csr_irq_pending_w && !stop_pending_q &&
+      !csr_trap_mem_valid_w && !csr_trap_ex_valid_w &&
+      !csr_trap_irq_valid_w && !core_trap_flush_q &&
+      !core_serial_flush_q && !control_full_flush_barrier_i &&
+      !flush_i && !trap_redirect_squash_q &&
+      !tensor_pair_branch_kill_w;
+  // A selective recovery is an older feedback-free fact, so it also blocks a
+  // resident WAIT_HI owner from consuming the newly redirected FIFO head on
+  // the kill edge.  Other full/direct flushes remain safe by sequential flush
+  // priority and need not feed PairOwner's combinational head admission.
+  wire tensor_pair_head_valid_w =
+      fifo_has_packet_w && !tensor_pair_branch_kill_w &&
+      (tensor_pair_pending_unused_w || tensor_pair_new_birth_open_w);
+
+  assign tensor_pair_trap_valid_o =
+      tensor_pair_error_valid_w && !tensor_pair_flush_w;
+  assign tensor_pair_error_ready_w =
+      tensor_pair_trap_ready_i && !tensor_pair_flush_w;
+  assign tensor_pair_trap_pc_o = tensor_pair_error_pc_w;
+  assign tensor_pair_trap_cause_o = tensor_pair_error_cause_w;
+  assign tensor_pair_trap_tval_o = tensor_pair_error_tval_w;
+
+  OooTensorPairOwner u_tensor_pair_owner (
+    .clk(clk),
+    .rst(rst),
+    .flush_i(tensor_pair_flush_w),
+    .head_valid_i(tensor_pair_head_valid_w),
     .head_slot1_valid_i(head_slot1_valid_w),
+    .head_pc0_i(head_pc_w),
+    .head_inst0_i(head_inst0_w),
+    .head_resp0_i(head_resp0_w),
+    .head_pc1_i(head_pc1_w),
+    .head_inst1_i(head_inst1_w),
+    .head_resp1_i(head_resp1_w),
+    .head_fault_tval_i(head_fetch_fault_tval_w),
+    .normal_lane0_fire_i(core_dispatch0_fire_w && tensor_head1_claim_w),
+    .head0_claim_o(tensor_head0_claim_w),
+    .head1_claim_o(tensor_head1_claim_w),
+    .head_pop_o(tensor_head_pop_w),
+    .residual_valid_o(tensor_residual_valid_w),
+    .residual_ready_i(tensor_residual_ready_w),
+    .residual_pc_o(tensor_residual_pc_w),
+    .residual_inst_o(tensor_residual_inst_w),
+    .residual_resp_o(tensor_residual_resp_w),
+    .tensor_valid_o(tensor_dispatch_valid_w),
+    .tensor_ready_i(tensor_dispatch_ready_w),
+    .tensor_pc_o(tensor_dispatch_pc_w),
+    .tensor_next_pc_o(tensor_dispatch_next_pc_w),
+    .tensor_bits_o(tensor_dispatch_bits_w),
+    .tensor_is_64_o(tensor_dispatch_is_64_w),
+    .tensor_required_o(tensor_dispatch_required_w),
+    .tensor_opclass_o(tensor_dispatch_opclass_w),
+    .tensor_cross_packet_o(tensor_dispatch_cross_packet_unused_w),
+    .error_valid_o(tensor_pair_error_valid_w),
+    .error_ready_i(tensor_pair_error_ready_w),
+    .error_pc_o(tensor_pair_error_pc_w),
+    .error_cause_o(tensor_pair_error_cause_w),
+    .error_tval_o(tensor_pair_error_tval_w),
+    .error_code_o(tensor_pair_error_code_unused_w),
+    .pair_pending_o(tensor_pair_pending_unused_w),
+    .serialize_o(tensor_pair_serialize_unused_w)
+  );
+
+  // Preserve the response/head normalization proof as registered ownership
+  // metadata.  Resident replay must consume this typed fact rather than
+  // re-infer raw instruction length from the decompressed 0x00000013 bits.
+  // Malformed-pair residual shadows never satisfy this birth predicate.
+  wire tensor_residual_safe_nop_birth_w =
+      tensor_pair_head_valid_w && tensor_head_pop_w &&
+      (head_resp0_w == 2'b00) &&
+      (head_inst0_w[6:0] == 7'b1011011) &&
+      (head_inst0_w[14:12] == 3'b100) &&
+      head_slot1_valid_w && (head_resp1_w == 2'b00) &&
+      (head_inst1_w == 32'h00000013) &&
+      (head_next_pc1_w ==
+       (head_pc1_w + {{(`XLEN-3){1'b0}}, 3'd4}));
+  always @(posedge clk) begin
+    if (rst || tensor_pair_flush_w) begin
+      tensor_residual_safe_nop_q <= 1'b0;
+    end else if (tensor_residual_ready_w || tensor_pair_error_ready_w) begin
+      tensor_residual_safe_nop_q <= 1'b0;
+    end else if (tensor_residual_safe_nop_birth_w) begin
+      tensor_residual_safe_nop_q <= 1'b1;
+    end
+  end
+
+  // Both terms are registered ownership facts from PairOwner/residual
+  // storage.  A successful production Tensor packet may retain only the
+  // response-normalized exact NOP; every other residual remains solely the
+  // younger shadow of a malformed-pair trap and clears with that handoff.
+  // Do not add allocation/ready combinational bypasses here: the edge-old
+  // owner stays high on the transfer edge and ROB count takes over on the
+  // following edge.
+  assign tensor_pre_rob_owner_live_o =
+      tensor_pair_serialize_unused_w || tensor_residual_valid_w;
+  assign tensor_pre_rob_ordinary_block_w =
+      (tensor_pair_serialize_unused_w &&
+       !tensor_pair_pending_unused_w) || tensor_residual_valid_w;
+
+  OooFetchHeadPairGate u_fetch_head_pair_gate (
+    .fifo_has_packet_i(fifo_has_packet_w && !tensor_head0_claim_w),
+    .head_slot1_valid_i(head_slot1_valid_w && !tensor_head1_claim_w),
     .head_resp0_i(head_resp0_w),
     .head_resp1_i(head_resp1_w),
     .head_static_facts0_i(head0_static_facts_w),
@@ -1135,20 +1314,53 @@ module OooFrontend #(
   assign fetch_pred0_taken_w =
       fetch_dec0_branch_w && (fetch_dec0_resp_w == 2'b00) &&
       fetch_dec0_pred_taken_w;
+  // A successful slot0 Tensor SINGLE is a serialized instruction boundary.
+  // Preserve its slot1 only for the one instruction whose complete semantics
+  // are proven locally: an OK, exact 32-bit architectural NOP
+  // (ADDI x0,x0,0).  The explicit 4-byte next-PC check excludes C.NOP, whose
+  // decompressed bits are identical but whose successor is pc+2.  The NOP is
+  // still replayed through the ROB as an ordered uop; it is not elided.  Every
+  // other slot1 must be refetched so fault/system/control/Tensor semantics
+  // traverse the complete frontend.  A slot0 HI is always cut: when PairOwner
+  // is waiting it consumes exactly that HI, otherwise it is an ordinary
+  // illegal instruction.  A LO remains paired with slot1 so the same-packet
+  // 64-bit command can still be recognized.
+  wire fetch_dec0_tensor_single_w =
+      (fetch_dec0_resp_w == 2'b00) &&
+      (fetch_dec0_inst_w[6:0] == 7'b1011011) &&
+      (fetch_dec0_inst_w[14:12] == 3'b100);
+  wire fetch_dec0_tensor_hi_w =
+      (fetch_dec0_resp_w == 2'b00) &&
+      (fetch_dec0_inst_w[6:0] == 7'b1011011) &&
+      (fetch_dec0_inst_w[14:12] == 3'b011) &&
+      ((fetch_dec0_inst_w[31:25] == 7'b0000101) ||
+       (fetch_dec0_inst_w[31:25] == 7'b0000111));
+  assign fetch_dec0_tensor_safe_nop_residual_w =
+      fetch_dec0_tensor_single_w &&
+      (fetch_dec1_resp_w == 2'b00) &&
+      (fetch_dec1_inst_w == 32'h00000013) &&
+      (fetch_dec1_next_pc_w ==
+       (fetch_dec1_pc_w + {{(`XLEN-3){1'b0}}, 3'd4}));
+  assign fetch_dec0_tensor_packet_cut_w =
+      fetch_dec0_tensor_hi_w ||
+      (fetch_dec0_tensor_single_w &&
+       !fetch_dec0_tensor_safe_nop_residual_w);
   assign fetch_pred1_taken_w =
-      !fetch_pred0_taken_w &&
+      !fetch_pred0_taken_w && !fetch_dec0_tensor_packet_cut_w &&
       fetch_dec1_branch_w && (fetch_dec1_resp_w == 2'b00) &&
       fetch_dec1_pred_taken_w;
   // slot0 taken → 包内截断: slot1=wrong-path, 随包存 0, head1 谓词族在
   // OooFetchHeadPairGate facts 生成处单点门控(禁用 resp 字段/NOP 替换编码——
   // resp 是 fault 通道, 混用撞 fetch-fault drain 路径)。
-  assign fetch_slot1_valid_w = !fetch_pred0_taken_w;
+  assign fetch_slot1_valid_w =
+      !fetch_pred0_taken_w && !fetch_dec0_tensor_packet_cut_w;
   // 包级预测后继(随包存 FIFO packet_next_pc 字段=改造承载, 同时喂 Sequencer 顺序
   // 推进臂完成 resp 拍改流): taken=分支 target(pc+bimm), 否则=fall-through。
   // 该值只进寄存器 D 端(FIFO 表项/next_fetch_pc_q), 禁止组合进 fetch_req_pc
   // (刀 F WNS 家族: BPU 两级串联读+imm 加法器进取指回环)。
   assign fetch_pred_next_pc_w =
       fetch_pred0_taken_w ? fetch_dec0_branch_target_w :
+      fetch_dec0_tensor_packet_cut_w ? fetch_dec0_next_pc_w :
       fetch_pred1_taken_w ? fetch_dec1_branch_target_w :
                             fetch_rsp_packet_next_pc_w;
   // taken 拍断融合关断(单 bit → OooFetchFlowControl.can_issue): 该拍融合连发的
@@ -1166,8 +1378,9 @@ module OooFrontend #(
   // 连发(顺序地址=fall-through=not-taken 预测流; taken 拍由上面 block 关断)。
   // 分支项须以 resp==OK 限定——fault slot 的垃圾位形似 BRANCH 时仍必须 stop。
   assign fetch_dec0_control_stop_nb_w =
-      fetch_dec0_control_stop_w &&
-      !(fetch_dec0_branch_w && (fetch_dec0_resp_w == 2'b00));
+      fetch_dec0_tensor_packet_cut_w ||
+      (fetch_dec0_control_stop_w &&
+       !(fetch_dec0_branch_w && (fetch_dec0_resp_w == 2'b00)));
   assign fetch_dec1_control_stop_nb_w =
       fetch_dec1_control_stop_w &&
       !(fetch_dec1_branch_w && (fetch_dec1_resp_w == 2'b00));
@@ -1622,10 +1835,11 @@ module OooFrontend #(
     .control_full_flush_barrier_i(control_full_flush_barrier_i),
     .direct_frontend_flush_o(direct_frontend_flush_w),
     .stop_head_o(stop_head_w),
-    .fifo_pop_o(fifo_pop_w),
+    .fifo_pop_o(normal_fifo_pop_w),
     .fetch_rsp_control_stop_o(fetch_rsp_control_stop_w),
     .fetch_request_blocked_by_trap_o(fetch_request_blocked_by_trap_w)
   );
+  assign fifo_pop_w = normal_fifo_pop_w || tensor_head_pop_w;
 
 
   OooFetchFlowControl #(
@@ -1949,6 +2163,26 @@ module OooFrontend #(
       (dispatch0_branch_w && !dbranch_dual_go_w) ||
       (dispatch0_jump_w && !dispatch0_return_w) ||
       dispatch0_csr_w;   // 【serialize Phase1 §4#3】head0-CSR 单发, 禁 lane1 影子(younger 不与 CSR 同包进 ROB)
+  // A resident PairOwner is older than a later raw IRQ.  ControlPlane's
+  // Q-only pre-ROB owner fact holds capture/drain closed, so raw IRQ,
+  // stop_pending and can_run must not gate resident progress (that would
+  // deadlock).  Packet normalization admits only an exact architectural NOP
+  // as a successful residual; it uses the same resident transfer boundary as
+  // the Tensor command.  An already-selected exact trap/flush boundary blocks
+  // both defensively.  As with new-birth admission, keep this
+  // expression feedback-free: tensor_pair_flush_w also contains the
+  // decode-derived direct_frontend_flush_w, while this open fact selects the
+  // backend instruction that can generate that direct flush.
+  wire tensor_backend_dispatch_open_w =
+      !csr_trap_mem_valid_w && !csr_trap_ex_valid_w &&
+      !csr_trap_irq_valid_w && !flush_i && !core_trap_flush_q &&
+      !core_serial_flush_q && !trap_redirect_squash_q &&
+      !control_full_flush_barrier_i && !tensor_pair_branch_kill_w;
+  wire tensor_residual_safe_nop_w =
+      tensor_residual_valid_w && tensor_residual_safe_nop_q &&
+      !tensor_pair_error_valid_w &&
+      (tensor_residual_resp_w == 2'b00) &&
+      (tensor_residual_inst_w == 32'h00000013);
 
   // 【F2→B2 S1】dispatch 载荷: BHT 查询快照=包内存储位(fetch resp 拍定格, FIFO 经
   // HeadMux 读出; 不再是 head 拍活查询直通)。prefetch/pending 臂非分支, 后端只在
@@ -2049,6 +2283,17 @@ module OooFrontend #(
     .d0_ctrlflow_fired_i(d0_ctrlflow_fired_w),
     .d1_ctrlflow_fired_i(d1_ctrlflow_fired_w),
     .direct_fire_succ_i(direct_fire_succ_w),
+    .tensor_dispatch_open_i(tensor_backend_dispatch_open_w),
+    .tensor_dispatch_valid_i(tensor_dispatch_valid_w &&
+                             !tensor_pair_error_valid_w),
+    .tensor_dispatch_pc_i(tensor_dispatch_pc_w),
+    .tensor_dispatch_next_pc_i(tensor_dispatch_next_pc_w),
+    .tensor_dispatch_inst_i(tensor_dispatch_bits_w[31:0]),
+    // Production residual replay is a typed path, not a general slot bypass:
+    // only the response-normalized exact NOP may enter the ordinary backend.
+    .tensor_residual_valid_i(tensor_residual_safe_nop_w),
+    .tensor_residual_pc_i(tensor_residual_pc_w),
+    .tensor_residual_inst_i(tensor_residual_inst_w),
     .branch_prefetch_buf_pc0_i(branch_prefetch_buf_pc0_q),
     .branch_prefetch_buf_next_pc0_i(branch_prefetch_buf_next_pc0_q),
     .branch_prefetch_buf_inst0_i(branch_prefetch_buf_inst0_q),
@@ -2094,8 +2339,24 @@ module OooFrontend #(
     .core_dispatch1_next_pc_o(core_dispatch1_next_pc_w),
     .core_dispatch1_inst_o(core_dispatch1_inst_w),
     .core_dispatch0_pred_npc_o(core_dispatch0_pred_npc_w),
-    .core_dispatch1_pred_npc_o(core_dispatch1_pred_npc_w)
+    .core_dispatch1_pred_npc_o(core_dispatch1_pred_npc_w),
+    .core_dispatch0_tensor_o(core_dispatch0_tensor_w)
   );
+
+  assign tensor_dispatch_ready_w = !tensor_pair_error_valid_w &&
+                                   core_dispatch0_fire_w &&
+                                   core_dispatch0_tensor_w;
+  // A successful residual is necessarily the typed exact NOP above.  Match
+  // ready to its actual selected lane0 transfer; malformed-pair shadows keep
+  // ready low and are released atomically by PairOwner's error handoff.
+  assign tensor_residual_ready_w = tensor_residual_safe_nop_w &&
+                                   tensor_backend_dispatch_open_w &&
+                                   core_dispatch0_fire_w &&
+                                   !core_dispatch0_tensor_w;
+  assign core_dispatch0_tensor_bits_w = tensor_dispatch_bits_w;
+  assign core_dispatch0_tensor_is_64_w = tensor_dispatch_is_64_w;
+  assign core_dispatch0_tensor_required_w = tensor_dispatch_required_w;
+  assign core_dispatch0_tensor_opclass_w = tensor_dispatch_opclass_w;
 
 
   OooBackendDrainTracker u_backend_drain_tracker (
@@ -2279,6 +2540,171 @@ module OooFrontend #(
       fetch_dec0_predict_strong_w | fetch_dec1_predict_strong_w;
 
 `ifdef OOO_ASSERT
+  reg tensor_pair_branch_kill_prev_q;
+  always @(posedge clk) begin
+    if (rst || flush_i)
+      tensor_pair_branch_kill_prev_q <= 1'b0;
+    else begin
+      if (tensor_pair_branch_kill_prev_q &&
+          tensor_pre_rob_owner_live_o)
+        $error("[TENSOR-PAIR-BRANCH-KILL-CLEAR] wrong-path pre-ROB owner survived branch recovery @%0t",
+               $time);
+      tensor_pair_branch_kill_prev_q <=
+          tensor_pair_branch_kill_w && tensor_pre_rob_owner_live_o;
+    end
+  end
+  always @(posedge clk) if (!rst && !tensor_backend_dispatch_open_w &&
+                            (tensor_dispatch_ready_w ||
+                             tensor_residual_ready_w))
+    $error("[TENSOR-PAIR-CONTROL-BARRIER] Tensor dispatch crossed an exact trap/flush boundary @%0t",
+           $time);
+  always @(posedge clk) if (!rst && fetch_rsp_enqueue_w &&
+                            fetch_dec0_tensor_packet_cut_w &&
+                            (fetch_slot1_valid_w ||
+                             (fetch_pred_next_pc_w !==
+                              fetch_dec0_next_pc_w) ||
+                             !fetch_rsp_control_stop_w))
+    $error("[TENSOR-PACKET-CUT-ENQUEUE] slot0 Tensor boundary did not truncate/refetch slot1 exactly @%0t",
+           $time);
+  always @(posedge clk) if (!rst && fetch_rsp_enqueue_w &&
+                            fetch_dec0_tensor_safe_nop_residual_w &&
+                            (!fetch_slot1_valid_w ||
+                             fetch_dec0_tensor_packet_cut_w ||
+                             (fetch_pred_next_pc_w !==
+                              fetch_rsp_packet_next_pc_w) ||
+                             fetch_rsp_control_stop_w))
+    $error("[TENSOR-SAFE-NOP-ENQUEUE] exact-NOP residual was not retained as an ordinary sequential packet slot @%0t",
+           $time);
+  always @(posedge clk) if (!rst && fifo_has_packet_w &&
+                            (head_resp0_w == 2'b00) &&
+                            (head_inst0_w[6:0] == 7'b1011011) &&
+                            head_slot1_valid_w &&
+                            (((head_inst0_w[14:12] == 3'b100) &&
+                              !((head_resp1_w == 2'b00) &&
+                                (head_inst1_w == 32'h00000013) &&
+                                (head_next_pc1_w ==
+                                 (head_pc1_w +
+                                  {{(`XLEN-3){1'b0}}, 3'd4})))) ||
+                             ((head_inst0_w[14:12] == 3'b011) &&
+                              ((head_inst0_w[31:25] == 7'b0000101) ||
+                               (head_inst0_w[31:25] == 7'b0000111)))))
+    $error("[TENSOR-PACKET-CUT-HEAD] normalized slot0 Tensor boundary retained an unsafe slot1 @%0t",
+           $time);
+  // A saved residual is legal only as the typed exact NOP or as the younger
+  // shadow of a malformed-pair trap.  No other slot may reach this backend
+  // replay path.
+  always @(posedge clk) if (!rst && tensor_residual_safe_nop_q &&
+                            (!tensor_residual_valid_w ||
+                             tensor_pair_error_valid_w ||
+                             (tensor_residual_resp_w != 2'b00) ||
+                             (tensor_residual_inst_w != 32'h00000013)))
+    $error("[TENSOR-RESIDUAL-TYPE] registered safe-NOP provenance diverged from its resident payload @%0t",
+           $time);
+  always @(posedge clk) if (!rst && tensor_residual_valid_w &&
+                            !tensor_pair_error_valid_w &&
+                            !tensor_residual_safe_nop_w)
+    $error("[TENSOR-RESIDUAL-NORMALIZATION] successful Tensor produced a residual that bypasses normalized frontend semantics: pc=%h inst=%h resp=%b @%0t",
+           tensor_residual_pc_w, tensor_residual_inst_w,
+           tensor_residual_resp_w, $time);
+  always @(posedge clk) if (!rst && !tensor_pair_pending_unused_w &&
+                            !tensor_pair_new_birth_open_w &&
+                            (tensor_head0_claim_w || tensor_head1_claim_w ||
+                             tensor_head_pop_w))
+    $error("[TENSOR-PAIR-NEW-BIRTH] PairOwner claimed/popped a new head across a closed IRQ/control boundary @%0t",
+           $time);
+  always @(posedge clk) if (!rst && tensor_pre_rob_ordinary_block_w &&
+                            (can_run_w || normal_fifo_pop_w ||
+                             direct_frontend_flush_w))
+    $error("[TENSOR-PRE-ROB-ORDINARY-EXCLUSION] resident owner leaked ordinary frontend activity: run=%0d pop=%0d dflush=%0d @%0t",
+           can_run_w, normal_fifo_pop_w, direct_frontend_flush_w, $time);
+  // WAIT_HI is a full ownership fact for IRQ/drain, but it is intentionally
+  // not an ordinary RunGate freeze: IFU progress is the only way to obtain a
+  // missing or delayed HI packet.  Its head claim keeps younger FIFO decode
+  // invisible while request/response transport remains live.
+  always @(posedge clk) if (!rst && tensor_pair_pending_unused_w &&
+                            (!tensor_pre_rob_owner_live_o ||
+                             tensor_pre_rob_ordinary_block_w ||
+                             !tensor_head0_claim_w || normal_fifo_pop_w))
+    $error("[TENSOR-WAIT-HI-TYPING] WAIT_HI lost full ownership or leaked ordinary FIFO progress @%0t",
+           $time);
+  always @(posedge clk) if (!rst && tensor_pair_pending_unused_w && run_i &&
+                            !core_trap_flush_q && !core_serial_flush_q &&
+                            !stop_pending_busy_w && !halted_q &&
+                            !trap_valid_q && !exit_valid_q && !can_run_w)
+    $error("[TENSOR-WAIT-HI-IFU-PROGRESS] WAIT_HI incorrectly closed the request/response RunGate @%0t",
+           $time);
+  always @(posedge clk) if (!rst && csr_irq_pending_w &&
+                            tensor_backend_dispatch_open_w &&
+                            dispatch0_ready_w &&
+                            tensor_dispatch_valid_w &&
+                            !tensor_pair_error_valid_w &&
+                            !tensor_dispatch_ready_w)
+    $error("[TENSOR-PAIR-IRQ-PROGRESS] resident Tensor was blocked by a later raw IRQ @%0t",
+           $time);
+  always @(posedge clk) if (!rst && csr_irq_pending_w &&
+                            tensor_backend_dispatch_open_w &&
+                            dispatch0_ready_w &&
+                            !tensor_dispatch_valid_w &&
+                            tensor_residual_safe_nop_w &&
+                            !tensor_residual_ready_w)
+    $error("[TENSOR-RESIDUAL-IRQ-PROGRESS] resident exact-NOP residual was blocked by a later raw IRQ @%0t",
+           $time);
+  always @(posedge clk) if (!rst &&
+                            (tensor_dispatch_ready_w ||
+                             tensor_residual_ready_w) &&
+                            !tensor_pre_rob_owner_live_o)
+    $error("[TENSOR-PRE-ROB-HANDOFF] frontend owner dropped before its ROB transfer edge @%0t",
+           $time);
+  always @(posedge clk) if (!rst && tensor_residual_ready_w &&
+                            (!tensor_residual_safe_nop_q ||
+                             core_dispatch0_tensor_w ||
+                             (core_dispatch0_pc_w !== tensor_residual_pc_w) ||
+                             (core_dispatch0_next_pc_w !==
+                              (tensor_residual_pc_w +
+                               {{(`XLEN-3){1'b0}}, 3'd4})) ||
+                             (core_dispatch0_inst_w !== 32'h00000013)))
+    $error("[TENSOR-RESIDUAL-HANDOFF] typed NOP residual lost its exact backend payload @%0t",
+           $time);
+  always @(posedge clk) if (!rst && csr_trap_irq_valid_w &&
+                            core_dispatch0_fire_w &&
+                            (core_dispatch0_tensor_w ||
+                             tensor_residual_ready_w))
+    $error("[TENSOR-PAIR-IRQ-ATOMICITY] IRQ trap acceptance overlapped younger Tensor allocation @%0t",
+           $time);
+  // A resident malformed-pair owner is already the oldest synchronous
+  // frontend transaction.  Until its exact capture grant arrives, no normal
+  // FIFO/residual/Tensor transfer may cross the architectural trap boundary.
+  always @(posedge clk) if (!rst && tensor_pair_error_valid_w &&
+                            !tensor_pair_flush_w) begin
+    if (can_run_w || core_dispatch0_fire_w ||
+        (core_dispatch1_valid_w && dispatch1_ready_w) || fifo_pop_w ||
+        tensor_dispatch_ready_w || tensor_residual_ready_w)
+      $error("[TENSOR-PAIR-TRAP-BARRIER] dispatch/pop escaped resident pair trap run=%0d d0=%0d d1=%0d pop=%0d tensor=%0d residual=%0d @%0t",
+             can_run_w, core_dispatch0_fire_w,
+             core_dispatch1_valid_w && dispatch1_ready_w, fifo_pop_w,
+             tensor_dispatch_ready_w, tensor_residual_ready_w, $time);
+  end
+  // The input is an actual capture grant, not a speculative level-ready.
+  // Check the interface signal itself so this assertion is not made
+  // tautological by the local valid/flush mask used for PairOwner ready.
+  always @(posedge clk) if (!rst && tensor_pair_trap_ready_i &&
+                            !tensor_pair_trap_valid_o)
+    $error("[TENSOR-PAIR-TRAP-HANDOFF] capture grant without live pair trap @%0t",
+           $time);
+  always @(posedge clk) if (!rst && tensor_pair_flush_w &&
+                            tensor_pair_trap_ready_i)
+    $error("[TENSOR-PAIR-TRAP-FLUSH] flush and pair-trap capture collided @%0t",
+           $time);
+  // A direct JAL/JALR flush may legally coincide with a lane1 Tensor claim;
+  // FIFO clear and PairOwner flush have sequential priority, so a
+  // combinational head_pop in that case is not a transfer.  Selective branch
+  // recovery, by contrast, is explicitly gated from head admission above.
+  always @(posedge clk) if (!rst && tensor_pair_branch_kill_w &&
+                            (tensor_head_pop_w || tensor_dispatch_ready_w ||
+                             tensor_residual_ready_w))
+    $error("[TENSOR-PAIR-BRANCH-KILL] PairOwner exposed a transfer on a selective recovery edge @%0t",
+           $time);
+
   wire [`OOO_SLOT_STATIC_FACTS_W-1:0] t3w_head0_static_ref_w;
   wire [`OOO_SLOT_STATIC_FACTS_W-1:0] t3w_head1_static_ref_w;
   OooFetchStaticClassify u_t3w_head0_static_reference (

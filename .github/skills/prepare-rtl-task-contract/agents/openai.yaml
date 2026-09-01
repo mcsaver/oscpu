@@ -1,7 +1,7 @@
 interface:
-  display_name: "Prepare RTL Task Contract"
-  short_description: "生成本地 RV64 RTL 契约与精简硬件证据提示"
-  default_prompt: "Use $prepare-rtl-task-contract to prepare a precise local RV64 RTL contract and a compact hardware-evidence prompt before delegation."
+  display_name: "Prepare RTL Task Handoff"
+  short_description: "为复杂或并行 RV64 RTL 子任务准备可选结构化交接"
+  default_prompt: "Use $prepare-rtl-task-contract when a complex, parallel, cross-session, or legacy-consumer RV64 task benefits from a structured handoff. Treat paths as focus/ownership and commands as suggestions, not permissions; legacy create/validate/render operations are independent and render produces an editable draft."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

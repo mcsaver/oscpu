@@ -1,0 +1,9 @@
+`verilator_config
+
+// These waivers are restricted to immutable third_party sources.  They do not
+// cover the project-owned multi-lane RTL or its testbench.
+lint_off -rule TIMESCALEMOD -file "*/third_party/*"
+lint_off -rule WIDTH        -file "*/third_party/*"
+lint_off -rule UNUSEDSIGNAL -file "*/third_party/*"
+lint_off -rule UNUSEDPARAM  -file "*/third_party/*"
+lint_off -rule PINCONNECTEMPTY -file "*/third_party/*"

@@ -38,6 +38,8 @@ V11P_CHECKPOINT_IRREVOCABLE_WRITE_RESULT ?= $(abspath $(RESULT_DIR)/v11p-checkpo
 V11P_CHECKPOINT_IRREVOCABLE_WRITE_RUNNER := scripts/run_v11p_checkpoint_irrevocable_write_semantic.py
 V15P_ADAPTER_FINAL_B_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15p-adapter-final-b-mutation)
 V15P_ADAPTER_FINAL_B_MUTATION_RUNNER := scripts/run_v15p_adapter_final_b_fallthrough_mutation.sh
+ADAPTER_INPUT_AW_W_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/adapter-input-aw-w-fallthrough-mutation)
+ADAPTER_INPUT_AW_W_MUTATION_RUNNER := scripts/run_adapter_input_aw_w_fallthrough_mutation.sh
 V15R_MEM_BIRTH_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15r-mem-birth-terminalized-mutation)
 V15R_MEM_BIRTH_MUTATION_RUNNER := scripts/run_v15r_mem_birth_terminalized_mutation.sh
 V15S_MEM_OWNER_ANY_LIVE_MUTATION_RESULT ?= $(abspath $(RESULT_DIR)/v15s-mem-owner-any-live-mutation)
@@ -197,6 +199,7 @@ FOCUSED_TESTS := \
   tb_ooo_int_backend_v11q_int_lane0_packet \
   tb_ooo_int_backend_v11r_int_lane1_packet \
   tb_ooo_int_backend_v9r_sq_retry_c0 \
+  tb_ooo_int_backend_sq_idle_fusion_qualification \
   tb_ooo_int_backend_v14r_memory_request_hold \
   tb_ooo_int_backend_v14r_single_bank_probe_order \
   tb_ooo_int_backend_v8s_dual_memory \
@@ -206,6 +209,7 @@ FOCUSED_TESTS := \
   tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold \
   tb_ooo_int_backend_v13r_store_b_multicycle_retire_hold \
   tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 \
+  tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification \
   tb_ooo_dual_mem_bridge_holder_semantic \
   tb_ooo_dual_mem_inflight_queue_semantic \
   tb_ooo_core_top_glue_v9o_csr_qh \
@@ -216,6 +220,10 @@ FOCUSED_TESTS := \
   tb_ooo_int_backend_v8y_speculation_recovery \
   tb_ooo_int_backend_v8x_backend_bridge_recovery \
   tb_ooo_int_backend_v8w_memory_recovery \
+  tb_ooo_direct_npu_slice_tensor_shared_read \
+  tb_ooo_alu_decode_backend_tensor_wb_dispatch_collision \
+  tb_ooo_alu_decode_backend_tensor_fp_shared_read_collision \
+  tb_ooo_dual_mem_axi_arbiter \
   tb_ooo_owner_timing_causal_probe
 EXTRA_TESTS := $(FOCUSED_TESTS) tb_ooo_dual_mem_bridge_wrapper
 
@@ -266,7 +274,7 @@ TB_SRCS_tb_ooo_dispatch_backend := tests/tb_ooo_dispatch_backend.sv $(RTL_OOO_DI
 TB_SRCS_tb_ooo_muldiv_unit := tests/tb_ooo_muldiv_unit.sv $(RTL_OOO_MULDIV_UNIT)
 TB_SRCS_tb_ooo_clmul_unit := tests/tb_ooo_clmul_unit.sv $(RTL_OOO_CLMUL_UNIT)
 TB_OOO_INT_BACKEND_FP_SRCS := $(RTL_OOO_FP_BACKEND) $(RTL_OOO_FP_REG_FILE) $(RTL_OOO_FP_ISSUE_QUEUE) $(RTL_OOO_FP_PHYS_REG_FILE) $(RTL_OOO_FP_ARITH_CHILDREN) $(RTL_OOO_FP_ARITH_GATE) $(RTL_OOO_FP_LONG_OP_GATE) $(RTL_OOO_FP_DIV_ITER) $(RTL_OOO_FP_SQRT_ITER) $(RTL_OOO_FP_CLASSIFY_GATE) $(RTL_OOO_FP_SGNJ_GATE) $(RTL_OOO_FP_COMPARE_GATE) $(RTL_OOO_FP_CONVERT_GATE)
-TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_LOAD_QUEUE) $(RTL_OOO_MEM_OWNER_TRACKER) $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
+TB_OOO_INT_BACKEND_SRCS := $(TB_OOO_INT_BACKEND_FP_SRCS) $(RTL_OOO_MEM_INFLIGHT_QUEUE) $(RTL_OOO_STORE_QUEUE) $(RTL_OOO_LOAD_QUEUE) $(RTL_OOO_MEM_OWNER_TRACKER) $(RTL_OOO_MEM_OWNER_TERMINAL_COLLECTOR) $(RTL_OOO_MULDIV_UNIT) $(RTL_OOO_CLMUL_UNIT) $(RTL_OOO_INT_BACKEND) $(RTL_OOO_TENSOR_ROB_SIDECAR) $(RTL_PIPE_STAGE_REG) $(RTL_OOO_BITMANIP_GATE) $(RTL_OOO_AMO_GATE) $(RTL_OOO_DISPATCH_BACKEND) $(RTL_OOO_RENAME_MAP) $(RTL_OOO_FREE_LIST) $(RTL_OOO_BUSY_TABLE) $(RTL_OOO_ROB) $(RTL_OOO_INT_ISSUE_QUEUE) $(RTL_OOO_PHYS_REG_FILE) $(RTL_ALU) $(RTL_COMPARE_UNIT) $(RTL_LSU_CONTROL) $(RTL_LSU_DATAPATH) $(RTL_LSU) $(RTL_WBU)
 TB_SRCS_tb_ooo_int_backend := tests/tb_ooo_int_backend.sv $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_int_backend_hist_ser_qh_younger_store := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_hist_ser_qh_younger_store := tb_ooo_int_backend
@@ -298,6 +306,9 @@ TB_IVFLAGS_tb_ooo_int_backend_v11r_int_lane1_packet := -DOOO_ASSERT -DV11R_INT_L
 TB_SRCS_tb_ooo_int_backend_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v9r_sq_retry_c0 := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
+TB_SRCS_tb_ooo_int_backend_sq_idle_fusion_qualification := $(TB_SRCS_tb_ooo_int_backend)
+TB_TOP_tb_ooo_int_backend_sq_idle_fusion_qualification := tb_ooo_int_backend
+TB_IVFLAGS_tb_ooo_int_backend_sq_idle_fusion_qualification := -DOOO_ASSERT -DCONFIG_NPC_OOO_STATS -DSQ_IDLE_FUSION_QUAL_FOCUSED
 TB_SRCS_tb_ooo_int_backend_v14r_memory_request_hold := $(TB_SRCS_tb_ooo_int_backend)
 TB_TOP_tb_ooo_int_backend_v14r_memory_request_hold := tb_ooo_int_backend
 TB_IVFLAGS_tb_ooo_int_backend_v14r_memory_request_hold := -DOOO_ASSERT -DV14R_MEMORY_REQUEST_HOLD_FOCUSED
@@ -336,8 +347,17 @@ TB_IVFLAGS_tb_ooo_int_backend_v8w_memory_recovery := -DV8W_MEMORY_RECOVERY_FOCUS
 TB_SRCS_tb_ooo_bitmanip_gate := tests/tb_ooo_bitmanip_gate.sv $(RTL_OOO_BITMANIP_GATE)
 TB_SRCS_tb_ooo_amo_gate := tests/tb_ooo_amo_gate.sv $(RTL_OOO_AMO_GATE)
 TB_SRCS_tb_ooo_alu_decode_backend := tests/tb_ooo_alu_decode_backend.sv $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_direct_npu_slice_tensor_shared_read := tests/tb_ooo_direct_npu_slice.sv $(RTL_OOO_TENSOR_ROB_SIDECAR)
+TB_TOP_tb_ooo_direct_npu_slice_tensor_shared_read := tb_ooo_direct_npu_slice
+TB_IVFLAGS_tb_ooo_direct_npu_slice_tensor_shared_read := -DOOO_ASSERT -DCONFIG_NPC_OOO_STATS -DTENSOR_SIDECAR_SHARED_READ_FOCUSED
+TB_SRCS_tb_ooo_alu_decode_backend_tensor_wb_dispatch_collision := $(TB_SRCS_tb_ooo_alu_decode_backend)
+TB_TOP_tb_ooo_alu_decode_backend_tensor_wb_dispatch_collision := tb_ooo_alu_decode_backend
+TB_IVFLAGS_tb_ooo_alu_decode_backend_tensor_wb_dispatch_collision := -DOOO_ASSERT -DTENSOR_WB_DISPATCH_COLLISION_FOCUSED
+TB_SRCS_tb_ooo_alu_decode_backend_tensor_fp_shared_read_collision := $(TB_SRCS_tb_ooo_alu_decode_backend)
+TB_TOP_tb_ooo_alu_decode_backend_tensor_fp_shared_read_collision := tb_ooo_alu_decode_backend
+TB_IVFLAGS_tb_ooo_alu_decode_backend_tensor_fp_shared_read_collision := -DOOO_ASSERT -DTENSOR_FP_SHARED_READ_COLLISION_FOCUSED
 TB_SRCS_tb_ooo_alu_core_slice := tests/tb_ooo_alu_core_slice.sv $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
-TB_SRCS_tb_ooo_core_top_glue := tests/tb_ooo_core_top_glue.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_core_top_glue := tests/tb_ooo_core_top_glue.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_TENSOR_PAIR_OWNER) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_core_top_glue_v8z_frontend_ii1 := $(TB_SRCS_tb_ooo_core_top_glue)
 TB_TOP_tb_ooo_core_top_glue_v8z_frontend_ii1 := tb_ooo_core_top_glue
 TB_IVFLAGS_tb_ooo_core_top_glue_v8z_frontend_ii1 := -DV8Z_FRONTEND_II1_FOCUSED
@@ -419,11 +439,13 @@ TB_SRCS_tb_ooo_fetch_page_end_fault := tests/tb_ooo_fetch_page_end_fault.sv $(RT
 TB_SRCS_tb_ooo_fetch_access_footprint := tests/tb_ooo_fetch_access_footprint.sv $(RTL_PMP_CHECKER) $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE)
 TB_SRCS_tb_ooo_ifu_lane1_fault_owner := tests/tb_ooo_ifu_lane1_fault_owner.sv $(RTL_OOO_RVC_DECOMPRESSOR) $(RTL_OOO_FETCH_PACKET_DECODE) $(RTL_OOO_FP_DECODE) $(RTL_OOO_FETCH_STATIC_CLASSIFY) $(RTL_OOO_FETCH_HEAD_CLASSIFY_GATE) $(RTL_OOO_FETCH_HEAD_PAIR_GATE) $(RTL_OOO_FRONTEND_DISPATCH_GATE) $(RTL_OOO_PENDING_LANE1_CAPTURE_GATE) $(RTL_OOO_PENDING_DISPATCH_ARBITER) $(RTL_OOO_PENDING_TRAP_EXIT_SEQUENCER) $(RTL_OOO_STOP_PENDING_SEQUENCER) $(RTL_OOO_CSR_TRAP_REQUEST_MUX)
 TB_SRCS_tb_ooo_fetch_axi_bridge_xbar := tests/tb_ooo_fetch_axi_bridge_xbar.sv $(RTL_PMP_CHECKER) $(RTL_OOO_FETCH_PACKET_CACHE) $(RTL_SRAM_FETCH_PACKET) $(RTL_OOO_SV39_TLB) $(RTL_OOO_FETCH_AXI_BRIDGE) $(RTL_AXI_CROSSBAR)
-TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
-TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_fetch_trap_gate := tests/tb_ooo_fetch_trap_gate.sv $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_TENSOR_PAIR_OWNER) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
+TB_SRCS_tb_ooo_priv_system := tests/tb_ooo_priv_system.sv $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_FRONTEND_HELPERS) $(RTL_OOO_TENSOR_PAIR_OWNER) $(RTL_OOO_CORE_TOP_GLUE) $(RTL_CSR_FILE) $(RTL_OOO_ALU_CORE_SLICE) $(RTL_OOO_ARCH_REG_FILE) $(RTL_OOO_ALU_DECODE_BACKEND) $(RTL_DECODE_STAGE) $(RTL_DECODE_UNIT) $(RTL_IMM_GEN) $(TB_OOO_INT_BACKEND_SRCS)
 TB_SRCS_tb_ooo_sv39_boot := tests/tb_ooo_sv39_boot.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_dual_memory_sustained_issue := tests/tb_ooo_dual_memory_sustained_issue.sv $(RTL_CORE_SRCS)
 TB_SRCS_tb_ooo_lsu_axi_lane_adapter := tests/tb_ooo_lsu_axi_lane_adapter.sv $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
+TB_SRCS_tb_ooo_dual_mem_axi_arbiter := tests/tb_ooo_dual_mem_axi_arbiter.sv $(RTL_OOO_DUAL_MEM_AXI_ARBITER)
+TB_TOP_tb_ooo_dual_mem_axi_arbiter := tb_ooo_dual_mem_axi_arbiter
 TB_SRCS_tb_ooo_owner_timing_causal_probe := tests/tb_ooo_owner_timing_causal_probe.sv $(RTL_OOO_DUAL_MEM_AXI_ARBITER) $(RTL_OOO_LSU_AXI_LANE_ADAPTER)
 TB_SRCS_tb_ooo_mem_axi_bridge := tests/tb_ooo_mem_axi_bridge.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE)
 TB_SRCS_tb_ooo_mem_axi_bridge_v13p_store_b_fusion := $(TB_SRCS_tb_ooo_mem_axi_bridge)
@@ -435,6 +457,9 @@ TB_IVFLAGS_tb_ooo_mem_axi_bridge_v13r_store_b_multicycle_hold := -DOOO_ASSERT -D
 TB_SRCS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := $(TB_SRCS_tb_ooo_mem_axi_bridge)
 TB_TOP_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := tb_ooo_mem_axi_bridge
 TB_IVFLAGS_tb_ooo_mem_axi_bridge_v9r_sq_retry_c0 := -DOOO_ASSERT -DV9R_SQ_RETRY_C0_FOCUSED
+TB_SRCS_tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification := $(TB_SRCS_tb_ooo_mem_axi_bridge)
+TB_TOP_tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification := tb_ooo_mem_axi_bridge
+TB_IVFLAGS_tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification := -DOOO_ASSERT -DCONFIG_NPC_OOO_STATS -DSQ_IDLE_FUSION_QUAL_FOCUSED
 TB_SRCS_tb_ooo_dual_mem_bridge_wrapper := tests/tb_ooo_dual_mem_bridge_wrapper.sv $(RTL_PMP_CHECKER) $(RTL_TYPED_PMA_CHECKER) $(RTL_OOO_TYPED_MEMORY_CLASSIFIER) $(RTL_PMA_CHECKER) $(RTL_OOO_POST_TRANSLATE_MEMORY_CLASS) $(RTL_OOO_DATA_WORD_CACHE) $(RTL_SRAM_DATA_WORD) $(RTL_OOO_SV39_TLB) $(RTL_OOO_MEM_AXI_BRIDGE) $(RTL_OOO_DUAL_MEM_AXI_ARBITER) $(RTL_OOO_DUAL_MEM_BRIDGE_WRAPPER)
 TB_SRCS_tb_ooo_dual_mem_bridge_holder_semantic := $(TB_SRCS_tb_ooo_dual_mem_bridge_wrapper)
 TB_TOP_tb_ooo_dual_mem_bridge_holder_semantic := tb_ooo_dual_mem_bridge_wrapper
@@ -735,6 +760,12 @@ v9r-sq-retry-c0-handoff: \
   $(LOG_DIR)/tb_ooo_mem_axi_bridge_v9r_sq_retry_c0.log
 	@grep -E '\[V9R-|\[PASS\]|\[RESULT\]' $^
 
+.PHONY: sq-idle-fusion-qualification-focused
+sq-idle-fusion-qualification-focused: \
+  $(LOG_DIR)/tb_ooo_int_backend_sq_idle_fusion_qualification.log \
+  $(LOG_DIR)/tb_ooo_mem_axi_bridge_sq_idle_fusion_qualification.log
+	@grep -E '\[SQ-IDLE-FUSION-QUAL|\[PASS\]|\[RESULT\]' $^
+
 v14r-memory-request-hold-focused: \
   $(LOG_DIR)/tb_ooo_int_backend_v14r_memory_request_hold.log
 	@grep -E '\[V14R-|\[PASS\]|\[RESULT\]' $<
@@ -742,6 +773,21 @@ v14r-memory-request-hold-focused: \
 v14r-single-bank-probe-order-focused: \
   $(LOG_DIR)/tb_ooo_int_backend_v14r_single_bank_probe_order.log
 	@grep -E '\[V14R-|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: tensor-wb-dispatch-collision-focused
+tensor-wb-dispatch-collision-focused: \
+  $(LOG_DIR)/tb_ooo_alu_decode_backend_tensor_wb_dispatch_collision.log
+	@grep -E '\[TENSOR-WB-DISPATCH-COLLISION\]|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: tensor-sidecar-shared-read-focused
+tensor-sidecar-shared-read-focused: \
+  $(LOG_DIR)/tb_ooo_direct_npu_slice_tensor_shared_read.log
+	@grep -E '\[TENSOR-SIDECAR-SHARED-READ\]|\[PASS\]|\[RESULT\]' $<
+
+.PHONY: tensor-fp-shared-read-collision-focused
+tensor-fp-shared-read-collision-focused: \
+  $(LOG_DIR)/tb_ooo_alu_decode_backend_tensor_fp_shared_read_collision.log
+	@grep -E '\[TENSOR-FP-SHARED-READ\]|\[PASS\]|\[RESULT\]' $<
 
 v8s-dual-memory-core-focused: \
   $(LOG_DIR)/tb_ooo_int_backend_v8s_dual_memory.log
@@ -779,10 +825,20 @@ owner-timing-causal-probe-focused: \
   $(LOG_DIR)/tb_ooo_owner_timing_causal_probe.log
 	@grep -E '\[OWNER-TIMING-CAUSAL-PROBE|\[PASS\]|\[RESULT\]' $<
 
+.PHONY: dual-mem-arbiter-idle-write-focused
+dual-mem-arbiter-idle-write-focused: \
+  $(LOG_DIR)/tb_ooo_dual_mem_axi_arbiter.log
+	@grep -E '\[ARB-IDLE-WRITE-|\[PASS\]|\[RESULT\]' $<
+
 .PHONY: v15p-adapter-final-b-fallthrough-mutation
 v15p-adapter-final-b-fallthrough-mutation:
 	@$(abspath $(V15P_ADAPTER_FINAL_B_MUTATION_RUNNER)) \
 	  "$(V15P_ADAPTER_FINAL_B_MUTATION_RESULT)"
+
+.PHONY: adapter-input-aw-w-fallthrough-mutation
+adapter-input-aw-w-fallthrough-mutation:
+	@bash $(abspath $(ADAPTER_INPUT_AW_W_MUTATION_RUNNER)) \
+	  "$(ADAPTER_INPUT_AW_W_MUTATION_RESULT)"
 
 .PHONY: v15r-mem-birth-terminalized-focused
 v15r-mem-birth-terminalized-focused: \

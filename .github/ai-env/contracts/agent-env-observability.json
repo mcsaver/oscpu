@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
-  "purpose": "Unified trace and run-manifest contract for agent -> e2e -> database observability.",
+  "scope": "explicit-persistent-published-release-security-or-forensic-task-runs",
+  "ordinary_task_dependency": false,
+  "purpose": "Trace and run-manifest contract for explicitly persisted or published agent -> e2e -> database runs; ordinary local work reports direct results without this envelope.",
   "trace_id_format": "e2e:<run_id>",
   "run_manifest_path": ".github/task-runs/<run_id>/run-manifest.json",
   "generated_by": "scripts/e2e/lib/report.sh",

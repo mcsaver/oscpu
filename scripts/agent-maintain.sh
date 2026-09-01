@@ -12,10 +12,11 @@ usage() {
   scripts/agent-maintain.sh [--mode quick|final|release|full|check]
 
 说明:
-  quick  : C 调度器、shell 语法和轻量自测；不调用 Python/DB/profile。
-  final  : 一轮 AI 环境目标结束后运行 quick 和非发布类确定性审计。
-  release: 在 final 后追加商业包、DB/branch-health 与交付审计。
-  full   : 在 release 后追加 agent-system profile，生成完整 task-run。
+  quick  : 只检查维护入口与定向 shell 测试的语法；不执行测试、DB 或 profile。
+  final  : AI 环境 PR 的代表性测试集；覆盖 operating contract 场景、controller、真实严格例外、
+           专家路由、可选 RTL handoff、JSON 和 profile 绑定，不运行 DB/publication/commercial 审计。
+  release: 显式 release/商业交付边界，运行专项合同、持久化、发布与交付审计。
+  full   : release 的兼容别名。
   check  : final 的兼容别名；新流程请显式使用 final。
 EOF
 }
@@ -63,27 +64,59 @@ run_quick() {
     scripts/agent-flow.sh \
     scripts/agent-maintain.sh \
     scripts/agent-e2e.sh \
+    scripts/package-ai-dev-env.sh \
     scripts/task-run-status.sh \
     scripts/tests/test-agent-flow.sh \
+    scripts/tests/test-agent-system-dual-role-contract.sh \
+    scripts/tests/test-rv64-soc-delivery-gates.sh \
+    scripts/tests/test-source-tree-artifact-hygiene.sh \
     scripts/tests/test-task-run-status.sh || rc=1
-  run_step "C workflow controller self-test" scripts/tests/test-agent-flow.sh || rc=1
   return "$rc"
 }
 
 run_final() {
   local rc=0
+  local json_rc=0
+  local json_file
+  local contract_dir=.github/ai-env/contracts
+  local -a json_files=("$contract_dir"/*.json)
   run_quick || rc=1
-  run_step "report traceability audit" "$PYTHON_BIN" scripts/github_index_db.py report-audit || rc=1
-  run_step "schema contract audit" "$PYTHON_BIN" scripts/github_index_db.py schema-audit || rc=1
-  run_step "runtime artifact boundary audit" "$PYTHON_BIN" scripts/github_index_db.py artifact-audit || rc=1
-  run_step "policy audit" "$PYTHON_BIN" scripts/github_index_db.py policy-audit || rc=1
-  run_step "skill audit" "$PYTHON_BIN" scripts/github_index_db.py skill-audit || rc=1
-  run_step "RTL task contract audit" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit || rc=1
-  run_step "RTL task contract self-test" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test || rc=1
-  run_step "RTL task contract CLI self-test" "$PYTHON_BIN" .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test || rc=1
-  run_step "task-run status fail-closed self-test" scripts/tests/test-task-run-status.sh || rc=1
-  run_step "trace audit" "$PYTHON_BIN" scripts/github_index_db.py trace-audit || rc=1
-  run_step "state machine audit" "$PYTHON_BIN" scripts/github_index_db.py state-audit || rc=1
+  run_step "operating contract scenarios and mutations" \
+    "$PYTHON_BIN" -B scripts/tests/test-agent-operating-contract.py || rc=1
+  run_step "C workflow controller self-test" scripts/tests/test-agent-flow.sh || rc=1
+  run_step "risk-triggered reviewer boundary" \
+    bash scripts/tests/test-agent-system-dual-role-contract.sh || rc=1
+  run_step "persistent longrun terminal status" \
+    scripts/tests/test-task-run-status.sh || rc=1
+  run_step "runtime artifact source boundary" \
+    scripts/tests/test-source-tree-artifact-hygiene.sh || rc=1
+  run_step "RV64 delivery hard-invariant preservation" \
+    scripts/tests/test-rv64-soc-delivery-gates.sh || rc=1
+  run_step "CPU Architect advisory routing" \
+    "$PYTHON_BIN" -B scripts/tests/test_cpu_architect_route.py || rc=1
+  run_step "CPU Architect grounded-learning boundary" \
+    "$PYTHON_BIN" -B scripts/tests/test_cpu_architect_learning.py || rc=1
+  run_step "optional RTL handoff compatibility" \
+    "$PYTHON_BIN" -B \
+      .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py \
+      cli-self-test || rc=1
+  if [[ ! -d $contract_dir ]]; then
+    printf '[agent-maintain] FAIL contract JSON directory is missing: %s\n' "$contract_dir" >&2
+    json_rc=1
+  elif [[ ! -f ${json_files[0]} ]]; then
+    printf '[agent-maintain] FAIL no live contract JSON found in %s\n' "$contract_dir" >&2
+    json_rc=1
+  else
+    for json_file in "${json_files[@]}"; do
+      "$PYTHON_BIN" -m json.tool "$json_file" >/dev/null || json_rc=1
+    done
+  fi
+  if [[ $json_rc -eq 0 ]]; then
+    printf '[agent-maintain] PASS contract JSON syntax\n'
+  else
+    printf '[agent-maintain] FAIL contract JSON syntax\n' >&2
+    rc=1
+  fi
   run_step "profile binding validation" scripts/agent-e2e.sh --validate-all-profiles || rc=1
   return "$rc"
 }
@@ -91,6 +124,11 @@ run_final() {
 run_release() {
   local rc=0
   run_final || rc=1
+  run_step "report traceability audit" "$PYTHON_BIN" scripts/github_index_db.py report-audit || rc=1
+  run_step "schema contract audit" "$PYTHON_BIN" scripts/github_index_db.py schema-audit || rc=1
+  run_step "skill audit" "$PYTHON_BIN" scripts/github_index_db.py skill-audit || rc=1
+  run_step "trace audit" "$PYTHON_BIN" scripts/github_index_db.py trace-audit || rc=1
+  run_step "published agent-system profile" scripts/agent-e2e.sh --profile agent-system --publish || rc=1
   run_step "commercial package build" scripts/package-ai-dev-env.sh || rc=1
   run_step "commercial delivery audit" "$PYTHON_BIN" scripts/github_index_db.py delivery-audit || rc=1
   run_step "branch health report" "$PYTHON_BIN" scripts/github_index_db.py branch-health-report || rc=1
@@ -117,12 +155,21 @@ main() {
       ;;
     full)
       run_release || rc=1
-    run_step "agent-system profile" scripts/agent-e2e.sh --profile agent-system --task-slug agent-env-maintenance-full || rc=1
       ;;
   esac
 
   if [[ $rc -eq 0 ]]; then
-    printf '\n[agent-maintain] PASS mode=%s\n' "$MODE"
+    case "$MODE" in
+      quick)
+        printf '\n[agent-maintain] COMPLETE mode=quick scope=shell-syntax\n'
+        ;;
+      final)
+        printf '\n[agent-maintain] COMPLETE mode=final scope=representative-agent-contract-suite\n'
+        ;;
+      release|full)
+        printf '\n[agent-maintain] PASS mode=%s scope=explicit-release-suite\n' "$MODE"
+        ;;
+    esac
   else
     printf '\n[agent-maintain] FAIL mode=%s\n' "$MODE"
   fi

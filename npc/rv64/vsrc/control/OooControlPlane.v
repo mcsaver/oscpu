@@ -20,6 +20,13 @@ module OooControlPlane #(
   input branch_spec_resolve_valid_w,
   input branch_spec_restore_w,
   input can_run_w,
+  // Resident frontend synchronous trap.  Its ready return is the arbiter's
+  // actual PendingTrapExit capture grant, so the PairOwner handoff is atomic.
+  input tensor_pair_trap_valid_i,
+  input [`XLEN-1:0] tensor_pair_trap_pc_i,
+  input [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause_i,
+  input [`XLEN-1:0] tensor_pair_trap_tval_i,
+  input tensor_pre_rob_owner_live_i,
   input clk,
   input commit_ready_i,
   input core_branch_resolve_misaligned_w,
@@ -237,6 +244,7 @@ module OooControlPlane #(
   output svpbmt_en_o,
   output system_csr_dispatch_fire_w,
   output system_csr_dispatch_valid_w,
+  output tensor_pair_trap_ready_o,
   output [`TRAP_CAUSE_W-1:0] trap_cause_o,
   output [`XLEN-1:0] trap_pc_o,
   output trap_redirect_squash_q,
@@ -470,6 +478,7 @@ module OooControlPlane #(
     .issue_count_i(issue_count_o),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending_q),
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending_q),
+    .tensor_pre_rob_owner_live_i(tensor_pre_rob_owner_live_i),
     .direct_frontend_flush_i(direct_frontend_flush_w),
     .stop_pending_i(stop_pending_q),
     .backend_drained_q_i(backend_drained_q),
@@ -520,6 +529,12 @@ module OooControlPlane #(
     .can_run_i(can_run_w),
     .fifo_has_packet_i(fifo_has_packet_w),
     .csr_irq_pending_i(csr_irq_pending_w),
+    .tensor_pre_rob_owner_live_i(tensor_pre_rob_owner_live_i),
+    .tensor_pair_trap_valid_i(tensor_pair_trap_valid_i),
+    .tensor_pair_trap_pc_i(tensor_pair_trap_pc_i),
+    .tensor_pair_trap_cause_i(tensor_pair_trap_cause_i),
+    .tensor_pair_trap_tval_i(tensor_pair_trap_tval_i),
+    .tensor_pair_trap_grant_o(tensor_pair_trap_ready_o),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid_w),
     .pending_branch_commit_resolve_i(pending_branch_commit_resolve_w),
     .pending_branch_match_clear_i(pending_branch_match_clear_w),
@@ -1259,6 +1274,21 @@ module OooControlPlane #(
 `endif
 
 `ifdef OOO_ASSERT
+  // A registered frontend Tensor owner is older than any raw IRQ capture and
+  // is part of the architectural drain set.  These assertions also guard the
+  // PairOwner -> ROB handoff edge against an apparent-empty control window.
+  always @(posedge clk) begin
+    if (!rst && !flush_i && tensor_pre_rob_owner_live_i &&
+        pending_system_capture_irq_w)
+      $error("[TENSOR-PRE-ROB-IRQ-CAPTURE] IRQ capture crossed an older frontend Tensor owner @%0t",
+             $time);
+    if (!rst && !flush_i && tensor_pre_rob_owner_live_i &&
+        (backend_drained_w || drain_complete_w || csr_trap_irq_valid_w))
+      $error("[TENSOR-PRE-ROB-DRAIN] control terminal observed while frontend Tensor owner live: drained=%0d complete=%0d irq=%0d @%0t",
+             backend_drained_w, drain_complete_w, csr_trap_irq_valid_w,
+             $time);
+  end
+
   // ── 契约 INV-7 (GAP-7): stop_pending head0-system SET 谓词 单一真源护栏 ──
   // stop_pending 的 head0-system SET 臂(OooStopPendingSequencer.v:130-134)与 arbiter 授予
   // pending-system 队头所有权(OooPendingDispatchArbiter.v:158-164 → pending_system_capture_head0_o)

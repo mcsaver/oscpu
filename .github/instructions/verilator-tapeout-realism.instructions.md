@@ -1,6 +1,6 @@
 ---
-description: "Verilator 真实性能仿真与后续流片约束。处理 npc/rv64 性能仿真、Linux 长跑、设备模型、cache/LSQ/AXI 优化或可综合边界时使用。"
-applyTo: "npc/rv64/**"
+description: "显式 Verilator/tapeout/synthesizability 或正式 PPA 边界的真实性约束；不作为普通 RTL/testbench 修改的固定流程。"
+applyTo: "npc/rv64/syn/**,yosys-sta/**"
 ---
 
 # Verilator 真实性能仿真与流片约束
@@ -19,15 +19,19 @@ applyTo: "npc/rv64/**"
 
 ## 后续流片水准要求
 
-任何准备长期保留的 RTL 改动都需要：
+当 acceptance criteria 包含 tapeout、可综合交付、正式 PPA 或长期 Verilator 系统行为时，按受影响范围确认：
 
 1. 清楚的模块边界和一个 module 一个源文件。
-2. RTL 四段式推导：需求、协议/状态机/不变量、数据通路、RTL。
-3. module testbench 或 focused smoke。
-4. 全量或代表性回归证据。
+2. 真实协议/状态机/owner/transaction lifecycle 与必须保持的不变量。
+3. 能直接覆盖改动的 module testbench、assertion 或 focused smoke。
+4. 与交付 claim 和风险相称的代表性回归；局部改动不机械升级为全量 signoff。
 5. 可综合边界说明：哪些代码进入 core，哪些只属于 Verilator sim top。
-6. PPA/STA 下游风险记录，至少不能明显制造不可收敛组合环或不可综合结构。
+6. 只有声称 physical/PPA 结果时才补齐同源综合/STA/PPA；任何改动都不得制造组合环或不可综合结构。
 
 ## 性能优化约束
 
-触碰 CPI、cache、BPU、LSQ、issue/commit、AXI outstanding 等路径时，必须叠加 `.github/instructions/npc-optimization-workflow.instructions.md`；`npc/rv64` 还必须读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md`，先闭合完整双发射/真 OoO/同源 PPA hard gates，再做 Pareto 或 champion 裁决。不能只用 `add`、单个 Linux smoke 或 vectorless/macro=0 proxy 证明优化有效。
+触碰 CPI、cache、BPU、LSQ、issue/commit、AXI outstanding 等路径时，按
+`.github/instructions/npc-optimization-workflow.instructions.md` 区分 focused 迭代与全局结论；局部实验不必
+先跑完整 signoff。准备作出 `npc/rv64` Pareto/champion/promotion 结论时，再读取完整 PPA contract 并闭合
+同源 correctness、综合、STA/PPA hard gates。不能用 `add`、单个 Linux smoke 或 vectorless/macro=0 proxy
+证明全局优化有效。

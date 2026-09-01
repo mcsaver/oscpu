@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "name": "Qwen3.5-0.8B-Q8_0.gguf",
+      "repository": "ggml-org/Qwen3.5-0.8B-GGUF",
+      "revision": "316dea3b5462fd5755862bcec45a2f901bc0ba6b",
+      "path": "models/Qwen3.5-0.8B-Q8_0.gguf",
+      "size_bytes": 833592096,
+      "sha256": "37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f",
+      "format": "GGUF Q8_0",
+      "license_note": "Model terms and notices are provided by the pinned upstream repository."
+    }
+  ]
+}

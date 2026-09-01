@@ -1,6 +1,6 @@
 ---
 description: "RV64GC/lp64d Ubuntu 用户态约束。处理官方 Ubuntu riscv64 /bin/sh、动态链接器、libc、F/D 扩展或用户态 ABI 时使用。"
-applyTo: "npc/rv64/**"
+applyTo: "Linux/scripts/{build-ubuntu*,check-ubuntu*,ubuntu-rootfs*,check-nemu-python*,profile-nemu-ubuntu.sh},Linux/tools/{ysyx-ubuntu-init.c,nemu-python*}"
 ---
 
 # RV64GC / lp64d 用户态约束

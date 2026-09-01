@@ -24,6 +24,18 @@ module OooFrontendBackendDispatchMux (
   input d1_ctrlflow_fired_i,       // d1 是本拍 fire 的控制流(jal1/ret1/branch1)
   input [`XLEN-1:0] direct_fire_succ_i,  // 本拍 direct fire 的实际重取目标(单一真源)
 
+  // PairOwner is resident and may remain valid while the architectural run
+  // gate is closed.  Keep that residency separate from backend admission so
+  // an IRQ/pending-system drain edge cannot accept a younger Tensor.
+  input tensor_dispatch_open_i,
+  input tensor_dispatch_valid_i,
+  input [`XLEN-1:0] tensor_dispatch_pc_i,
+  input [`XLEN-1:0] tensor_dispatch_next_pc_i,
+  input [`INST_W-1:0] tensor_dispatch_inst_i,
+  input tensor_residual_valid_i,
+  input [`XLEN-1:0] tensor_residual_pc_i,
+  input [`INST_W-1:0] tensor_residual_inst_i,
+
   input [`XLEN-1:0] branch_prefetch_buf_pc0_i,
   input [`XLEN-1:0] branch_prefetch_buf_next_pc0_i,
   input [`INST_W-1:0] branch_prefetch_buf_inst0_i,
@@ -78,10 +90,17 @@ module OooFrontendBackendDispatchMux (
   output [`INST_W-1:0] core_dispatch1_inst_o,
 
   output [`XLEN-1:0] core_dispatch0_pred_npc_o,
-  output [`XLEN-1:0] core_dispatch1_pred_npc_o
+  output [`XLEN-1:0] core_dispatch1_pred_npc_o,
+  output core_dispatch0_tensor_o
 );
 
+  wire tensor_dispatch_active_w =
+      tensor_dispatch_open_i && tensor_dispatch_valid_i;
+  wire tensor_residual_active_w =
+      tensor_dispatch_open_i && tensor_residual_valid_i;
+
   assign core_dispatch0_valid_o =
+      tensor_dispatch_active_w || tensor_residual_active_w ||
       branch_prefetch_dispatch_attempt_i ||
       system_csr_dispatch_valid_i ||
       frontend_dispatch_to_backend_valid_i ||
@@ -94,10 +113,11 @@ module OooFrontendBackendDispatchMux (
   // 【F2】solo 分支/非返回 JALR 拍 d1 影子必须 squash: 免 redirect 后不再有恒 ROB-walk
   // 兜底砍它, 若照旧双发, wrong-path fall-through 会顺序提交(#110 边界 2)。
   assign core_dispatch1_valid_o =
-      branch_prefetch_dispatch_attempt_i ||
+      !tensor_dispatch_active_w && !tensor_residual_active_w &&
+      (branch_prefetch_dispatch_attempt_i ||
       ((return_cont_attempt_i || branch_target_append_attempt_i ||
         branch_fallthrough_append_attempt_i ||
-        frontend_dispatch_to_backend_valid_i) && !dispatch1_squash_i);
+        frontend_dispatch_to_backend_valid_i) && !dispatch1_squash_i));
 
   assign core_dispatch0_fire_o =
       core_dispatch0_valid_o && dispatch0_ready_i;
@@ -105,6 +125,8 @@ module OooFrontendBackendDispatchMux (
       jump_dispatch_valid_i && dispatch0_ready_i;
 
   assign core_dispatch0_pc_o =
+      tensor_dispatch_active_w ? tensor_dispatch_pc_i :
+      tensor_residual_active_w ? tensor_residual_pc_i :
       branch_prefetch_dispatch_buffer_i ? branch_prefetch_buf_pc0_i :
       branch_prefetch_dispatch_rsp_i ? fetch_dec0_pc_i :
       system_csr_dispatch_valid_i ? pending_system_pc_i :
@@ -112,6 +134,9 @@ module OooFrontendBackendDispatchMux (
       head_pc0_i;
 
   assign core_dispatch0_next_pc_o =
+      tensor_dispatch_active_w ? tensor_dispatch_next_pc_i :
+      tensor_residual_active_w ?
+          tensor_residual_pc_i + {{(`XLEN-3){1'b0}}, 3'd4} :
       branch_prefetch_dispatch_buffer_i ? branch_prefetch_buf_next_pc0_i :
       branch_prefetch_dispatch_rsp_i ? fetch_dec0_next_pc_i :
       system_csr_dispatch_valid_i ? pending_system_next_pc_i :
@@ -121,6 +146,8 @@ module OooFrontendBackendDispatchMux (
       head_next_pc0_i;
 
   assign core_dispatch0_inst_o =
+      tensor_dispatch_active_w ? tensor_dispatch_inst_i :
+      tensor_residual_active_w ? tensor_residual_inst_i :
       branch_prefetch_dispatch_buffer_i ? branch_prefetch_buf_inst0_i :
       branch_prefetch_dispatch_rsp_i ? fetch_dec0_inst_i :
       system_csr_dispatch_valid_i ? pending_system_inst_i :
@@ -167,11 +194,15 @@ module OooFrontendBackendDispatchMux (
   //     哨兵恒 mispredict 兜底)。
   wire d1_present_w = core_dispatch1_valid_o && dispatch1_ready_i;
   assign core_dispatch0_pred_npc_o =
+      tensor_dispatch_active_w ? tensor_dispatch_next_pc_i :
+      tensor_residual_active_w ?
+          tensor_residual_pc_i + {{(`XLEN-3){1'b0}}, 3'd4} :
       d0_ctrlflow_fired_i ? direct_fire_succ_i :
       d1_present_w        ? core_dispatch1_pc_o :
                             next_fetch_pc_i;
   assign core_dispatch1_pred_npc_o =
       d1_ctrlflow_fired_i ? direct_fire_succ_i :
                             next_fetch_pc_i;
+  assign core_dispatch0_tensor_o = tensor_dispatch_active_w;
 
 endmodule

@@ -302,20 +302,33 @@ module tb_ooo_fetch_axi_bridge_xbar;
                      64'h0000_0000_0000_4000);
     tb_check64_local("IFU PTE address", ifu_awaddr, PTE_ADDR);
 
-    // master-side capture -> slave grant -> slave AW/W fire，之后故意延迟 B。
+    // 完整 AW/W pair 在 master local fire 的同一拍 live-offer 到 target；
+    // target READY 只播种 registered sent，不参与 master READY 或 owner 选择。
+    tb_check1("xbar recognizes IFU live pair",
+              u_crossbar.wr_live_pair_r[0], 1'b1);
+    tb_check1("xbar live-offers IFU owner",
+              u_crossbar.wr_live_offer_r[0], 1'b1);
+    tb_check1("held grant stays quiet on IFU live offer",
+              u_crossbar.wr_grant_offer_r[0], 1'b0);
+    tb_check1("slave sees live IFU AW", s_awvalid[0], 1'b1);
+    tb_check1("slave sees live IFU W", s_wvalid[0], 1'b1);
+    tb_check64_local("slave live IFU AWADDR",
+                     s_awaddr[0 +: `XLEN], PTE_ADDR);
+    tb_check64_local("slave live IFU WDATA",
+                     s_wdata[0 +: `XLEN], PTE_DATA);
+    tb_check1("live IFU AW fires at target",
+              u_crossbar.wr_live_aw_fire_r[0], 1'b1);
+    tb_check1("live IFU W fires at target",
+              u_crossbar.wr_live_w_fire_r[0], 1'b1);
     tick();
-    tb_check1("xbar captured IFU AW", u_crossbar.wr_aw_hold_q[0], 1'b1);
-    tb_check1("xbar captured IFU W", u_crossbar.wr_w_hold_q[0], 1'b1);
-    tick();
-    tb_check1("xbar grants IFU owner", u_crossbar.wr_active_q[0], 1'b1);
-    #1;
-    tb_check1("slave sees IFU AW", s_awvalid[0], 1'b1);
-    tb_check1("slave sees IFU W", s_wvalid[0], 1'b1);
-    tb_check64_local("slave IFU AWADDR", s_awaddr[0 +: `XLEN], PTE_ADDR);
-    tb_check64_local("slave IFU WDATA", s_wdata[0 +: `XLEN], PTE_DATA);
-    tick();
-    tb_check1("slave accepted IFU AW", u_crossbar.wr_aw_sent_q[0], 1'b1);
-    tb_check1("slave accepted IFU W", u_crossbar.wr_w_sent_q[0], 1'b1);
+    tb_check1("xbar registers IFU owner", u_crossbar.wr_active_q[0], 1'b1);
+    tb_check1("live IFU owner is master0", u_crossbar.wr_owner_q[0], 1'b0);
+    tb_check1("slave accepted live IFU AW", u_crossbar.wr_aw_sent_q[0], 1'b1);
+    tb_check1("slave accepted live IFU W", u_crossbar.wr_w_sent_q[0], 1'b1);
+    tb_check1("live IFU AW leaves no holder",
+              u_crossbar.wr_aw_hold_q[0], 1'b0);
+    tb_check1("live IFU W leaves no holder",
+              u_crossbar.wr_w_hold_q[0], 1'b0);
 
     // B pending 时 flush；同时把 M1 写排队到 crossbar master-side hold。
     mmu_flush = 1'b1;

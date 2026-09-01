@@ -175,7 +175,7 @@ for marker in "${required_config_text[@]}"; do
   fi
 done
 
-required_workflow_text=(
+required_workflow_anchors=(
   'npc/rv64/design/arch/rv64-soc-delivery-gates.tsv'
   'npc/rv64/design/arch/rv64-soc-maturity-stages.tsv'
   '任务分类（task class）'
@@ -186,16 +186,6 @@ required_workflow_text=(
   '`scheduled`'
   '`candidate`'
   'https://docs.riscv.org/reference/home/index.html'
-  'https://opentitan.org/book/doc/contributing/hw/comportability/index.html'
-  'https://opentitan.org/book/doc/project_governance/checklist/index.html'
-  'https://opentitan.org/book/doc/contributing/dv/methodology/index.html'
-  'https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md'
-  'https://docs.openhwgroup.org/projects/core-v-verif/en/latest/cv32_env.html'
-  'https://documentation-service.arm.com/static/68b03beb01ae952d9559f9eb'
-  'https://documentation-service.arm.com/static/6322ff9edefc2c309b712454'
-  'https://www.cadence.com/en_US/home/resources/datasheets/vmanager-ds.html'
-  'https://www.synopsys.com/verification/resources/whitepapers/formal-signoff-methodology.html'
-  'https://resources.sw.siemens.com/de-CH/white-paper-comparing-formal-and-simulation-code-coverage/'
   '版本化架构/接口合同'
   '本地明确裁掉常驻全量回归'
   '每个不可变 design/config identity'
@@ -206,25 +196,22 @@ required_workflow_text=(
   'execution_state / terminal_state / artifact_state / assertion_state / oracle_state / replay_state'
   '原始 PASS/FAIL 状态不可改写'
   'owner、scope、rationale、expiry、compensating evidence 与 reopen trigger'
-  'rv64-historical-defect-ledger-audit'
-  'rv64-historical-defect-current-contract'
-  '五项已回填条目加一项 V9P terminal-collector'
   'run-lightweight-linux-current.sh'
   '--user-authorized-full-ubuntu'
   'SYSTEM_RECERTIFIED` 保持 GAP'
 )
-for marker in "${required_workflow_text[@]}"; do
-  if ! grep -Fq -- "$marker" "$workflow"; then
-    printf '[RV64-SOC-DELIVERY-GATES][FAIL] workflow marker missing: %s\n' "$marker" >&2
+for anchor in "${required_workflow_anchors[@]}"; do
+  if ! grep -Fq -- "$anchor" "$workflow"; then
+    printf '[RV64-SOC-DELIVERY-GATES][FAIL] workflow invariant missing: %s\n' "$anchor" >&2
     exit 1
   fi
 done
 
-if ! grep -Fq '| `review` |' "$lightweight" ||
-   ! grep -Fq '| `analysis` |' "$lightweight" ||
-   ! grep -Fq '只读代码 review 不要求 DB brief、task-run、strict guard' "$lightweight" ||
-   ! grep -Fq '`rv64-layered-system-signoff-current`' "$lightweight"; then
-  printf '%s\n' '[RV64-SOC-DELIVERY-GATES][FAIL] zero-gate read-only class contract drifted' >&2
+if ! grep -Fq '任务标签和工具用于帮助选择动作，不是权限系统' "$lightweight" ||
+   ! grep -Fq '只读 review/analysis 可以直接读取并交付结论' "$lightweight" ||
+   ! grep -Fq '不存在 workspace-wide unique shell ownership' "$lightweight" ||
+   ! grep -Fq '以上全部默认 opt-in' "$lightweight"; then
+  printf '%s\n' '[RV64-SOC-DELIVERY-GATES][FAIL] outcome-first lightweight contract drifted' >&2
   exit 1
 fi
 

@@ -3557,6 +3557,9 @@ def audit_agent_tool_policy(
     tool_policy = policy.get("agent_tools", {})
     if not isinstance(tool_policy, dict):
         return results, ["agent_tools must be an object"]
+    # 平台与用户拥有真实工具权限；workspace 只在明确声明本地 enforcement 时校验。
+    if str(tool_policy.get("enforcement", "platform-owned")) != "workspace":
+        return results, errors
     allowed_tools = set(str(item) for item in tool_policy.get("allowed_tools", []))
     missing_exemptions = set(str(item) for item in tool_policy.get("missing_tools_exemptions", []))
     allow_mcp = bool(tool_policy.get("allow_mcp_servers", False))
@@ -3664,19 +3667,19 @@ def audit_policy_paths(repo_root: Path, policy: dict[str, object]) -> list[str]:
         if task_delegation:
             for field in ("contract", "instruction", "skill", "generator"):
                 path = str(task_delegation.get(field, ""))
-                if not path:
-                    errors.append(f"task_delegation.{field} is required")
-                elif not (repo_root / path).is_file():
+                if path and not (repo_root / path).is_file():
                     errors.append(f"task_delegation {field} missing: {path}")
-            if str(task_delegation.get("profile_node", "")) != "rtl-task-contract":
-                errors.append("task_delegation.profile_node must be rtl-task-contract")
-            if task_delegation.get("local_rtl_material_source") != "declared-workspace-paths":
+            profile_node = str(task_delegation.get("profile_node", ""))
+            if profile_node and profile_node != "rtl-task-contract":
+                errors.append("task_delegation.profile_node must be rtl-task-contract when declared")
+            material_source = task_delegation.get("local_rtl_material_source")
+            if material_source and material_source != "declared-workspace-paths":
                 errors.append(
                     "task_delegation.local_rtl_material_source "
                     "must be declared-workspace-paths"
                 )
-            if not bool(task_delegation.get("contract_before_dispatch_required", False)):
-                errors.append("task_delegation.contract_before_dispatch_required must be true")
+            if bool(task_delegation.get("contract_before_dispatch_required", False)):
+                errors.append("task_delegation must not make a handoff contract a dispatch permission gate")
     elif task_delegation:
         errors.append("task_delegation must be an object")
 
@@ -4020,19 +4023,6 @@ def validate_branch_health_dashboard_payload(
     else:
         errors.append("policy traceability must be an object")
 
-    branch_health = policy.get("branch_health", {})
-    if isinstance(branch_health, dict):
-        if str(branch_health.get("review_routing", "")) != routing_rel:
-            errors.append("policy branch_health.review_routing does not match dashboard")
-        if str(branch_health.get("dashboard", "")) != ".github/ai-env/contracts/agent-env-branch-health.json":
-            errors.append("policy branch_health.dashboard missing or mismatched")
-        if str(branch_health.get("report_command", "")) != "python3 scripts/github_index_db.py branch-health-report":
-            errors.append("policy branch_health.report_command missing or mismatched")
-        if str(branch_health.get("audit_command", "")) != "python3 scripts/github_index_db.py branch-health-audit":
-            errors.append("policy branch_health.audit_command missing or mismatched")
-    else:
-        errors.append("policy branch_health must be an object")
-
     return {
         "required_signals": sorted(signals),
         "missing_signals": missing_signals,
@@ -4181,15 +4171,26 @@ def _string_list(value: object) -> list[str]:
     return [str(item) for item in value]
 
 
-DELIVERY_SENSITIVE_MARKERS = (
-    "/home/" + "lyg",
-    "C:/Users/" + "17279",
-    "\\Users\\" + "17279",
-    "260" + "10035",
-    "ysyx_" + "260" + "10035",
-    "BEGIN " + "PRIVATE",
-    "gh" + "p_",
-    "AK" + "IA",
+DELIVERY_SENSITIVE_PATTERNS: tuple[tuple[str, re.Pattern[bytes]], ...] = (
+    ("unix-user-home", re.compile(rb"/home/[A-Za-z0-9._-]+/")),
+    (
+        "windows-user-home",
+        re.compile(rb"[A-Za-z]:[\\/]+Users[\\/]+[A-Za-z0-9._ -]+[\\/]"),
+    ),
+    (
+        "wsl-user-home",
+        re.compile(
+            rb"\\\\wsl(?:\.localhost)?\\[^\\\s]+\\home\\[A-Za-z0-9._-]+\\",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "private-key",
+        re.compile(rb"-----BEGIN[ ]+(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    ),
+    ("github-token", re.compile(rb"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
+    ("aws-access-key", re.compile(rb"\bAKIA[A-Z0-9]{16}\b")),
+    ("ysyx-account", re.compile(rb"\bysyx_[0-9]{8}\b")),
 )
 
 
@@ -4299,17 +4300,21 @@ def validate_delivery_contract(
             errors.append("package contains duplicated .github/e2e/profiles/profiles directory")
 
         if package_root_path.is_dir():
-            marker_bytes = [(marker, marker.encode("utf-8")) for marker in DELIVERY_SENSITIVE_MARKERS]
             for item in sorted(package_root_path.rglob("*")):
                 if not item.is_file():
                     continue
+                relative_item = repo_path(item.relative_to(package_root_path))
                 try:
                     data = item.read_bytes()
-                except OSError:
+                except OSError as exc:
+                    errors.append(
+                        "cannot read package file during sensitive scan: "
+                        f"{relative_item}: {exc}"
+                    )
                     continue
-                for marker, needle in marker_bytes:
-                    if needle in data:
-                        sensitive_hits.append(f"{repo_path(item.relative_to(package_root_path))}:{marker}")
+                for label, pattern in DELIVERY_SENSITIVE_PATTERNS:
+                    if pattern.search(data):
+                        sensitive_hits.append(f"{relative_item}:{label}")
                         break
             for hit in sensitive_hits[:10]:
                 errors.append(f"package contains local/private marker: {hit}")
@@ -4325,14 +4330,14 @@ def validate_delivery_contract(
     if isinstance(policy_delivery, dict):
         expected = {
             "contract": contract_rel,
-            "audit_command": "python3 scripts/github_index_db.py delivery-audit",
             "delivery_root": delivery_root,
-            "archive_root": archive_root,
             "package_script": package_script,
         }
         for key, value in expected.items():
             if str(policy_delivery.get(key, "")) != value:
                 errors.append(f"policy delivery.{key} missing or mismatched")
+        if not bool(policy_delivery.get("explicit_boundary", False)):
+            errors.append("policy delivery.explicit_boundary must be true")
     else:
         errors.append("policy delivery must be an object")
 
@@ -4498,10 +4503,6 @@ def validate_runtime_artifact_contract(
     if "runtime-artifact-boundary" not in required_nodes:
         errors.append("maintenance.required_profile_nodes missing runtime-artifact-boundary")
 
-    maintain_path = repo_root / "scripts/agent-maintain.sh"
-    maintain_text = maintain_path.read_text(encoding="utf-8") if maintain_path.is_file() else ""
-    if "artifact-audit" not in maintain_text:
-        errors.append("scripts/agent-maintain.sh missing artifact-audit")
     profile_text = read_live_or_stored_text(
         repo_root,
         conn,
@@ -4522,14 +4523,6 @@ def validate_runtime_artifact_contract(
             errors.append("policy retention.runtime_artifact_contract missing or mismatched")
         if bool(policy_retention.get("raw_evidence_fulltext_in_db", True)):
             errors.append("policy retention.raw_evidence_fulltext_in_db must be false")
-        if not bool(policy_retention.get("raw_evidence_index_required", False)):
-            errors.append("policy retention.raw_evidence_index_required must be true")
-        if not bool(policy_retention.get("runtime_artifact_store_required", False)):
-            errors.append("policy retention.runtime_artifact_store_required must be true")
-        if not bool(policy_retention.get("large_runtime_artifacts_externalized", False)):
-            errors.append("policy retention.large_runtime_artifacts_externalized must be true")
-        if not bool(policy_retention.get("waveform_artifacts_externalized", False)):
-            errors.append("policy retention.waveform_artifacts_externalized must be true")
     else:
         errors.append("policy retention must be an object")
 
@@ -4537,25 +4530,12 @@ def validate_runtime_artifact_contract(
     if isinstance(policy_runtime, dict):
         if str(policy_runtime.get("contract", "")) != contract_rel:
             errors.append("policy runtime_artifacts.contract missing or mismatched")
-        if str(policy_runtime.get("audit_command", "")) != "python3 scripts/github_index_db.py artifact-audit":
-            errors.append("policy runtime_artifacts.audit_command missing or mismatched")
-        if str(policy_runtime.get("raw_evidence_policy", "")) != "index-only":
-            errors.append("policy runtime_artifacts.raw_evidence_policy must be index-only")
         if str(policy_runtime.get("artifact_store_root", "")) != ".github/runtime-artifacts":
             errors.append("policy runtime_artifacts.artifact_store_root missing or mismatched")
+        if not bool(policy_runtime.get("applies_when_payload_is_persisted", False)):
+            errors.append("policy runtime_artifacts.applies_when_payload_is_persisted must be true")
     else:
         errors.append("policy runtime_artifacts must be an object")
-
-    database_layer = policy.get("layers", {}).get("database", {}) if isinstance(policy.get("layers", {}), dict) else {}
-    if isinstance(database_layer, dict):
-        if str(database_layer.get("raw_evidence_policy", "")) != "index-only":
-            errors.append("policy layers.database.raw_evidence_policy must be index-only")
-        artifact_roots = _string_set(database_layer.get("artifact_store_roots", []))
-        for root in (".github/runtime-artifacts", ".github/task-runs/*/evidence"):
-            if root not in artifact_roots:
-                errors.append(f"policy layers.database.artifact_store_roots missing: {root}")
-    else:
-        errors.append("policy layers.database must be an object")
 
     schema_retention = schema_contract.get("retention", {})
     if isinstance(schema_retention, dict):
@@ -4888,10 +4868,18 @@ def validate_observability_contract(
 
     observability = policy.get("observability", {})
     if isinstance(observability, dict):
-        if not bool(observability.get("run_manifest_required", False)):
-            errors.append("policy observability.run_manifest_required must be true")
-        if not bool(observability.get("trace_id_required", False)):
-            errors.append("policy observability.trace_id_required must be true")
+        expected_contract = repo_path(contract_path.relative_to(repo_root))
+        if str(observability.get("publication_contract", "")) != expected_contract:
+            errors.append("policy observability.publication_contract missing or mismatched")
+        for field in (
+            "ordinary_task_report_required",
+            "ordinary_trace_id_required",
+            "ordinary_run_manifest_required",
+            "ordinary_profile_resolve_required",
+            "ordinary_evidence_index_required",
+        ):
+            if bool(observability.get(field, True)):
+                errors.append(f"policy observability.{field} must be false")
     else:
         errors.append("policy observability must be an object")
 
@@ -5067,12 +5055,15 @@ def validate_state_traceability_contract(
     routing: dict[str, object],
 ) -> tuple[dict[str, object], list[str]]:
     errors: list[str] = []
+    _ = conn
     if int(contract.get("schema_version", 0) or 0) != 1:
         errors.append("state traceability contract schema_version must be 1")
-    if str(contract.get("state_machine_doc", "")) != ".github/instructions/agent-env-state-machine.instructions.md":
-        errors.append("state_machine_doc must be .github/instructions/agent-env-state-machine.instructions.md")
-    if str(contract.get("profile", "")) != ".github/e2e/profiles/agent-system.tsv":
-        errors.append("profile must be .github/e2e/profiles/agent-system.tsv")
+    if str(contract.get("scope", "")) != "legacy-full-profile-or-explicit-publication":
+        errors.append("state traceability contract must be scoped to legacy/publication compatibility")
+    if bool(contract.get("ordinary_task_required", True)):
+        errors.append("state traceability contract must not be required for ordinary tasks")
+    if bool(contract.get("active_default", True)):
+        errors.append("state traceability contract must not be an active default")
     if str(contract.get("audit_command", "")) != "python3 scripts/github_index_db.py state-audit":
         errors.append("audit_command must call state-audit")
 
@@ -5115,30 +5106,13 @@ def validate_state_traceability_contract(
     if isinstance(state_machine, dict):
         if str(state_machine.get("contract", "")) != ".github/ai-env/contracts/agent-env-state-traceability.json":
             errors.append("policy state_machine.contract missing or mismatched")
-        if str(state_machine.get("audit_command", "")) != "python3 scripts/github_index_db.py state-audit":
-            errors.append("policy state_machine.audit_command missing or mismatched")
-        if not bool(state_machine.get("traceback_required", False)):
-            errors.append("policy state_machine.traceback_required must be true")
-        policy_states = {str(state) for state in state_machine.get("states", [])}
-        for state in sorted(STATE_TRACEABILITY_REQUIRED_STATES.difference(policy_states)):
-            errors.append(f"policy state_machine missing state: {state}")
-        if str(state_machine.get("inspector", "")) != "agent-system":
-            errors.append("policy state_machine.inspector must be agent-system")
-        if str(state_machine.get("coordinator", "")) != "ysyx-coordinator":
-            errors.append("policy state_machine.coordinator must be ysyx-coordinator")
-        profile_nodes = {str(node) for node in state_machine.get("reviewer_profile_nodes", [])}
-        for node_id in sorted(STATE_REVIEWER_INSPECTOR_NODES):
-            if node_id not in profile_nodes:
-                errors.append(f"policy state_machine missing reviewer profile node: {node_id}")
+        if bool(state_machine.get("ordinary_tasks_require_traceback", True)):
+            errors.append("policy state_machine must not require traceback for ordinary tasks")
+        if str(state_machine.get("scope", "")) != "legacy-full-profile-or-explicit-publication":
+            errors.append("policy state_machine scope must be legacy/publication only")
     else:
         errors.append("policy state_machine must be an object")
 
-    requirement_routes = routing.get("requirement_routes", {})
-    if isinstance(requirement_routes, dict):
-        if str(requirement_routes.get("R7", "")) != "agent-layer":
-            errors.append("review routing must map R7 to agent-layer")
-    else:
-        errors.append("review routing requirement_routes must be an object")
     agent_route = None
     for raw_route in routing.get("review_routes", []):
         if isinstance(raw_route, dict) and str(raw_route.get("id", "")) == "agent-layer":
@@ -5147,51 +5121,9 @@ def validate_state_traceability_contract(
     if not isinstance(agent_route, dict):
         errors.append("review routing missing agent-layer route")
         agent_route = {}
-    if str(agent_route.get("primary_agent", "")) != "ysyx-coordinator":
-        errors.append("agent-layer primary_agent must be ysyx-coordinator")
-    if str(agent_route.get("inspector", "")) != "agent-system":
-        errors.append("agent-layer inspector must be agent-system")
     agent_checks = {str(check) for check in agent_route.get("required_checks", [])}
-    if "state-audit" not in agent_checks:
-        errors.append("agent-layer required_checks missing state-audit")
-
-    state_doc = read_repo_or_stored_text(
-        repo_root,
-        conn,
-        ".github/instructions/agent-env-state-machine.instructions.md",
-    )
-    for token in sorted(STATE_TRACEABILITY_REQUIRED_STATES):
-        if token not in state_doc:
-            errors.append(f"state machine instruction missing state: {token}")
-    for token in ("state_traceback", "state-machine-traceback", "reviewer-inspector-gate"):
-        if token not in state_doc:
-            errors.append(f"state machine instruction missing {token}")
-
-    profile_text = read_repo_or_stored_text(
-        repo_root,
-        conn,
-        ".github/e2e/profiles/agent-system.tsv",
-    )
-    for node_id, function in sorted(STATE_REVIEWER_INSPECTOR_NODES.items()):
-        if f"{node_id}|agent-system|{function}|agent-system|" not in profile_text:
-            errors.append(f"agent-system profile missing node: {node_id}")
-
-    report_sh = repo_root / "scripts/e2e/lib/report.sh"
-    report_text = report_sh.read_text(encoding="utf-8") if report_sh.is_file() else ""
-    for token in ("state_traceback", "failure_state", "rollback_target", "state_sequence"):
-        if token not in report_text:
-            errors.append(f"report.sh missing {token}")
-
-    agent_system_sh = repo_root / "scripts/e2e/modules/agent_system.sh"
-    agent_system_text = agent_system_sh.read_text(encoding="utf-8") if agent_system_sh.is_file() else ""
-    for function in sorted(STATE_REVIEWER_INSPECTOR_NODES.values()):
-        if function not in agent_system_text:
-            errors.append(f"agent_system.sh missing {function}")
-
-    maintain_sh = repo_root / "scripts/agent-maintain.sh"
-    maintain_text = maintain_sh.read_text(encoding="utf-8") if maintain_sh.is_file() else ""
-    if "state-audit" not in maintain_text:
-        errors.append("scripts/agent-maintain.sh missing state-audit")
+    if "state-audit" in agent_checks:
+        errors.append("state-audit must not be a live agent-layer required check")
 
     return {
         "states": sorted(states),
@@ -5199,6 +5131,7 @@ def validate_state_traceability_contract(
         "traceback_fields": sorted(traceback_fields),
         "missing_traceback_fields": missing_fields,
         "reviewer_inspector_nodes": dict(sorted(node_map.items())),
+        "active_default": False,
     }, errors
 
 

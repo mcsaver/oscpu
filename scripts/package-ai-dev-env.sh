@@ -102,7 +102,6 @@ cat > "$PACKAGE_ROOT/BUILD_INFO.md" <<EOF
 Run from the source workspace before shipping:
 
 \`\`\`bash
-python3 scripts/github_index_db.py delivery-audit
 scripts/agent-maintain.sh --mode release
 \`\`\`
 EOF
@@ -111,8 +110,8 @@ sanitize_package_text() {
   local file
   while IFS= read -r -d '' file; do
     sed -i \
-      -e 's#/home/lyg/PA/ysyx-workbench#<repo-root>#g' \
-      -e 's#26010035#<student-id>#g' \
+      -e "s#${REPO_ROOT}#<repo-root>#g" \
+      -e 's#ysyx_[0-9]\{8\}#<ysyx-id>#g' \
       "$file"
   done < <(
     find "$PACKAGE_ROOT" -type f \

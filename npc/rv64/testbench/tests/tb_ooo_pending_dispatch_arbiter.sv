@@ -9,6 +9,11 @@ module tb_ooo_pending_dispatch_arbiter;
   reg can_run;
   reg fifo_has_packet;
   reg csr_irq_pending;
+  reg tensor_pre_rob_owner_live;
+  reg tensor_pair_trap_valid;
+  reg [`XLEN-1:0] tensor_pair_trap_pc;
+  reg [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause;
+  reg [`XLEN-1:0] tensor_pair_trap_tval;
   reg branch_spec_resolve_valid;
   reg pending_branch_commit_resolve;
   reg pending_branch_match_clear;
@@ -65,6 +70,7 @@ module tb_ooo_pending_dispatch_arbiter;
   reg [`OOO_SLOT_FACTS_W-1:0] dispatch0_facts;
   reg [`OOO_SLOT_FACTS_W-1:0] head1_facts;
 
+  wire tensor_pair_trap_grant;
   wire pending_system_capture_irq;
   wire pending_system_capture_head0;
   wire pending_system_capture_lane1;
@@ -88,6 +94,11 @@ module tb_ooo_pending_dispatch_arbiter;
     .can_run_i(can_run),
     .fifo_has_packet_i(fifo_has_packet),
     .csr_irq_pending_i(csr_irq_pending),
+    .tensor_pre_rob_owner_live_i(tensor_pre_rob_owner_live),
+    .tensor_pair_trap_valid_i(tensor_pair_trap_valid),
+    .tensor_pair_trap_pc_i(tensor_pair_trap_pc),
+    .tensor_pair_trap_cause_i(tensor_pair_trap_cause),
+    .tensor_pair_trap_tval_i(tensor_pair_trap_tval),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .pending_branch_commit_resolve_i(pending_branch_commit_resolve),
     .pending_branch_match_clear_i(pending_branch_match_clear),
@@ -122,6 +133,7 @@ module tb_ooo_pending_dispatch_arbiter;
     .head0_csr_illegal_i(head0_csr_illegal),
     .head1_csr_illegal_i(head1_csr_illegal),
     .rob_walk_mode_i(1'b0),
+    .tensor_pair_trap_grant_o(tensor_pair_trap_grant),
     .pending_system_capture_irq_o(pending_system_capture_irq),
     .pending_system_capture_head0_o(pending_system_capture_head0),
     .pending_system_capture_lane1_o(pending_system_capture_lane1),
@@ -209,6 +221,11 @@ module tb_ooo_pending_dispatch_arbiter;
       can_run = 1'b1;
       fifo_has_packet = 1'b1;
       csr_irq_pending = 1'b0;
+      tensor_pre_rob_owner_live = 1'b0;
+      tensor_pair_trap_valid = 1'b0;
+      tensor_pair_trap_pc = 64'h0000_0000_8000_2000;
+      tensor_pair_trap_cause = `EXC_ILLEGAL_INST;
+      tensor_pair_trap_tval = 64'h0000_0000_f00d_cafe;
       branch_spec_resolve_valid = 1'b0;
       pending_branch_commit_resolve = 1'b0;
       pending_branch_match_clear = 1'b0;
@@ -271,6 +288,137 @@ module tb_ooo_pending_dispatch_arbiter;
 
     reset_inputs();
     tb_check1("idle no irq capture", pending_system_capture_irq, 1'b0);
+
+    // A registered Tensor owner that has not entered the ROB yet closes the
+    // ordinary IRQ/head capture window.  It must not be mistaken for an empty
+    // backend merely because the ordinary ROB and issue queues are empty.
+    reset_inputs();
+    tensor_pre_rob_owner_live = 1'b1;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("pre-ROB tensor owner blocks irq capture",
+              pending_system_capture_irq, 1'b0);
+
+    reset_inputs();
+    tensor_pre_rob_owner_live = 1'b1;
+    dispatch0_system = 1'b1;
+    #1;
+    tb_check1("pre-ROB tensor owner blocks head0 system capture",
+              pending_system_capture_head0, 1'b0);
+
+    reset_inputs();
+    tensor_pre_rob_owner_live = 1'b1;
+    head_fetch_fault0 = 1'b1;
+    head_resp0 = 2'b10;
+    #1;
+    tb_check1("pre-ROB tensor owner blocks head trap capture",
+              pending_trap_exit_capture_arch_valid, 1'b0);
+
+    // PairOwner's typed error handoff is an independent grant.  The same
+    // pre-ROB-live fact that blocks ordinary IRQ/head capture must not block
+    // this already-owned payload from entering PendingTrapExit.
+    reset_inputs();
+    tensor_pre_rob_owner_live = 1'b1;
+    tensor_pair_trap_valid = 1'b1;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("pre-ROB owner preserves pair trap grant",
+              tensor_pair_trap_grant, 1'b1);
+    tb_check1("pre-ROB owner preserves pair trap capture",
+              pending_trap_exit_capture_arch_valid, 1'b1);
+    tb_check1("pair trap still excludes competing irq capture",
+              pending_system_capture_irq, 1'b0);
+
+    // The pair owner can hold an error after its source packet has already
+    // left the ordinary FIFO.  Its typed trap handshake must consequently not
+    // depend on frontend run eligibility or packet visibility.
+    reset_inputs();
+    can_run = 1'b0;
+    fifo_has_packet = 1'b0;
+    tensor_pair_trap_valid = 1'b1;
+    tensor_pair_trap_pc = 64'h0000_0000_8123_4560;
+    tensor_pair_trap_cause = `EXC_INST_PAGE_FAULT;
+    tensor_pair_trap_tval = 64'hffff_ffff_dead_beef;
+    #1;
+    tb_check1("pair trap grants without can-run", tensor_pair_trap_grant, 1'b1);
+    tb_check1("pair trap captures without fifo", pending_trap_exit_capture_arch, 1'b1);
+    tb_check1("pair trap arch valid without fifo",
+              pending_trap_exit_capture_arch_valid, 1'b1);
+    check_cause("pair trap exact cause", pending_trap_exit_capture_cause,
+                tensor_pair_trap_cause);
+    check_xlen("pair trap exact pc", pending_trap_exit_capture_pc,
+               tensor_pair_trap_pc);
+    check_xlen("pair trap exact tval", pending_trap_exit_capture_tval,
+               tensor_pair_trap_tval);
+
+    // A held pair error is the sole capture owner even when IRQ, head fault,
+    // head system and lane1 system candidates are deliberately asserted in
+    // the same cycle.  Exact payload checks prove the arch capture is the pair
+    // trap rather than one of the ordinary head paths.
+    reset_inputs();
+    tensor_pair_trap_valid = 1'b1;
+    tensor_pair_trap_pc = 64'h0000_0000_8234_5670;
+    tensor_pair_trap_cause = `EXC_ILLEGAL_INST;
+    tensor_pair_trap_tval = 64'h0000_0000_0bad_c0de;
+    csr_irq_pending = 1'b1;
+    head_fetch_fault0 = 1'b1;
+    head_resp0 = 2'b10;
+    dispatch0_system = 1'b1;
+    dispatch1_barrier_fire = 1'b1;
+    head1_system_raw = 1'b1;
+    #1;
+    tb_check1("pair trap wins simultaneous sources", tensor_pair_trap_grant, 1'b1);
+    tb_check1("pair trap blocks irq owner", pending_system_capture_irq, 1'b0);
+    tb_check1("pair trap blocks head system owner",
+              pending_system_capture_head0, 1'b0);
+    tb_check1("pair trap blocks lane1 system owner",
+              pending_system_capture_lane1, 1'b0);
+    tb_check1("pair trap does not capture exit",
+              pending_trap_exit_capture_exit, 1'b0);
+    tb_check1("pair trap is sole arch owner",
+              pending_trap_exit_capture_arch_valid, 1'b1);
+    check_cause("pair priority exact cause", pending_trap_exit_capture_cause,
+                tensor_pair_trap_cause);
+    check_xlen("pair priority exact pc", pending_trap_exit_capture_pc,
+               tensor_pair_trap_pc);
+    check_xlen("pair priority exact tval", pending_trap_exit_capture_tval,
+               tensor_pair_trap_tval);
+
+    // Existing trap/recovery ownership rejects the pair handshake.  Keeping
+    // normal capture suppressed while valid is held prevents a competing IRQ
+    // or FIFO event from bypassing the stalled pair owner.
+    reset_inputs();
+    tensor_pair_trap_valid = 1'b1;
+    csr_trap_mem_valid = 1'b1;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("csr trap mem rejects pair grant", tensor_pair_trap_grant, 1'b0);
+    tb_check1("csr trap mem rejects pair capture",
+              pending_trap_exit_capture_arch, 1'b0);
+    tb_check1("held pair blocks irq under csr trap mem",
+              pending_system_capture_irq, 1'b0);
+
+    reset_inputs();
+    tensor_pair_trap_valid = 1'b1;
+    stop_pending = 1'b1;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("stop-pending rejects pair grant", tensor_pair_trap_grant, 1'b0);
+    tb_check1("stop-pending rejects pair capture",
+              pending_trap_exit_capture_arch, 1'b0);
+    tb_check1("held pair blocks irq under stop-pending",
+              pending_system_capture_irq, 1'b0);
+
+    reset_inputs();
+    tensor_pair_trap_valid = 1'b1;
+    direct_frontend_flush = 1'b1;
+    csr_irq_pending = 1'b1;
+    #1;
+    tb_check1("direct flush rejects pair grant", tensor_pair_trap_grant, 1'b0);
+    tb_check1("direct flush rejects pair capture",
+              pending_trap_exit_capture_arch, 1'b0);
+    tb_check1("held pair blocks irq under direct flush",
+              pending_system_capture_irq, 1'b0);
 
     reset_inputs();
     csr_irq_pending = 1'b1;

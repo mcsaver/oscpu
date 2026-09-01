@@ -25,6 +25,12 @@ module tb_ooo_serialized_owner_exactly_once;
       64'h0000_0000_8000_2200;
   localparam [`XLEN-1:0] ARCH_TVAL =
       64'h0000_0000_ffff_ffff;
+  localparam [`XLEN-1:0] PAIR_TRAP_PC =
+      64'h0000_0000_8000_3400;
+  localparam [`XLEN-1:0] PAIR_TRAP_TVAL =
+      64'hffff_ffff_dead_beef;
+  localparam [`TRAP_CAUSE_W-1:0] PAIR_TRAP_CAUSE =
+      `EXC_INST_PAGE_FAULT;
   localparam [`INST_W-1:0] INST_ADDI  = 32'h0000_0013;
   localparam [`INST_W-1:0] INST_BAD   = 32'hffff_ffff;
   localparam [`INST_W-1:0] INST_ECALL = 32'h0000_0073;
@@ -35,9 +41,14 @@ module tb_ooo_serialized_owner_exactly_once;
 
   reg clk;
   reg rst;
+  reg frontend_run;
 
   reg fifo_has_packet;
   reg csr_irq_pending;
+  reg tensor_pair_trap_valid;
+  reg [`XLEN-1:0] tensor_pair_trap_pc;
+  reg [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause;
+  reg [`XLEN-1:0] tensor_pair_trap_tval;
   reg direct_frontend_flush;
   reg dispatch1_barrier_fire;
   reg [`OOO_SLOT_FACTS_W-1:0] head0_facts;
@@ -78,6 +89,7 @@ module tb_ooo_serialized_owner_exactly_once;
   wire stop_pending_busy;
   wire can_run;
   wire stop_pending;
+  wire tensor_pair_trap_grant;
 
   wire pending_system_capture_irq;
   wire pending_system_capture_head0;
@@ -234,7 +246,7 @@ module tb_ooo_serialized_owner_exactly_once;
       pending_system || pending_exit || pending_arch_trap;
 
   OooFrontendRunGate u_run_gate (
-    .run_i(1'b1),
+    .run_i(frontend_run),
     .core_trap_flush_i(1'b0),
     .core_serial_flush_i(1'b0),
     .stop_pending_i(stop_pending),
@@ -242,7 +254,9 @@ module tb_ooo_serialized_owner_exactly_once;
     .pending_branch_i(1'b0),
     .pending_jump_i(1'b0),
     .pending_mem_i(1'b0),
-    .pending_arch_trap_i(pending_arch_trap),
+    // The PairOwner holder is already a raw architectural barrier before its
+    // typed payload crosses into PendingTrapExit on the handoff edge.
+    .pending_arch_trap_i(pending_arch_trap || tensor_pair_trap_valid),
     .pending_system_i(pending_system),
     .synth_lane1_ret_pending_i(1'b0),
     .synth_lane1_branch_drop_pending_i(1'b0),
@@ -270,6 +284,11 @@ module tb_ooo_serialized_owner_exactly_once;
     .can_run_i(can_run),
     .fifo_has_packet_i(fifo_has_packet),
     .csr_irq_pending_i(csr_irq_pending),
+    .tensor_pre_rob_owner_live_i(1'b0),
+    .tensor_pair_trap_valid_i(tensor_pair_trap_valid),
+    .tensor_pair_trap_pc_i(tensor_pair_trap_pc),
+    .tensor_pair_trap_cause_i(tensor_pair_trap_cause),
+    .tensor_pair_trap_tval_i(tensor_pair_trap_tval),
     .branch_spec_resolve_valid_i(branch_spec_resolve_valid),
     .pending_branch_commit_resolve_i(1'b0),
     .pending_branch_match_clear_i(1'b0),
@@ -304,6 +323,7 @@ module tb_ooo_serialized_owner_exactly_once;
     .head0_csr_illegal_i(1'b0),
     .head1_csr_illegal_i(1'b0),
     .rob_walk_mode_i(1'b1),
+    .tensor_pair_trap_grant_o(tensor_pair_trap_grant),
     .pending_system_capture_irq_o(pending_system_capture_irq),
     .pending_system_capture_head0_o(pending_system_capture_head0),
     .pending_system_capture_lane1_o(pending_system_capture_lane1),
@@ -425,6 +445,7 @@ module tb_ooo_serialized_owner_exactly_once;
   OooPendingDrainResolveGate u_drain_gate (
     .rob_count_i({`OOO_ROB_COUNT_W{1'b0}}),
     .issue_count_i({`OOO_ISSUE_COUNT_W{1'b0}}),
+    .tensor_pre_rob_owner_live_i(1'b0),
     .synth_lane1_ret_pending_i(1'b0),
     .synth_lane1_branch_drop_pending_i(1'b0),
     .direct_frontend_flush_i(direct_frontend_flush),
@@ -715,6 +736,11 @@ module tb_ooo_serialized_owner_exactly_once;
     begin
       fifo_has_packet = 1'b0;
       csr_irq_pending = 1'b0;
+      frontend_run = 1'b1;
+      tensor_pair_trap_valid = 1'b0;
+      tensor_pair_trap_pc = PAIR_TRAP_PC;
+      tensor_pair_trap_cause = PAIR_TRAP_CAUSE;
+      tensor_pair_trap_tval = PAIR_TRAP_TVAL;
       direct_frontend_flush = 1'b0;
       dispatch1_barrier_fire = 1'b0;
       head0_facts = {`OOO_SLOT_FACTS_W{1'b0}};
@@ -1197,6 +1223,153 @@ module tb_ooo_serialized_owner_exactly_once;
     end
   endtask
 
+  task automatic test_clocked_pair_trap_exactly_once;
+    integer errors_before;
+    begin
+      errors_before = tb_errors;
+      reset_case();
+
+      // Model PairOwner's held-error state with no ordinary FIFO packet.  A
+      // simultaneous IRQ is intentionally present: the typed pair trap owns
+      // the handoff while an independent frontend run stall proves capture is
+      // not can-run-dependent.  Raw valid is also fed to RunGate as the
+      // pending-arch owner so a registered stop cannot become orphaned across
+      // the PairOwner-to-PendingTrapExit handoff.
+      tensor_pair_trap_valid = 1'b1;
+      tensor_pair_trap_pc = PAIR_TRAP_PC;
+      tensor_pair_trap_cause = PAIR_TRAP_CAUSE;
+      tensor_pair_trap_tval = PAIR_TRAP_TVAL;
+      csr_irq_pending = 1'b1;
+      fifo_has_packet = 1'b0;
+      frontend_run = 1'b0;
+      #1;
+      tb_check1("PAIR clocked raw holder blocks can-run", can_run, 1'b0);
+      tb_check1("PAIR clocked source fifo remains empty",
+                fifo_has_packet, 1'b0);
+      tb_check1("PAIR clocked grant ignores can-run/fifo",
+                tensor_pair_trap_grant, 1'b1);
+      tb_check1("PAIR clocked grant captures arch",
+                pending_trap_capture_arch, 1'b1);
+      tb_check1("PAIR clocked grant captures arch valid",
+                pending_trap_capture_arch_valid, 1'b1);
+      tb_check1("PAIR clocked grant births pending owner",
+                pending_trap_owner_birth, 1'b1);
+      tb_check1("PAIR clocked wins simultaneous IRQ",
+                pending_system_capture_irq, 1'b0);
+      check_xlen("PAIR clocked handoff PC",
+                 pending_trap_capture_pc, PAIR_TRAP_PC);
+      tb_check1("PAIR clocked handoff cause exact",
+                pending_trap_capture_cause == PAIR_TRAP_CAUSE, 1'b1);
+      check_xlen("PAIR clocked handoff tval",
+                 pending_trap_capture_tval, PAIR_TRAP_TVAL);
+      `TB_TICK(clk);
+
+      // The accepted grant clears PairOwner on this edge in production.  Drop
+      // the TB holder immediately after the edge to model that handshake.
+      tensor_pair_trap_valid = 1'b0;
+      csr_irq_pending = 1'b0;
+      frontend_run = 1'b1;
+      #1;
+      tb_check1("PAIR clocked handoff registers arch owner",
+                pending_arch_trap, 1'b1);
+      tb_check1("PAIR clocked handoff registers stop",
+                stop_pending, 1'b1);
+      tb_check1("PAIR clocked handoff excludes system owner",
+                pending_system, 1'b0);
+      tb_check1("PAIR clocked holder releases after grant",
+                tensor_pair_trap_grant, 1'b0);
+      check_xlen("PAIR clocked registered PC",
+                 pending_trap_pc, PAIR_TRAP_PC);
+      tb_check1("PAIR clocked registered cause exact",
+                pending_trap_cause == PAIR_TRAP_CAUSE, 1'b1);
+      check_xlen("PAIR clocked registered tval",
+                 pending_trap_tval, PAIR_TRAP_TVAL);
+
+      // An active memory holder keeps the serialized owner resident and must
+      // not expose any trap-ex request before exact terminalization.
+      mem_owner_terminalized = 1'b0;
+      #1;
+      tb_check1("PAIR clocked active mem blocks drain",
+                drain_complete, 1'b0);
+      tb_check1("PAIR clocked active mem blocks trap-ex",
+                trap_ex_valid, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("PAIR clocked blocked cycle retains owner",
+                pending_arch_trap, 1'b1);
+      tb_check1("PAIR clocked blocked cycle retains stop",
+                stop_pending, 1'b1);
+      check_int("PAIR clocked blocked request count",
+                pending_arch_request_count_q, 0);
+      check_int("PAIR clocked blocked CsrFile count",
+                csr_arch_accept_count_q, 0);
+
+      // The terminal fact first arms the registered permit.  The following C0
+      // is the sole drain/trap-ex transaction for this owner.
+      mem_owner_terminalized = 1'b1;
+      #1;
+      tb_check1("PAIR clocked terminal arm precedes drain",
+                drain_complete, 1'b0);
+      `TB_TICK(clk);
+      tb_check1("PAIR clocked C0 terminal permit ready",
+                serialized_mem_terminal_ready, 1'b1);
+      tb_check1("PAIR clocked C0 drain completes",
+                drain_complete, 1'b1);
+      tb_check1("PAIR clocked C0 arch fire",
+                pending_arch_trap_fire, 1'b1);
+      tb_check1("PAIR clocked C0 trap-ex exactly active",
+                trap_ex_valid, 1'b1);
+      tb_check1("PAIR clocked C0 excludes trap-mem",
+                trap_mem_valid, 1'b0);
+      tb_check1("PAIR clocked C0 excludes IRQ request",
+                trap_irq_valid, 1'b0);
+      check_xlen("PAIR clocked C0 trap-ex PC",
+                 trap_ex_pc, PAIR_TRAP_PC);
+      tb_check1("PAIR clocked C0 trap-ex cause exact",
+                trap_ex_cause == PAIR_TRAP_CAUSE, 1'b1);
+      check_xlen("PAIR clocked C0 trap-ex tval",
+                 trap_ex_tval, PAIR_TRAP_TVAL);
+      `TB_TICK(clk);
+
+      check_int("PAIR clocked C1 arch fire exactly once",
+                pending_arch_request_count_q, 1);
+      check_int("PAIR clocked C1 CsrFile accept exactly once",
+                csr_arch_accept_count_q, 1);
+      check_int("PAIR clocked C1 no trap-mem accept",
+                csr_mem_accept_count_q, 0);
+      check_int("PAIR clocked C1 excludes alternate raw trap",
+                raw_trap_count_q, 0);
+      check_xlen("PAIR clocked C1 CsrFile mepc",
+                 csr_mepc, PAIR_TRAP_PC);
+      tb_check1("PAIR clocked C1 clears pending owner",
+                pending_arch_trap, 1'b0);
+      tb_check1("PAIR clocked C1 keeps system absent",
+                pending_system, 1'b0);
+      tb_check1("PAIR clocked C1 clears stop",
+                stop_pending, 1'b0);
+      tb_check1("PAIR clocked C1 trap-ex is low",
+                trap_ex_valid, 1'b0);
+
+      `TB_TICK(clk);
+      check_int("PAIR clocked C2 arch fire does not repeat",
+                pending_arch_request_count_q, 1);
+      check_int("PAIR clocked C2 CsrFile accept does not repeat",
+                csr_arch_accept_count_q, 1);
+      check_int("PAIR clocked C2 alternate raw trap remains absent",
+                raw_trap_count_q, 0);
+      tb_check1("PAIR clocked C2 owner remains clear",
+                pending_arch_trap, 1'b0);
+      tb_check1("PAIR clocked C2 stop remains clear",
+                stop_pending, 1'b0);
+      tb_check1("PAIR clocked C2 trap-ex remains low",
+                trap_ex_valid, 1'b0);
+      if (tb_errors == errors_before)
+        $display("[PAIR-CLOCKED-EXACTLY-ONCE-PASS] empty-fifo=1 can-run=0 raw-owner=1 irq-lost=1 grant=1 C0-trap-ex=1 C1-clear=1 C2-repeat=0");
+      else
+        $display("[PAIR-CLOCKED-EXACTLY-ONCE-RED] errors=%0d",
+                 tb_errors - errors_before);
+    end
+  endtask
+
   task automatic test_exit_lane_exactly_once;
     input integer lane;
     input integer is_ecall;
@@ -1399,6 +1572,7 @@ module tb_ooo_serialized_owner_exactly_once;
       test_live_arch_blocks_system_kinds();
       test_commit_trap_priority();
       test_clocked_arch_exactly_once();
+      test_clocked_pair_trap_exactly_once();
     end
     test_exit_lane_exactly_once(0, 0);
     test_exit_lane_exactly_once(1, 1);

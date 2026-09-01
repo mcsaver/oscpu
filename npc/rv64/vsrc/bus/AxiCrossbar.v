@@ -269,6 +269,24 @@ module AxiCrossbar #(
   reg [MASTER_W-1:0] rd_grant_master_r [0:S_COUNT-1];
   reg [S_COUNT-1:0] wr_grant_valid_r;
   reg [MASTER_W-1:0] wr_grant_master_r [0:S_COUNT-1];
+  // A complete write pair has already been captured in per-master holders
+  // before wr_grant_valid_r can assert.  The grant cycle may therefore offer
+  // that registered payload directly to the selected target without making
+  // master READY depend on target READY.  Per-channel fires seed the normal
+  // registered active-owner sent bits on the same edge.
+  reg [S_COUNT-1:0] wr_grant_offer_r;
+  reg [S_COUNT-1:0] wr_grant_aw_fire_r;
+  reg [S_COUNT-1:0] wr_grant_w_fire_r;
+  // A locally accepted live complete pair may acquire an inactive target on
+  // the same edge.  Selection never reads target READY: READY is sampled only
+  // into the per-channel sent seed after owner/payload selection is fixed.
+  reg [M_COUNT-1:0] wr_live_pair_r;
+  reg wr_any_complete_holder_r;
+  reg [S_COUNT-1:0] wr_live_unique_match_r;
+  reg [S_COUNT-1:0] wr_live_offer_r;
+  reg [MASTER_W-1:0] wr_live_master_r [0:S_COUNT-1];
+  reg [S_COUNT-1:0] wr_live_aw_fire_r;
+  reg [S_COUNT-1:0] wr_live_w_fire_r;
   reg [SLAVE_W-1:0] artarget_decode_r [0:M_COUNT-1];
   reg [SLAVE_W-1:0] awtarget_decode_r [0:M_COUNT-1];
 
@@ -303,18 +321,46 @@ module AxiCrossbar #(
   integer step;
   integer cand;
   integer owner;
+  integer live_match_count;
+  integer b_route_s;
+  integer b_route_owner;
+
+  // Keep the master-facing write admission and registered-owner B return in
+  // comb processes that do not observe live request inputs.  Besides making
+  // their true Q-only/owner-only dependencies explicit, this prevents the
+  // live m_awvalid/m_wvalid cone in the request mux below from being merged by
+  // full-top scheduling with IFU AWREADY/BVALID maintenance feedback.
+  always @(*) begin
+    m_awready_r = ~wr_aw_hold_q & ~wr_master_busy_q;
+    m_wready_r = ~wr_w_hold_q & ~wr_master_busy_q;
+  end
+
+  always @(*) begin
+    m_bvalid_r = {M_COUNT{1'b0}};
+    m_bresp_r = {M_COUNT*2{1'b0}};
+    m_bid_r = {M_COUNT*4{1'b0}};
+    s_bready_r = {S_COUNT{1'b0}};
+    b_route_owner = 0;
+    for (b_route_s = 0; b_route_s < S_COUNT;
+         b_route_s = b_route_s + 1) begin
+      if (wr_active_q[b_route_s] && wr_aw_sent_q[b_route_s] &&
+          wr_w_sent_q[b_route_s]) begin
+        b_route_owner = master_int(wr_owner_q[b_route_s]);
+        m_bvalid_r[b_route_owner] = s_bvalid_i[b_route_s];
+        m_bresp_r[b_route_owner*2 +: 2] =
+            s_bresp_i[b_route_s*2 +: 2];
+        m_bid_r[b_route_owner*4 +: 4] = wr_id_q[b_route_s];
+        s_bready_r[b_route_s] = m_bready_i[b_route_owner];
+      end
+    end
+  end
 
   always @(*) begin
     m_arready_r = {M_COUNT{1'b0}};
-    m_awready_r = {M_COUNT{1'b0}};
-    m_wready_r = {M_COUNT{1'b0}};
     m_rvalid_r = {M_COUNT{1'b0}};
     m_rdata_r = {M_COUNT*DATA_W{1'b0}};
     m_rresp_r = {M_COUNT*2{1'b0}};
     m_rid_r = {M_COUNT*4{1'b0}};
-    m_bvalid_r = {M_COUNT{1'b0}};
-    m_bresp_r = {M_COUNT*2{1'b0}};
-    m_bid_r = {M_COUNT*4{1'b0}};
 
     s_arvalid_r = {S_COUNT{1'b0}};
     s_araddr_r = {S_COUNT*ADDR_W{1'b0}};
@@ -327,10 +373,18 @@ module AxiCrossbar #(
     s_wvalid_r = {S_COUNT{1'b0}};
     s_wdata_r = {S_COUNT*DATA_W{1'b0}};
     s_wstrb_r = {S_COUNT*STRB_W{1'b0}};
-    s_bready_r = {S_COUNT{1'b0}};
 
     rd_grant_valid_r = {S_COUNT{1'b0}};
     wr_grant_valid_r = {S_COUNT{1'b0}};
+    wr_grant_offer_r = {S_COUNT{1'b0}};
+    wr_grant_aw_fire_r = {S_COUNT{1'b0}};
+    wr_grant_w_fire_r = {S_COUNT{1'b0}};
+    wr_live_pair_r = {M_COUNT{1'b0}};
+    wr_any_complete_holder_r = 1'b0;
+    wr_live_unique_match_r = {S_COUNT{1'b0}};
+    wr_live_offer_r = {S_COUNT{1'b0}};
+    wr_live_aw_fire_r = {S_COUNT{1'b0}};
+    wr_live_w_fire_r = {S_COUNT{1'b0}};
     cand = 0;
     owner = 0;
     // 每个 master 的目标 slave 只译码一次，再供各 slave 仲裁器复用。
@@ -342,6 +396,7 @@ module AxiCrossbar #(
     for (s = 0; s < S_COUNT; s = s + 1) begin
       rd_grant_master_r[s] = {MASTER_W{1'b0}};
       wr_grant_master_r[s] = {MASTER_W{1'b0}};
+      wr_live_master_r[s] = {MASTER_W{1'b0}};
     end
 
     for (m = 0; m < M_COUNT; m = m + 1) begin
@@ -414,48 +469,199 @@ module AxiCrossbar #(
     end
 
     for (m = 0; m < M_COUNT; m = m + 1) begin
-      m_awready_r[m] = !wr_aw_hold_q[m] && !wr_master_busy_q[m];
-      m_wready_r[m] = !wr_w_hold_q[m] && !wr_master_busy_q[m];
+      // A complete older holder anywhere in this single-outstanding
+      // crossbar conservatively keeps the live path quiet.  Unknown holder
+      // state is also treated as occupied, so it cannot be bypassed through
+      // X optimism.
+      case ({wr_aw_hold_q[m], wr_w_hold_q[m]})
+        2'b11: wr_any_complete_holder_r = 1'b1;
+        2'b10, 2'b01, 2'b00: begin end
+        default: wr_any_complete_holder_r = 1'b1;
+      endcase
+
+      // Four-state exact admission: both channels must really fire and all
+      // payload used by target decode/registration must be known.  Spell the
+      // two local READY predicates directly from their registered Q sources
+      // instead of reading m_*ready_r back inside this monolithic comb block.
+      // The expressions are exactly equivalent to the assignments above, but
+      // the Q-only form keeps full-top scheduling from manufacturing a false
+      // m_valid -> comb block -> m_ready dependency.  Target READY is absent.
+      case ({m_awvalid_i[m], m_wvalid_i[m], wr_aw_hold_q[m],
+             wr_w_hold_q[m], wr_master_busy_q[m]})
+        5'b11000: begin
+          if ((^{m_addr_slice(m_awaddr_i, m),
+                 m_size_slice(m_awsize_i, m),
+                 m_id_slice(m_awid_i, m),
+                 m_data_slice(m_wdata_i, m),
+                 m_strb_slice(m_wstrb_i, m)}) !== 1'bx) begin
+            wr_live_pair_r[m] = 1'b1;
+          end
+        end
+        default: begin end
+      endcase
     end
 
     for (s = 0; s < S_COUNT; s = s + 1) begin
+      live_match_count = 0;
+      for (m = 0; m < M_COUNT; m = m + 1) begin
+        if (wr_live_pair_r[m] &&
+            (awtarget_decode_r[m] == slave_idx(s)))
+          live_match_count = live_match_count + 1;
+      end
+      if (live_match_count == 1)
+        wr_live_unique_match_r[s] = 1'b1;
+
       if (!wr_active_q[s]) begin
         if (M_COUNT == 2) begin
           // 写通道同样针对真实两 master 路径展开，保留 AW/W hold 后再 grant 的协议边界。
-          if (wr_rr_q[s] == master_idx(0)) begin
-            if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
-                !wr_master_busy_q[0] && (wr_awtarget_q[0] == slave_idx(s))) begin
-              wr_grant_valid_r[s] = 1'b1;
-              wr_grant_master_r[s] = master_idx(0);
-            end else if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
-                         !wr_master_busy_q[1] && (wr_awtarget_q[1] == slave_idx(s))) begin
-              wr_grant_valid_r[s] = 1'b1;
-              wr_grant_master_r[s] = master_idx(1);
+          // Explicit four-state decode is intentional: an unknown/corrupt RR
+          // owner must not be turned into an X-optimistic master1 grant.
+          case (wr_rr_q[s])
+            master_idx(0): begin
+              if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
+                  !wr_master_busy_q[0] &&
+                  (wr_awtarget_q[0] == slave_idx(s))) begin
+                wr_grant_valid_r[s] = 1'b1;
+                wr_grant_master_r[s] = master_idx(0);
+              end else if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
+                           !wr_master_busy_q[1] &&
+                           (wr_awtarget_q[1] == slave_idx(s))) begin
+                wr_grant_valid_r[s] = 1'b1;
+                wr_grant_master_r[s] = master_idx(1);
+              end
             end
-          end else begin
-            if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
-                !wr_master_busy_q[1] && (wr_awtarget_q[1] == slave_idx(s))) begin
-              wr_grant_valid_r[s] = 1'b1;
-              wr_grant_master_r[s] = master_idx(1);
-            end else if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
-                         !wr_master_busy_q[0] && (wr_awtarget_q[0] == slave_idx(s))) begin
-              wr_grant_valid_r[s] = 1'b1;
-              wr_grant_master_r[s] = master_idx(0);
+            master_idx(1): begin
+              if (wr_aw_hold_q[1] && wr_w_hold_q[1] &&
+                  !wr_master_busy_q[1] &&
+                  (wr_awtarget_q[1] == slave_idx(s))) begin
+                wr_grant_valid_r[s] = 1'b1;
+                wr_grant_master_r[s] = master_idx(1);
+              end else if (wr_aw_hold_q[0] && wr_w_hold_q[0] &&
+                           !wr_master_busy_q[0] &&
+                           (wr_awtarget_q[0] == slave_idx(s))) begin
+                wr_grant_valid_r[s] = 1'b1;
+                wr_grant_master_r[s] = master_idx(0);
+              end
             end
-          end
+            default: begin
+              // Fail closed until RR state is known again.
+            end
+          endcase
         end else begin
-          for (step = 0; step < M_COUNT; step = step + 1) begin
-            cand = master_int(wr_rr_q[s]) + step;
-            if (cand >= M_COUNT) cand = cand - M_COUNT;
-            if (!wr_grant_valid_r[s] &&
-                wr_aw_hold_q[cand] && wr_w_hold_q[cand] &&
-                !wr_master_busy_q[cand] &&
-                (wr_awtarget_q[cand] == slave_idx(s))) begin
-              wr_grant_valid_r[s] = 1'b1;
-              wr_grant_master_r[s] = master_idx(cand);
+          // Generic configurations also reject unknown or out-of-range RR
+          // encodings before using them as an array index.
+          if (((^wr_rr_q[s]) !== 1'bx) &&
+              (master_int(wr_rr_q[s]) < M_COUNT)) begin
+            for (step = 0; step < M_COUNT; step = step + 1) begin
+              cand = master_int(wr_rr_q[s]) + step;
+              if (cand >= M_COUNT) cand = cand - M_COUNT;
+              if (!wr_grant_valid_r[s] &&
+                  wr_aw_hold_q[cand] && wr_w_hold_q[cand] &&
+                  !wr_master_busy_q[cand] &&
+                  (wr_awtarget_q[cand] == slave_idx(s))) begin
+                wr_grant_valid_r[s] = 1'b1;
+                wr_grant_master_r[s] = master_idx(cand);
+              end
             end
           end
         end
+      end
+
+      // Live complete-pair target acquisition.  Existing complete holders
+      // have strict priority.  For the real two-master configuration, reuse
+      // the target's registered RR pointer and a four-state case so corrupt
+      // RR state cannot silently choose a master.  Different targets may each
+      // select their uniquely decoded live master in the same cycle.
+      if (!rst && !wr_active_q[s] && !wr_any_complete_holder_r &&
+          wr_live_unique_match_r[s]) begin
+        if (M_COUNT == 2) begin
+          case (wr_rr_q[s])
+            master_idx(0): begin
+              if (wr_live_pair_r[0] &&
+                  (awtarget_decode_r[0] == slave_idx(s))) begin
+                wr_live_offer_r[s] = 1'b1;
+                wr_live_master_r[s] = master_idx(0);
+              end else if (wr_live_pair_r[1] &&
+                           (awtarget_decode_r[1] == slave_idx(s))) begin
+                wr_live_offer_r[s] = 1'b1;
+                wr_live_master_r[s] = master_idx(1);
+              end
+            end
+            master_idx(1): begin
+              if (wr_live_pair_r[1] &&
+                  (awtarget_decode_r[1] == slave_idx(s))) begin
+                wr_live_offer_r[s] = 1'b1;
+                wr_live_master_r[s] = master_idx(1);
+              end else if (wr_live_pair_r[0] &&
+                           (awtarget_decode_r[0] == slave_idx(s))) begin
+                wr_live_offer_r[s] = 1'b1;
+                wr_live_master_r[s] = master_idx(0);
+              end
+            end
+            default: begin
+              // Fail closed until RR state is known again.
+            end
+          endcase
+        end else if (((^wr_rr_q[s]) !== 1'bx) &&
+                     (master_int(wr_rr_q[s]) < M_COUNT)) begin
+          for (step = 0; step < M_COUNT; step = step + 1) begin
+            cand = master_int(wr_rr_q[s]) + step;
+            if (cand >= M_COUNT) cand = cand - M_COUNT;
+            if (!wr_live_offer_r[s] && wr_live_pair_r[cand] &&
+                (awtarget_decode_r[cand] == slave_idx(s))) begin
+              wr_live_offer_r[s] = 1'b1;
+              wr_live_master_r[s] = master_idx(cand);
+            end
+          end
+        end
+      end
+
+      // VALID-only held-grant offer.  Arbitration, target decode and every
+      // payload bit come from holder Q.  READY is sampled only into the
+      // registered sent bookkeeping below; it never feeds master READY,
+      // grant selection, owner selection or B routing.
+      if (!rst && !wr_active_q[s] && wr_grant_valid_r[s]) begin
+        owner = master_int(wr_grant_master_r[s]);
+        wr_grant_offer_r[s] = 1'b1;
+        s_awvalid_r[s] = 1'b1;
+        s_awaddr_r[s*ADDR_W +: ADDR_W] = wr_awaddr_q[owner];
+        s_awsize_r[s*3 +: 3] = wr_awsize_q[owner];
+        s_wvalid_r[s] = 1'b1;
+        s_wdata_r[s*DATA_W +: DATA_W] = wr_wdata_q[owner];
+        s_wstrb_r[s*STRB_W +: STRB_W] = wr_wstrb_q[owner];
+        case (s_awready_i[s])
+          1'b1: wr_grant_aw_fire_r[s] = 1'b1;
+          default: wr_grant_aw_fire_r[s] = 1'b0;
+        endcase
+        case (s_wready_i[s])
+          1'b1: wr_grant_w_fire_r[s] = 1'b1;
+          default: wr_grant_w_fire_r[s] = 1'b0;
+        endcase
+      end
+
+
+      // VALID-only live offer.  Payload comes from the same master-side pair
+      // whose local AW/W fires established wr_live_pair_r.  Target READY is
+      // sampled only after this selection into the registered sent seed.
+      else if (wr_live_offer_r[s]) begin
+        owner = master_int(wr_live_master_r[s]);
+        s_awvalid_r[s] = 1'b1;
+        s_awaddr_r[s*ADDR_W +: ADDR_W] =
+            m_addr_slice(m_awaddr_i, owner);
+        s_awsize_r[s*3 +: 3] = m_size_slice(m_awsize_i, owner);
+        s_wvalid_r[s] = 1'b1;
+        s_wdata_r[s*DATA_W +: DATA_W] =
+            m_data_slice(m_wdata_i, owner);
+        s_wstrb_r[s*STRB_W +: STRB_W] =
+            m_strb_slice(m_wstrb_i, owner);
+        case (s_awready_i[s])
+          1'b1: wr_live_aw_fire_r[s] = 1'b1;
+          default: wr_live_aw_fire_r[s] = 1'b0;
+        endcase
+        case (s_wready_i[s])
+          1'b1: wr_live_w_fire_r[s] = 1'b1;
+          default: wr_live_w_fire_r[s] = 1'b0;
+        endcase
       end
 
       if (wr_active_q[s] && !wr_aw_sent_q[s]) begin
@@ -470,13 +676,6 @@ module AxiCrossbar #(
         s_wstrb_r[s*STRB_W +: STRB_W] = wr_strb_q[s];
       end
 
-      if (wr_active_q[s] && wr_aw_sent_q[s] && wr_w_sent_q[s]) begin
-        owner = master_int(wr_owner_q[s]);
-        m_bvalid_r[owner] = s_bvalid_i[s];
-        m_bresp_r[owner*2 +: 2] = s_bresp_i[s*2 +: 2];
-        m_bid_r[owner*4 +: 4] = wr_id_q[s];
-        s_bready_r[s] = m_bready_i[owner];
-      end
     end
   end
 
@@ -599,8 +798,8 @@ module AxiCrossbar #(
 
         if (!wr_active_q[s] && wr_grant_valid_r[s]) begin
           wr_active_q[s] <= 1'b1;
-          wr_aw_sent_q[s] <= 1'b0;
-          wr_w_sent_q[s] <= 1'b0;
+          wr_aw_sent_q[s] <= wr_grant_aw_fire_r[s];
+          wr_w_sent_q[s] <= wr_grant_w_fire_r[s];
           wr_owner_q[s] <= wr_grant_master_r[s];
                         wr_addr_q[s] <= wr_awaddr_q[master_int(wr_grant_master_r[s])];
                         wr_size_q[s] <= wr_awsize_q[master_int(wr_grant_master_r[s])];
@@ -614,8 +813,421 @@ module AxiCrossbar #(
                          {MASTER_W{1'b0}} :
                          master_idx(master_int(wr_grant_master_r[s]) + 1);
         end
+
+        // This block is intentionally after generic master holder capture and
+        // the held-grant handoff.  Its nonblocking assignments therefore make
+        // live acquisition atomic: the selected pair becomes the registered
+        // target owner while both just-captured holders are cleared, preventing
+        // the same real write from being granted again after B terminal.
+        else if (wr_live_offer_r[s]) begin
+          wr_active_q[s] <= 1'b1;
+          wr_aw_sent_q[s] <= wr_live_aw_fire_r[s];
+          wr_w_sent_q[s] <= wr_live_w_fire_r[s];
+          wr_owner_q[s] <= wr_live_master_r[s];
+          wr_addr_q[s] <=
+              m_addr_slice(m_awaddr_i, master_int(wr_live_master_r[s]));
+          wr_size_q[s] <=
+              m_size_slice(m_awsize_i, master_int(wr_live_master_r[s]));
+          wr_data_q[s] <=
+              m_data_slice(m_wdata_i, master_int(wr_live_master_r[s]));
+          wr_strb_q[s] <=
+              m_strb_slice(m_wstrb_i, master_int(wr_live_master_r[s]));
+          wr_id_q[s] <=
+              m_id_slice(m_awid_i, master_int(wr_live_master_r[s]));
+          wr_aw_hold_q[master_int(wr_live_master_r[s])] <= 1'b0;
+          wr_w_hold_q[master_int(wr_live_master_r[s])] <= 1'b0;
+          wr_master_busy_q[master_int(wr_live_master_r[s])] <= 1'b1;
+          wr_rr_q[s] <=
+              (master_int(wr_live_master_r[s]) == (M_COUNT - 1)) ?
+              {MASTER_W{1'b0}} :
+              master_idx(master_int(wr_live_master_r[s]) + 1);
+        end
       end
     end
   end
+
+`ifdef OOO_ASSERT
+  // The assertion shadows below are checker-local state.  Their unpacked-array
+  // elements are sampled only at the end of this same clocked process and read
+  // before that sampling point on the next edge.  Deliberate blocking updates
+  // preserve that one-edge history while avoiding Verilator BLKLOOPINIT (which
+  // does not support procedural-loop NBAs into unpacked arrays).
+  /* verilator lint_off BLKSEQ */
+  reg [S_COUNT-1:0] assert_grant_offer_q;
+  reg [S_COUNT-1:0] assert_grant_aw_fire_q;
+  reg [S_COUNT-1:0] assert_grant_w_fire_q;
+  reg [MASTER_W-1:0] assert_grant_owner_q [0:S_COUNT-1];
+  reg [ADDR_W-1:0] assert_grant_addr_q [0:S_COUNT-1];
+  reg [2:0] assert_grant_size_q [0:S_COUNT-1];
+  reg [DATA_W-1:0] assert_grant_data_q [0:S_COUNT-1];
+  reg [STRB_W-1:0] assert_grant_strb_q [0:S_COUNT-1];
+  reg [S_COUNT-1:0] assert_live_offer_q;
+  reg [S_COUNT-1:0] assert_live_aw_fire_q;
+  reg [S_COUNT-1:0] assert_live_w_fire_q;
+  reg [MASTER_W-1:0] assert_live_owner_q [0:S_COUNT-1];
+  reg [ADDR_W-1:0] assert_live_addr_q [0:S_COUNT-1];
+  reg [2:0] assert_live_size_q [0:S_COUNT-1];
+  reg [DATA_W-1:0] assert_live_data_q [0:S_COUNT-1];
+  reg [STRB_W-1:0] assert_live_strb_q [0:S_COUNT-1];
+  reg [3:0] assert_live_id_q [0:S_COUNT-1];
+  reg [S_COUNT-1:0] assert_wr_active_q;
+  reg [S_COUNT-1:0] assert_wr_terminal_q;
+  reg [MASTER_W-1:0] assert_wr_owner_q [0:S_COUNT-1];
+  reg [ADDR_W-1:0] assert_wr_addr_q [0:S_COUNT-1];
+  reg [2:0] assert_wr_size_q [0:S_COUNT-1];
+  reg [DATA_W-1:0] assert_wr_data_q [0:S_COUNT-1];
+  reg [STRB_W-1:0] assert_wr_strb_q [0:S_COUNT-1];
+  reg [3:0] assert_wr_id_q [0:S_COUNT-1];
+  reg [S_COUNT-1:0] assert_b_stall_q;
+  reg [MASTER_W-1:0] assert_b_stall_owner_q [0:S_COUNT-1];
+  reg [1:0] assert_b_stall_resp_q [0:S_COUNT-1];
+  reg [3:0] assert_b_stall_id_q [0:S_COUNT-1];
+  integer assert_s;
+  integer assert_t;
+  integer assert_m;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      assert_grant_offer_q <= {S_COUNT{1'b0}};
+      assert_grant_aw_fire_q <= {S_COUNT{1'b0}};
+      assert_grant_w_fire_q <= {S_COUNT{1'b0}};
+      assert_live_offer_q <= {S_COUNT{1'b0}};
+      assert_live_aw_fire_q <= {S_COUNT{1'b0}};
+      assert_live_w_fire_q <= {S_COUNT{1'b0}};
+      assert_wr_active_q <= {S_COUNT{1'b0}};
+      assert_wr_terminal_q <= {S_COUNT{1'b0}};
+      assert_b_stall_q <= {S_COUNT{1'b0}};
+      for (assert_s = 0; assert_s < S_COUNT; assert_s = assert_s + 1) begin
+        assert_grant_owner_q[assert_s] = {MASTER_W{1'b0}};
+        assert_grant_addr_q[assert_s] = {ADDR_W{1'b0}};
+        assert_grant_size_q[assert_s] = 3'd0;
+        assert_grant_data_q[assert_s] = {DATA_W{1'b0}};
+        assert_grant_strb_q[assert_s] = {STRB_W{1'b0}};
+        assert_live_owner_q[assert_s] = {MASTER_W{1'b0}};
+        assert_live_addr_q[assert_s] = {ADDR_W{1'b0}};
+        assert_live_size_q[assert_s] = 3'd0;
+        assert_live_data_q[assert_s] = {DATA_W{1'b0}};
+        assert_live_strb_q[assert_s] = {STRB_W{1'b0}};
+        assert_live_id_q[assert_s] = 4'd0;
+        assert_wr_owner_q[assert_s] = {MASTER_W{1'b0}};
+        assert_wr_addr_q[assert_s] = {ADDR_W{1'b0}};
+        assert_wr_size_q[assert_s] = 3'd0;
+        assert_wr_data_q[assert_s] = {DATA_W{1'b0}};
+        assert_wr_strb_q[assert_s] = {STRB_W{1'b0}};
+        assert_wr_id_q[assert_s] = 4'd0;
+        assert_b_stall_owner_q[assert_s] = {MASTER_W{1'b0}};
+        assert_b_stall_resp_q[assert_s] = 2'b00;
+        assert_b_stall_id_q[assert_s] = 4'd0;
+      end
+    end else begin
+      for (assert_m = 0; assert_m < M_COUNT; assert_m = assert_m + 1) begin
+        if ((m_awready_r[assert_m] !==
+             (!wr_aw_hold_q[assert_m] && !wr_master_busy_q[assert_m])) ||
+            (m_wready_r[assert_m] !==
+             (!wr_w_hold_q[assert_m] && !wr_master_busy_q[assert_m]))) begin
+          $error("[XBAR-W-GRANT-MASTER-READY-LOCAL] master READY escaped holder/busy formula @%0t", $time);
+          $fatal;
+        end
+      end
+
+      for (assert_s = 0; assert_s < S_COUNT; assert_s = assert_s + 1) begin
+        if (wr_grant_offer_r[assert_s]) begin
+          // Icarus 12 mis-evaluates $isunknown on this variable-indexed
+          // concatenation.  Case equality keeps the checker four-state and
+          // portable while preserving the same fail-closed contract.
+          if (((^wr_grant_master_r[assert_s]) === 1'bx) ||
+              ((^s_awready_i[assert_s]) === 1'bx) ||
+              ((^s_wready_i[assert_s]) === 1'bx)) begin
+            $error("[XBAR-W-GRANT-KNOWN] target=%0d owner=%b awready=%b wready=%b contains X @%0t",
+                   assert_s, wr_grant_master_r[assert_s],
+                   s_awready_i[assert_s], s_wready_i[assert_s], $time);
+            $fatal;
+          end
+          if (wr_active_q[assert_s] || !wr_grant_valid_r[assert_s] ||
+              !wr_aw_hold_q[master_int(wr_grant_master_r[assert_s])] ||
+              !wr_w_hold_q[master_int(wr_grant_master_r[assert_s])] ||
+              (wr_awtarget_q[master_int(wr_grant_master_r[assert_s])] !=
+               slave_idx(assert_s)) ||
+              !s_awvalid_r[assert_s] || !s_wvalid_r[assert_s]) begin
+            $error("[XBAR-W-GRANT-SOURCE] direct offer lacks exact inactive-target held-pair grant @%0t", $time);
+            $fatal;
+          end
+          if ((s_awaddr_r[assert_s*ADDR_W +: ADDR_W] !==
+               wr_awaddr_q[master_int(wr_grant_master_r[assert_s])]) ||
+              (s_awsize_r[assert_s*3 +: 3] !==
+               wr_awsize_q[master_int(wr_grant_master_r[assert_s])]) ||
+              (s_wdata_r[assert_s*DATA_W +: DATA_W] !==
+               wr_wdata_q[master_int(wr_grant_master_r[assert_s])]) ||
+              (s_wstrb_r[assert_s*STRB_W +: STRB_W] !==
+               wr_wstrb_q[master_int(wr_grant_master_r[assert_s])])) begin
+            $error("[XBAR-W-GRANT-PAYLOAD] direct offer differs from selected holder Q @%0t", $time);
+            $fatal;
+          end
+          if ((wr_grant_aw_fire_r[assert_s] !==
+               (s_awvalid_r[assert_s] && s_awready_i[assert_s])) ||
+              (wr_grant_w_fire_r[assert_s] !==
+               (s_wvalid_r[assert_s] && s_wready_i[assert_s]))) begin
+            $error("[XBAR-W-GRANT-FIRE] direct fire bookkeeping mismatch @%0t", $time);
+            $fatal;
+          end
+          if (s_bready_r[assert_s] ||
+              m_bvalid_r[master_int(wr_grant_master_r[assert_s])]) begin
+            $error("[XBAR-W-GRANT-NO-B] B routed before registered owner/sent state @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if (wr_live_offer_r[assert_s]) begin
+          if (((^wr_live_master_r[assert_s]) === 1'bx) ||
+              ((^s_awready_i[assert_s]) === 1'bx) ||
+              ((^s_wready_i[assert_s]) === 1'bx)) begin
+            $error("[XBAR-W-LIVE-KNOWN] target=%0d owner=%b awready=%b wready=%b contains X @%0t",
+                   assert_s, wr_live_master_r[assert_s],
+                   s_awready_i[assert_s], s_wready_i[assert_s], $time);
+            $fatal;
+          end
+          if (rst || wr_active_q[assert_s] ||
+              wr_any_complete_holder_r || wr_grant_offer_r[assert_s] ||
+              !wr_live_unique_match_r[assert_s] ||
+              !wr_live_pair_r[master_int(wr_live_master_r[assert_s])] ||
+              (awtarget_decode_r[
+                  master_int(wr_live_master_r[assert_s])] !=
+               slave_idx(assert_s)) ||
+              !s_awvalid_r[assert_s] || !s_wvalid_r[assert_s]) begin
+            $error("[XBAR-W-LIVE-SOURCE] live offer lacks exact inactive-target complete-pair acquisition @%0t", $time);
+            $fatal;
+          end
+          if ((s_awaddr_r[assert_s*ADDR_W +: ADDR_W] !==
+               m_addr_slice(m_awaddr_i,
+                   master_int(wr_live_master_r[assert_s]))) ||
+              (s_awsize_r[assert_s*3 +: 3] !==
+               m_size_slice(m_awsize_i,
+                   master_int(wr_live_master_r[assert_s]))) ||
+              (s_wdata_r[assert_s*DATA_W +: DATA_W] !==
+               m_data_slice(m_wdata_i,
+                   master_int(wr_live_master_r[assert_s]))) ||
+              (s_wstrb_r[assert_s*STRB_W +: STRB_W] !==
+               m_strb_slice(m_wstrb_i,
+                   master_int(wr_live_master_r[assert_s])))) begin
+            $error("[XBAR-W-LIVE-PAYLOAD] live target payload differs from selected master fire @%0t", $time);
+            $fatal;
+          end
+          if ((wr_live_aw_fire_r[assert_s] !==
+               (s_awvalid_r[assert_s] && s_awready_i[assert_s])) ||
+              (wr_live_w_fire_r[assert_s] !==
+               (s_wvalid_r[assert_s] && s_wready_i[assert_s]))) begin
+            $error("[XBAR-W-LIVE-FIRE] live target fire bookkeeping mismatch @%0t", $time);
+            $fatal;
+          end
+          if (s_bready_r[assert_s] ||
+              m_bvalid_r[master_int(wr_live_master_r[assert_s])]) begin
+            $error("[XBAR-W-LIVE-NO-B] B routed before registered live owner/sent state @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if (assert_grant_offer_q[assert_s]) begin
+          if (!wr_active_q[assert_s] ||
+              (wr_owner_q[assert_s] !== assert_grant_owner_q[assert_s]) ||
+              (wr_aw_sent_q[assert_s] !==
+               assert_grant_aw_fire_q[assert_s]) ||
+              (wr_w_sent_q[assert_s] !==
+               assert_grant_w_fire_q[assert_s]) ||
+              !wr_master_busy_q[master_int(assert_grant_owner_q[assert_s])]) begin
+            $error("[XBAR-W-GRANT-SEED] grant edge failed to establish exact owner/sent state @%0t", $time);
+            $fatal;
+          end
+          if ((!assert_grant_aw_fire_q[assert_s] &&
+               (!s_awvalid_r[assert_s] ||
+                (s_awaddr_r[assert_s*ADDR_W +: ADDR_W] !==
+                 assert_grant_addr_q[assert_s]) ||
+                (s_awsize_r[assert_s*3 +: 3] !==
+                 assert_grant_size_q[assert_s]))) ||
+              (!assert_grant_w_fire_q[assert_s] &&
+               (!s_wvalid_r[assert_s] ||
+                (s_wdata_r[assert_s*DATA_W +: DATA_W] !==
+                 assert_grant_data_q[assert_s]) ||
+                (s_wstrb_r[assert_s*STRB_W +: STRB_W] !==
+                 assert_grant_strb_q[assert_s]))) ||
+              (assert_grant_aw_fire_q[assert_s] &&
+               s_awvalid_r[assert_s]) ||
+              (assert_grant_w_fire_q[assert_s] &&
+               s_wvalid_r[assert_s])) begin
+            $error("[XBAR-W-GRANT-HANDOFF] accepted channel repeated or stalled payload changed @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if (assert_live_offer_q[assert_s]) begin
+          if (!wr_active_q[assert_s] ||
+              (wr_owner_q[assert_s] !== assert_live_owner_q[assert_s]) ||
+              (wr_aw_sent_q[assert_s] !==
+               assert_live_aw_fire_q[assert_s]) ||
+              (wr_w_sent_q[assert_s] !==
+               assert_live_w_fire_q[assert_s]) ||
+              (wr_addr_q[assert_s] !== assert_live_addr_q[assert_s]) ||
+              (wr_size_q[assert_s] !== assert_live_size_q[assert_s]) ||
+              (wr_data_q[assert_s] !== assert_live_data_q[assert_s]) ||
+              (wr_strb_q[assert_s] !== assert_live_strb_q[assert_s]) ||
+              (wr_id_q[assert_s] !== assert_live_id_q[assert_s]) ||
+              wr_aw_hold_q[master_int(assert_live_owner_q[assert_s])] ||
+              wr_w_hold_q[master_int(assert_live_owner_q[assert_s])] ||
+              !wr_master_busy_q[
+                  master_int(assert_live_owner_q[assert_s])]) begin
+            $error("[XBAR-W-LIVE-SEED] live edge failed atomic owner/sent/payload handoff or left a residual holder @%0t", $time);
+            $fatal;
+          end
+          if ((!assert_live_aw_fire_q[assert_s] &&
+               (!s_awvalid_r[assert_s] ||
+                (s_awaddr_r[assert_s*ADDR_W +: ADDR_W] !==
+                 assert_live_addr_q[assert_s]) ||
+                (s_awsize_r[assert_s*3 +: 3] !==
+                 assert_live_size_q[assert_s]))) ||
+              (!assert_live_w_fire_q[assert_s] &&
+               (!s_wvalid_r[assert_s] ||
+                (s_wdata_r[assert_s*DATA_W +: DATA_W] !==
+                 assert_live_data_q[assert_s]) ||
+                (s_wstrb_r[assert_s*STRB_W +: STRB_W] !==
+                 assert_live_strb_q[assert_s]))) ||
+              (assert_live_aw_fire_q[assert_s] &&
+               s_awvalid_r[assert_s]) ||
+              (assert_live_w_fire_q[assert_s] &&
+               s_wvalid_r[assert_s])) begin
+            $error("[XBAR-W-LIVE-HANDOFF] accepted live channel repeated or registered retry payload changed @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if (assert_wr_active_q[assert_s] &&
+            !assert_wr_terminal_q[assert_s]) begin
+          if (!wr_active_q[assert_s] ||
+              (wr_owner_q[assert_s] !== assert_wr_owner_q[assert_s]) ||
+              (wr_addr_q[assert_s] !== assert_wr_addr_q[assert_s]) ||
+              (wr_size_q[assert_s] !== assert_wr_size_q[assert_s]) ||
+              (wr_data_q[assert_s] !== assert_wr_data_q[assert_s]) ||
+              (wr_strb_q[assert_s] !== assert_wr_strb_q[assert_s]) ||
+              (wr_id_q[assert_s] !== assert_wr_id_q[assert_s]) ||
+              !wr_master_busy_q[
+                  master_int(assert_wr_owner_q[assert_s])]) begin
+            $error("[XBAR-W-OWNER-STABLE] active owner/payload changed or released before exact B terminal @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if (assert_b_stall_q[assert_s]) begin
+          if (!wr_active_q[assert_s] ||
+              !wr_aw_sent_q[assert_s] || !wr_w_sent_q[assert_s] ||
+              (wr_owner_q[assert_s] !==
+               assert_b_stall_owner_q[assert_s]) ||
+              !wr_master_busy_q[
+                  master_int(assert_b_stall_owner_q[assert_s])] ||
+              !m_bvalid_r[
+                  master_int(assert_b_stall_owner_q[assert_s])] ||
+              (m_bresp_r[
+                  master_int(assert_b_stall_owner_q[assert_s])*2 +: 2] !==
+               assert_b_stall_resp_q[assert_s]) ||
+              (m_bid_r[
+                  master_int(assert_b_stall_owner_q[assert_s])*4 +: 4] !==
+               assert_b_stall_id_q[assert_s])) begin
+            $error("[XBAR-W-B-STALL-STABLE] B backpressure changed owner/id/resp or released state @%0t", $time);
+            $fatal;
+          end
+        end
+
+        if ((s_bready_r[assert_s] ||
+             (wr_active_q[assert_s] &&
+              m_bvalid_r[master_int(wr_owner_q[assert_s])])) &&
+            (!wr_active_q[assert_s] || !wr_aw_sent_q[assert_s] ||
+             !wr_w_sent_q[assert_s])) begin
+          $error("[XBAR-W-B-REGISTERED-AUTH] B route lacks registered active+dual-sent authorization @%0t", $time);
+          $fatal;
+        end
+
+        for (assert_t = assert_s + 1; assert_t < S_COUNT;
+             assert_t = assert_t + 1) begin
+          if (wr_grant_offer_r[assert_s] && wr_grant_offer_r[assert_t] &&
+              (wr_grant_master_r[assert_s] ==
+               wr_grant_master_r[assert_t])) begin
+            $error("[XBAR-W-GRANT-MASTER-ONEHOT] one master granted to multiple targets @%0t", $time);
+            $fatal;
+          end
+          if (wr_live_offer_r[assert_s] && wr_live_offer_r[assert_t] &&
+              (wr_live_master_r[assert_s] ==
+               wr_live_master_r[assert_t])) begin
+            $error("[XBAR-W-LIVE-MASTER-ONEHOT] one live master acquired multiple targets @%0t", $time);
+            $fatal;
+          end
+          if ((wr_grant_offer_r[assert_s] &&
+               wr_live_offer_r[assert_t] &&
+               (wr_grant_master_r[assert_s] ==
+                wr_live_master_r[assert_t])) ||
+              (wr_live_offer_r[assert_s] &&
+               wr_grant_offer_r[assert_t] &&
+               (wr_live_master_r[assert_s] ==
+                wr_grant_master_r[assert_t]))) begin
+            $error("[XBAR-W-OFFER-MASTER-ONEHOT] one master selected by held and live targets @%0t", $time);
+            $fatal;
+          end
+          if (wr_active_q[assert_s] && wr_active_q[assert_t] &&
+              (wr_owner_q[assert_s] == wr_owner_q[assert_t])) begin
+            $error("[XBAR-W-ACTIVE-MASTER-ONEHOT] one master owns multiple active targets @%0t", $time);
+            $fatal;
+          end
+        end
+
+        assert_grant_offer_q[assert_s] <= wr_grant_offer_r[assert_s];
+        assert_grant_aw_fire_q[assert_s] <=
+            wr_grant_aw_fire_r[assert_s];
+        assert_grant_w_fire_q[assert_s] <=
+            wr_grant_w_fire_r[assert_s];
+        assert_grant_owner_q[assert_s] = wr_grant_master_r[assert_s];
+        assert_grant_addr_q[assert_s] =
+            s_awaddr_r[assert_s*ADDR_W +: ADDR_W];
+        assert_grant_size_q[assert_s] =
+            s_awsize_r[assert_s*3 +: 3];
+        assert_grant_data_q[assert_s] =
+            s_wdata_r[assert_s*DATA_W +: DATA_W];
+        assert_grant_strb_q[assert_s] =
+            s_wstrb_r[assert_s*STRB_W +: STRB_W];
+        assert_live_offer_q[assert_s] <= wr_live_offer_r[assert_s];
+        assert_live_aw_fire_q[assert_s] <= wr_live_aw_fire_r[assert_s];
+        assert_live_w_fire_q[assert_s] <= wr_live_w_fire_r[assert_s];
+        assert_live_owner_q[assert_s] = wr_live_master_r[assert_s];
+        assert_live_addr_q[assert_s] =
+            s_awaddr_r[assert_s*ADDR_W +: ADDR_W];
+        assert_live_size_q[assert_s] =
+            s_awsize_r[assert_s*3 +: 3];
+        assert_live_data_q[assert_s] =
+            s_wdata_r[assert_s*DATA_W +: DATA_W];
+        assert_live_strb_q[assert_s] =
+            s_wstrb_r[assert_s*STRB_W +: STRB_W];
+        assert_live_id_q[assert_s] =
+            m_id_slice(m_awid_i, master_int(wr_live_master_r[assert_s]));
+        assert_wr_active_q[assert_s] <= wr_active_q[assert_s];
+        assert_wr_terminal_q[assert_s] <=
+            wr_active_q[assert_s] && wr_aw_sent_q[assert_s] &&
+            wr_w_sent_q[assert_s] && s_bvalid_i[assert_s] &&
+            s_bready_r[assert_s];
+        assert_wr_owner_q[assert_s] = wr_owner_q[assert_s];
+        assert_wr_addr_q[assert_s] = wr_addr_q[assert_s];
+        assert_wr_size_q[assert_s] = wr_size_q[assert_s];
+        assert_wr_data_q[assert_s] = wr_data_q[assert_s];
+        assert_wr_strb_q[assert_s] = wr_strb_q[assert_s];
+        assert_wr_id_q[assert_s] = wr_id_q[assert_s];
+        assert_b_stall_q[assert_s] <=
+            wr_active_q[assert_s] && wr_aw_sent_q[assert_s] &&
+            wr_w_sent_q[assert_s] &&
+            m_bvalid_r[master_int(wr_owner_q[assert_s])] &&
+            !m_bready_i[master_int(wr_owner_q[assert_s])];
+        assert_b_stall_owner_q[assert_s] = wr_owner_q[assert_s];
+        assert_b_stall_resp_q[assert_s] =
+            m_bresp_r[master_int(wr_owner_q[assert_s])*2 +: 2];
+        assert_b_stall_id_q[assert_s] =
+            m_bid_r[master_int(wr_owner_q[assert_s])*4 +: 4];
+      end
+    end
+  end
+  /* verilator lint_on BLKSEQ */
+`endif
 
 endmodule

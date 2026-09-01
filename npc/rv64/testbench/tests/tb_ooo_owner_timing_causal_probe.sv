@@ -482,16 +482,16 @@ module tb_ooo_owner_timing_causal_probe;
         (iso_term_2 != peer_term_2) ||
         (iso_term_5 != peer_term_5))
       fail("peer offer changed store terminal latency");
-    if ((iso_term_0 != 2) || (iso_term_2 != 4) || (iso_term_5 != 7))
-      fail("adapter final-B fall-through absolute latency mismatch");
-    if ((peer_wait_0 != 4) || (peer_wait_2 != 6) || (peer_wait_5 != 9))
-      fail("adapter final-B fall-through peer admission mismatch");
+    if ((iso_term_0 != 1) || (iso_term_2 != 3) || (iso_term_5 != 6))
+      fail("adapter write-path fall-through absolute terminal latency mismatch");
+    if ((peer_wait_0 != 2) || (peer_wait_2 != 4) || (peer_wait_5 != 7))
+      fail("adapter write-path fall-through peer admission mismatch");
     if ((peer_b_0 != 1) || (peer_b_2 != 3) || (peer_b_5 != 6))
       fail("B-phase blocking absolute latency mismatch");
 
-    $display("[OWNER-TIMING-CAUSAL-PROBE-ABSOLUTE] adapter_final_b_fallthrough=1 store_terminal=2,4,7 peer_admission=4,6,9 peer_b_block=1,3,6");
+    $display("[OWNER-TIMING-CAUSAL-PROBE-ABSOLUTE] adapter_input_aw_w_fallthrough=1 adapter_final_b_fallthrough=1 arbiter_idle_write_admission=1 store_terminal=1,3,6 peer_admission=2,4,7 peer_b_block=1,3,6");
 
-    $display("[OWNER-TIMING-CAUSAL-PROBE-SUMMARY] terminal_b_delay_slope=1 peer_admission_b_delay_slope=1 peer_b_block_slope=1 early_peer_admission=0 observer_noninterference=1 conclusion=H1_H2_COUPLED_RESEARCH_REQUIRED");
+    $display("[OWNER-TIMING-CAUSAL-PROBE-SUMMARY] write_admission_cycle_saved=1 terminal_b_delay_slope=1 peer_admission_b_delay_slope=1 peer_b_block_slope=1 early_peer_admission=0 observer_noninterference=1 conclusion=H1_H2_COUPLED_RESEARCH_REQUIRED");
     $display("[PASS] tb_ooo_owner_timing_causal_probe");
     $finish;
   end

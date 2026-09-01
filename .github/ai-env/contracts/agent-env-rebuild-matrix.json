@@ -1,5 +1,7 @@
 {
   "schema_version": 1,
+  "lifecycle": "historical-commercial-reference",
+  "ordinary_task_completion_dependency": false,
   "source_report": {
     "path": "user-supplied:deep-research-report.md",
     "title": "mcsaver/oscpu ai 分支中的 Agent、E2E 与数据库协同分析报告",
@@ -32,6 +34,8 @@
       "priority": "high",
       "layer": "agent",
       "status": "implemented",
+      "active_default": false,
+      "lifecycle": "legacy-compatible; superseded for ordinary tasks",
       "report_basis": "E2E 当前更像数据库快照的一部分，不是一等公民门禁。",
       "evidence": [
         {"type": "path", "value": ".github/e2e/profiles/agent-system.tsv"},
@@ -107,7 +111,7 @@
       "verification": [
         "python3 scripts/github_index_db.py policy-audit"
       ],
-      "next_action": "新增 agent profile 或 MCP 配置时必须先更新 policy allowlist，再让 policy-audit 通过。"
+      "next_action": "平台拥有工具权限；仅当显式 release/security policy 选择工作区 allowlist 时，才同步更新该 policy 并运行 policy-audit。"
     },
     {
       "id": "R6",
@@ -155,7 +159,7 @@
       "python3 scripts/github_index_db.py evidence --run-id 2026-06-13-agent-env-state-reviewer-inspector --kind json",
       "scripts/agent-e2e.sh --profile agent-system --task-slug agent-env-state-reviewer-inspector"
     ],
-    "next_action": "后续可接入远端 PR reviewer assignment；当前已完成本地 state_traceback、Reviewer/Inspector、RTL 子任务最小充分工程契约和 mutation-negative 自动维护门。"
+    "next_action": "只在兼容已发布 state_traceback 证据时使用 state-audit；普通任务按 objective、acceptance criteria、worktree 和直接工程证据完成，不恢复七状态 FSM 或固定 Reviewer/Inspector 门。"
   },
     {
       "id": "R8",

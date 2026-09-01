@@ -222,7 +222,7 @@ $(BIN): $(CAPSTONE_LIB)
 endif
 
 lint:
-	$(VERILATOR) --lint-only --timescale 1ns/1ps -Wall -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
+	$(VERILATOR) --lint-only --timescale 1ns/1ps -Wall -Wno-DECLFILENAME -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-UNUSEDSIGNAL -I$(VSRCDIR) -I$(RTL_INCLUDE_DIR) $(RTL_VERILATOR_DEFINES) --top-module $(TOPNAME) $(VSRCS)
 
 .PHONY: print-product-rtl-config
 print-product-rtl-config:

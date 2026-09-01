@@ -1,7 +1,8 @@
 `include "define.v"
 
 // 乱序后端使用物理寄存器承载 speculative 结果；这里提供 5R2W 基础件（read0-3=双发
-// 整数发射源，read8=FP GPR 读；read4-7/9 死读口已随各自死硅族物理删除）。
+// 整数发射源，read8=FP/Tensor 共享 GPR 源读；read4-7/9 死读口已随各自
+// 死硅族物理删除）。
 // T3M：全部读口只读已落账 regs_q，与整数/FP IQ sticky wake 周期对齐，禁止
 // formal WB payload 组合反灌整数或 FP execute。
 module OooPhysRegFile #(

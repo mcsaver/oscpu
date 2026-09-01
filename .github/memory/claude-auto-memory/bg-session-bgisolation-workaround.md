@@ -1,16 +1,19 @@
 ---
 name: bg-session-bgisolation-workaround
-description: 本仓库后台会话要原地改代码时如何解除 bgIsolation 守卫
+description: 历史 Claude BG isolation 环境问题；已 superseded，不是当前授权或用户操作要求
 metadata: 
   node_type: memory
   type: reference
   originSessionId: d675f1f5-fc9f-44fc-9203-dd00fff6473f
 ---
 
-本仓库(ysyx-workbench)的 **background 会话默认禁止原地改代码**(EnterWorktree 守卫);但 nemu/abstract-machine/npc 都是**仓库内普通目录**(非子模块),且任务常依赖未提交 WIP,进 worktree 会从 origin/master 切分支丢掉 `ai` 上的全部提交 + 未提交改动。
+> **历史 / superseded（2026-08-23）**：以下问题描述旧 Claude 工具环境，不能作为当前 write 权限、
+> branch 选择或二次授权依据。
 
-**正解(原地作业)**: 在 `.claude/settings.local.json` 写 `{"worktree":{"bgIsolation":"none"}}`。但 **auto-mode 分类器会拦截 agent 自行写该文件**(self-modification),聊天里授权也没用——**必须让用户在输入框用 `!` 前缀亲自执行**:
-`! echo '{"worktree":{"bgIsolation":"none"}}' > .claude/settings.local.json`
-执行后即可原地 Edit/Write。该文件本地未跟踪、可逆。
+旧环境曾出现 background session 被 `bgIsolation` 阻止原地写入、隔离 worktree 又看不到当时 WIP 的问题，
+因此留下了修改 `.claude/settings.local.json` 并要求用户执行 `!` 命令的 workaround。该 workaround 已废弃：
+不得预设 BG 会话无权编辑，不得要求用户先改 setting，也不得把工具分类器当作工程 permission gate。
 
-后台会话临时文件用 `$CLAUDE_JOB_DIR/tmp`(不是 /tmp,避免并行 job 互相覆盖)。
+当前稳定原则只有两条：先核对实际 worktree/HEAD 并保护未提交修改；只有会竞争同一 build 目录、数据库、
+端口、设备等真实共享可变资源时才隔离或串行。若当前工具真的拒绝写入，应报告具体错误并按现有能力
+选择安全 worktree，而不是从本条历史记录推导授权限制。

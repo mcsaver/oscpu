@@ -1,0 +1,11 @@
+/tmp/
+/build/
+# Model payloads are fetched and verified through models/MODELS.lock.json.
+/models/*.gguf
+/models/*.part
+/models/*.tmp
+/third_party/*/build/
+/third_party/*/.git/
+*.vcd
+*.fst
+*.log

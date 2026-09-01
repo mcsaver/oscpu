@@ -101,6 +101,8 @@ e2e_scenario_runtime_isolation_policy() {
   local policy=${AGENT_E2E_SCENARIO_RUNTIME_ISOLATION:-${E2E_SCENARIO_RUNTIME_ISOLATION:-warn}}
   case "$policy" in
     strict|fail)
+      # This is an explicit conservative opt-in. Exact runner locks remain the
+      # authoritative way to prove shared-resource exclusion.
       printf 'strict\n'
       ;;
     off|disable|disabled|none)
@@ -186,7 +188,7 @@ e2e_validate_scenario_runtime_isolation() {
     level=FAIL
   fi
 
-  local line trimmed pid rest maybe_etime etimes args rc=0 shown=0 stale_shown=0 stale_threshold
+  local line trimmed pid rest maybe_etime etimes args shown=0 stale_shown=0 stale_threshold
   stale_threshold=$(e2e_scenario_runtime_stale_seconds)
   while IFS= read -r line || [[ -n $line ]]; do
     trimmed=${line#"${line%%[![:space:]]*}"}
@@ -206,39 +208,30 @@ e2e_validate_scenario_runtime_isolation() {
     [[ -z $pid || -z $args ]] && continue
     [[ $pid = $$ ]] && continue
     if e2e_args_match_scenario_conflict "$scenario" "$args"; then
-      local conflict_level=$level stale_note=
+      local stale_note=
       if [[ $stale_threshold -gt 0 && -n $etimes && $etimes -ge $stale_threshold ]]; then
-        conflict_level=FAIL
         stale_note=" stale_seconds=$etimes stale_threshold=$stale_threshold"
         stale_shown=$((stale_shown + 1))
       fi
       if [[ $shown -lt 8 ]]; then
         printf '[agent-e2e] %s scenario-runtime-isolation profile=%s mode=%s policy=%s conflict_pid=%s%s args=%s\n' \
-          "$conflict_level" "$profile" "$scenario" "$policy" "$pid" "$stale_note" "$args" >&2
+          "$level" "$profile" "$scenario" "$policy" "$pid" "$stale_note" "$args" >&2
       fi
       shown=$((shown + 1))
-      rc=1
     fi
   done < <(e2e_scenario_runtime_ps)
 
-  if [[ $rc -eq 0 ]]; then
+  if [[ $shown -eq 0 ]]; then
     printf '[agent-e2e] PASS scenario-runtime-isolation profile=%s mode=%s policy=%s\n' "$profile" "$scenario" "$policy"
-  elif [[ $stale_shown -gt 0 ]]; then
-    printf '[agent-e2e] FAIL scenario-runtime-isolation profile=%s mode=%s policy=%s stale_conflicts=%s stale_threshold=%s; stop stale conflicting task-run clients before dispatch\n' \
-      "$profile" "$scenario" "$policy" "$stale_shown" "$stale_threshold" >&2
   elif [[ $policy = strict ]]; then
-    printf '[agent-e2e] FAIL scenario-runtime-isolation profile=%s mode=%s policy=strict conflicts=%s; finish or stop the conflicting scenario before dispatch\n' \
-      "$profile" "$scenario" "$shown" >&2
+    printf '[agent-e2e] FAIL scenario-runtime-isolation profile=%s mode=%s policy=strict conflicts=%s stale_conflicts=%s; explicit conservative isolation rejected process-name matches, confirm exact resource ownership before retrying\n' \
+      "$profile" "$scenario" "$shown" "$stale_shown" >&2
+    return 1
   else
-    printf '[agent-e2e] WARN scenario-runtime-isolation profile=%s mode=%s policy=warn conflicts=%s; continuing for parallel NEMU/NPC development\n' \
-      "$profile" "$scenario" "$shown" >&2
-    rc=0
+    printf '[agent-e2e] WARN scenario-runtime-isolation profile=%s mode=%s policy=warn conflicts=%s stale_conflicts=%s; process-name matches are advisory, exact runner resource locks decide serialization\n' \
+      "$profile" "$scenario" "$shown" "$stale_shown" >&2
   fi
-  if [[ $rc -ne 0 ]]; then
-    return "$rc"
-  else
-    return 0
-  fi
+  return 0
 }
 
 e2e_print_required_paths() {

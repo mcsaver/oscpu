@@ -1,61 +1,37 @@
 # 任务报告
 
-## 基本信息
+> 仅在本次任务确实需要跨会话恢复、正式留存或 publication 时使用；普通本地开发无需填写。
 
-- `task_id`:
-- `task_slug`:
-- `graph_template`: `rv32-reference-loop | rv32-bringup | npc-sim-regression | soc-difftest-loop | am-device-loop | ysyx-soc-integration | rv64-ubuntu-probe-loop | rv64-ubuntu-rootfs-loop | linux-display-loop | rv64gc-userland-loop | verilator-tapeout-readiness-loop | agent-e2e-loop | regression-debug-loop | agent-env-refactor | custom`
-- `graph_mode`: `static | dynamic | static+dynamic`
-- `status`: `planned | in-progress | blocked | completed | archived`
+## 目标与范围
+
+- `task_name`:
+- `status`: `in-progress | blocked | completed | inconclusive`
 - `owner`:
-- `started_at`:
-- `updated_at`:
-
-## 任务目标
-
+- `persistence_reason`:
 - `source_request`:
-- `goal`:
-- `scope`:
+- `acceptance_criteria`:
+- `scope_and_hard_constraints`:
 
-## 选图说明
+## 实际变更
 
-- `selected_template`:
-- `why_this_graph`:
-- `dynamic_nodes_added`:
-- `why_dynamic_nodes_were_needed`:
+- `files_or_components`:
+- `behavior_change`:
+- `important_decisions`:
 
-## 节点概览
+## 直接验证
 
-| 节点ID (`node_id`) | 负责 Agent (`owner_agent`) | 状态 (`status`) | 输入 (`inputs`) | 输出 (`outputs`) | 证据 (`evidence`) |
-| ------------------ | -------------------------- | --------------- | --------------- | --------------- | ----------------- |
-|                    |                            |                 |                 |                 |                   |
+| 命令或检查 | 配置/输入 | 结果 | 支持的 criterion |
+| --- | --- | --- | --- |
+| | | | |
 
-## 关键产物
+## 协作与恢复（可选）
 
-- `artifacts`:
-- `logs_or_traces`:
-- `linked_memory_updates`:
-- `subagent_contracts`: `<契约路径 + SHA-256；无子 agent 时写不适用>`
+- `owned_paths_or_shared_resources`:
+- `completed_handoffs`:
+- `next_action_if_resumed`:
 
-## 当前阻塞点
+## 结论
 
-- `blockers`:
-- `missing_dependencies`:
-- `risk_assessment`:
-
-## 下一步建议
-
-1. `<下一步 1>`
-2. `<下一步 2>`
-
-## 模板升级候选
-
-- `repeated_dynamic_subgraph`:
-- `should_promote_to_static_template`:
-- `reason`:
-
-## 收尾结论
-
-- `final_result`:
-- `evidence_summary`:
-- `notes`:
+- `result`:
+- `remaining_gaps_or_risks`:
+- `artifact_pointers_if_needed`:

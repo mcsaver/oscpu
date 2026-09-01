@@ -68,12 +68,28 @@ set -e
 
 compile_success=0
 mutation_detected=0
+store_terminal_vector_detected=0
+peer_admission_vector_detected=0
 if [[ -s "${work_dir}/build/tb_ooo_owner_timing_causal_probe.vvp" ]]; then
   compile_success=1
 fi
+if [[ -f "${test_log}" ]] &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=0 peer=0 store_terminal_cycles=2 peer_admission_cycles=-1 peer_blocked_b_cycles=-1 early_peer_admission=0' "${test_log}" &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=2 peer=0 store_terminal_cycles=4 peer_admission_cycles=-1 peer_blocked_b_cycles=-1 early_peer_admission=0' "${test_log}" &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=5 peer=0 store_terminal_cycles=7 peer_admission_cycles=-1 peer_blocked_b_cycles=-1 early_peer_admission=0' "${test_log}"; then
+  store_terminal_vector_detected=1
+fi
+if [[ -f "${test_log}" ]] &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=0 peer=1 store_terminal_cycles=2 peer_admission_cycles=3 peer_blocked_b_cycles=1 early_peer_admission=0' "${test_log}" &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=2 peer=1 store_terminal_cycles=4 peer_admission_cycles=5 peer_blocked_b_cycles=3 early_peer_admission=0' "${test_log}" &&
+   grep -Fxq '[OWNER-TIMING-CAUSAL-PROBE] b_delay=5 peer=1 store_terminal_cycles=7 peer_admission_cycles=8 peer_blocked_b_cycles=6 early_peer_admission=0' "${test_log}"; then
+  peer_admission_vector_detected=1
+fi
 if [[ ${make_rc} -ne 0 && -f "${test_log}" ]] &&
-   grep -Fq '[OWNER-TIMING-CAUSAL-PROBE][FAIL] adapter final-B fall-through absolute latency mismatch' "${test_log}" &&
-   grep -Fq '[RESULT] FAIL' "${test_log}"; then
+   grep -Fq '[OWNER-TIMING-CAUSAL-PROBE][FAIL] adapter write-path fall-through absolute terminal latency mismatch' "${test_log}" &&
+   grep -Fq '[RESULT] FAIL' "${test_log}" &&
+   [[ ${store_terminal_vector_detected} -eq 1 ]] &&
+   [[ ${peer_admission_vector_detected} -eq 1 ]]; then
   mutation_detected=1
 fi
 production_sha_after="$(sha256sum "${rtl_source}" | awk '{print $1}')"
@@ -88,6 +104,8 @@ printf '%s\n' \
   'MUTATION=no-final-b-fallthrough' \
   "COMPILE_SUCCESS=${compile_success}" \
   "MUTATION_DETECTED=${mutation_detected}" \
+  "STORE_TERMINAL_VECTOR_DETECTED=${store_terminal_vector_detected}" \
+  "PEER_ADMISSION_VECTOR_DETECTED=${peer_admission_vector_detected}" \
   'EXPECTED_TEST_FAILURE=1' \
   "MAKE_RC=${make_rc}" \
   "PRODUCTION_SHA_BEFORE=${production_sha_before}" \

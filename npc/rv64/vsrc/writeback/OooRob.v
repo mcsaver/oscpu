@@ -96,6 +96,9 @@ module OooRob #(
   input completion7_query_valid_i,
   input [PRODUCER_ID_W-1:0] completion7_query_producer_id_i,
   output completion7_query_match_o,
+  input completion8_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion8_query_producer_id_i,
+  output completion8_query_match_o,
   // v8j registered branch-resolve authority.  Unlike completion queries,
   // this edge-old lookup deliberately ignores the current kill input: the
   // only current kill source is the authorized branch itself, so reading it
@@ -415,6 +418,8 @@ module OooRob #(
       completion6_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
   wire [ROB_INDEX_W-1:0] completion7_query_idx_w = completion7_query_valid_i ?
       completion7_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
+  wire [ROB_INDEX_W-1:0] completion8_query_idx_w = completion8_query_valid_i ?
+      completion8_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
   wire [ROB_INDEX_W-1:0] resolve_query_idx_w = resolve_query_valid_i ?
       resolve_query_producer_id_i[ROB_INDEX_W-1:0] : {ROB_INDEX_W{1'b0}};
   wire current0_query_exact_w =
@@ -447,6 +452,9 @@ module OooRob #(
   wire completion7_query_exact_w =
       {slot_generation_q[completion7_query_idx_w], completion7_query_idx_w} ==
       completion7_query_producer_id_i;
+  wire completion8_query_exact_w =
+      {slot_generation_q[completion8_query_idx_w], completion8_query_idx_w} ==
+      completion8_query_producer_id_i;
   wire resolve_query_exact_w =
       {slot_generation_q[resolve_query_idx_w], resolve_query_idx_w} ==
       resolve_query_producer_id_i;
@@ -521,6 +529,13 @@ module OooRob #(
       valid_q[completion7_query_idx_w] && !done_q[completion7_query_idx_w] &&
       completion7_query_exact_w &&
       !producer_target_killed_now(completion7_query_idx_w, head_q,
+                                  completion_cut_valid_w,
+                                  completion_cut_idx_w,
+                                  recover_q, kill_idx_q);
+  assign completion8_query_match_o = completion8_query_valid_i && !rst && !flush_i &&
+      valid_q[completion8_query_idx_w] && !done_q[completion8_query_idx_w] &&
+      completion8_query_exact_w &&
+      !producer_target_killed_now(completion8_query_idx_w, head_q,
                                   completion_cut_valid_w,
                                   completion_cut_idx_w,
                                   recover_q, kill_idx_q);
@@ -849,6 +864,33 @@ module OooRob #(
 
 
 `ifdef OOO_ASSERT
+  // Every accepted lane0 allocation must become the exact registered ROB
+  // incarnation on the following cycle.  This is a generic birth property,
+  // so it also proves the pre-ROB Tensor handoff without adding a Tensor type
+  // or a debug query port to the production ROB interface.
+  reg dispatch0_birth_check_q;
+  reg [PRODUCER_ID_W-1:0] dispatch0_birth_pid_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      dispatch0_birth_check_q <= 1'b0;
+      dispatch0_birth_pid_q <= {PRODUCER_ID_W{1'b0}};
+    end else begin
+      if (dispatch0_birth_check_q &&
+          (!valid_q[dispatch0_birth_pid_q[ROB_INDEX_W-1:0]] ||
+           ({slot_generation_q[
+                 dispatch0_birth_pid_q[ROB_INDEX_W-1:0]],
+              dispatch0_birth_pid_q[ROB_INDEX_W-1:0]} !==
+            dispatch0_birth_pid_q))) begin
+        $error("[ROB-DISPATCH0-BIRTH] accepted lane0 PID=%h did not become the exact live ROB incarnation @%0t",
+               dispatch0_birth_pid_q, $time);
+        $fatal;
+      end
+      dispatch0_birth_check_q <= dispatch0_fire_w;
+      if (dispatch0_fire_w)
+        dispatch0_birth_pid_q <= dispatch0_producer_id_o;
+    end
+  end
+
   // A1 生产者身份哨兵 (UC-A): wb 写已 valid 的 ROB 槽时, 携带的 pdest 必须等于该槽 dispatch 记录的
   // new_pdest_q。不等 = wrong-path stale 生产者(muldiv/clmul/alu 无 mispredict-kill)写了被 kill 后
   // 复用的槽 = 静默撞号。仅 pdest!=0(真 int 生产者写 PRF)时校验; FP-rd/store/no-rd 携 0 跳过, 无假阳。

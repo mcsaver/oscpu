@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
-  "purpose": "Lightweight branch health dashboard contract for the AI development environment.",
+  "scope": "explicit-release-publication-or-requested-dashboard",
+  "ordinary_task_completion_dependency": false,
+  "purpose": "Branch health dashboard contract for explicit release/publication or a requested repository-health report; it is not an ordinary task completion gate.",
   "review_routing": ".github/ai-env/contracts/agent-env-review-routing.json",
   "report_command": "python3 scripts/github_index_db.py branch-health-report",
   "audit_command": "python3 scripts/github_index_db.py branch-health-audit",
@@ -27,7 +29,8 @@
     "validate-all-profiles"
   ],
   "status_policy": {
-    "clean_required_for_completion_claim": true,
+    "clean_required_for_completion_claim": false,
+    "clean_required_for_release_or_publication_claim": true,
     "dirty_worktree_allowed_during_codex_iteration": true,
     "untracked_persistent_agent_sources_fail_agent_system_profile": true
   }

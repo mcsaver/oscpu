@@ -35,16 +35,14 @@ cd ysyxSoC && make clean
 
 ## 开始工作前
 
-1. 读取 `.github/memory/project-status.md`
-2. 读取 `.github/memory/modules/ysyx-soc.md`
-3. 读取 `.github/memory/modules/npc.md` 中 ysyxSoC / `npc/soc` 相关条目
-4. 读取 `ysyxSoC/spec/cpu-interface.md`
-5. 若任务涉及生成或工具链，读取 `.github/memory/modules/agent-system.md` 中 JDK/Mill 环境记录
-6. 若任务涉及 difftest reference 或 SoC 地址图，读取 `.github/memory/modules/nemu.md` 与 `.github/memory/modules/difftest.md`
+读取当前 `ysyxSoC/spec/cpu-interface.md`、直接相关 Chisel/generated wrapper、地址图与构建入口。需要历史
+ABI 决定、已验证工具链事实或跨会话 mismatch 时才查询 ysyx-soc/npc/nemu/difftest memory；不默认加载
+project-status 或 agent-system memory。
 
 ## 约束
 
-- 只修改 `ysyxSoC/`、相关 `.github/memory/` 与必要的协作文档；CPU RTL wrapper 的实现归 `npc` agent
+- 主要 ownership 是 `ysyxSoC/`；CPU RTL wrapper 等跨 owner 修改先协调，但目录提示不阻止处理用户目标内
+  已定位的生成链/consumer root cause
 - 不把 `ysyxSoC/build/ysyxSoCFull.v` 当手写源长期维护；除非任务明确要求临时补丁，否则应从 `ysyxSoC/src/` 重新生成
 - 生成链路默认使用用户级 JDK 21 与 `mill -i`，不要依赖系统 OpenJDK 8
 - SoC 地址图变更必须同步评估 `npc/soc`、NEMU `CONFIG_SOC_SIM` reference 和 AM/NPC 运行入口

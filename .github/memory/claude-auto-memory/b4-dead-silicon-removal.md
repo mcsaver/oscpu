@@ -12,12 +12,13 @@ rv64 OoO 核 **B4：物理删除真相基线 §4 死硅普查表登记的死硅*
 已收割(-58%,CPI 1.229)，真正未竟的是宪法 north-star 的**架构收尾**（功能拆除已做完，死壳物理未删）。
 用户指令"自主连续推进直到完成所有宪法要求"。
 
-**方法学（每族一循环，串行——死硅族大量共享 OooFrontend/OooCoreTopGlue/控制面 hub 无法安全并行）**：
-worktree 隔离代理证死+删+`make lint`(0/0)→`git diff --cached` 写 patch 到 `$CLAUDE_JOB_DIR/tmp`→
-主树 `git apply`+`make -j4 default`+`eval/npc-eval.sh --all [--difftest]` 验收→**cycle 逐位中性**
-（自写 cycle-neutral-check 对照 am-cpi.tsv 的 cycles/commits）→逐族单独 commit。F2 敏感批加 difftest
-逐指令 + CoreMark 10迭代(crcfinal=0xfcaf/cycles=2982741 金标准)。跨模块死信号用**恒等常量 0 tie-off**
-（不递归删下游 KEEP 端口）。
+**历史执行方法（不可作为当前默认流程）**：当时按死硅族分批证明常量折叠与 cycle 中性，并对触碰 F2
+kill/redirect 的批次增加逐指令 DiffTest 和 CoreMark workload；跨模块死信号用**恒等常量 0 tie-off**，
+不递归删除仍由活路径消费的 KEEP 端口。
+
+上述串行、patch 搬运、逐族 commit 和全量命令是当时多个改动竞争同一控制面与 build 资源时的 campaign
+选择，不是后续任务授权或固定门禁。当前只在真实共享可变资源冲突时串行，按本轮 claim 选择最小充分
+验证；cycle-neutral、F2 kill/redirect 与可综合边界等技术不变量仍须如实保留。
 
 **已物理删除 9 批 ~5900 行(各 cycle-exact 中性)**：csrc cache.c/serial.c(15497d2bd) → PRF read4-9全
 (e72948c90+3edd53210,真5R2W) → SyntheticLane1Ret(21c7fbe14) → checkpoint影子×5(a7d5c5661) →
@@ -34,5 +35,5 @@ untracked-redirect，已 pending_branch_i=0 tie-off塌缩）。物理清理需 F
 
 **坑**：①build/link 抓死硅的跨语言 DPI 消费者(cache.c 经 NpcSimTop DPI，lint过link不过);
 ②checkpoint 删端口后 6 模块 TB 的 mode=0 场景须同步退休(状态等价:场景=restore还原快照=净no-op);
-③worktree base 见 [[worktree-agent-base-fresh-gotcha]];④pending 链删除必须区分死 pending owner(删) vs
+③当时 worktree base 问题见 [[worktree-agent-base-fresh-gotcha]]（历史工具记录）;④pending 链删除必须区分死 pending owner(删) vs
 system/trap+stop_pending(KEEP,验证 0 arbiter 输入被孤立)。真相入口 [[rv64core-audit-baseline]];宪法 §8.3/§9。

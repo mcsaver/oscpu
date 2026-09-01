@@ -1,12 +1,66 @@
 {
   "schema_version": 1,
   "router_id": "cpu-architect-semantic-router-v1",
-  "purpose": "Fail-closed routing for the project CPU Architect Agent without keyword or file-count triggering.",
+  "purpose": "Optional semantic routing decision support for the project CPU Architect Agent; this policy does not grant or deny work authority.",
   "instruction": ".github/instructions/cpu-architect-routing.instructions.md",
   "custom_agent": ".codex/agents/cpu-architect.toml",
   "canonical_agent": ".github/agents/cpu-architect.agent.md",
   "classifier": "scripts/cpu_architect_route.py",
+  "authority_model": {
+    "role_selection_source": "task_semantics_and_delegated_ownership",
+    "classifier_mode": "optional_advisory",
+    "classifier_receipt_required": false,
+    "classifier_can_authorize_work": false,
+    "classifier_can_block_in_scope_safe_local_work": false,
+    "architecture_change_scope_source": "user_or_parent_task"
+  },
+  "scopes": {
+    "ordinary_architecture_task": {
+      "default": true,
+      "fixed_startup_yaml_required": false,
+      "architecture_ir_required_per_experiment": false,
+      "content_manifest_required_per_experiment": false,
+      "grounded_learning_loop_required": false,
+      "fixed_final_report_schema_required": false,
+      "minimum_outcome": [
+        "bounded_structural_change",
+        "preserved_correctness_invariants",
+        "correctness_plus_one_measurable_metric",
+        "comparable_baseline_candidate_evidence",
+        "falsifier_and_rollback",
+        "pass_gap_boundary"
+      ]
+    },
+    "formal_architecture_or_pareto_promotion": {
+      "explicit_boundary": true,
+      "independent_review_required": true,
+      "identity_and_provenance_required": [
+        "baseline_and_candidate_source_revision_or_source_set",
+        "production_filelist_and_elaboration",
+        "design_and_configuration",
+        "workload",
+        "tool_and_version",
+        "corner_clock_and_constraints",
+        "raw_wave_counter_or_eda_artifact_as_applicable"
+      ]
+    },
+    "formal_research_or_learning": {
+      "opt_in_only": true,
+      "activation": "explicit_user_or_task_acceptance_criterion",
+      "may_use": [
+        "Grounded Experience Loop",
+        "CapabilityGraph",
+        "ExperienceRecord",
+        "Meta-Critic",
+        "KnowledgeGap",
+        "prediction calibration",
+        "unseen exam"
+      ],
+      "cannot_gate_ordinary_architecture_work": true
+    }
+  },
   "grounded_learning_policy": ".github/ai-env/contracts/cpu-architect-learning-v1.json",
+  "grounded_learning_policy_scope": "formal_research_or_learning_opt_in",
   "required_fields": [
     "domain",
     "intent",
@@ -35,6 +89,7 @@
   },
   "routes": ["ARCHITECT", "EXPLORER", "WORKER", "REVIEWER", "CLARIFY", "NON_ARCH"],
   "architect_hard_gates": {
+    "compatibility_semantics": "Legacy classifier field name: these are advisory semantic signals, not agent permission gates.",
     "domain": "local_rv64_cpu",
     "intents": ["redesign", "trade_study"],
     "design_choice": "open",

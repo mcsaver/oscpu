@@ -8,6 +8,7 @@ module tb_ooo_pending_drain_resolve_gate;
 
   reg [ROB_COUNT_W-1:0] rob_count;
   reg [ISSUE_COUNT_W-1:0] issue_count;
+  reg tensor_pre_rob_owner_live;
   reg synth_lane1_ret_pending;
   reg synth_lane1_branch_drop_pending;
   reg direct_frontend_flush;
@@ -57,6 +58,7 @@ module tb_ooo_pending_drain_resolve_gate;
   ) dut (
     .rob_count_i(rob_count),
     .issue_count_i(issue_count),
+    .tensor_pre_rob_owner_live_i(tensor_pre_rob_owner_live),
     .synth_lane1_ret_pending_i(synth_lane1_ret_pending),
     .synth_lane1_branch_drop_pending_i(synth_lane1_branch_drop_pending),
     .direct_frontend_flush_i(direct_frontend_flush),
@@ -99,6 +101,7 @@ module tb_ooo_pending_drain_resolve_gate;
     begin
       rob_count = {ROB_COUNT_W{1'b0}};
       issue_count = {ISSUE_COUNT_W{1'b0}};
+      tensor_pre_rob_owner_live = 1'b0;
       synth_lane1_ret_pending = 1'b0;
       synth_lane1_branch_drop_pending = 1'b0;
       direct_frontend_flush = 1'b0;
@@ -136,7 +139,27 @@ module tb_ooo_pending_drain_resolve_gate;
     #1;
     tb_check1("empty and quiet backend drains", backend_drained, 1'b1);
 
+    // ROB/issue emptiness is insufficient while a registered Tensor owner is
+    // still upstream of ROB allocation.  Its owner-live bit closes both the
+    // raw drained predicate and the derived drain-complete edge; clearing the
+    // bit restores the otherwise-identical empty/quiet state.
+    tensor_pre_rob_owner_live = 1'b1;
+    stop_pending = 1'b1;
+    pending_control_ready = 1'b1;
+    #1;
+    tb_check1("pre-ROB tensor owner blocks backend drained",
+              backend_drained, 1'b0);
+    tb_check1("pre-ROB tensor owner blocks drain complete",
+              drain_complete, 1'b0);
+    tensor_pre_rob_owner_live = 1'b0;
+    #1;
+    tb_check1("cleared pre-ROB tensor owner restores backend drained",
+              backend_drained, 1'b1);
+    tb_check1("cleared pre-ROB tensor owner restores drain complete",
+              drain_complete, 1'b1);
+
     // Exhaust every drain predicate over representative zero/non-zero counts.
+    clear_inputs();
     for (rob_v = 0; rob_v < 3; rob_v = rob_v + 1) begin
       for (issue_v = 0; issue_v < 3; issue_v = issue_v + 1) begin
         for (mask = 0; mask < 8; mask = mask + 1) begin

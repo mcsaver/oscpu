@@ -1,2 +1,1 @@
-@include|discovery||||
 am-full-regression|hardware-flow|e2e_hardware_flow_full_regression|hardware-flow|scripts/am-regression.sh full|AM/NEMU 完整参考回归证据

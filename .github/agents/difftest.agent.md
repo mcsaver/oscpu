@@ -60,19 +60,11 @@ NEMU_HOME=/home/lyg/PA/ysyx-workbench/nemu \
 make -C am-kernels/tests/cpu-tests ARCH=riscv32-npc run NPC_SIM_BACKEND=soc NPC_RUN_ARGS="--diff=default --no-progress -m 0"
 ```
 
-## 持久化记忆
+## 历史上下文与记录
 
-### 开始工作前
-1. 读取 `.github/memory/project-status.md` 了解项目当前状态
-2. 读取 `.github/memory/modules/difftest.md` 了解历史不一致记录
-3. 读取 `.github/memory/modules/npc.md` 与 `.github/memory/modules/nemu.md`
-4. 若涉及 SoC 后端，读取 `.github/memory/modules/ysyx-soc.md` 与 `ysyxSoC/spec/cpu-interface.md`
-5. 读取 `.github/memory/known-issues.md` 查看是否有相关 bug 历史
-
-### 完成工作后
-1. 更新 `.github/memory/modules/difftest.md` 记录本次对比结果
-2. 更新 `.github/memory/project-status.md` 更新进度
-3. 如果发现新 bug，记录到 `.github/memory/known-issues.md`
+先检查当前 NEMU/NPC compare 路径、配置、地址图和实际 mismatch。需要既有不一致记录或跨会话决定时才
+查询 difftest/npc/nemu memory；SoC 任务直接读取当前 `ysyxSoC/spec/cpu-interface.md`。只有稳定、可复用
+root cause 或长期状态才更新 memory，普通对比结果直接报告。
 
 ## 约束
 - 跨 `nemu/`、`npc/sim`、`npc/{single,soc}` 和必要的 AM 测试入口工作（记忆文件除外）

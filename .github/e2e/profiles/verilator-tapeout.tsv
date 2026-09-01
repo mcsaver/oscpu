@@ -1,2 +1,2 @@
 @include|rv64-linux||||
-verilator-tapeout-contract|verilator-tapeout|e2e_verilator_tapeout_contract|verilator-tapeout|verilator realism instruction + RV64 PPA workflow/architecture contract + npc/rv64|Verilator-first 流片边界与 RV64 PPA 合约入口存在
+verilator-tapeout-contract|verilator-tapeout|e2e_verilator_tapeout_contract|verilator-tapeout|RV64 architecture/PPA contract + npc/rv64 Makefile|Verilator-first 生产与 PPA 边界入口存在

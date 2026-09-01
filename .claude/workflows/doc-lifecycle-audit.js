@@ -1,81 +1,93 @@
 export const meta = {
   name: 'doc-lifecycle-audit',
-  description: '文档生命周期全量审计:动态盘点→分组对照代码真源→判定并就地校正,归档建议交主控执行',
-  whenToUse: '大规模代码改动后文档可信度存疑、用户要求"重读/释放/归档文档"、或按 doc-lifecycle 协议 §4 触发全量重审时',
+  description: '对调用者给定范围做一次有界文档核对，修正事实漂移并返回归档建议',
+  whenToUse: '仅在用户明确要求全量文档审计，或正式 release/migration/publication、跨会话文档重组确实需要时使用；普通代码或文档修改不触发',
   phases: [
-    { title: '盘点', detail: '动态发现文档清单并按子系统分组' },
-    { title: '审计', detail: '并行逐份判定 CURRENT/DRIFT_FIXED/ARCHIVE 并修正漂移' },
+    { title: '盘点', detail: '按调用者给定 roots 枚举并分组' },
+    { title: '核对', detail: '对照直接相关代码真源，修正事实错误并提出归档建议' },
   ],
 }
 
 // args:
-//   roots:     要审计的文档根(目录或 .md 文件路径数组)。缺省 = npc/rv64 设计文档集。
-//   truth:     可选,现成的真相参照(审计报告 JSON/真相基线 md 路径数组)。不传则 agent 直接读代码验证。
-//   groupSize: 每组最多文档数,缺省 10。
+//   roots:     必填；要核对的文档目录或 Markdown 文件绝对路径数组。
+//   truth:     可选；调用者已经确认的代码/规范真源路径数组。
+//   groupSize: 可选；每组最多文档数，缺省 10。
 const REPO = '/home/lyg/PA/ysyx-workbench'
 const PROTOCOL = REPO + '/.github/instructions/doc-lifecycle.instructions.md'
-const roots = (args && args.roots && args.roots.length) ? args.roots : [
-  REPO + '/npc/rv64/design',
-  REPO + '/npc/rv64/README.md',
-  REPO + '/npc/rv64/vsrc/README.md',
-  REPO + '/npc/rv64/vsrc/control/README.md',
-]
-const truth = (args && args.truth) ? args.truth : []
+const roots = (args && Array.isArray(args.roots)) ? args.roots.filter(Boolean) : []
+const truth = (args && Array.isArray(args.truth)) ? args.truth.filter(Boolean) : []
 const groupSize = (args && args.groupSize) ? args.groupSize : 10
 
-// ---------- Phase 1: 盘点(workflow 脚本无文件系统访问,由 agent 动态发现) ----------
+if (!roots.length) {
+  return {
+    error: 'doc-lifecycle-audit 需要显式 roots；不会默认扩展到整个 workspace 或固定 NPC 文档集',
+    groups: [],
+  }
+}
+
 phase('盘点')
 const INVENTORY = {
   type: 'object', required: ['groups'],
   properties: {
     groups: { type: 'array', items: { type: 'object', required: ['key', 'files', 'code_hint'], properties: {
-      key: { type: 'string', description: '组名(子系统/主题),kebab-case' },
+      key: { type: 'string', description: '组名，kebab-case' },
       files: { type: 'array', items: { type: 'string' }, description: '本组文档的绝对路径' },
-      code_hint: { type: 'string', description: '本组文档对应的代码真源目录/文件提示' } } } },
+      code_hint: { type: 'string', description: '直接相关的代码或规范真源提示' },
+    } } },
   },
 }
-const inv = await agent(
-  `你是文档盘点员。任务:列出以下根下的全部 .md 文档并按主题分组,供后续并行审计。\n` +
-  `根:\n${roots.join('\n')}\n` +
-  `规则:1) 用 find/ls 枚举全部 .md,**严格限定在上述根路径之内,一份都不得越界纳入**(调用方已按需圈定范围;` +
-  `若你发现根外明显相关的文档,只在最后备注建议,不进 groups);2) **排除**任何 history/ 归档目录下的文件;` +
-  `3) 按子系统/主题分组,每组最多 ${groupSize} 份(同目录同主题的放一组,巨型 README 可单独成组);` +
-  `4) 为每组给出对应的代码真源提示(读文件头几行判断主题,指出该主题的 RTL/源码目录);5) 输出绝对路径。全程中文。`,
-  { label: '盘点', phase: '盘点', schema: INVENTORY })
-if (!inv || !inv.groups || !inv.groups.length) return { error: '盘点失败或无文档', groups: [] }
-log('盘点完成:' + inv.groups.length + ' 组,共 ' + inv.groups.reduce((n, g) => n + g.files.length, 0) + ' 份')
 
-// ---------- Phase 2: 并行审计 ----------
-phase('审计')
+const inventory = await agent(
+  `你是文档盘点员。只枚举调用者明确给出的 roots 内的 Markdown，不得扩展范围。\n` +
+  `roots:\n${roots.join('\n')}\n` +
+  `排除 history/archive、task-run、cache、backup 和生成包，除非调用者把其中某个具体路径显式列为 root。` +
+  `按主题分组，每组最多 ${groupSize} 份，并为每组指出直接相关的代码/spec/test 真源。输出绝对路径。全程中文。`,
+  { label: '盘点', phase: '盘点', schema: INVENTORY })
+
+if (!inventory || !inventory.groups || !inventory.groups.length) {
+  return { error: '给定范围内没有可核对文档，或盘点失败', groups: [] }
+}
+
+log('盘点完成:' + inventory.groups.length + ' 组,共 ' +
+  inventory.groups.reduce((count, group) => count + group.files.length, 0) + ' 份')
+
+phase('核对')
 const AUDIT = {
   type: 'object', required: ['group', 'results'],
   properties: {
     group: { type: 'string' },
     results: { type: 'array', items: { type: 'object', required: ['file', 'verdict', 'summary'], properties: {
       file: { type: 'string' },
-      verdict: { type: 'string', enum: ['CURRENT', 'DRIFT_FIXED', 'SUPERSEDED_ARCHIVE', 'ORPHAN_ARCHIVE'] },
-      summary: { type: 'string', description: '判定依据;DRIFT_FIXED 逐条列修改;ARCHIVE 给原因' },
-      current_ref: { type: 'string', description: '仅归档件:现状参考(留给 history README 登记表)' } } } },
+      verdict: { type: 'string', enum: ['CURRENT', 'DRIFT_FIXED', 'ARCHIVE_SUGGESTED'] },
+      summary: { type: 'string', description: '直接证据、实际修正或归档理由' },
+      current_ref: { type: 'string', description: '归档建议对应的当前真源，可选' },
+    } } },
   },
 }
-const truthNote = truth.length
-  ? `【真相参照(先读)】${truth.join(' , ')}\n存疑处仍须亲自读代码核实。`
-  : `【无现成真相参照】所有判定必须亲自读代码验证,证据具体到 文件:行号。`
-const COMMON =
-  `你是文档生命周期审计员。先读协议(判定类别/死硅注记格式/纪律的唯一真源):${PROTOCOL}\n` +
-  truthNote + `\n` +
-  `【动作】对分到的每份文档:判定 CURRENT(一致,不动)/ DRIFT_FIXED(对应实体仍活,就地用 Edit 修正事实错误——` +
-  `最小 diff、不重写结构、保持原文风格;若实体是"活文件中的死通道"则按协议 §2 格式加 ⚠️ 死硅注记)/ ` +
-  `SUPERSEDED_ARCHIVE(一次性计划/快照使命已完成)/ ORPHAN_ARCHIVE(描述的实体已不存在)。\n` +
-  `【禁止】归档件不改不移动(git 操作由主控统一执行);不要臆断,每个判定要有代码证据。全程中文。\n`
-const results = (await parallel(inv.groups.map(g => () =>
-  agent(COMMON + `\n【你的分组】${g.key}\n【代码真源提示】${g.code_hint}\n【文档清单】\n` + g.files.join('\n'),
-    { label: 'audit:' + g.key, phase: '审计', schema: AUDIT })
-))).filter(Boolean)
-log('审计完成:' + results.length + '/' + inv.groups.length + ' 组')
 
-// ---------- 汇总:归档建议交主控按协议 §3 执行(git mv + history 登记 + 悬空引用清零 + 索引同步) ----------
-const archives = []
-for (const r of results) for (const it of r.results) if (it.verdict.indexOf('ARCHIVE') >= 0) archives.push(it)
-return { groups: results, archive_queue: archives,
-  next_steps: '主控按 doc-lifecycle 协议 §3 执行归档手续(git mv→history 登记表→悬空引用 grep 清零→索引同步),并更新协议 §6 登记状态与 task-run。' }
+const truthNote = truth.length
+  ? `调用者提供的真源:\n${truth.join('\n')}\n仍只核对当前问题直接相关的内容。`
+  : '没有预先给定真源；按每组 code_hint 读取最小必要代码/spec/test，不做全仓审计。'
+const common =
+  `先读当前文档生命周期原则:${PROTOCOL}\n${truthNote}\n` +
+  `逐份判断 CURRENT、DRIFT_FIXED 或 ARCHIVE_SUGGESTED。事实仍有效但描述错误时做最小就地修正；` +
+  `只有当前入口已被替代或实体不存在时提出归档建议。不要移动或删除文件，不刷新全局索引，不创建 ` +
+  `task-run/memory/hash/marker，也不要运行与文档结论无关的 RTL、系统或 PPA 回归。每个结论给出直接证据。全程中文。\n`
+
+const results = (await parallel(inventory.groups.map(group => () =>
+  agent(common + `\n分组:${group.key}\n代码真源提示:${group.code_hint}\n文档:\n` + group.files.join('\n'),
+    { label: 'doc-check:' + group.key, phase: '核对', schema: AUDIT })
+))).filter(Boolean)
+
+const archiveSuggestions = []
+for (const result of results) {
+  for (const item of result.results) {
+    if (item.verdict === 'ARCHIVE_SUGGESTED') archiveSuggestions.push(item)
+  }
+}
+
+return {
+  groups: results,
+  archive_suggestions: archiveSuggestions,
+  next_steps: '仅在调用者决定归档且准确目标、引用方和未提交修改已核对后，再执行可恢复的移动；不自动创建 task-run、memory 更新或全局索引刷新。',
+}

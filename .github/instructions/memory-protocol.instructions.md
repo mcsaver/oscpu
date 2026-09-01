@@ -1,128 +1,90 @@
 ---
-description: "持久化记忆协议。当 agent 开始处理任何任务时加载，用于读取项目历史上下文、更新工作记录、记录设计决策和调试经验。所有模块 agent 都应遵循此协议。"
-applyTo: "**"
+description: "可选的持久化记忆协议。仅在任务需要历史召回、跨会话稳定事实或长期工程决定时使用；不作为普通分析、实现或验证的启动/完成门。"
+applyTo: ".github/memory/**,.github/task-runs/**,scripts/dev_memory/**,scripts/github_index_db.py"
 ---
 
 # 持久化记忆协议
 
-所有 agent 在工作时 **必须** 遵循以下记忆读写协议，确保项目知识跨会话持久化。
+memory 的职责是保存稳定、跨会话可复用的工程事实和决定。它不是工作日志、任务权限、完成证明或每轮
+必经状态机。
 
-## 记忆文件位置
+## When to read memory
 
-```
-.github/memory/
-├── project-status.md        — 项目进度总览
-├── decisions.md             — 设计决策记录
-├── known-issues.md          — 已知问题与调试历史
-└── modules/                 — 各模块专属笔记
-    ├── agent-system.md      — agent 架构与工作流环境
-    ├── software-flow.md     — 软件开发全流程
-    ├── npc.md
-    ├── nemu.md
-    ├── abstract-machine.md
-    ├── am-kernels.md
-    ├── difftest.md
-    ├── ysyx-soc.md
-    └── yosys-sta.md
-```
+仅在下列情况读取 memory/DB：
 
-> **存储形态（2026-07-08 起 DB-backed）**：上列文件多数已提升为 stored document
-> （`.github/cache/github-index.sqlite`），工作区内只留 8 行兼容 shim（开头为
-> `# DB-backed ...` 即是）。对 shim 文件：
->
-> - **读原文**：`python3 scripts/github_index_db.py load --source stored --path <仓库相对路径>`；
->   批量召回优先 `brief <关键词> --profile <profile>`。
-> - **更新（铁律，违反=数据灾难）**：`update-stored` 是**整体替换**语义——你喂给它
->   什么，stored 全文就变成什么。因此追加条目 **必须** 三步走：
->   ① `load --source stored` 导出全文到临时文件；② 在临时文件中追加/修改；
->   ③ `update-stored <路径> --from-file <临时文件> --refresh-shim`。
->   **绝对禁止**把"只含新条目的短文"直接喂给 `update-stored`——那会把整份
->   文档（可能数百 KB 的项目史）替换成几行新内容。2026-07-09 实锤事故：
->   某实施 agent 跳过 ① 直接写入单条目，project-status.md（613KB）与
->   modules/npc.md（575KB）被整体覆盖为 8.4KB/528B，靠会话残留导出才恢复。
-> - **写回后必须自检**：`update-stored` 输出的 `bytes=` 必须 **≥ 改前全文字节数**
->   （追加场景只增不减）。发现缩水立即停止后续写操作并从
->   `.github/db-backup/files/` 恢复。度量坑：直接查 sqlite 时 `LENGTH(content)`
->   返回**字符数**非字节数（中文 UTF-8 两者差 ~30%），勿跨单位比较。
-> - **委托写回的责任划分**：主会话把任务派给子 agent 时，若允许其更新 memory，
->   prompt 中 **必须** 原文附上本三步协议；否则子 agent 只交回"待追加条目文本"，
->   由主会话统一执行写回。
-> - **一致性审计**：`python3 scripts/github_index_db.py audit-db-first`。
->
-> 完整 DB 工作流（`promote`/`materialize`/`restore`/`snapshot-stored` 等）见
-> `.github/AGENTS.md` §0；非 shim 的 materialized 全文文件仍可直接编辑，但受
-> strict 审计约束（live 必须等于 stored，编辑后需 `update-stored` 同步）。
+- 用户询问历史状态、既有决定或为什么采用某方案；
+- 当前问题跨模块，直接源码无法解释已有工程选择；
+- 任务从过去会话继续，需要恢复已验证结论或长期未决项；
+- 用户明确要求使用项目记忆。
 
-## 任务执行产物位置
+普通局部 review、修 bug、实现、构建和验证先读取直接相关源码、spec、README、配置与测试。不要默认
+加载 project-status、known-issues、所有 module memory、旧 task-run 或 blueprint。
 
-```
-.github/task-runs/
-├── README.md                          — 任务级产物目录说明
-└── templates/
-    ├── task-report.template.md       — 图任务摘要模板
-    └── dispatch-log.template.md      — 节点派发日志模板
+需要历史召回时优先使用有界查询：
+
+```bash
+python3 scripts/github_index_db.py brief '<focus>' --profile <profile>
+python3 scripts/github_index_db.py runs --profile <profile>
+python3 scripts/github_index_db.py evidence --run-id <run-id>
 ```
 
-- `memory/` 用于沉淀稳定结论、长期经验与设计决策
-- `task-runs/` 用于保存单次图任务的执行产物、节点状态、证据链和派发历史
-- 不要把长日志、逐节点状态变更、阶段性失败细节整段塞进 `memory/`；应优先写入 `task-runs/`
+只打开查询指向且确实影响当前决策的内容。历史记录是线索；实际 worktree、当前配置和本轮验证优先。
 
-## 工作流程
+## What belongs in memory
 
-### 1. 开始任务前 — 读取记忆与本地资料
-- **必须** 先读取 `.github/memory/project-status.md` 了解当前项目状态（DB shim 用 `load` 读原文，见上）
-- **必须** 读取自己模块对应的 `.github/memory/modules/<模块>.md`
-- 如果任务涉及 `.github/agents/`、`.github/instructions/`、`copilot-instructions.md` 或 AI 驱动硬件开发环境本身，**必须** 读取 `.github/memory/modules/agent-system.md` 与 `.github/agentic-hardware-blueprint.md`
-- 如果任务涉及 AI 开发环境 e2e、自检、规则发现漂移或“降低 AI 不确定性”，**必须** 读取 `.github/instructions/agent-e2e-workflow.instructions.md`，并用 `scripts/agent-e2e.sh` 生成或复用 task-run 证据包
-- 如果对应模块目录下存在已整理的本地学习资料（如 `study/README.md`、规范摘要、实现 checklist、设计笔记），**必须** 先读取索引/README，再按当前任务补读相关资料后再开始规划或编码
-- 对 `tmp/`、提取文本等中间资料，只能作为快速检索入口；最终结论应以正式 Markdown 笔记、源码或规范为准
-- 如果任务涉及调试，读取 `.github/memory/known-issues.md` 查看是否有历史经验
+适合保存：
 
-### 2. 工作过程中 — 记录决策
-- 做出重要设计决策时，追加到 `.github/memory/decisions.md`
-- 遇到非显而易见的问题时，记录到 `.github/memory/known-issues.md`
+- 已采用且仍有效的架构/接口决定与理由；
+- 经验证的非显然 root cause 和可复用诊断入口；
+- 跨会话 current 状态、明确 owner 或长期 GAP；
+- 后续任务会依赖的稳定工程约束。
 
-### 3. 完成判定前 — 语义核对钩子
-- **必须** 回看用户原始请求、已粘贴/上传文档、PLAN/task-run checklist 和本轮实际证据，区分“整体目标完成”与“子任务/阶段完成”
-- 如果原始请求是路线图、长期目标、包含多阶段建议，或用户明确要求“继续推进”，不得因某一个子项闭合就记录为整体完成；只能写“本子项完成”，并列出剩余条目
-- 只有当原始目标中的全部硬性要求都有客观证据，且没有未处理的用户明确要求时，才能在 project-status、task-report 或回复中使用“完成目标/整体完成”
-- 若发现本轮目标被 agent 自行缩小，必须在 RECORD 中写清缩小范围、已完成切片和未完成范围；必要时把误判沉淀为 known-issues 或 agent-system 经验
+不保存：
 
-### 4. 完成任务后 — 更新记忆
-- **必须** 更新 `.github/memory/project-status.md` 的相关条目（DB shim 走 `update-stored`，见上；不得直接改 shim 本体）
-- **必须** 更新自己模块的 `.github/memory/modules/<模块>.md`（同上）
-- 如果修复了 bug，将问题从"活跃问题"移到"已解决问题"
-- 若任务属于跨模块、图任务或长链调试，**应当** 同时更新 `.github/task-runs/<日期-任务名>/task-report.md` 与 `dispatch-log.md`
+- token-by-token 过程、完整终端日志或临时 debug 输出；
+- 普通任务的每一步、todo 状态、marker/hash 数量；
+- 未验证猜测、短期 workaround 或 agent 自创 permission gate；
+- 已可从源码、测试或生成配置直接得到的重复事实。
 
-## 记录格式规范
+task-run 用于显式跨会话长跑、release/security/forensic/publication 或用户要求的单次证据，不默认创建。
+短任务的命令、返回码和结果直接在最终报告中说明即可。
 
-### 项目状态条目
-```markdown
-- [YYYY-MM-DD] 完成/修改了什么，影响哪些模块
+## DB-backed stored documents
+
+`.github/memory/` 中以 `# DB-backed ...` 开头的文件是兼容 shim，正文位于
+`.github/cache/github-index.sqlite`。读取单份正文：
+
+```bash
+python3 scripts/github_index_db.py load --source stored --path <repo-relative-path>
 ```
 
-### 设计决策条目
-```markdown
-### [编号] 决策标题
-- **日期**: YYYY-MM-DD
-- **状态**: 已决定
-- **上下文**: 为什么需要做这个决策
-- **决策**: 选择了什么方案
-- **理由**: 为什么
-```
+只有决定写入稳定事实时才更新。`update-stored` 是整体替换，不是 append API；必须保持以下数据安全步骤：
 
-### 问题记录条目
-```markdown
-### [编号] 问题标题
-- **模块**: 出问题的模块
-- **现象**: 具体表现
-- **根因**: 根本原因
-- **修复**: 如何修复
-- **教训**: 学到了什么
-```
+1. 用 `load --source stored` 导出完整原文到临时文件；
+2. 在临时文件中做最小编辑，并核对原有无关内容仍存在；
+3. 用 `update-stored <path> --from-file <file> --refresh-shim` 整体写回；
+4. 追加型更新确认写回字节数没有意外缩小。
 
-## 约束
-- 记忆文件使用中文
-- 保持简洁，只记录关键信息，不要长篇大论
-- 不要删除历史记录，只追加新内容
-- 更新时保持文件结构不变（对 DB-backed 文件，"结构"指 stored 原文的结构，不是 8 行 shim）
+禁止把“只有新条目的短文件”直接传给 `update-stored`，这会覆盖已有正文。发生意外缩水时停止写入，并从
+已知有效 backup 恢复。子 agent 未被明确授权更新 memory 时，只返回建议条目，由 owner 统一写回。
+
+这些步骤保护真实持久数据；它们只在选择写 memory 时生效，不要求普通任务建立 DB snapshot、manifest、
+rehydrate 或 audit 链。`audit-db-first` 仅用于 DB 工具开发、迁移、恢复或显式 publication 检查。
+
+## Completion and compaction
+
+完成判定回到用户 objective 与 acceptance criteria：
+
+- 长期路线图中的一个切片完成，不等于整体目标完成；
+- 低层 smoke、单个 profile/node 或 verifier PASS 不得越级；
+- 有未满足的用户明确要求时，报告已完成范围和剩余 GAP；
+- memory 是否更新不会改变工程结果。
+
+上下文压缩后按 objective、acceptance criteria、实际 worktree、hard constraints、当前 build/test evidence
+恢复。过去 memory 中的流程建议、临时 gate、phase、marker 或单 shell 规则不会自动继承；只有仍对应
+用户要求或真实 correctness/safety invariant 的约束继续有效。
+
+## Writing style
+
+新条目应短、可定位、可证伪，至少写清日期、工程对象、稳定结论、验证依据或代码入口、适用范围。不要
+复制完整日志或本轮协调流水账。若事实仍不稳定，保留在当前任务报告中，不急于写入长期 memory。

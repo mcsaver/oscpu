@@ -1,6 +1,6 @@
 ---
 description: "RV64 Linux rootfs/virtio-blk 约束。处理 Ubuntu rootfs、virtio-mmio block、PLIC 多源中断、/dev/vda 或 root=/dev/vda 启动时使用。"
-applyTo: "npc/rv64/**"
+applyTo: "Linux/scripts/{build-ubuntu-rootfs.sh,prepare-npc-rootfs-run-image.sh,check-ubuntu-rootfs.sh,check-device-address-map.sh},Linux/tools/virtio-*,npc/rv64/**/virtio*"
 ---
 
 # Virtio Rootfs 约束
@@ -42,4 +42,5 @@ initramfs 和 rootfs 是两个不同 gate。`root=/dev/vda` 或 DTB 中出现 vi
 virtio-mmio-id -> queue-setup -> single-sector-read -> interrupt -> linux-probe -> mount-rootfs
 ```
 
-每个阶段都要保留日志和 task-run 记录。
+保留判断当前阶段所需的日志/marker。普通 focused smoke 直接报告结果；跨会话 rootfs 构建、持久系统回放
+或正式 publication 才显式创建 task-run，不为每个阶段重复归档。

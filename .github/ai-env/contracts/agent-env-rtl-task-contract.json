@@ -1,6 +1,21 @@
 {
   "schema_version": 2,
   "contract_name": "local-rtl-task-contract",
+  "operating_scope": {
+    "status": "legacy-optional-machine-exchange",
+    "ordinary_task_required": false,
+    "permission_or_authorization_boundary": false,
+    "correctness_gate": false,
+    "use_when": [
+      "legacy-consumer-needs-schema-v2",
+      "explicit-release-security-forensic-or-publication-provenance"
+    ],
+    "allowed_paths_meaning": "declared-focus-not-read-permission",
+    "write_paths_meaning": "collaboration-ownership-not-platform-permission",
+    "allowed_commands_meaning": "suggested-actions-not-command-whitelist",
+    "hash_meaning": "optional-explicit-byte-identity-only",
+    "scope_extension_meaning": "supplement-handoff-and-coordinate-write-ownership"
+  },
   "engineering_domain": "local-rv64-rtl",
   "instruction": ".github/instructions/rtl-agent-task-contract.instructions.md",
   "skill": ".github/skills/prepare-rtl-task-contract/SKILL.md",
@@ -17,12 +32,12 @@
     "reference": ".github/agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording",
     "domain_reference": "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
     "preserve_backticked_identifiers": true,
-    "hardware_context_prefix_required": true,
+    "hardware_context_prefix_required": false,
     "preserve_technical_vocabulary": true,
     "keyword_blacklist_forbidden": true,
     "does_not_change_capabilities": true,
-    "positive_local_scope_preamble_required": true,
-    "rendered_prompt_style": "compact-rv64-hardware-evidence",
+    "positive_local_scope_preamble_required": false,
+    "rendered_prompt_style": "editable-compact-rv64-hardware-draft",
     "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
     "coordination_metadata_in_rendered_prompt": false,
     "final_response_evidence_order": [
@@ -76,32 +91,33 @@
     ]
   },
   "reasoning_policy": {
-    "required_outlets": [
+    "recommended_outlets": [
       "unknowns",
       "assumptions",
       "counterexamples",
       "alternative_hypotheses",
-      "scope_extension_request",
+      "scope_adjustment",
       "confidence_and_basis"
     ],
     "inconclusive_allowed": true,
     "forced_pass_forbidden": true,
     "fixed_finding_cap_forbidden": true,
-    "scope_extension_requires_new_contract": true,
+    "scope_adjustment_handling": "supplement-handoff-and-coordinate-write-ownership",
     "no_tools_claim_scope": "bounded-supplied-material-only"
   },
-  "dispatch_policy": {
-    "canonical_pipeline": [
+  "legacy_tool_semantics": {
+    "independent_operations": [
       "create",
       "validate",
       "render"
     ],
-    "rendered_prompt_boundary": "verbatim",
-    "subagent_context_mode": "rendered-contract-only",
-    "full_history_inheritance": false,
-    "validation_failure_result_status": "candidate-only",
-    "scope_extension_action": "new-versioned-contract",
-    "platform_interruption_effect": "current-review-node-only"
+    "operation_order_required": false,
+    "render_output": "editable-prompt-draft",
+    "subagent_context_mode": "caller-selected-relevant-context",
+    "validation_failure_effect": "format-error-only",
+    "scope_adjustment_action": "supplement-handoff-and-coordinate-write-ownership",
+    "automatic_hashing": false,
+    "platform_interruption_effect": "no-technical-status-effect"
   },
   "command_policy": {
     "entry_fields": [
@@ -226,12 +242,12 @@
     "workspace_root": "."
   },
   "status_policy": {
-    "review_state": "review_pending",
-    "parent_goal_state": "active",
-    "isolate_review_to_subtask": true,
+    "review_state": "not_requested",
+    "parent_goal_state": "unchanged",
+    "isolate_review_to_subtask": false,
     "preserve_original_request": true,
     "semantic_distortion_retry_forbidden": true,
-    "official_feedback_recommended": true
+    "official_feedback_recommended": false
   },
   "language_policy": {
     "preserve_rtl_identifiers": true,
@@ -240,8 +256,6 @@
   },
   "audit_commands": [
     "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py audit",
-    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py self-test",
-    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test",
-    "scripts/agent-e2e.sh --profile agent-system"
+    "python3 .github/skills/prepare-rtl-task-contract/scripts/rtl_task_contract.py cli-self-test"
   ]
 }

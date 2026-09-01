@@ -1,14 +1,16 @@
 ---
 name: respond-and-think-in-chinese
-description: 用户要求 Claude 全程用中文——面向用户的回复 AND 内部思考链(thinking)都用中文
+description: 面向用户的回复使用中文；提供可核查结论和必要理由，不要求或传播私有思考链
 metadata: 
   node_type: memory
   type: feedback
   originSessionId: d01eafd4-d1ad-4fdc-8c37-2ad193d4a19a
 ---
 
-用户明确要求 Claude 的**所有输出全部使用中文**——不仅是面向用户的回复文本，**内部思考链(thinking blocks)也必须用中文**。
+用户要求本工作区的面向用户回复使用中文。技术术语（如 UNOPTFLAT、difftest、ROB、pred_npc、CoreMark）
+可保留英文原词，工程结论、证据、假设与风险用中文清楚表达。
 
-**Why:** 用户是中文母语者，本工程(ysyx-workbench)的代码注释、`.github/memory/*`、CLAUDE.md 规则1 全部用中文；用户希望能读懂 Claude 的完整推理过程，而不只是最终结论。
+旧条目曾把这一偏好扩展为“输出内部 thinking blocks”。该表述已废弃：memory 不要求暴露私有思考链，
+只要求给出足够让用户复核的简洁理由、调用链判断与直接证据。
 
-**How to apply:** 从对话第一轮起，thinking 就用中文书写（不要等到最终回复才切中文）。技术术语(如 UNOPTFLAT、difftest、ROB、pred_npc、CoreMark)可保留英文原词，但叙述与推理用中文。参见 [[rtl-coding-standard]] 同属该用户对本工程的工作方式约定。
+**How to apply:** commentary 与最终报告使用中文；代码、命令、标准名和必要英文标识保持原样。

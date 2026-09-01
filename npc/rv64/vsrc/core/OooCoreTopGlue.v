@@ -20,6 +20,21 @@ module OooCoreTopGlue #(
   input run_i,
   input [`XLEN-1:0] reset_pc_i,
 
+  output tensor_cmd_valid_o,
+  input tensor_cmd_ready_i,
+  output [63:0] tensor_cmd_bits_o,
+  output [`XLEN-1:0] tensor_cmd_rs_value_o,
+  output [PRODUCER_ID_W-1:0] tensor_cmd_producer_id_o,
+  output tensor_cmd_is_64_o,
+  output tensor_cmd_required_o,
+  output [7:0] tensor_cmd_opclass_o,
+  input tensor_terminal_valid_i,
+  output tensor_terminal_ready_o,
+  input [PRODUCER_ID_W-1:0] tensor_terminal_producer_id_i,
+  input tensor_terminal_error_i,
+  input [7:0] tensor_terminal_error_code_i,
+  output tensor_serialize_o,
+
   output fetch_req_valid_o,
   input fetch_req_ready_i,
   output [`XLEN-1:0] fetch_req_pc_o,
@@ -316,6 +331,14 @@ module OooCoreTopGlue #(
   wire pending_mem_q = 1'b0;
   wire pending_arch_trap_q;
   wire [`TRAP_CAUSE_W-1:0] pending_trap_cause_q;
+  // Atomic handoff from the frontend pair owner into the existing precise
+  // pending-trap owner; this remains entirely inside the core glue boundary.
+  wire tensor_pair_trap_valid_w;
+  wire tensor_pair_trap_ready_w;
+  wire [`XLEN-1:0] tensor_pair_trap_pc_w;
+  wire [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause_w;
+  wire [`XLEN-1:0] tensor_pair_trap_tval_w;
+  wire tensor_pre_rob_owner_live_w;
   wire [`XLEN-1:0] pending_branch_pc_q;
   wire [`INST_W-1:0] pending_branch_inst_q;
   wire [`REG_ADDR_W-1:0] pending_branch_rs1_q;
@@ -906,6 +929,11 @@ module OooCoreTopGlue #(
   wire [`XLEN-1:0] core_dispatch0_pc_w;
   wire [`XLEN-1:0] core_dispatch0_next_pc_w;
   wire [`INST_W-1:0] core_dispatch0_inst_w;
+  wire core_dispatch0_tensor_w;
+  wire [63:0] core_dispatch0_tensor_bits_w;
+  wire core_dispatch0_tensor_is_64_w;
+  wire core_dispatch0_tensor_required_w;
+  wire [7:0] core_dispatch0_tensor_opclass_w;
   wire [`XLEN-1:0] core_dispatch0_csr_rdata_w;
   wire [`XLEN-1:0] core_dispatch1_pc_w;
   wire [`XLEN-1:0] core_dispatch1_next_pc_w;
@@ -982,6 +1010,25 @@ module OooCoreTopGlue #(
     .core_commit0_csr_rdata_w(csr_rdata_w),
     .frm_i(csr_frm_w),
     .core_dispatch0_inst_w(core_dispatch0_inst_w),
+    .core_dispatch0_tensor_w(core_dispatch0_tensor_w),
+    .core_dispatch0_tensor_bits_w(core_dispatch0_tensor_bits_w),
+    .core_dispatch0_tensor_is_64_w(core_dispatch0_tensor_is_64_w),
+    .core_dispatch0_tensor_required_w(core_dispatch0_tensor_required_w),
+    .core_dispatch0_tensor_opclass_w(core_dispatch0_tensor_opclass_w),
+    .tensor_cmd_valid_o(tensor_cmd_valid_o),
+    .tensor_cmd_ready_i(tensor_cmd_ready_i),
+    .tensor_cmd_bits_o(tensor_cmd_bits_o),
+    .tensor_cmd_rs_value_o(tensor_cmd_rs_value_o),
+    .tensor_cmd_producer_id_o(tensor_cmd_producer_id_o),
+    .tensor_cmd_is_64_o(tensor_cmd_is_64_o),
+    .tensor_cmd_required_o(tensor_cmd_required_o),
+    .tensor_cmd_opclass_o(tensor_cmd_opclass_o),
+    .tensor_terminal_valid_i(tensor_terminal_valid_i),
+    .tensor_terminal_ready_o(tensor_terminal_ready_o),
+    .tensor_terminal_producer_id_i(tensor_terminal_producer_id_i),
+    .tensor_terminal_error_i(tensor_terminal_error_i),
+    .tensor_terminal_error_code_i(tensor_terminal_error_code_i),
+    .tensor_serialize_o(tensor_serialize_o),
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
@@ -1383,6 +1430,12 @@ module OooCoreTopGlue #(
     .branch_spec_resolve_valid_w(branch_spec_resolve_valid_w),
     .branch_spec_restore_w(branch_spec_restore_w),
     .can_run_w(can_run_w),
+    .tensor_pair_trap_valid_i(tensor_pair_trap_valid_w),
+    .tensor_pair_trap_pc_i(tensor_pair_trap_pc_w),
+    .tensor_pair_trap_cause_i(tensor_pair_trap_cause_w),
+    .tensor_pair_trap_tval_i(tensor_pair_trap_tval_w),
+    .tensor_pre_rob_owner_live_i(tensor_pre_rob_owner_live_w),
+    .tensor_pair_trap_ready_o(tensor_pair_trap_ready_w),
     .checkpoint_mem_flush_q(checkpoint_mem_flush_q),
     .clk(clk),
     .commit_ready_i(commit_ready_i),
@@ -1657,6 +1710,17 @@ module OooCoreTopGlue #(
     .core_dispatch0_csr_rdata_w(core_dispatch0_csr_rdata_w),
     .core_dispatch0_fire_w(core_dispatch0_fire_w),
     .core_dispatch0_inst_w(core_dispatch0_inst_w),
+    .core_dispatch0_tensor_w(core_dispatch0_tensor_w),
+    .core_dispatch0_tensor_bits_w(core_dispatch0_tensor_bits_w),
+    .core_dispatch0_tensor_is_64_w(core_dispatch0_tensor_is_64_w),
+    .core_dispatch0_tensor_required_w(core_dispatch0_tensor_required_w),
+    .core_dispatch0_tensor_opclass_w(core_dispatch0_tensor_opclass_w),
+    .tensor_pair_trap_valid_o(tensor_pair_trap_valid_w),
+    .tensor_pair_trap_ready_i(tensor_pair_trap_ready_w),
+    .tensor_pair_trap_pc_o(tensor_pair_trap_pc_w),
+    .tensor_pair_trap_cause_o(tensor_pair_trap_cause_w),
+    .tensor_pair_trap_tval_o(tensor_pair_trap_tval_w),
+    .tensor_pre_rob_owner_live_o(tensor_pre_rob_owner_live_w),
     .core_dispatch0_next_pc_w(core_dispatch0_next_pc_w),
     .core_dispatch0_pc_w(core_dispatch0_pc_w),
     .core_dispatch0_valid_w(core_dispatch0_valid_w),
@@ -1999,6 +2063,18 @@ module OooCoreTopGlue #(
          (control_full_flush_reason_w != `REDIR_REASON_CSR_COMMIT)))
       $error("[V9O-CONTROL-EVENT-C0] illegal queue-head pregrant reason=%0d @%0t",
              control_full_flush_reason_w, $time);
+    // A Tensor allocation is the exact frontend->ROB ownership transfer.  It
+    // must never share an edge with a completed precise-control boundary;
+    // pre-ROB live keeps drain closed on this edge and ROB count takes over on
+    // the next one.
+    if (core_dispatch0_fire_w && core_dispatch0_tensor_w &&
+        (drain_complete_w || csr_trap_irq_valid_w ||
+         priv_predictor_boundary_w)) begin
+      $error("[TENSOR-ALLOC-CONTROL-ATOMICITY] Tensor ROB allocation overlapped a precise-control boundary: drain=%0d irq=%0d priv=%0d @%0t",
+             drain_complete_w, csr_trap_irq_valid_w,
+             priv_predictor_boundary_w, $time);
+      $fatal;
+    end
   end
 `endif
 

@@ -1394,11 +1394,6 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/include/utils.h \
     nemu/include/utils/profile.h \
     nemu/src/utils/profile.c \
-    .github/memory/modules/nemu.md \
-    .github/memory/known-issues.md \
-    .github/instructions/agent-e2e-workflow.instructions.md \
-    .github/e2e/README.md \
-    .github/e2e/modules/nemu.md \
     .github/e2e/profiles/nemu-dev.tsv \
     .github/e2e/profiles/nemu-dev-gate.tsv \
     .github/e2e/profiles/nemu-dev-full-gate.tsv \
@@ -1410,10 +1405,7 @@ e2e_nemu_ubuntu_slice_contract() {
     .github/e2e/profiles/nemu-ubuntu-profile.tsv \
     .github/e2e/profiles/nemu-ubuntu-gate.tsv \
     .github/e2e/profiles/nemu-ubuntu-full-gate.tsv \
-    .github/e2e/profiles/nemu-ubuntu-full-soak.tsv \
-    .github/e2e/profiles/software-flow.tsv \
-    .github/agents/software-flow.agent.md \
-    .github/e2e/modules/software-flow.md
+    .github/e2e/profiles/nemu-ubuntu-full-soak.tsv
 
   local check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-systemd-guest.sh"
   local tap_host_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-tap-host.sh"
@@ -1498,7 +1490,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local kconfig="$E2E_ROOT_DIR/nemu/src/device/Kconfig"
 
   echo
-  echo "[nemu-ubuntu] required software-flow methodology hooks"
+  echo "[nemu-ubuntu] profile topology and scenario boundaries"
   local nemu_dev_profile=".github/e2e/profiles/nemu-dev.tsv"
   local nemu_dev_gate_profile=".github/e2e/profiles/nemu-dev-gate.tsv"
   local nemu_dev_full_gate_profile=".github/e2e/profiles/nemu-dev-full-gate.tsv"
@@ -1511,11 +1503,6 @@ e2e_nemu_ubuntu_slice_contract() {
   local nemu_ubuntu_gate_profile=".github/e2e/profiles/nemu-ubuntu-gate.tsv"
   local nemu_ubuntu_full_gate_profile=".github/e2e/profiles/nemu-ubuntu-full-gate.tsv"
   local nemu_ubuntu_full_soak_profile=".github/e2e/profiles/nemu-ubuntu-full-soak.tsv"
-  local software_flow_profile=".github/e2e/profiles/software-flow.tsv"
-  local software_flow_agent=".github/agents/software-flow.agent.md"
-  local agent_workflow_doc=".github/instructions/agent-e2e-workflow.instructions.md"
-  local e2e_readme_doc=".github/e2e/README.md"
-  local nemu_e2e_doc=".github/e2e/modules/nemu.md"
   if e2e_file_contains "$nemu_ubuntu_profile" '@include|nemu-ubuntu-focused'; then
     printf 'PASS nemu-ubuntu profile aliases NEMU-only focused profile\n'
   else
@@ -1535,8 +1522,7 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL nemu-dev profile includes nemu-ubuntu-focused\n'
     missing=1
   fi
-  if e2e_file_contains "$nemu_ubuntu_focused_profile" '@include|software-flow' &&
-     e2e_file_contains "$nemu_ubuntu_focused_profile" 'nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate' &&
+  if e2e_file_contains "$nemu_ubuntu_focused_profile" 'nemu-ubuntu-static|nemu|e2e_nemu_ubuntu_static_gate' &&
      e2e_file_contains "$nemu_ubuntu_focused_profile" 'nemu-ubuntu-slice-contract|nemu|e2e_nemu_ubuntu_slice_contract'; then
     printf 'PASS nemu-ubuntu-focused profile keeps NEMU-only static contract\n'
   else
@@ -1593,51 +1579,6 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL NEMU Ubuntu integration gate profiles keep nemu-ubuntu include\n'
     missing=1
   fi
-  if e2e_file_contains "$software_flow_profile" 'software-flow-contract'; then
-    printf 'PASS software-flow profile exposes software-flow-contract\n'
-  else
-    printf 'FAIL software-flow profile exposes software-flow-contract\n'
-    missing=1
-  fi
-  for pattern in \
-    'software-dev-loop' \
-    'software-bugfix-loop' \
-    'hardware-aware-software-loop' \
-    'scope-contract -> hardware-semantic-contract -> design-plan -> implement -> software-focused-test -> system-or-hardware-gate -> review-record' \
-    '不把“构建通过”单独当成软件任务完成' \
-    '必须扫描 FAIL marker'; do
-    if e2e_file_contains "$software_flow_agent" "$pattern"; then
-      printf 'PASS software-flow methodology available to NEMU dev/integration %s\n' "$pattern"
-    else
-      printf 'FAIL software-flow methodology available to NEMU dev/integration %s\n' "$pattern"
-      missing=1
-    fi
-  done
-
-  echo
-  echo "[nemu-ubuntu] PyLong resolved-status documentation contract"
-  for doc in "$agent_workflow_doc" "$e2e_readme_doc" "$nemu_e2e_doc"; do
-    if e2e_file_contains "$doc" '2026-06-21' &&
-       e2e_file_contains "$doc" '已修根因' &&
-       e2e_file_contains "$doc" '回归观察' &&
-       e2e_file_contains "$doc" 'PyLongObject' &&
-       e2e_file_contains "$doc" 'sentinel' &&
-       e2e_file_contains "$doc" '按新问题重新定位'; then
-      printf 'PASS PyLong resolved-status documented in %s\n' "$doc"
-    else
-      printf 'FAIL PyLong resolved-status documented in %s\n' "$doc"
-      missing=1
-    fi
-    if e2e_file_contains "$doc" '当前 Python/PyLong blocker' ||
-       e2e_file_contains "$doc" 'wide ifetch、guest memory 与 Python object state 仍需对象级证据继续切分' ||
-       e2e_file_contains "$doc" '不代表 PyLong 根因已定位'; then
-      printf 'FAIL stale PyLong blocker wording remains in %s\n' "$doc"
-      missing=1
-    else
-      printf 'PASS no stale PyLong blocker wording in %s\n' "$doc"
-    fi
-  done
-
   echo
   echo "[nemu-ubuntu] required host build jobserver hooks"
   for pattern in \

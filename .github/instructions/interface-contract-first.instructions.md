@@ -1,116 +1,153 @@
 ---
-description: "rv64 核接口/控制契约先行强制规则。动 npc/rv64 可综合 RTL（新模块/改接口/改时序/改控制信号/改数据通路）前，必须先冻结六类可判定跨模块契约并填入对应 spec 的 §2/§3；填不出即视为未理解上下游，禁止写 RTL。契约优先转成立即断言可执行检查，而非停留在散文。另含「外部抽象状态观测层」三层模型（.sv checker 旁挂 SIM_TOP、零侵入验证既有 RTL）的落地范式与工具链踩坑。"
+description: "RV64 跨模块接口与控制语义指南。触碰 handshake、stall、flush/redirect/trap、异常/访存序或投机恢复时，用现有 spec、调用链、波形和定向检查理解 transaction ownership；不把表格、阶段或断言数量变成 RTL 编辑权限。"
 applyTo: "npc/rv64/**/*.{v,sv,vh,svh}"
 ---
 
-# rv64 接口/控制契约先行（architecture-first 的可执行形态）
+# RV64 Interface and Control Semantics
 
-> 依据 `.github/memory/decisions.md` [38]。本文件是六类契约的**规范单一真源**；
-> 决策记录见 [38]（本规则已自包含，不依赖任何会归档的 task-run/spec 佐证）。
-> 本规则与 `rtl-generation-workflow.instructions.md` 叠加执行：本规则是其**阶段 0（前置）**，
-> 先冻结跨模块契约，再进入块内 需求→FSM→拓扑→RTL 推导。
+本指南与 `rtl-generation-workflow.instructions.md` 配合使用。它提醒 agent 在跨模块控制边界上先理解语义，
+但不是“阶段 0”、permission gate 或强制文档流程。局部且可逆的 RTL/TB 探针可以帮助定位语义；是否先写
+spec、表格、断言或小型实验由当前不确定性与 acceptance criteria 决定。
 
-## 何时强制（可判定触发器）
+## 何时需要扩展上下游阅读
 
-改动**同时命中**"可综合 RTL"且以下任一时，本规则强制生效，**先契约后逻辑**：
-- 触碰握手 / 反压 stall / flush·redirect·trap / 异常序 / 访存序 / 投机恢复 任一路径；
-- 跨模块（改动影响 ≥2 个 module 的边界信号，或改一个信号但其 producer/consumer 在别的文件）；
-- 新增 module、改端口、改时序（哪拍有效/组合还是打拍）、改控制信号语义。
+出现以下任一情形时，通常需要读取 producer、consumer、相关 spec/filelist/TB，并说明 transaction
+lifecycle：
 
-纯块内、纯组合、纯数值、纯译码且不触碰上述六类边界的改动，可只走 rtl-generation-workflow，不强制本规则。
+- valid/ready、backpressure 或 payload hold；
+- stall、pipeline freeze、multi-cycle in-flight work；
+- flush、redirect、trap、xRET、branch recovery；
+- precise exception、retirement 或 serialize；
+- load/store ordering、forward/replay、cache side effect；
+- owner/tag/checkpoint、ROB/LSQ/SQ/MIQ 生命周期；
+- 新 module/port，或有效周期、组合/寄存语义发生变化。
 
-## 硬门槛：填不出契约 = 没理解上下游 = 禁止写 RTL
+纯块内组合逻辑、数值修正或解码表若不影响这些边界，可以直接按其局部 contract 修改。文件数量和模块
+数量本身不触发额外流程。
 
-动手前必须把受影响模块的 **SPEC-TEMPLATE §2 接口契约 + §3 状态/时序模型**（尤其其中的
-flush「谁清谁保持」表、stall 语义、同拍优先级表）填满到"两端能并行开工"的程度。
-**填不出的格子，就是你还没理解的上下游业务——此时写 RTL 就是在赌，禁止落 RTL。**
-（反面教材：某 spec 曾给出握手方程却声明"不持有任何状态、
-PC/outstanding 全甩给 parent"——契约必须包含"决定握手的状态在谁那里"。）
+如果一开始还不能解释某个信号，先查 driver、consumer、波形或已有 test；也可以构造可逆的最小 RTL/TB
+探针来区分假设。不要用填写表格代替理解，也不要因 spec 尚未更新就把安全本地调查变成禁止编辑。
 
-契约不是"一次定死"：定义到能让两端并行开工即可；RTL 撞出的语义**先回填契约（小、被评审）再落 RTL**，绝不让 RTL 悄悄分叉。
+## 需要回答的工程问题
 
-## 六类必须冻结的可判定契约
+按相关性选择，不要求把六类全部写成固定模板。
 
-每类给出"当 X 必须 Y"的判据，且**能编码的部分优先转成立即断言**（见下节）。
+### Handshake 与 backpressure
 
-**① 握手协议**：valid 拉高到 fire 前不撤回；payload 整拍冻结；ready 可组合依赖 valid，
-valid 禁组合依赖同级 ready（禁组合环）；双发通道"同拍两 lane 齐 fire 才前进"，同包多 uop 必须**整体**冻结。
+- transaction 在哪一拍被接受，fire 条件是什么；
+- valid 等待 ready 时 payload 是否必须保持；
+- producer/consumer 谁持有 pending state；
+- ready/valid 是否形成组合环；
+- 多 lane 或多 uop 是独立接受还是原子接受。
 
-**② 反压 / stall（单向 DAG）**：stall 唯一产生源枚举（freelist 空 / ROB 满 / IQ 满 / SQ 满）；
-传播链是无环 DAG（retire→ROB→dispatch→rename→decode→fetch 逐级 ready 回吹）；
-显式区分可停级 vs 不可停在飞级（已进多周期 FU、已发 AXI 不可回退）；stall = 冻结 = pipeline reg 与架构可见状态保持。
+### Stall 与在飞工作
 
-**③ flush/redirect「谁清谁保持」表 + 优先级全序**（最该先做的一张，填进 §3）：
-- 逐 flush 源列「清什么 / 保持什么」（trap/exit、branch mispredict(ROB-walk)、SQ flush …）；
-- 优先级全序（高→低）：`trap/exit > CSR/xRET > branch mispredict > BPU/RAS 预测重定向 > 顺序 PC`；
-- 三条铁律：`committed store 不得被清`、`不得 kill 已发 AXI（只能 drain 完）`、`CSR 写在 commit 拍即架构可见、flush 不能撤`。
-- 判据：若一个 flush 汇合子系统**非法状态随源数组合爆炸且无单一收敛点**（宪法 §7 自认 ≥12 源/≥5 汇合/无优先级链正是此形态）→ 应**局部重写成单点优先编码仲裁器（true by construction）**，而非"加表+挂断言监视爆炸空间"。边界清晰、状态小 → 立即断言即够。
+- stall 的真实来源和传播方向；
+- 哪些 pipeline state 冻结，哪些 multi-cycle/AXI transaction 必须继续推进；
+- response、kill、retry 与 backpressure 同拍时谁优先；
+- 是否存在 ownership 丢失、重复 fire 或 payload 被新请求覆盖。
 
-**④ 异常序**：精确异常点 = 只在 ROB 队头 retire 拍宣告、年轻全 squash；retire 全序（commit0 先于 commit1）；
-serialize 指令必须成 ROB 唯一在飞项才执行。
+### Flush、redirect 与 trap
 
-**⑤ 访存序**：store 只在 commit 后 drain；load 前递须对 older 未 drain store 判 addr_valid + strb 覆盖，
-addr 未 valid 必须阻塞或 replay；**任何 store 完成必更新/失效 dcache**（跨模块副作用，须进不变量清单）。
+- 每个源清除哪些年轻状态、保留哪些已提交或不可撤销状态；
+- 多个源同拍时的实际优先级；
+- 已接受的外部 transaction 是取消、抑制 response，还是 drain 后丢弃；
+- redirect/trap 的 PC、cause、tval 与 owner/tag 在哪一拍锁定。
 
-**⑥ 投机恢复 / 单一真源**：每个"域/成员关系/预测 npc"必须有单一真源，禁多处各存一份过期副本。
+当前 OoO 设计通常应保持以下不变量，但修改前仍要核对生产 RTL/spec：
 
-## 契约的可执行形态（关键工具链约束，别照 SVA 写）
+- committed store 不被 younger flush 撤销；
+- 已接受且接口不支持 cancel 的 AXI transaction 必须安全 drain；
+- commit 拍已经架构可见的 CSR/retirement effect 不被后续 flush 回滚；
+- precise exception 只提交允许提交的 older state，并 squash younger state。
 
-**已复核：全核 SVA 时序算子命中 0；module-TB 走 iverilog（对 `always_comb` 常量位选静默错）；
-全核 Verilator 且 `VERILATOR_FLAGS` 无 `--assert`。因此禁止用 `|->`/`|=>`/`$stable` 写并发断言。**
+### Exception、retirement 与 memory ordering
 
-契约转检查只能用**时钟块里的立即断言**（iverilog + Verilator 通吃，同一套代码两仿真器复用）：
+- 双提交或多 lane 的全序与异常优先级；
+- serialize 指令的进入、等待和完成条件；
+- load 对 older store 的 address/data/strb 可见条件以及 forward、block 或 replay 策略；
+- store 何时成为 committed side effect，何时更新或失效 cache；
+- fault、replay、kill、response 同拍是否可能重复完成或漏完成。
 
-    always @(posedge clk) if (违约条件) $error("契约X违约: ...");   // 严重的用 $fatal
+### Speculation 与单一事实源
 
-- 全核 build 需加 `--assert`（见 gate 一节）；接进已有 cycle-exact 差分 fuzz 护栏，违约即回退。
-- **两种烂法必须防**：① 真空通过——refactor 后前件永不为真、断言静默 PASS，写完每条断言**必须故意制造一次违约确认它会响**；② 同盲区——断言只照 RTL 重述则永远抓不到 RTL 本身错，断言必须编码**独立于 RTL 的真理**（来自 ISA / 金模型），不是来自实现。
+对 domain、member set、prediction metadata、owner/tag 或 next-PC，确认哪个 state 是 authoritative，哪些只是
+投影或缓存。重复副本需要有明确更新/失效规则；不要让格式化 handoff 或 debug facts 反过来成为生产语义。
 
-## 外部抽象状态观测层（三层模型：契约的旁挂可执行形态）
+## 如何记录 contract
 
-> 本节是**自包含**的可操作规则 + 踩坑清单（规则不依赖任何会归档的 spec/task-run，独立成立）。
-> **适用**：跨模块控制契约 / 想要"抽象状态"debug 视图 / 零侵入验证既有 RTL。**非每次动 RTL 都强制**——
-> 单模块、边界清晰的局部不变量走上节内联 `ifdef OOO_ASSERT` 断言即够，不必起外部 checker。
+选择最靠近消费者、最容易维护的形式：
 
-**三层分层（物理归属禁混）**：
-- **① RTL 真实编码**（one-hot / 散 wire / 稠密，综合参与）——观测层**一行不碰**。
-- **② 投影 + 断言**：`vsrc/debug/*.sv` → filelist `SIM_TOP_SRCS`（**不进 `RTL_CORE_SRCS`** → DCE 零面积）。XMR 读 ① 真实信号 → 投影 ③ 抽象态 + 立即断言。
-- **③ 外部抽象状态映射**：`vsrc/common/*.vh`，自解释 one-hot 宏——`` `define OOO_XXX_YYY N ``，**位号=语义=位置三位一体**（packed bus + 宏切片，读位即读语义）+ 行内语义注释。**③ 独立于 ①**（ISA vs 微架构：debug 读抽象态"DRAINING"、非电路位）；one-hot/稠密是 ① 实现自由、③ 不规定。**禁裸数值枚举**（否则需外部映射表→漂移）。
+- 已有 spec 中的一段 prose、时序表或优先级表；
+- RTL 中清楚的组合/时序结构与必要注释；
+- module TB、directed regression 或 reference/DiffTest oracle；
+- 立即断言或旁挂 debug checker；
+- 最终报告中的局限和仍未确认项。
 
-**判据（何时用）**：**无记忆组合仲裁**（每拍独立、无跨拍态，如前端 redirect winner）→ 只做 ② 投影观测 + 独立真理断言，**不状态机化**。**真 FSM**（跨拍转移）→ 另属"值得性+PPA 账"档，排观测层之后且动 RTL。
+两端并行实现或语义复杂时，§2/§3 表格很有价值；局部修复不强制补齐整份模板。RTL 暴露出新事实时，
+同步更新真正会误导 consumer 的 spec/断言即可，不要求先创建 task-run、review record 或 memory 条目。
 
-**落地范式（照做）**：
-1. ③ 表 `vsrc/common/XxxFacts.vh`：`` `define OOO_XXX_YYY N `` + 行内注释归属。
-2. ② checker `vsrc/debug/XxxChecker.sv`：`` `include "define.v" `` + ③ 头；module 只接 `clk/rst` + 被观测端口；投影=observability、断言=独立真理。
-3. filelist 三处 **additive**：`RTL_DEBUG_DIR := $(VSRCDIR)/debug`（目录变量区）+ 文件变量 + 追加 `SIM_TOP_SRCS`（**绝不进 `RTL_CORE_SRCS`**）。
-4. `NpcSimTop.sv` 例化 checker + XMR 连端口：`u_top.u_core.u_ooo_core.<层层实例>.<net>`（用局部 `` `define XMR_PREFIX ... `` 宏简化 + 用完 `` `undef ``）；`` `ifdef OOO_ASSERT `` 门控例化。
+## Assertion 与 checker 选择
 
-**断言纪律（承上节，观测层强化）**：断言编码**独立于 ① 的真理**（ISA / spec 合法转移 / 结构不变量 / 死硅 tie-0），**非重述 RTL/三元链**（同盲区）；投影 facts 是 observability、**不作断言依据**。每条必须验**非真空**（故意制造违约确认会响 + 确认前件在真实 workload 可达、计数 > 0）。**漂移由断言守**：② 投影的转移落 ③ 合法表、否则 `$error`。
+当前 module TB 常用 iverilog，全核主要用 Verilator；并发 SVA 支持并不统一。需要跨两套工具复用时，优先
+使用时钟块里的立即断言：
 
-**⚠ 工具链 / 方法学踩坑（血泪，照避）**：
-1. **XMR**：Verilator 支持任意深度 downward 引用（读子模块 port net）；从 `NpcSimTop` 例化 checker、XMR 连端口最稳（已验五层深）。
-2. **`PINCONNECTEMPTY` = 错误**（本 build 视告警为错误）：checker 的 observability 投影**别引出成 output 端口再空连接**（`.facts_o()` 空连接即报错中止）；改**内部 wire + 命名 `` wire _unused_ = |facts_w `` sink**（波形仍可观测）。
-3. **`$error` 在 `--assert` 下会中止**（等同 `$fatal`）；**非真空探针改用 `$display`**（不中止、可计数）+ **`=== 1'b1`**（排除时刻 0 的 X 假触发）。
-4. **core-regress runner 不收 sim stdout** → `$display` 探针别指望 `npc-eval` 日志；**直跑单 bin** 捕获：`objcopy -O binary <elf> <bin>` + tohost=`` `nm|grep tohost` `` + `build/NpcSimTop -b --no-diff --tohost=<addr> <bin>`（AM bin 直跑、syscon halt 无需 tohost）。
-5. **时序件（reg 输出 / later-wins 打拍）断言须【延迟一拍比较】**：当拍仲裁条件决定**下一拍** reg 值，同拍读 reg 是旧值（Moore/Mealy 陷阱）；把条件+期望值各寄一拍、与目标 reg **同延迟对齐**后比。
-6. **信号语义先勘察别假设**：如 `csr_trap_mem_valid`（mem 阶段 trap = page/access fault）≠ `csr_trap_ex_valid`（exec 阶段 = ecall/illegal）；键错信号 → 断言真空（该类测试根本不触发）。断言前勘察信号驱动链确认它何时脉冲。
-7. **`$time` 恒 0**：本 harness 不推进 Verilator 时间，`@%0t` 恒 0 是打印伪影、不影响断言逻辑（要精确时刻用周期计数器）。
-8. **验证方式**：SIM_TOP checker 的 `$error` **不进 `contract-assert-baseline` 计数**（那只数 `RTL_CORE_SRCS` 内联 `$error(`）；观测层验证 = **回归恒静默 + 每条非真空各过一遍**。
+```systemverilog
+always @(posedge clk) begin
+  if (assertion_enable && violation) $error("contract violation");
+end
+```
 
-**三种典型仲裁形态及对应手法**（自包含分类，覆盖迄今遇到的全部形态）：
-- **组合仲裁**（first-match 三元链，纯 wire 当拍）→ 当拍直接投影 + 断言（无 Moore/Mealy 问题）；
-- **时序仲裁**（later-wins 打拍 reg，下一拍生效）→ **延迟一拍比较**（条件+期望值各寄一拍，与目标 reg 同延迟对齐）；
-- **跨仲裁器一致性**（两器消费重叠条件、须结果一致）→ 同时 XMR 两器、延迟对齐比对二者输出。
-现有实现落在 `vsrc/debug/`（② checker）与 `vsrc/common/`（③ 表）下，可作起步参考（工作区常驻，非归档件）。
+只有 acceptance criterion 需要 assertion 生效时才确认 Verilator 使用 `--assert`。断言必须表达独立
+不变量，避免逐字重述 RTL。真空风险存在时，用覆盖计数、定向激励或一个能够区分实现的 negative case
+证明前件可达；不要求为每条断言机械制造 mutation。
 
-## 留痕与回写
+### 可选外部观测层
 
-- 契约推导与本次冻结的表，写进 `.github/task-runs/<日期-任务名>/task-report.md` 的「接口契约冻结」一节。
-- 模块级稳定契约回写对应 `design/specs/<模块>.md` §2/§3 与 `.github/memory/modules/npc.md`，避免下次重推。
+当跨模块状态难以观测且不应污染可综合 RTL 时，可以使用：
 
-## 禁止行为
+- `vsrc/debug/*.sv`：SIM_TOP 旁挂 checker/投影，不进入 `RTL_CORE_SRCS`；
+- `vsrc/common/*.vh`：稳定的抽象 facts/位定义；
+- `NpcSimTop.sv`：在 `OOO_ASSERT` 等仿真条件下例化并连接所需信号。
 
-- 禁止跳过契约冻结直接写触碰六类边界的 RTL。
-- 禁止用"回复里口头说一下上下游"替代填 §2/§3 表。
-- 禁止把契约停在散文而不转成能编译的立即断言（能编码的部分）。
-- 禁止用"符合 spec"为错误契约背书——spec 只停在意图+不变量高度，微架构细节归 RTL。
+这是 observability 方案，不是所有 RTL 修改的必经层。组合仲裁可当拍检查；寄存输出要把条件和期望值与
+目标拍对齐；跨仲裁器一致性要比较同一 transaction/cycle。
+
+已知工具注意点：
+
+- 空 output 连接可能触发 Verilator `PINCONNECTEMPTY`；内部 named sink 通常更稳；
+- `$error` 在启用 assert 的 Verilator 下可能终止，非真空采样可用计数或 `$display`；
+- XMR 路径必须跟随真实实例层级，修改 hierarchy 后重新确认；
+- 某些 harness 的 `$time` 不推进，精确周期使用显式 counter；
+- checker stdout 是否被 runner 捕获要由实际命令验证，不能只假设日志链存在；
+- 时序仲裁的 reg 是下一拍结果，不能拿同拍旧值做错误比较；
+- 先追 driver/consumer，避免把名称相似但阶段不同的 trap/fault 信号混用。
+
+## 验证选择
+
+根据改动支持的 claim 选择最小组合：
+
+- module-local：相关 lint/elaboration + directed TB 或 assertion；
+- 跨 pipeline：相邻模块 TB、全核 smoke、DiffTest slice 或波形；
+- memory/exception：能触发相关 ordering/fault/replay/flush 交互的 case；
+- system-visible：对应 OpenSBI/Linux/device workload；
+- PPA：匹配 filelist/config/corner/workload 的 mapped/STA/PPA 证据。
+
+固定输入和确定 oracle 默认一次。只有随机、并发、flaky、未固定 seed/thread、测量噪声、机器异常或矛盾
+结果时重复。版本控制内未修改且没有异常迹象的 checker/runner 默认可信；不要先做全套 checker 自证再跑
+真实 RTL。
+
+## 结果边界
+
+最终说明受影响 module/signal/transaction、关键周期/优先级、执行的 TB/仿真/EDA 观测、PASS/GAP 和未运行
+范围。以下仍不可越级：
+
+- lint/elaboration 不证明动态协议；
+- module TB 不证明全核或 Linux；
+- NEMU reference 不证明 NPC target；
+- debug checker 不参与综合，不能证明 mapped timing/area；
+- focused case 不证明未运行的 flush/ordering/config 矩阵；
+- task contract、hash、profile 或 AI policy PASS 不证明 RTL correctness。
+
+若 current spec 与生产 RTL/test 的语义确实矛盾，把它作为工程缺口处理并修正最接近事实源的一侧；不要以
+“先契约”或“先 RTL”的口号替代对可观察行为的判断。

@@ -1,5 +1,16 @@
 `include "define.v"
 
+// The OoO observer consumes signals declared by the shared simulation-stats
+// probe network.  Kconfig already nests OOO_STATS under SIM_STATS, but keep a
+// file-local closure for direct/manual Verilator builds that define OOO_STATS
+// alone.
+`ifdef CONFIG_NPC_OOO_STATS
+`ifndef CONFIG_NPC_SIM_STATS
+`define CONFIG_NPC_SIM_STATS
+`define NPC_SIM_TOP_LOCAL_SIM_STATS_CLOSURE
+`endif
+`endif
+
 // DPI-C 仿真顶层：只负责把可综合 NpcCore 接到独立总线和宿主侧事件模型。
 // 该文件不能进入 RTL_CORE_SRCS/STA_RTL_FILES。
 
@@ -140,7 +151,35 @@ import "DPI-C" function void npc_ooo_cycle_event(
   input int unsigned retire_slot0_reason,
   input int unsigned retire_slot1_reason,
   input int unsigned retire_slot0_request_detail,
-  input int unsigned retire_slot1_request_detail
+  input int unsigned retire_slot1_request_detail,
+  input int unsigned tensor_issued_count,
+  input int unsigned tensor_terminal_count,
+  input int unsigned tensor_completion_count,
+  input int unsigned tensor_wait_head_cycles,
+  input int unsigned tensor_wait_drain_cycles,
+  input int unsigned tensor_npu_backpressure_cycles,
+  input int unsigned tensor_serialize_cycles,
+  input int unsigned tensor_alloc_direct_issue_count,
+  input int unsigned tensor_attribution_prelaunch_cancel_cycles,
+  input int unsigned tensor_attribution_wait_not_exact_head_cycles,
+  input int unsigned tensor_attribution_wait_launch_gate_cycles,
+  input int unsigned tensor_attribution_wait_src_dependency_cycles,
+  input int unsigned tensor_attribution_wait_src_value_cycles,
+  input int unsigned tensor_attribution_wait_mem_active_cycles,
+  input int unsigned tensor_attribution_wait_mem_retire_cycles,
+  input int unsigned tensor_attribution_launch_to_offer_cycles,
+  input int unsigned tensor_attribution_offer_backpressure_cycles,
+  input int unsigned tensor_attribution_offer_accept_cycles,
+  input int unsigned tensor_attribution_sent_terminal_absent_cycles,
+  input int unsigned tensor_attribution_sent_terminal_stale_cycles,
+  input int unsigned tensor_attribution_sent_terminal_accept_cycles,
+  input int unsigned tensor_attribution_complete_wb_backpressure_cycles,
+  input int unsigned tensor_attribution_complete_stale_drop_cycles,
+  input int unsigned tensor_attribution_complete_wb_accept_cycles,
+  input int unsigned tensor_attribution_invalid_state_cycles,
+  input int unsigned tensor_attribution_sent_terminal_completion_stale_cycles,
+  input int unsigned tensor_attribution_sent_terminal_wb_accept_cycles,
+  input int unsigned sq_idle_fusion_qualification_mask
 );
 `endif
 
@@ -170,6 +209,49 @@ import "DPI-C" function void npc_irq_event(
 module NpcSimTop (
   input logic clk,
   input logic rst,
+  output logic tensor_cmd_valid_o,
+  input logic tensor_cmd_ready_i,
+  output logic [63:0] tensor_cmd_bits_o,
+  output logic [`XLEN-1:0] tensor_cmd_rs_value_o,
+  output logic [`OOO_PRODUCER_ID_W-1:0] tensor_cmd_producer_id_o,
+  output logic tensor_cmd_is_64_o,
+  output logic tensor_cmd_required_o,
+  output logic [7:0] tensor_cmd_opclass_o,
+  input logic tensor_terminal_valid_i,
+  output logic tensor_terminal_ready_o,
+  input logic [`OOO_PRODUCER_ID_W-1:0] tensor_terminal_producer_id_i,
+  input logic tensor_terminal_error_i,
+  input logic [7:0] tensor_terminal_error_code_i,
+  output logic tensor_serialize_o,
+`ifdef CONFIG_NPC_OOO_STATS
+  output logic [31:0] debug_tensor_issued_count_o,
+  output logic [31:0] debug_tensor_terminal_count_o,
+  output logic [31:0] debug_tensor_completion_count_o,
+  output logic [31:0] debug_tensor_wait_head_cycles_o,
+  output logic [31:0] debug_tensor_wait_drain_cycles_o,
+  output logic [31:0] debug_tensor_npu_backpressure_cycles_o,
+  output logic [31:0] debug_tensor_serialize_cycles_o,
+  output logic [31:0] debug_tensor_alloc_direct_issue_count_o,
+  output logic [31:0] debug_tensor_attribution_prelaunch_cancel_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_not_exact_head_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_launch_gate_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_src_dependency_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_src_value_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_mem_active_cycles_o,
+  output logic [31:0] debug_tensor_attribution_wait_mem_retire_cycles_o,
+  output logic [31:0] debug_tensor_attribution_launch_to_offer_cycles_o,
+  output logic [31:0] debug_tensor_attribution_offer_backpressure_cycles_o,
+  output logic [31:0] debug_tensor_attribution_offer_accept_cycles_o,
+  output logic [31:0] debug_tensor_attribution_sent_terminal_absent_cycles_o,
+  output logic [31:0] debug_tensor_attribution_sent_terminal_stale_cycles_o,
+  output logic [31:0] debug_tensor_attribution_sent_terminal_accept_cycles_o,
+  output logic [31:0] debug_tensor_attribution_complete_wb_backpressure_cycles_o,
+  output logic [31:0] debug_tensor_attribution_complete_stale_drop_cycles_o,
+  output logic [31:0] debug_tensor_attribution_complete_wb_accept_cycles_o,
+  output logic [31:0] debug_tensor_attribution_invalid_state_cycles_o,
+  output logic [31:0] debug_tensor_attribution_sent_terminal_completion_stale_cycles_o,
+  output logic [31:0] debug_tensor_attribution_sent_terminal_wb_accept_cycles_o,
+`endif
 
   output logic [`XLEN-1:0] debug_pc_o,
   output logic [`CORE_STATE_W-1:0] debug_state_o,
@@ -372,6 +454,20 @@ module NpcSimTop (
   NpcTop u_top (
     .clk(clk),
     .rst(rst),
+    .tensor_cmd_valid_o(tensor_cmd_valid_o),
+    .tensor_cmd_ready_i(tensor_cmd_ready_i),
+    .tensor_cmd_bits_o(tensor_cmd_bits_o),
+    .tensor_cmd_rs_value_o(tensor_cmd_rs_value_o),
+    .tensor_cmd_producer_id_o(tensor_cmd_producer_id_o),
+    .tensor_cmd_is_64_o(tensor_cmd_is_64_o),
+    .tensor_cmd_required_o(tensor_cmd_required_o),
+    .tensor_cmd_opclass_o(tensor_cmd_opclass_o),
+    .tensor_terminal_valid_i(tensor_terminal_valid_i),
+    .tensor_terminal_ready_o(tensor_terminal_ready_o),
+    .tensor_terminal_producer_id_i(tensor_terminal_producer_id_i),
+    .tensor_terminal_error_i(tensor_terminal_error_i),
+    .tensor_terminal_error_code_i(tensor_terminal_error_code_i),
+    .tensor_serialize_o(tensor_serialize_o),
 
     .psram_axi_arvalid_o(psram_axi_arvalid_w),
     .psram_axi_arready_i(psram_axi_arready_w),
@@ -512,6 +608,114 @@ module NpcSimTop (
     .rob_count_o(core_rob_count_w),
     .issue_count_o(core_issue_count_w)
   );
+
+`ifdef CONFIG_NPC_OOO_STATS
+  // Simulation-only, read-only post-eval snapshots.  The production host
+  // samples these after Verilator has applied the current posedge's NBA
+  // updates; no signal feeds back into NpcTop.
+  assign debug_tensor_issued_count_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.issued_count_o;
+  assign debug_tensor_terminal_count_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.terminal_count_o;
+  assign debug_tensor_completion_count_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.completion_count_o;
+  assign debug_tensor_wait_head_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.wait_head_cycles_o;
+  assign debug_tensor_wait_drain_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.wait_drain_cycles_o;
+  assign debug_tensor_npu_backpressure_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .npu_backpressure_cycles_o;
+  assign debug_tensor_serialize_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar.serialize_cycles_o;
+  assign debug_tensor_alloc_direct_issue_count_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .alloc_direct_issue_count_q;
+  assign debug_tensor_attribution_prelaunch_cancel_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_prelaunch_cancel_cycles_q;
+  assign debug_tensor_attribution_wait_not_exact_head_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_not_exact_head_cycles_q;
+  assign debug_tensor_attribution_wait_launch_gate_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_launch_gate_cycles_q;
+  assign debug_tensor_attribution_wait_src_dependency_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_src_dependency_cycles_q;
+  assign debug_tensor_attribution_wait_src_value_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_src_value_cycles_q;
+  assign debug_tensor_attribution_wait_mem_active_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_mem_active_cycles_q;
+  assign debug_tensor_attribution_wait_mem_retire_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_wait_mem_retire_cycles_q;
+  assign debug_tensor_attribution_launch_to_offer_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_launch_to_offer_cycles_q;
+  assign debug_tensor_attribution_offer_backpressure_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_offer_backpressure_cycles_q;
+  assign debug_tensor_attribution_offer_accept_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_offer_accept_cycles_q;
+  assign debug_tensor_attribution_sent_terminal_absent_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_sent_terminal_absent_cycles_q;
+  assign debug_tensor_attribution_sent_terminal_stale_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_sent_terminal_stale_cycles_q;
+  assign debug_tensor_attribution_sent_terminal_accept_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_sent_terminal_accept_cycles_q;
+  assign debug_tensor_attribution_complete_wb_backpressure_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_complete_wb_backpressure_cycles_q;
+  assign debug_tensor_attribution_complete_stale_drop_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_complete_stale_drop_cycles_q;
+  assign debug_tensor_attribution_complete_wb_accept_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_complete_wb_accept_cycles_q;
+  assign debug_tensor_attribution_invalid_state_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_invalid_state_cycles_q;
+  assign debug_tensor_attribution_sent_terminal_completion_stale_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_sent_terminal_completion_stale_cycles_q;
+  assign debug_tensor_attribution_sent_terminal_wb_accept_cycles_o =
+      u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+          .attribution_sent_terminal_wb_accept_cycles_q;
+`endif
 
   wire unused_top_status_w =
       core_halted_w | core_commit0_write_w | core_commit1_write_w |
@@ -1012,6 +1216,108 @@ module NpcSimTop (
       u_top.u_core.u_ooo_core.csr_trap_mem_valid_w ||
       u_top.u_core.u_ooo_core.csr_trap_ex_valid_w ||
       u_top.u_core.u_ooo_core.csr_trap_irq_valid_w;
+
+`ifdef CONFIG_NPC_OOO_STATS
+  // SQ idle-fusion qualification is a same-cycle, read-only event projection.
+  // "Idle" means bridge S_IDLE admission through the bridge-local stats wire;
+  // it is deliberately unrelated to StoreQueue emptiness or drain residency.
+  wire sim_sq_idle_fusion_prequal0_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge0
+          .stats_current_head_sq_probe_w === 1'b1;
+  wire sim_sq_idle_fusion_prequal1_w =
+      u_top.u_core.u_ooo_dual_mem_bridge.u_bridge1
+          .stats_current_head_sq_probe_w === 1'b1;
+  wire sim_sq_idle_fusion_exact0_w = sim_sq_idle_fusion_prequal0_w &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_sq_query_exact_w === 1'b1);
+  wire sim_sq_idle_fusion_exact1_w = sim_sq_idle_fusion_prequal1_w &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem1_sq_query_exact_w === 1'b1);
+  wire [2:0] sim_sq_idle_fusion_decision0_w = {
+      u_top.u_core.ooo_mem0_sq_query_replay_w,
+      u_top.u_core.ooo_mem0_sq_query_forward_w,
+      u_top.u_core.ooo_mem0_sq_query_allow_w
+  };
+  wire [2:0] sim_sq_idle_fusion_decision1_w = {
+      u_top.u_core.ooo_mem1_sq_query_replay_w,
+      u_top.u_core.ooo_mem1_sq_query_forward_w,
+      u_top.u_core.ooo_mem1_sq_query_allow_w
+  };
+  wire sim_sq_idle_fusion_allow0_w = sim_sq_idle_fusion_exact0_w &&
+      (sim_sq_idle_fusion_decision0_w === 3'b001);
+  wire sim_sq_idle_fusion_allow1_w = sim_sq_idle_fusion_exact1_w &&
+      (sim_sq_idle_fusion_decision1_w === 3'b001);
+  wire sim_sq_idle_fusion_forward0_w = sim_sq_idle_fusion_exact0_w &&
+      (sim_sq_idle_fusion_decision0_w === 3'b010);
+  wire sim_sq_idle_fusion_forward1_w = sim_sq_idle_fusion_exact1_w &&
+      (sim_sq_idle_fusion_decision1_w === 3'b010);
+  wire sim_sq_idle_fusion_replay0_w = sim_sq_idle_fusion_exact0_w &&
+      (sim_sq_idle_fusion_decision0_w === 3'b100);
+  wire sim_sq_idle_fusion_replay1_w = sim_sq_idle_fusion_exact1_w &&
+      (sim_sq_idle_fusion_decision1_w === 3'b100);
+  wire sim_sq_idle_fusion_invalid0_w = sim_sq_idle_fusion_exact0_w &&
+      !((sim_sq_idle_fusion_decision0_w === 3'b001) ||
+        (sim_sq_idle_fusion_decision0_w === 3'b010) ||
+        (sim_sq_idle_fusion_decision0_w === 3'b100));
+  wire sim_sq_idle_fusion_invalid1_w = sim_sq_idle_fusion_exact1_w &&
+      !((sim_sq_idle_fusion_decision1_w === 3'b001) ||
+        (sim_sq_idle_fusion_decision1_w === 3'b010) ||
+        (sim_sq_idle_fusion_decision1_w === 3'b100));
+
+  // A full ProducerId comparison includes both ROB index and generation.  The
+  // explicit known checks make a same-position X/X pair fail closed even
+  // though case equality itself would otherwise report a match.
+  wire sim_sq_idle_fusion_allow_rob_head0_w =
+      sim_sq_idle_fusion_allow0_w &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_valid_w === 1'b1) &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_launch_open_w === 1'b1) &&
+      ((^u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_completion_producer_id_w)
+          !== 1'bx) &&
+      ((^u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_producer_id_w) !== 1'bx) &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem_completion_producer_id_w ===
+       u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_producer_id_w);
+  wire sim_sq_idle_fusion_allow_rob_head1_w =
+      sim_sq_idle_fusion_allow1_w &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_valid_w === 1'b1) &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_launch_open_w === 1'b1) &&
+      ((^u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem1_completion_producer_id_w)
+          !== 1'bx) &&
+      ((^u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_producer_id_w) !== 1'bx) &&
+      (u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.mem1_completion_producer_id_w ===
+       u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+          .u_decode_backend.u_int_backend.rob_head_producer_id_w);
+
+  // Field-major ABI: low bit lane0, high bit lane1.  Bits 31:14 are reserved
+  // and remain zero; the host popcounts every pair so 2'b11 contributes two.
+  wire [31:0] sim_sq_idle_fusion_qualification_mask_w = {
+      18'd0,
+      sim_sq_idle_fusion_allow_rob_head1_w,
+      sim_sq_idle_fusion_allow_rob_head0_w,
+      sim_sq_idle_fusion_invalid1_w,
+      sim_sq_idle_fusion_invalid0_w,
+      sim_sq_idle_fusion_replay1_w,
+      sim_sq_idle_fusion_replay0_w,
+      sim_sq_idle_fusion_forward1_w,
+      sim_sq_idle_fusion_forward0_w,
+      sim_sq_idle_fusion_allow1_w,
+      sim_sq_idle_fusion_allow0_w,
+      sim_sq_idle_fusion_exact1_w,
+      sim_sq_idle_fusion_exact0_w,
+      sim_sq_idle_fusion_prequal1_w,
+      sim_sq_idle_fusion_prequal0_w
+  };
+`endif
 
   // V13O conserving ROB-head lifecycle stack.  Every predicate below is an
   // edge-old full-ProducerId or exact memory-owner-token fact already
@@ -2096,7 +2402,89 @@ module NpcSimTop (
         {28'd0, sim_retire_slot0_reason_w},
         {28'd0, sim_retire_slot1_reason_w},
         {29'd0, sim_retire_slot0_request_detail_w},
-        {29'd0, sim_retire_slot1_request_detail_w}
+        {29'd0, sim_retire_slot1_request_detail_w},
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .issued_count_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .terminal_count_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .completion_count_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .wait_head_cycles_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .wait_drain_cycles_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .npu_backpressure_cycles_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .serialize_cycles_o,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .alloc_direct_issue_count_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_prelaunch_cancel_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_not_exact_head_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_launch_gate_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_src_dependency_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_src_value_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_mem_active_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_wait_mem_retire_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_launch_to_offer_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_offer_backpressure_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_offer_accept_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_sent_terminal_absent_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_sent_terminal_stale_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_sent_terminal_accept_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_complete_wb_backpressure_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_complete_stale_drop_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_complete_wb_accept_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_invalid_state_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_sent_terminal_completion_stale_cycles_q,
+        u_top.u_core.u_ooo_core.u_execute_backend.u_core_slice
+            .u_decode_backend.u_int_backend.u_tensor_rob_sidecar
+            .attribution_sent_terminal_wb_accept_cycles_q,
+        sim_sq_idle_fusion_qualification_mask_w
       );
 `endif
 
@@ -2412,3 +2800,8 @@ module NpcSimTop (
 `endif
 
 endmodule
+
+`ifdef NPC_SIM_TOP_LOCAL_SIM_STATS_CLOSURE
+`undef CONFIG_NPC_SIM_STATS
+`undef NPC_SIM_TOP_LOCAL_SIM_STATS_CLOSURE
+`endif

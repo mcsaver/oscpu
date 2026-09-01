@@ -19,6 +19,14 @@ module tb_ooo_frontend_backend_dispatch_mux;
   reg direct_jal1_fire;
   reg direct_ret1_fire;
   reg dispatch0_ready;
+  reg tensor_dispatch_open;
+  reg tensor_dispatch_valid;
+  reg [`XLEN-1:0] tensor_dispatch_pc;
+  reg [`XLEN-1:0] tensor_dispatch_next_pc;
+  reg [`INST_W-1:0] tensor_dispatch_inst;
+  reg tensor_residual_valid;
+  reg [`XLEN-1:0] tensor_residual_pc;
+  reg [`INST_W-1:0] tensor_residual_inst;
 
   reg [`XLEN-1:0] branch_prefetch_buf_pc0;
   reg [`XLEN-1:0] branch_prefetch_buf_next_pc0;
@@ -70,6 +78,7 @@ module tb_ooo_frontend_backend_dispatch_mux;
   wire [`XLEN-1:0] core_dispatch1_pc;
   wire [`XLEN-1:0] core_dispatch1_next_pc;
   wire [`INST_W-1:0] core_dispatch1_inst;
+  wire core_dispatch0_tensor;
 
   OooFrontendBackendDispatchMux dut (
     .dispatch1_ready_i(1'b1),
@@ -77,6 +86,14 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .d0_ctrlflow_fired_i(1'b0),
     .d1_ctrlflow_fired_i(1'b0),
     .direct_fire_succ_i({`XLEN{1'b0}}),
+    .tensor_dispatch_open_i(tensor_dispatch_open),
+    .tensor_dispatch_valid_i(tensor_dispatch_valid),
+    .tensor_dispatch_pc_i(tensor_dispatch_pc),
+    .tensor_dispatch_next_pc_i(tensor_dispatch_next_pc),
+    .tensor_dispatch_inst_i(tensor_dispatch_inst),
+    .tensor_residual_valid_i(tensor_residual_valid),
+    .tensor_residual_pc_i(tensor_residual_pc),
+    .tensor_residual_inst_i(tensor_residual_inst),
     .branch_prefetch_dispatch_attempt_i(branch_prefetch_dispatch_attempt),
     .branch_prefetch_dispatch_buffer_i(branch_prefetch_dispatch_buffer),
     .branch_prefetch_dispatch_rsp_i(branch_prefetch_dispatch_rsp),
@@ -136,7 +153,8 @@ module tb_ooo_frontend_backend_dispatch_mux;
     .core_dispatch0_csr_rdata_o(core_dispatch0_csr_rdata),
     .core_dispatch1_pc_o(core_dispatch1_pc),
     .core_dispatch1_next_pc_o(core_dispatch1_next_pc),
-    .core_dispatch1_inst_o(core_dispatch1_inst)
+    .core_dispatch1_inst_o(core_dispatch1_inst),
+    .core_dispatch0_tensor_o(core_dispatch0_tensor)
   );
 
   task automatic tb_check64;
@@ -170,6 +188,14 @@ module tb_ooo_frontend_backend_dispatch_mux;
       direct_jal1_fire = 1'b0;
       direct_ret1_fire = 1'b0;
       dispatch0_ready = 1'b1;
+      tensor_dispatch_open = 1'b1;
+      tensor_dispatch_valid = 1'b0;
+      tensor_dispatch_pc = 64'h6000_0000;
+      tensor_dispatch_next_pc = 64'h6000_0008;
+      tensor_dispatch_inst = 32'h0000_007b;
+      tensor_residual_valid = 1'b0;
+      tensor_residual_pc = 64'h6000_0008;
+      tensor_residual_inst = 32'h0000_0013;
 
       branch_prefetch_buf_pc0 = 64'h3000_0000;
       branch_prefetch_buf_next_pc0 = 64'h3000_0004;
@@ -245,6 +271,51 @@ module tb_ooo_frontend_backend_dispatch_mux;
 
   initial begin
     tb_errors = 0;
+
+    reset_inputs();
+    tensor_dispatch_valid = 1'b1;
+    #1;
+    expect_dispatch0("tensor open", 1'b1, tensor_dispatch_pc,
+                     tensor_dispatch_next_pc, tensor_dispatch_inst,
+                     {`XLEN{1'b0}});
+    expect_dispatch1("tensor open", 1'b0, head_pc1, head_next_pc1,
+                     head_inst1);
+    tb_check1("tensor marker", core_dispatch0_tensor, 1'b1);
+
+    reset_inputs();
+    tensor_dispatch_open = 1'b0;
+    tensor_dispatch_valid = 1'b1;
+    #1;
+    expect_dispatch0("tensor control blocked", 1'b0, head_pc0,
+                     head_next_pc0, head_inst0, {`XLEN{1'b0}});
+    tb_check1("blocked tensor no fire", core_dispatch0_fire, 1'b0);
+    tb_check1("blocked tensor no marker", core_dispatch0_tensor, 1'b0);
+
+    reset_inputs();
+    tensor_dispatch_open = 1'b0;
+    tensor_dispatch_valid = 1'b1;
+    system_csr_dispatch_valid = 1'b1;
+    #1;
+    expect_dispatch0("control wins blocked tensor", 1'b1,
+                     pending_system_pc, pending_system_next_pc,
+                     pending_system_inst, pending_system_csr_rdata);
+    tb_check1("control is not tensor", core_dispatch0_tensor, 1'b0);
+
+    reset_inputs();
+    tensor_dispatch_open = 1'b0;
+    tensor_residual_valid = 1'b1;
+    #1;
+    expect_dispatch0("residual control blocked", 1'b0, head_pc0,
+                     head_next_pc0, head_inst0, {`XLEN{1'b0}});
+    tb_check1("blocked residual no fire", core_dispatch0_fire, 1'b0);
+
+    reset_inputs();
+    tensor_residual_valid = 1'b1;
+    #1;
+    expect_dispatch0("residual open", 1'b1, tensor_residual_pc,
+                     tensor_residual_pc + 64'd4, tensor_residual_inst,
+                     {`XLEN{1'b0}});
+    tb_check1("residual is not tensor", core_dispatch0_tensor, 1'b0);
 
     reset_inputs();
     frontend_dispatch_to_backend_valid = 1'b1;

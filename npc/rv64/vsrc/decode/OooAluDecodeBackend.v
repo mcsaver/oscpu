@@ -36,6 +36,25 @@ module OooAluDecodeBackend #(
   input dispatch0_pred_taken_i,
   input [`INST_W-1:0] dispatch0_inst_i,
   input [`XLEN-1:0] dispatch0_csr_rdata_i,
+  input dispatch0_is_tensor_i,
+  input [63:0] dispatch0_tensor_bits_i,
+  input dispatch0_tensor_is_64_i,
+  input dispatch0_tensor_required_i,
+  input [7:0] dispatch0_tensor_opclass_i,
+  output tensor_cmd_valid_o,
+  input tensor_cmd_ready_i,
+  output [63:0] tensor_cmd_bits_o,
+  output [`XLEN-1:0] tensor_cmd_rs_value_o,
+  output [PRODUCER_ID_W-1:0] tensor_cmd_producer_id_o,
+  output tensor_cmd_is_64_o,
+  output tensor_cmd_required_o,
+  output [7:0] tensor_cmd_opclass_o,
+  input tensor_terminal_valid_i,
+  output tensor_terminal_ready_o,
+  input [PRODUCER_ID_W-1:0] tensor_terminal_producer_id_i,
+  input tensor_terminal_error_i,
+  input [7:0] tensor_terminal_error_code_i,
+  output tensor_serialize_o,
   output dispatch0_unsupported_o,
   output dispatch0_unsupported_raw_o,
 
@@ -499,6 +518,12 @@ module OooAluDecodeBackend #(
       (d1_fp_gpr_src_w ? (`CTRL_BUS_W'b1 << `CTRL_RS1_EN_BIT) : {`CTRL_BUS_W{1'b0}});
 
   wire [`CTRL_BUS_W-1:0] backend_dispatch0_ctrl_w =
+      dispatch0_is_tensor_i ?
+        (({`CTRL_BUS_W{1'b0}}) |
+         (`CTRL_BUS_W'b1 << `CTRL_VALID_BIT) |
+         (`CTRL_BUS_W'b1 << `CTRL_NEED_EXEC_BIT) |
+         (!dispatch0_tensor_is_64_i ?
+           (`CTRL_BUS_W'b1 << `CTRL_RS1_EN_BIT) : {`CTRL_BUS_W{1'b0}})) :
       d0_is_fp_w ? d0_fp_ctrl_w : decode0_ctrl_w;
   wire [`CTRL_BUS_W-1:0] backend_dispatch1_ctrl_w =
       d1_is_fp_w ? d1_fp_ctrl_w : decode1_ctrl_w;
@@ -518,25 +543,30 @@ module OooAluDecodeBackend #(
       d1_is_fp_w ? d1_fp_imm_w : backend_dispatch1_imm_w;
 
   wire backend_dispatch0_valid_w =
-      dispatch0_valid_i && (dispatch0_supported_w || d0_is_fp_w);
+      dispatch0_valid_i &&
+      (dispatch0_is_tensor_i || dispatch0_supported_w || d0_is_fp_w);
   wire backend_dispatch1_valid_w =
       dispatch1_valid_i &&
       (d1_is_fp_w ? d1_fp_allow_w : dispatch1_supported_w);
   wire backend_dispatch0_ready_w;
   wire backend_dispatch1_ready_w;
 
-  assign dispatch0_ready_o = (dispatch0_supported_w || d0_is_fp_w) &&
+  assign dispatch0_ready_o =
+                             (dispatch0_is_tensor_i ||
+                              dispatch0_supported_w || d0_is_fp_w) &&
                              backend_dispatch0_ready_w;
   assign dispatch1_ready_o = (d1_is_fp_w ? d1_fp_allow_w
                                          : dispatch1_supported_w) &&
                              backend_dispatch1_ready_w;
   assign dispatch0_unsupported_o =
-      dispatch0_valid_i && !dispatch0_supported_w && !d0_is_fp_w;
+      dispatch0_valid_i && !dispatch0_is_tensor_i &&
+      !dispatch0_supported_w && !d0_is_fp_w;
   assign dispatch1_unsupported_o =
       dispatch1_valid_i && !dispatch1_supported_w && !d1_is_fp_w;
   // 【F2】裸支持性(纯 inst 组合, 不含 valid): 前端 dual_go 谓词用——含 valid 版
   // 经 core_dispatch1_valid←dual_go 成 UNOPTFLAT 环。
-  assign dispatch0_unsupported_raw_o = !dispatch0_supported_w && !d0_is_fp_w;
+  assign dispatch0_unsupported_raw_o = !dispatch0_is_tensor_i &&
+      !dispatch0_supported_w && !d0_is_fp_w;
   assign dispatch1_unsupported_raw_o = !dispatch1_supported_w && !d1_is_fp_w;
 
   OooIntBackend #(
@@ -581,6 +611,25 @@ module OooAluDecodeBackend #(
     .dispatch0_rs2_arch_i(decode0_rs2_w),
     .dispatch0_rd_arch_i(decode0_rd_w),
     .dispatch0_imm_i(fp_dispatch0_imm_w),
+    .dispatch0_is_tensor_i(dispatch0_is_tensor_i),
+    .dispatch0_tensor_bits_i(dispatch0_tensor_bits_i),
+    .dispatch0_tensor_is_64_i(dispatch0_tensor_is_64_i),
+    .dispatch0_tensor_required_i(dispatch0_tensor_required_i),
+    .dispatch0_tensor_opclass_i(dispatch0_tensor_opclass_i),
+    .tensor_cmd_valid_o(tensor_cmd_valid_o),
+    .tensor_cmd_ready_i(tensor_cmd_ready_i),
+    .tensor_cmd_bits_o(tensor_cmd_bits_o),
+    .tensor_cmd_rs_value_o(tensor_cmd_rs_value_o),
+    .tensor_cmd_producer_id_o(tensor_cmd_producer_id_o),
+    .tensor_cmd_is_64_o(tensor_cmd_is_64_o),
+    .tensor_cmd_required_o(tensor_cmd_required_o),
+    .tensor_cmd_opclass_o(tensor_cmd_opclass_o),
+    .tensor_terminal_valid_i(tensor_terminal_valid_i),
+    .tensor_terminal_ready_o(tensor_terminal_ready_o),
+    .tensor_terminal_producer_id_i(tensor_terminal_producer_id_i),
+    .tensor_terminal_error_i(tensor_terminal_error_i),
+    .tensor_terminal_error_code_i(tensor_terminal_error_code_i),
+    .tensor_serialize_o(tensor_serialize_o),
     .dispatch1_valid_i(backend_dispatch1_valid_w),
     .dispatch1_optional_i(dispatch1_optional_i),
     .dispatch1_ready_o(backend_dispatch1_ready_w),

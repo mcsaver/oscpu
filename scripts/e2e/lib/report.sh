@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# task-run 记录层：所有 e2e profile 都通过这里生成统一证据包。
+# E2E 结果层：compact 模式保存直接日志；durable 模式才生成 publication 证据包。
 
 e2e_validate_run_dir() {
   local task_root task_root_real run_real
@@ -87,26 +87,24 @@ e2e_allocate_run_dir() {
 }
 
 e2e_sanitize_task_run_text_artifacts() {
-  local file list_file last_line
+  local file last_line
   e2e_validate_run_dir || return 1
 
-  # 统一清理 e2e 证据包中的行尾空白、CR 和文件尾空行，避免生成物过不了 git diff --check。
-  list_file=$(mktemp "$E2E_RUN_DIR/.sanitize-files.XXXXXX") || return 1
-  if ! find "$E2E_RUN_DIR" -type f \
-      \( -name '*.md' -o -name '*.tsv' -o -name '*.log' -o -name '*.cmd' -o -name '*.txt' \) \
-      -print0 > "$list_file"; then
-    rm -f -- "$list_file"
-    return 1
-  fi
-  while IFS= read -r -d '' file; do
-    LC_ALL=C sed -i 's/[ \t\r]*$//' "$file" || { rm -f -- "$list_file"; return 1; }
+  # 只规范化 runner 自己生成的顶层文本；真实 workload/evidence 日志保持原始字节。
+  for file in \
+      "$E2E_REPORT_FILE" \
+      "$E2E_DISPATCH_FILE" \
+      "$E2E_CONTEXT_BRIEF_FILE" \
+      "$E2E_PROFILE_RESOLVE_FILE" \
+      "$E2E_NODES_FILE"; do
+    [[ -f $file && ! -L $file ]] || continue
+    LC_ALL=C sed -i 's/[ \t\r]*$//' "$file" || return 1
     while [[ -s $file ]]; do
-      last_line=$(tail -n 1 "$file") || { rm -f -- "$list_file"; return 1; }
+      last_line=$(tail -n 1 "$file") || return 1
       [[ -z $last_line ]] || break
-      sed -i '$d' "$file" || { rm -f -- "$list_file"; return 1; }
+      sed -i '$d' "$file" || return 1
     done
-  done < "$list_file"
-  rm -f -- "$list_file" || return 1
+  done
 }
 
 e2e_render_run_manifest() {
@@ -1482,6 +1480,28 @@ e2e_generate_context_brief() {
   fi
 }
 
+e2e_generate_direct_context_note() {
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 1
+  {
+    printf '# Agent Brief\n\n'
+    printf -- '- `ok`: true\n'
+    printf -- '- `recall_status`: not-requested\n'
+    printf -- '- `profile`: %s\n' "$E2E_PROFILE"
+    printf -- '- `source`: direct-live-inputs\n'
+    printf '\nDB recall was not requested. The runner uses the live profile, module code, direct inputs, and current repository state.\n'
+  } > "$E2E_CONTEXT_BRIEF_FILE" || return 1
+  e2e_append_dispatch \
+    "context-brief" \
+    "SKIP" \
+    "agent-system" \
+    "direct-context" \
+    "use live profile inputs" \
+    ".github/e2e/profiles/$E2E_PROFILE.tsv + direct module inputs" \
+    "context recall not requested" \
+    "$(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")" \
+    "dispatch current profile without a historical recall gate"
+}
+
 e2e_generate_profile_resolve() {
   [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 1
 
@@ -1532,6 +1552,38 @@ e2e_generate_profile_resolve() {
       "继续采集诊断，但本轮 overall status 保持 FAIL"
     return 1
   fi
+}
+
+e2e_generate_live_profile_resolve() {
+  [[ -n ${E2E_RUN_DIR:-} && -d $E2E_RUN_DIR ]] || return 1
+  local i
+  {
+    printf '# E2E Resolved Profile\n\n'
+    printf -- '- `ok`: True\n'
+    printf -- '- `profile`: %s\n' "$E2E_PROFILE"
+    printf -- '- `source`: live-profile\n'
+    printf -- '- `expanded_node_count`: %s\n' "${#PROFILE_NODE_IDS[@]}"
+    printf '\n## Nodes\n\n'
+    for i in "${!PROFILE_NODE_IDS[@]}"; do
+      printf '%s. `%s` source=`%s` module=`%s` owner=`%s` function=`%s`\n' \
+        "$((i + 1))" \
+        "${PROFILE_NODE_IDS[$i]}" \
+        "${PROFILE_SOURCES[$i]}" \
+        "${PROFILE_MODULES[$i]}" \
+        "${PROFILE_OWNERS[$i]}" \
+        "${PROFILE_FUNCTIONS[$i]}"
+    done
+  } > "$E2E_PROFILE_RESOLVE_FILE" || return 1
+  e2e_append_dispatch \
+    "profile-resolve" \
+    "PASS" \
+    "agent-system" \
+    "live-profile" \
+    "expand loaded TSV includes" \
+    ".github/e2e/profiles/$E2E_PROFILE.tsv" \
+    "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
+    "$(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")" \
+    "dispatch the already validated live profile closure"
 }
 
 e2e_init_dispatch_log() {
@@ -1686,8 +1738,13 @@ e2e_run_shell_node() {
 
 e2e_render_report() {
   local status updated final_result risk next_step nodes_fd nodes_inode path_inode render_nodes_rc=0
+  local persistence_mode=${E2E_PERSISTENCE_MODE:-compact}
+  local publication_contract=none
   local completion_marker=${E2E_COMPLETE_MARKER_FILE:-$E2E_RUN_DIR/complete.marker}
   local publication_file=${E2E_PUBLICATION_FILE:-$E2E_RUN_DIR/completion-publication.md}
+  if [[ $persistence_mode = durable ]]; then
+    publication_contract=db-marker-v1
+  fi
   rm -f -- "$completion_marker" "$publication_file" || return 1
   [[ ! -e $completion_marker && ! -L $completion_marker ]] || return 1
   [[ ! -e $publication_file && ! -L $publication_file ]] || return 1
@@ -1711,9 +1768,9 @@ e2e_render_report() {
   fi
   if [[ $E2E_OVERALL_RC -eq 0 ]]; then
     status=completed
-    final_result="profile=$E2E_PROFILE 通过，当前 modular e2e 证据链可复用。"
-    risk="无 hard fail；optional tool 缺失只作为后续节点风险。"
-    next_step="按模块或跨模块目标选择更深 profile，或进入具体静态图。"
+    final_result="profile=$E2E_PROFILE 的全部实际节点通过。"
+    risk="结果只覆盖本 profile 明示的配置、节点和 observable criteria。"
+    next_step="按用户目标决定是否需要更高层场景；不要重复同一确定性检查。"
   else
     status=blocked
     if [[ ${E2E_SKIP_COUNT:-0} -gt 0 ]]; then
@@ -1722,22 +1779,9 @@ e2e_render_report() {
       next_step="补齐依赖或切换到能执行全部 required 节点的配置后重跑。"
     else
       final_result="profile=$E2E_PROFILE 存在失败节点；不能把后续工程判断建立在该节点上。"
-      risk="需要先查看 evidence 日志，按 regression-debug-loop 补 reproduce/collect/localize。"
+      risk="需要先查看最接近根因的 evidence，并按观察到的失败补充定向诊断。"
       next_step="修复失败节点或切换到更小 profile。"
     fi
-  fi
-
-  local state_current state_failure state_rollback state_failure_reason
-  if [[ $status = completed ]]; then
-    state_current=persist
-    state_failure=无
-    state_rollback=无
-    state_failure_reason=无
-  else
-    state_current=verify
-    state_failure=verify
-    state_rollback=implement
-    state_failure_reason=$final_result
   fi
 
   cat > "$E2E_REPORT_FILE" <<EOF
@@ -1751,35 +1795,17 @@ e2e_render_report() {
 - \`graph_template\`: modular-agent-e2e
 - \`profile\`: $E2E_PROFILE
 - \`graph_mode\`: static
-- \`publication_contract\`: db-marker-v1
+- \`persistence_mode\`: $persistence_mode
+- \`publication_contract\`: $publication_contract
 - \`status\`: $status
-- \`owner\`: agent-system + hardware-flow + module agents
 - \`started_at\`: $E2E_STARTED_AT
 - \`updated_at\`: $updated
 
-## 任务目标
+## 运行目标
 
-- \`source_request\`: 将 agent 系统从纯语言提示升级为分层、分模块、可闭环和可优化的 e2e 流水线
-- \`goal\`: 依据 profile 执行模块化 e2e 节点，生成可复核证据包
+- \`goal\`: 依据 live profile 执行真实模块节点，并保留判断结果所需的直接日志
 - \`scope\`: profile=$E2E_PROFILE；不越级声明未执行模块或业务 gate 已完成
-
-## 选图说明
-
-- \`selected_template\`: modular-agent-e2e
-- \`why_this_graph\`: 本 profile 从 \`.github/e2e/profiles/\` 读取节点，把 agent/instructions/memory 中的模块职责转换为可执行 gate。
-- \`dynamic_nodes_added\`: 无
-- \`why_dynamic_nodes_were_needed\`: 无
-
-## 状态回溯
-
-- \`state_sequence\`: recall_context -> classify_layer -> plan_graph -> implement -> verify -> inspect -> persist
-- \`current_state\`: $state_current
-- \`failure_state\`: $state_failure
-- \`rollback_target\`: $state_rollback
-- \`failure_reason\`: $state_failure_reason
-- \`reviewer\`: ysyx-coordinator
-- \`inspector\`: agent-system
-- \`evidence_policy\`: task-report + dispatch-log + run-manifest + evidence-index
+- \`context_mode\`: ${E2E_CONTEXT_MODE:-direct}
 
 ## 节点概览
 
@@ -1812,38 +1838,20 @@ PY
 
   cat >> "$E2E_REPORT_FILE" <<EOF
 
-## 关键产物
+## 直接产物
 
 - \`artifacts\`: $(e2e_relpath "$E2E_RUN_DIR")
 - \`logs_or_traces\`: $(e2e_relpath "$E2E_EVIDENCE_DIR")
 - \`context_brief\`: $(e2e_relpath "$E2E_CONTEXT_BRIEF_FILE")
 - \`profile_resolve\`: $(e2e_relpath "$E2E_PROFILE_RESOLVE_FILE")
-- \`evidence_index\`: $(e2e_relpath "$E2E_EVIDENCE_INDEX_FILE")
-- \`run_manifest\`: $(e2e_relpath "$E2E_RUN_MANIFEST_FILE")
 - \`profile_manifest\`: .github/e2e/profiles/$E2E_PROFILE.tsv
-- \`linked_memory_updates\`: 由 agent 在收尾阶段按本轮稳定结论更新 memory
 
-## 当前阻塞点
+## 结论与边界
 
 - \`blockers\`: $([[ $E2E_OVERALL_RC -eq 0 ]] && printf '无' || printf '存在失败节点，详见 evidence 日志')
-- \`missing_dependencies\`: 见对应 tool/env 节点日志
 - \`risk_assessment\`: $risk
-
-## 下一步建议
-
-1. $next_step
-2. 对含 \`SKIP\` 的模块，先补依赖或切换到合适配置，再把该模块提升到 PASS 证据。
-
-## 模板升级候选
-
-- \`repeated_dynamic_subgraph\`: 无
-- \`should_promote_to_static_template\`: 已作为 modular-agent-e2e profile 固化
-- \`reason\`: profile + module library + task-run 证据包能把 agent 提示转为可执行流水线
-
-## 收尾结论
-
 - \`final_result\`: $final_result
-- \`evidence_summary\`: 详见节点表与 \`evidence/\`
+- \`next_step\`: $next_step
 - \`notes\`: 这是模块化 e2e gate，不替代未执行模块的功能回归、DiffTest、Linux/Ubuntu 分层 gate 或 PPA/STA signoff。
 EOF
   [[ $? -eq 0 ]] || return 1
@@ -1851,6 +1859,9 @@ EOF
     printf '[e2e] WARN report finalization failed at stage=sanitize\n' >&2
     return 1
   }
+  if [[ $persistence_mode = compact ]]; then
+    return 0
+  fi
   e2e_render_run_manifest "$status" "$final_result" "$updated" || {
     printf '[e2e] WARN report finalization failed at stage=render-manifest\n' >&2
     return 1

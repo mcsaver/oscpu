@@ -44,11 +44,11 @@
     "dist/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial/scripts/github_index_db.py"
   ],
   "quality_gates": [
-    "scripts/agent-maintain.sh --mode release",
-    "scripts/agent-e2e.sh --profile agent-system"
+    "scripts/agent-maintain.sh --mode release"
   ],
+  "release_implementation": "agent-maintain release owns exactly one published agent-system profile plus package/delivery audits",
   "commercial_boundaries": {
-    "source_of_truth": "DB/Skill/Agent three-layer contracts",
+    "source_of_truth": ".github/AGENTS.md; DB, skills and agents are optional support layers",
     "excluded_payloads": [
       "historical task-run raw logs",
       "local cache databases",

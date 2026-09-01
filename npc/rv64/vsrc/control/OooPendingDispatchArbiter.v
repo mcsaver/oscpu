@@ -8,6 +8,18 @@ module OooPendingDispatchArbiter (
   input can_run_i,
   input fifo_has_packet_i,
   input csr_irq_pending_i,
+  // Registered Tensor/residual owner that is older than any new raw IRQ/head
+  // capture.  Pair-error capture below remains an independent grant so the
+  // owner cannot block its own precise synchronous trap handoff.
+  input tensor_pre_rob_owner_live_i,
+
+  // Tensor pair-owner has already consumed/held the malformed instruction
+  // provenance.  This typed sideband must therefore be capturable even when
+  // the ordinary fetch FIFO is empty or frontend dispatch is stopped.
+  input tensor_pair_trap_valid_i,
+  input [`XLEN-1:0] tensor_pair_trap_pc_i,
+  input [`TRAP_CAUSE_W-1:0] tensor_pair_trap_cause_i,
+  input [`XLEN-1:0] tensor_pair_trap_tval_i,
 
   input branch_spec_resolve_valid_i,
   input pending_branch_commit_resolve_i,
@@ -50,6 +62,7 @@ module OooPendingDispatchArbiter (
   input head1_csr_illegal_i,
   input rob_walk_mode_i,   // B2: mode=1 时 branch/jump 不再进 pending capture（改投机+ROB-walk）
 
+  output tensor_pair_trap_grant_o,
   output pending_system_capture_irq_o,
   output pending_system_capture_head0_o,
   output pending_system_capture_lane1_o,
@@ -78,8 +91,23 @@ module OooPendingDispatchArbiter (
   // 与 JAL/RET/JALR-spec 的 direct fire 结构互斥。删除 late direct mask，避免
   // backend-ready/direct-flush 锥进入 pending trap 的宽 payload D；真实 direct
   // squash/clear 输出仍在本模块下方保留，父层断言守住互斥契约。
+  // Pair trap ownership is independent of the ordinary FIFO/can-run path:
+  // its producer is a hold-until-grant sidecar whose source packet may have
+  // already been consumed.  Existing/pending recovery owners reject grant;
+  // the producer consequently keeps the payload stable for a later cycle.
+  wire tensor_pair_trap_capture_w =
+      tensor_pair_trap_valid_i &&
+      !csr_trap_mem_valid_i &&
+      !direct_frontend_flush_i &&
+      !stop_pending_i;
+  assign tensor_pair_trap_grant_o = tensor_pair_trap_capture_w;
+
+  // A held pair error owns arbitration even on cycles where a prior owner or
+  // recovery condition prevents its grant.  This blocks IRQ/head/FIFO events
+  // from stealing the payload while the pair owner waits to retry.
   wire capture_base_w =
-      !csr_trap_mem_valid_i && can_run_i && fifo_has_packet_i;
+      !csr_trap_mem_valid_i && can_run_i && fifo_has_packet_i &&
+      !tensor_pair_trap_valid_i && !tensor_pre_rob_owner_live_i;
   wire dispatch0_arch_trap_w =
       dispatch0_facts_i[`OOO_SLOT_FACT_ARCH_TRAP];
   wire dispatch0_exit_w = dispatch0_facts_i[`OOO_SLOT_FACT_EXIT];
@@ -251,6 +279,7 @@ module OooPendingDispatchArbiter (
   // 用 barrier_base 触发会让 pending_trap_cause 落到 lane1_cause default=INST_ACCESS_FAULT 并残留整个
   // 运行 → 最后被 drain_trap_payload 误用 spurious trap。改用已 gate 的 arch_valid 表达式触发。
   assign pending_trap_exit_capture_arch_o =
+      tensor_pair_trap_capture_w ||
       trap_exit_capture_fetch_fault0_w ||
       trap_exit_capture_arch0_w ||
       trap_exit_capture_csr_illegal0_w ||
@@ -261,6 +290,7 @@ module OooPendingDispatchArbiter (
        !(rob_walk_mode_i && !head_fetch_fault1_i &&
          (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_arch_valid_o =
+      tensor_pair_trap_capture_w ||
       trap_exit_capture_fetch_fault0_w ||
       trap_exit_capture_arch0_w ||
       trap_exit_capture_csr_illegal0_w ||
@@ -273,6 +303,7 @@ module OooPendingDispatchArbiter (
        !(rob_walk_mode_i && !head_fetch_fault1_i &&
          (trap_exit_lane1_cause_w == `EXC_INST_ACCESS_FAULT)));
   assign pending_trap_exit_capture_cause_o =
+      tensor_pair_trap_capture_w ? tensor_pair_trap_cause_i :
       trap_exit_capture_fetch_fault0_w ?
           ((head_resp0_i == 2'b10) ? `EXC_INST_PAGE_FAULT :
                                      `EXC_INST_ACCESS_FAULT) :
@@ -283,10 +314,12 @@ module OooPendingDispatchArbiter (
       trap_exit_capture_lane1_w ? trap_exit_lane1_cause_w :
                                   `EXC_ILLEGAL_INST;
   assign pending_trap_exit_capture_pc_o =
+      tensor_pair_trap_capture_w ? tensor_pair_trap_pc_i :
       (trap_exit_capture_lane1_w ||
        (trap_exit_capture_unsupported_w &&
         !dispatch0_unsupported_i)) ? head_pc1_i : head_pc0_i;
   assign pending_trap_exit_capture_tval_o =
+      tensor_pair_trap_capture_w ? tensor_pair_trap_tval_i :
       trap_exit_capture_fetch_fault0_w ? head_fetch_fault_tval_i :
       trap_exit_capture_arch0_w ?
           (head0_semihost_ebreak_w ? {`XLEN{1'b0}} : head_inst0_i) :

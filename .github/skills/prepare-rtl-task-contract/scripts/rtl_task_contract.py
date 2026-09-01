@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import copy
-import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -332,12 +331,12 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
         "reference": ".github/agentic-hardware-blueprint.md#rv64-hardware-professional-task-wording",
         "domain_reference": "npc/rv64/design/arch/rv64-hardware-wording-profile.md",
         "preserve_backticked_identifiers": True,
-        "hardware_context_prefix_required": True,
+        "hardware_context_prefix_required": False,
         "preserve_technical_vocabulary": True,
         "keyword_blacklist_forbidden": True,
         "does_not_change_capabilities": True,
-        "positive_local_scope_preamble_required": True,
-        "rendered_prompt_style": "compact-rv64-hardware-evidence",
+        "positive_local_scope_preamble_required": False,
+        "rendered_prompt_style": "editable-compact-rv64-hardware-draft",
         "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
         "coordination_metadata_in_rendered_prompt": False,
         "final_response_evidence_order": [
@@ -374,34 +373,39 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
         errors.append("config context_policy does not match the canonical material modes")
 
     expected_reasoning_policy = {
-        "required_outlets": [
+        "recommended_outlets": [
             "unknowns",
             "assumptions",
             "counterexamples",
             "alternative_hypotheses",
-            "scope_extension_request",
+            "scope_adjustment",
             "confidence_and_basis",
         ],
         "inconclusive_allowed": True,
         "forced_pass_forbidden": True,
         "fixed_finding_cap_forbidden": True,
-        "scope_extension_requires_new_contract": True,
+        "scope_adjustment_handling": (
+            "supplement-handoff-and-coordinate-write-ownership"
+        ),
         "no_tools_claim_scope": "bounded-supplied-material-only",
     }
     if config.get("reasoning_policy") != expected_reasoning_policy:
-        errors.append("config reasoning_policy must preserve the canonical reasoning outlets")
+        errors.append("config reasoning_policy must preserve the RTL correctness boundary")
 
-    expected_dispatch_policy = {
-        "canonical_pipeline": ["create", "validate", "render"],
-        "rendered_prompt_boundary": "verbatim",
-        "subagent_context_mode": "rendered-contract-only",
-        "full_history_inheritance": False,
-        "validation_failure_result_status": "candidate-only",
-        "scope_extension_action": "new-versioned-contract",
-        "platform_interruption_effect": "current-review-node-only",
+    expected_tool_semantics = {
+        "independent_operations": ["create", "validate", "render"],
+        "operation_order_required": False,
+        "render_output": "editable-prompt-draft",
+        "subagent_context_mode": "caller-selected-relevant-context",
+        "validation_failure_effect": "format-error-only",
+        "scope_adjustment_action": (
+            "supplement-handoff-and-coordinate-write-ownership"
+        ),
+        "automatic_hashing": False,
+        "platform_interruption_effect": "no-technical-status-effect",
     }
-    if config.get("dispatch_policy") != expected_dispatch_policy:
-        errors.append("config dispatch_policy must preserve the canonical dispatch pipeline")
+    if config.get("legacy_tool_semantics") != expected_tool_semantics:
+        errors.append("config legacy_tool_semantics must keep handoff operations optional")
 
     command_policy = config.get("command_policy")
     expected_read_only = ["rg", "sed", "git status", "git diff", "git show", "sha256sum"]
@@ -473,15 +477,15 @@ def validate_config(config: dict[str, Any], repo_root: Path | None = None) -> li
         errors.append("config status_policy must be an object")
     else:
         expected_status = {
-            "review_state": "review_pending",
-            "parent_goal_state": "active",
-            "isolate_review_to_subtask": True,
+            "review_state": "not_requested",
+            "parent_goal_state": "unchanged",
+            "isolate_review_to_subtask": False,
             "preserve_original_request": True,
             "semantic_distortion_retry_forbidden": True,
-            "official_feedback_recommended": True,
+            "official_feedback_recommended": False,
         }
         if status != expected_status:
-            errors.append("config status_policy does not match the fail-contained review policy")
+            errors.append("config status_policy does not match the optional-handoff policy")
 
     language = config.get("language_policy")
     expected_language = {
@@ -538,8 +542,6 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
     material_mode = workspace_material_mode
     if isinstance(raw_context, dict):
         material_mode = raw_context.get("material_mode", workspace_material_mode)
-    allow_empty_commands = material_mode == no_tools_material_mode
-
     scope = data.get("scope")
     allowed_paths: list[str] = []
     write_paths: list[str] = []
@@ -566,7 +568,7 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
             "scope.allowed_commands",
             errors,
             config,
-            allow_empty=allow_empty_commands,
+            allow_empty=True,
         )
         if scope.get("workspace_root") != ".":
             errors.append("scope.workspace_root must be '.'")
@@ -680,7 +682,7 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
                 "fixed finding count caps are forbidden; rank findings without truncation"
             )
     if data.get("status_policy") != config.get("status_policy"):
-        errors.append("status_policy must match the canonical fail-contained review policy")
+        errors.append("status_policy must match the canonical optional-handoff policy")
     language_policy = data.get("language_policy")
     legacy_language_policy_valid = (
         isinstance(language_policy, dict)
@@ -706,17 +708,11 @@ def validate_contract(data: dict[str, Any], config: dict[str, Any]) -> list[str]
 def build_contract(
     args: argparse.Namespace,
     config: dict[str, Any],
-    contract_relative_path: str,
 ) -> dict[str, Any]:
     required_context = unique([*config["required_context"], *(args.required_context or [])])
     if args.task_kind == "implementation":
         required_context = unique([*required_context, config["implementation_context"]])
-    # The generated JSON is provenance, not an extra engineering input.  Still
-    # declare its exact path so a child may unambiguously hash/read the contract
-    # itself without being told to inspect an undeclared file.
-    allowed_paths = unique(
-        [*args.allow_path, *required_context, contract_relative_path]
-    )
+    allowed_paths = unique([*args.allow_path, *required_context])
     defaults = config["scope_defaults"]
     context_policy = config["context_policy"]
     material_mode = (
@@ -785,14 +781,6 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
         raise
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def bullet_lines(items: list[str]) -> str:
     return "\n".join(f"- {item}" for item in items)
 
@@ -804,7 +792,7 @@ def labeled_bullet_lines(items: list[str], label: str) -> str:
 
 def command_scope_lines(items: list[dict[str, str]]) -> str:
     if not items:
-        return "- 无（self-contained no-tools）"
+        return "- 无（未提供建议命令）"
     return "\n".join(
         f"- command={item['command']}; mode={item['mode']}"
         for item in items
@@ -813,7 +801,7 @@ def command_scope_lines(items: list[dict[str, str]]) -> str:
 
 def command_purpose_lines(items: list[dict[str, str]], config: dict[str, Any]) -> str:
     if not items:
-        return "- 无；子 agent 只消费合同内随附材料"
+        return "- 无（未提供建议命令用途）"
     catalog = config["command_policy"]["purpose_catalog"]
     return "\n".join(
         f"- {item['command']}: purpose={item['purpose']}; label={catalog[item['command']]['label_zh']}"
@@ -824,9 +812,6 @@ def command_purpose_lines(items: list[dict[str, str]], config: dict[str, Any]) -
 def render_contract(
     data: dict[str, Any],
     config: dict[str, Any],
-    *,
-    contract_relative_path: str,
-    contract_sha256: str,
 ) -> str:
     scope = data["scope"]
     context = data["context"]
@@ -838,9 +823,9 @@ def render_contract(
     if no_tools:
         execution_mode = "`self-contained-no-tools`（冻结材料 RTL 复核；不执行命令或仓库读取）"
     elif scope["write_paths"]:
-        execution_mode = "`workspace-files`（仅在声明路径与命令范围内读写）"
+        execution_mode = "`workspace-files`（声明关注范围与写入 ownership；可检查必要调用链）"
     else:
-        execution_mode = "`workspace-files`（默认只读探索；仅按声明路径与命令读取）"
+        execution_mode = "`workspace-files`（声明关注范围；默认不修改源码）"
     path_heading = (
         "材料来源路径（仅作 provenance；本节点不读取这些仓库文件）："
         if no_tools
@@ -855,19 +840,16 @@ def render_contract(
     execution_note = (
         "冻结材料复核不执行工程命令，也不读取上列材料之外的文件；结论只覆盖这些本地 RV64 RTL 材料。"
         if no_tools
-        else "仅在主节点交付当前 WSL 工程命令执行权后运行上列命令；命令结束后停止工程进程并归还执行权。"
+        else "只有任务竞争同一 build/scratch、配置、数据库、仿真进程、许可证、端口或设备时才协调串行；独立资源上的安全本地动作可以并行。"
     )
-    return f"""# 本地 RV64 CPU RTL/验证子任务 `{data['task_id']}`
+    return f"""# 可编辑的本地 RV64 CPU RTL/验证提示草稿 `{data['task_id']}`
+
+> 这是 `render` 根据兼容 JSON 产生的可编辑 prompt draft。可以结合当前相关上下文修改；
+> 不要求逐字派发，JSON 格式校验也不赋予权限或判定 RTL correctness。
 
 - RV64 RTL/证据对象：{data['goal']}
 - 流水线配置：任务类型 `{data['task_kind']}`；执行模式 {execution_mode}
-- 结论首行：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
-
-## 合同证据绑定
-
-- 合同 JSON 路径：`{contract_relative_path}`
-- 合同 JSON SHA-256：`{contract_sha256}`
-- 上述 SHA-256 只绑定该 JSON 契约文件；不绑定设计 spec、`contract.md`、RTL、测试或其它上下文文件。
+- 可选结论摘要格式：`RV64 RTL 结论｜对象=<module/signal/本地证据路径>｜周期/配置=<cycle/config>｜TB/EDA 观测=<testbench/仿真/综合/STA 结果>｜范围=<PASS/GAP/inconclusive>`
 
 ## 本地 RTL 输入、动作与产物
 
@@ -877,15 +859,14 @@ def render_contract(
 RTL/证据输出路径：
 {bullet_lines(writes)}
 
-工程命令：
+建议工程命令：
 {command_scope_lines(scope['allowed_commands'])}
 
-工程命令用途（固定枚举）：
+建议命令用途（兼容枚举）：
 {command_purpose_lines(scope['allowed_commands'], config)}
 
-`read-only` 节点只运行不落盘的源码与日志查询；`sed -i`、重定向和其它写型选项不属于该节点命令集合。
-
-工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。
+上列路径是 focus 与协作 ownership，上列命令是建议入口，不是平台权限白名单。可以读取理解目标所必需的
+本地调用者、被调用者和配置，也可以选择等价的安全本地命令；写入其它 owner 的文件前先协调冲突。
 
 ## RV64 RTL 必读材料
 
@@ -896,8 +877,10 @@ RTL/证据输出路径：
 - 报告 `unknowns`、显式假设、RTL/TB 反例、替代微架构解释、置信度及其本地证据基础。
 - 信息不足时允许给出 `inconclusive`，不得为了满足预期而强制给出 PASS。
 - 不设置固定发现数量上限；不得截断仍影响 RTL 结论的 blocker、反例或覆盖洞。
-- 缺少必要上下游 RTL/spec/TB 时返回 `scope_extension_request`，列出所需路径、命令和对应流水线原因。
-- 可以提出合同未预设的微架构解释或设计方案，但不执行合同未列出的工程动作，也不扩大结论范围。
+- 缺少必要上下游 RTL/spec/TB 时列出所需材料及原因；安全只读扩展可直接进行并在结果中说明，写入扩展
+  若与其他 agent ownership 冲突则先协调。
+- 可以提出合同未预设的微架构解释或设计方案；只有真正超出用户目标、破坏性、难恢复或外部副作用的
+  动作才需要新的用户授权。
 
 ## RV64 RTL 交付
 
@@ -909,9 +892,10 @@ RTL/证据输出路径：
 
 ## 最终技术回复
 
-- 第一行严格使用上方“对象｜周期/配置｜TB/EDA 观测｜范围”格式。
+- 推荐尽早按“对象｜周期/配置｜TB/EDA 观测｜范围”给出结论，不要求固定首行。
 - 若本地 RV64 RTL 证据 JSON 的字段在定向 Python 单测中得到非预期返回结果，写明 CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码。
-- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker、真实文件名或 `scope_extension_request`。
+- 该叙述顺序不删除反例、未知项、替代假设、原始日志 marker 或真实文件名。
+- 需要调整范围时补充 handoff 上下文；新写路径若与其他 agent ownership 重叠，先协调冲突。
 - 保留真实 RTL 文件、module、signal、TB、日志 marker 与 schema 字段名称。
 - {execution_note}
 """
@@ -920,13 +904,13 @@ RTL/证据输出路径：
 def audit_wiring(repo_root: Path, config: dict[str, Any]) -> list[str]:
     errors = validate_config(config, repo_root)
     checks = {
-        ".github/AGENTS.md": "rtl-agent-task-contract.instructions.md",
+        ".github/AGENTS.md": "可用 rtl-agent-task-contract instruction",
         "AI_ENVIRONMENT.md": "prepare-rtl-task-contract",
-        ".github/agents/ysyx-coordinator.agent.md": "prepare-rtl-task-contract",
-        ".github/agents/npc.agent.md": "rtl-agent-task-contract.instructions.md",
+        ".github/agents/ysyx-coordinator.agent.md": "局部且清楚的 RV64 任务可以直接派发",
+        ".github/instructions/rtl-agent-task-contract.instructions.md": "不是 permission gate",
+        ".github/skills/prepare-rtl-task-contract/SKILL.md": "Optional legacy JSON",
         ".github/e2e/profiles/agent-system.tsv": "rtl-task-contract|agent-system|e2e_agent_system_rtl_task_contract|agent-system|",
         "scripts/e2e/modules/agent_system.sh": "e2e_agent_system_rtl_task_contract()",
-        "scripts/agent-maintain.sh": "RTL task contract CLI self-test",
         "scripts/package-ai-dev-env.sh": "agent-env-rtl-task-contract.json",
     }
     for relative, marker in checks.items():
@@ -946,30 +930,18 @@ def audit_wiring(repo_root: Path, config: dict[str, Any]) -> list[str]:
         delegation = policy.get("task_delegation")
         if not isinstance(delegation, dict):
             errors.append("policy task_delegation must be an object")
-        else:
-            expected = {
-                "contract": SOURCE_CONTRACT,
-                "instruction": config.get("instruction"),
-                "skill": config.get("skill"),
-                "generator": config.get("generator"),
-                "profile_node": config.get("profile_node"),
-                "local_rtl_material_source": "declared-workspace-paths",
-                "contract_before_dispatch_required": True,
-                "hardware_wording_profile_required": True,
-                "positive_local_scope_preamble_required": True,
-                "ambiguous_terms_require_hardware_context": True,
-                "final_response_hardware_evidence_first_required": True,
-                "rendered_prompt_platform_meta_forbidden": True,
-                "rendered_prompt_coordination_meta_forbidden": True,
-                "rendered_prompt_style": "compact-rv64-hardware-evidence",
-                "technical_narrative_subject": "local-rv64-rtl-object-or-evidence",
-                "subagent_context_mode": "rendered-contract-only",
-                "full_history_inheritance_forbidden": True,
-                "wording_profile_changes_capabilities": False,
-                "wording_keyword_blacklist_forbidden": True,
-            }
-            if delegation != expected:
-                errors.append("policy task_delegation does not match the canonical RTL task contract")
+        elif delegation:
+            errors.append("policy task_delegation must not make the optional handoff an ordinary-task gate")
+
+    operating_scope = config.get("operating_scope")
+    if not isinstance(operating_scope, dict):
+        errors.append("operating_scope must describe the legacy optional boundary")
+    elif (
+        operating_scope.get("ordinary_task_required") is not False
+        or operating_scope.get("permission_or_authorization_boundary") is not False
+        or operating_scope.get("correctness_gate") is not False
+    ):
+        errors.append("operating_scope must keep legacy JSON out of ordinary authorization and correctness")
     return errors
 
 
@@ -985,7 +957,6 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
             "workspace_root": ".",
             "allowed_paths": [
                 "npc/rv64/vsrc/writeback/OooRob.v",
-                ".github/task-runs/self-test-review.json",
                 *config["required_context"],
             ],
             "write_paths": [],
@@ -1008,37 +979,33 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     messages: list[str] = []
     if validate_contract(base, config):
         return 1, ["FAIL positive read-only contract was rejected"]
-    rendered = render_contract(
-        base,
-        config,
-        contract_relative_path=".github/task-runs/self-test-review.json",
-        contract_sha256="0" * 64,
-    )
+    rendered = render_contract(base, config)
     for marker in (
-        "# 本地 RV64 CPU RTL/验证子任务",
+        "# 可编辑的本地 RV64 CPU RTL/验证提示草稿",
+        "可编辑 prompt draft",
+        "不要求逐字派发",
+        "JSON 格式校验也不赋予权限或判定 RTL correctness",
         "RV64 RTL/证据对象：",
         "流水线配置：任务类型",
         "RV64 RTL 结论｜对象=<module/signal/本地证据路径>",
         "## 本地 RTL 输入、动作与产物",
-        "工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。",
-        "合同 JSON 路径：`.github/task-runs/self-test-review.json`",
-        "合同 JSON SHA-256：`" + "0" * 64 + "`",
-        "只绑定该 JSON 契约文件",
-        "默认只读探索",
+        "不是平台权限白名单",
+        "默认不修改源码",
         "## RV64 RTL 必读材料",
         "## RV64 微架构复核边界",
         "报告 `unknowns`",
         "允许给出 `inconclusive`",
         "不设置固定发现数量上限",
-        "`scope_extension_request`",
+        "需要调整范围时补充 handoff 上下文",
+        "其他 agent ownership 重叠",
         "## RV64 RTL 交付",
         "本地 RV64 RTL 交付：列出反例、证据位置和剩余风险",
         "## RV64 RTL 判定条件",
         "本地 RV64 RTL 判定：每条结论引用目标 RTL 或 spec 的可复核位置",
         "## 最终技术回复",
         "CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码",
-        "不删除反例、未知项、替代假设、原始日志 marker、真实文件名",
-        "停止工程进程并归还执行权",
+        "不删除反例、未知项、替代假设、原始日志 marker 或真实文件名",
+        "独立资源上的安全本地动作可以并行",
     ):
         if marker not in rendered:
             return 1, [f"FAIL rendered prompt missing marker: {marker}"]
@@ -1047,12 +1014,17 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
         "## 派发资格",
         "`create → validate → render`",
         "`candidate-only`",
+        "SHA-256",
+        "new-versioned-contract",
+        "rendered-contract-only",
+        "verbatim",
         "fork_turns",
         "父任务完整对话历史",
         "review_pending",
         "父目标保持 `active`",
         "language_policy",
         "dispatch_policy",
+        "legacy_tool_semantics",
         "scope_defaults",
         "legacy_scope_flag_",
         "platform_interruption_effect",
@@ -1112,16 +1084,11 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     }
     if validate_contract(no_tools, config):
         return 1, ["FAIL positive self-contained no-tools contract was rejected"]
-    no_tools_rendered = render_contract(
-        no_tools,
-        config,
-        contract_relative_path=".github/task-runs/self-test-no-tools-review.json",
-        contract_sha256="1" * 64,
-    )
+    no_tools_rendered = render_contract(no_tools, config)
     for marker in (
         "`self-contained-no-tools`",
         "冻结材料 RTL 复核；不执行命令或仓库读取",
-        "无（self-contained no-tools）",
+        "无（未提供建议命令）",
         "## 冻结 RTL 材料",
         "冻结事实：valid_q",
         "本节点不读取这些仓库文件",
@@ -1153,15 +1120,10 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     )
     if validate_contract(implementation, config):
         return 1, ["FAIL positive implementation contract was rejected"]
-    implementation_rendered = render_contract(
-        implementation,
-        config,
-        contract_relative_path=".github/task-runs/self-test-implementation.json",
-        contract_sha256="2" * 64,
-    )
-    if "仅在声明路径与命令范围内读写" not in implementation_rendered:
-        return 1, ["FAIL implementation render hid scoped write capability"]
-    messages.append("PASS positive implementation contract preserves scoped write capability")
+    implementation_rendered = render_contract(implementation, config)
+    if "声明关注范围与写入 ownership" not in implementation_rendered:
+        return 1, ["FAIL implementation render hid declared write ownership"]
+    messages.append("PASS positive implementation contract preserves write ownership context")
 
     verification = copy.deepcopy(base)
     verification["task_id"] = "self-test-verification"
@@ -1259,11 +1221,6 @@ def self_test(config: dict[str, Any]) -> tuple[int, list[str]]:
     purpose_redirect["scope"]["allowed_commands"][1]["purpose"] = "search-allowed-paths"
     mutations.append(
         ("read-only-purpose-cross-command", purpose_redirect, "purpose must match the canonical command purpose")
-    )
-    workspace_empty_commands = copy.deepcopy(base)
-    workspace_empty_commands["scope"]["allowed_commands"] = []
-    mutations.append(
-        ("workspace-empty-commands", workspace_empty_commands, "allowed_commands must be a non-empty list")
     )
     no_tools_with_command = copy.deepcopy(no_tools)
     no_tools_with_command["scope"]["allowed_commands"] = copy.deepcopy(
@@ -1372,37 +1329,45 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
             or set(positive.get("scope", {})) != CANONICAL_SCOPE_FIELDS
         ):
             return failed("create canonical v2 scope", create)
-        if relative_contract not in positive["scope"]["allowed_paths"]:
-            return failed("create self-path declaration", create)
+        if relative_contract in positive["scope"]["allowed_paths"]:
+            return failed("create leaked JSON path into engineering focus", create)
+        if "sha" in create.stdout.lower():
+            return failed("create displayed an automatic hash", create)
         messages.append("PASS CLI create positive")
         messages.append("PASS CLI create emitted canonical v2 path/command scope")
-        messages.append("PASS CLI create declared its JSON self-path")
+        messages.append("PASS CLI create kept JSON identity out of engineering focus")
+        messages.append("PASS CLI create did not compute or display a hash")
 
         validate = invoke(["validate", relative_contract])
-        if validate.returncode != 0 or "PASS contract=" not in validate.stdout:
+        if (
+            validate.returncode != 0
+            or "PASS contract=" not in validate.stdout
+            or "format=valid" not in validate.stdout
+            or "sha" in validate.stdout.lower()
+        ):
             return failed("validate positive", validate)
-        messages.append("PASS CLI validate positive")
+        messages.append("PASS CLI validate reported format only and no hash")
 
         render = invoke(["render", relative_contract])
-        expected_sha = sha256_file(contract)
         if (
             render.returncode != 0
             or "command=rg; mode=read-only" not in render.stdout
-            or f"合同 JSON 路径：`{relative_contract}`" not in render.stdout
-            or f"合同 JSON SHA-256：`{expected_sha}`" not in render.stdout
-            or "只绑定该 JSON 契约文件" not in render.stdout
-            or "默认只读探索" not in render.stdout
-            or "# 本地 RV64 CPU RTL/验证子任务" not in render.stdout
+            or "默认不修改源码" not in render.stdout
+            or "# 可编辑的本地 RV64 CPU RTL/验证提示草稿" not in render.stdout
+            or "可编辑 prompt draft" not in render.stdout
+            or "不要求逐字派发" not in render.stdout
+            or "JSON 格式校验也不赋予权限或判定 RTL correctness" not in render.stdout
             or "RV64 RTL/证据对象：" not in render.stdout
             or "RV64 RTL 结论｜对象=<module/signal/本地证据路径>" not in render.stdout
-            or "工程输入仅来自上列工作区路径；工程输出仅进入上列 RTL/证据输出路径。" not in render.stdout
+            or "不是平台权限白名单" not in render.stdout
             or "允许给出 `inconclusive`" not in render.stdout
-            or "`scope_extension_request`" not in render.stdout
+            or "需要调整范围时补充 handoff 上下文" not in render.stdout
+            or "其他 agent ownership 重叠" not in render.stdout
             or "## RV64 RTL 交付" not in render.stdout
             or "## RV64 RTL 判定条件" not in render.stdout
             or "## 最终技术回复" not in render.stdout
             or "CPU 证据对象、具体 schema 字段、工作区相对路径、测试名和返回码" not in render.stdout
-            or "停止工程进程并归还执行权" not in render.stdout
+            or "独立资源上的安全本地动作可以并行" not in render.stdout
         ):
             return failed("render positive", render)
         if any(
@@ -1412,11 +1377,16 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
                 "## 派发资格",
                 "`create → validate → render`",
                 "`candidate-only`",
+                "SHA-256",
+                "new-versioned-contract",
+                "rendered-contract-only",
+                "verbatim",
                 "fork_turns",
                 "父任务完整对话历史",
                 "review_pending",
                 "language_policy",
                 "dispatch_policy",
+                "legacy_tool_semantics",
                 "scope_defaults",
                 "legacy_scope_flag_",
                 "platform_interruption_effect",
@@ -1424,7 +1394,7 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
             )
         ):
             return failed("render leaked coordinator-only wording", render)
-        messages.append("PASS CLI render bound the exact JSON path and SHA-256")
+        messages.append("PASS CLI render emitted an editable, non-hashed prompt draft")
 
         no_tools_contract = temp_dir / "self-contained-no-tools.json"
         no_tools_relative = no_tools_contract.relative_to(repo_root).as_posix()
@@ -1466,13 +1436,13 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         if (
             no_tools_render.returncode != 0
             or "`self-contained-no-tools`" not in no_tools_render.stdout
-            or "无（self-contained no-tools）" not in no_tools_render.stdout
+            or "无（未提供建议命令）" not in no_tools_render.stdout
             or "冻结材料：birth" not in no_tools_render.stdout
             or "本节点不读取这些仓库文件" not in no_tools_render.stdout
             or "结论只覆盖这些本地 RV64 RTL 材料" not in no_tools_render.stdout
         ):
             return failed("render self-contained no-tools", no_tools_render)
-        messages.append("PASS CLI create/validate/render self-contained no-tools contract")
+        messages.append("PASS CLI no-tools draft preserved the frozen-material claim boundary")
 
         no_tools_missing_material = invoke(
             [
@@ -1593,8 +1563,6 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
                 "复核 RISC-V 特权级、PMP 权限检查和 access fault 的 RTL 时序",
                 "--allow-path",
                 "npc/rv64/vsrc/writeback/OooRob.v",
-                "--allow-read-command",
-                "rg",
                 "--deliverable",
                 "核对 `kill_valid_i` 的流水取消语义和 store probe 事务",
                 "--success-criterion",
@@ -1605,7 +1573,9 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         )
         if hardware_wording_create.returncode != 0:
             return failed("create legitimate hardware wording", hardware_wording_create)
-        messages.append("PASS CLI create preserved legitimate CPU architecture vocabulary")
+        messages.append(
+            "PASS CLI create preserved RTL vocabulary without requiring command suggestions"
+        )
 
         legacy = copy.deepcopy(positive)
         legacy["schema_version"] = LEGACY_CONTRACT_SCHEMA_VERSION
@@ -1617,23 +1587,22 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
                 "legacy_scope_flag_4": False,
             }
         )
-        legacy["scope"]["allowed_paths"].remove(relative_contract)
         legacy_contract = temp_dir / "legacy-no-self-path.json"
         atomic_write_json(legacy_contract, legacy)
         legacy_relative = legacy_contract.relative_to(repo_root).as_posix()
-        legacy_validate = invoke(["validate", legacy_relative])
-        if legacy_validate.returncode != 0:
-            return failed("validate legacy contract without self-path", legacy_validate)
+        # Render is independently usable; a separate create/validate pre-step is not required.
         legacy_render = invoke(["render", legacy_relative])
         if (
             legacy_render.returncode != 0
-            or f"合同 JSON 路径：`{legacy_relative}`" not in legacy_render.stdout
-            or f"合同 JSON SHA-256：`{sha256_file(legacy_contract)}`"
-            not in legacy_render.stdout
+            or "可编辑 prompt draft" not in legacy_render.stdout
+            or "SHA-256" in legacy_render.stdout
         ):
-            return failed("render legacy contract without self-path", legacy_render)
+            return failed("render legacy contract directly", legacy_render)
+        legacy_validate = invoke(["validate", legacy_relative])
+        if legacy_validate.returncode != 0:
+            return failed("validate legacy contract", legacy_validate)
         messages.append("PASS CLI validate kept legacy JSON compatibility")
-        messages.append("PASS CLI render bound legacy JSON identity")
+        messages.append("PASS CLI render worked independently without automatic hash identity")
 
         unexpected_scope_field = copy.deepcopy(positive)
         unexpected_scope_field["scope"]["unbound_rtl_path_set"] = False
@@ -1642,12 +1611,17 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         unexpected_scope_result = invoke(
             ["validate", unexpected_scope_contract.relative_to(repo_root).as_posix()]
         )
-        if unexpected_scope_result.returncode == 0:
+        if (
+            unexpected_scope_result.returncode == 0
+            or "FAIL format:" not in unexpected_scope_result.stderr
+            or "candidate-only" in unexpected_scope_result.stderr
+            or "result status" in unexpected_scope_result.stderr
+        ):
             return failed(
                 "validate unexpected v2 scope field mutation",
                 unexpected_scope_result,
             )
-        messages.append("PASS CLI validate rejected unexpected v2 scope field")
+        messages.append("PASS CLI validation failure reported a format error only")
 
         sed_inplace = copy.deepcopy(positive)
         sed_inplace["scope"]["allowed_commands"][0]["command"] = "sed -i"
@@ -1697,7 +1671,7 @@ def cli_self_test(repo_root: Path) -> tuple[int, list[str]]:
         messages.append("PASS CLI validate rejected rebound repository root")
         messages.append("PASS CLI render rejected rebound repository root")
 
-    messages.append("PASS CLI self-test cases=20")
+    messages.append(f"PASS CLI self-test checks={len(messages)}")
     return 0, messages
 
 
@@ -1710,7 +1684,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    create = subparsers.add_parser("create", help="create an atomic JSON task contract")
+    create = subparsers.add_parser(
+        "create", help="create an optional legacy JSON handoff"
+    )
     create.add_argument("--task-id", required=True)
     create.add_argument(
         "--task-kind",
@@ -1724,13 +1700,13 @@ def create_parser() -> argparse.ArgumentParser:
         "--allow-read-command",
         action="append",
         metavar="COMMAND",
-        help="declare an approved read-only command; purpose is filled from the canonical catalog",
+        help="suggest a read-only command; purpose is filled from the canonical catalog",
     )
     create.add_argument(
         "--allow-write-command",
         action="append",
         metavar="COMMAND",
-        help="declare an approved write-within-scope command; purpose is canonical",
+        help="suggest a write command; purpose is filled from the canonical catalog",
     )
     create.add_argument(
         "--self-contained-no-tools",
@@ -1747,13 +1723,19 @@ def create_parser() -> argparse.ArgumentParser:
     create.add_argument("--success-criterion", action="append", required=True)
     create.add_argument("--out", required=True)
 
-    validate = subparsers.add_parser("validate", help="validate a JSON task contract")
+    validate = subparsers.add_parser(
+        "validate", help="validate legacy JSON structure only"
+    )
     validate.add_argument("contract")
-    render = subparsers.add_parser("render", help="validate and render a subagent prompt")
+    render = subparsers.add_parser(
+        "render", help="validate structure and render an editable prompt draft"
+    )
     render.add_argument("contract")
     subparsers.add_parser("audit", help="audit canonical config and repository wiring")
     subparsers.add_parser("self-test", help="run positive and mutation-negative contract tests")
-    subparsers.add_parser("cli-self-test", help="exercise create, validate and render as subprocesses")
+    subparsers.add_parser(
+        "cli-self-test", help="exercise observable legacy handoff CLI semantics"
+    )
     return parser
 
 
@@ -1784,14 +1766,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"FAIL {exc}", file=sys.stderr)
             return 1
         output_relative = output.relative_to(repo_root).as_posix()
-        data = build_contract(args, config, output_relative)
+        data = build_contract(args, config)
         errors = validate_contract(data, config)
         if errors:
             for error in errors:
-                print(f"FAIL {error}", file=sys.stderr)
+                print(f"FAIL format: {error}", file=sys.stderr)
             return 1
         atomic_write_json(output, data)
-        print(f"PASS created={output_relative} sha256={sha256_file(output)}")
+        print(f"PASS created={output_relative}")
         return 0
 
     if args.command in {"validate", "render"}:
@@ -1803,28 +1785,17 @@ def main(argv: list[str] | None = None) -> int:
         try:
             data = load_json(contract_path)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            print(f"FAIL cannot load contract: {exc}", file=sys.stderr)
+            print(f"FAIL format: cannot load contract: {exc}", file=sys.stderr)
             return 2
         errors = validate_contract(data, config)
         if errors:
             for error in errors:
-                print(f"FAIL {error}", file=sys.stderr)
+                print(f"FAIL format: {error}", file=sys.stderr)
             return 1
         if args.command == "validate":
-            print(
-                f"PASS contract={contract_path.relative_to(repo_root).as_posix()} "
-                f"sha256={sha256_file(contract_path)}"
-            )
+            print(f"PASS contract={contract_path.relative_to(repo_root).as_posix()} format=valid")
         else:
-            print(
-                render_contract(
-                    data,
-                    config,
-                    contract_relative_path=contract_path.relative_to(repo_root).as_posix(),
-                    contract_sha256=sha256_file(contract_path),
-                ),
-                end="",
-            )
+            print(render_contract(data, config), end="")
         return 0
 
     if args.command == "audit":

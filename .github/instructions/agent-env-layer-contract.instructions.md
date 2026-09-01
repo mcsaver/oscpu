@@ -1,98 +1,65 @@
-# Agent Env Layer Contract
+# Agent Environment Layer Contract
 
-本文件定义当前工作区 AI 开发环境的三层边界。涉及 `.github/` agent 架构、数据库记忆、Skill、e2e profile、自检或自动维护流程时必须读取。
+本文件只定义 Database、Skill 和 Agent 工具的职责边界。它不规定普通任务的实现顺序，也不授予下游
+文件新增 permission gate 的权力。
 
-## 三层职责
+## Layer ownership
 
-### 1. Database = 长期记忆层
+### Database / memory
 
-- 真实入口：`.github/cache/github-index.sqlite`、`scripts/dev_memory/`、`scripts/github_index_db.py`。
-- 保存对象：固定格式的长期记忆、模块笔记、task-run Markdown、raw evidence asset 索引、run manifest、trace id、access log、备份 manifest。
-- 文件语义：agent、instruction、e2e profile/module、contract 和说明文档保留为 live 原文件；数据库只 retained `.github/memory/**` 与 `.github/task-runs/**` 的日志/报告类 stored documents。读取普通文档用文件系统或 `load --source auto`；更新 retained memory/log 用 `update-stored`、`archive-markdown`、`snapshot-stored`。
-- retention：task-run Markdown 可以进入 stored document 与 backup，但工作区仍保留可直接读取的原文件；raw evidence 只进入 `evidence_assets` 摘要索引，不把完整日志默认塞回长期上下文。
-- schema/API：`.github/ai-env/contracts/agent-env-schema-contract.json` 是当前 SQLite 表、实体映射与只读 JSON API op 的显式契约；真实 DB 变更必须同步该契约并通过 `schema-audit`。
-- observability：`.github/ai-env/contracts/agent-env-observability.json` 是 task-run trace id、`run-manifest.json`、artifact 链接和 DB evidence asset 索引的显式契约；真实报告链路变更必须同步该契约并通过 `trace-audit`。
-- runtime artifact：`.github/ai-env/contracts/agent-env-runtime-artifacts.json` 是源码面与运行态 payload 的显式契约；大体积日志、波形、镜像和 volatile payload 进入 `.github/runtime-artifacts` 或外部 object store，并用 `evidence_assets`、`run-manifest.json`、`evidence-index.md` 保存指针与摘要；真实边界变更必须通过 `artifact-audit`。
-- 不承担职责：不直接替代 active Skill；不把 `.github/db-backup/**` 当作当前答案来源；不把完整 raw log 默认加载进上下文。
+- 保存稳定、跨会话复用的 project/module memory，以及显式选择留存的 task-run 报告与 evidence 索引。
+- live agent、instruction、skill、profile、contract 和说明文档仍以工作区原文件为真源。
+- scripts/dev_memory 与 scripts/github_index_db.py 提供检索、同步和专项审计；普通任务不要求先运行
+  brief、rebuild、refresh、snapshot、rehydrate 或 DB audit。
+- raw log、波形、镜像和可再生成 payload 放在 runtime/cache/object store；只有在明确持久化边界中
+  记录必要指针或 identity。
 
-### 2. Skill = 标准化处理规则层
+### Skill
 
-- 真实入口：`.github/skills/*/SKILL.md`。环境维护使用 `.github/skills/agent-env-maintenance/SKILL.md`；本地 RTL 子任务派发使用 `.github/skills/prepare-rtl-task-contract/SKILL.md`。
-- 保存对象：短小、可直接读取、可复用的流程规则；复杂细节转交 scripts、instructions 或 live reference。
-- 文件语义：Skill 是 active rule pack，必须 live 可读，不迁成数据库 shim；用 `python3 scripts/github_index_db.py skill-audit` 检查 frontmatter、命名和体量。
-- 不承担职责：不保存长期事实，不保存单次 task-run 证据，不隐藏重型执行逻辑。
+- .github/skills/*/SKILL.md 保存短小、可复用、面向具体任务的方法。
+- Skill 可建议读取哪些输入和运行哪些定向验证，但不能扩大用户授权、把建议变成全局 gate，或要求
+  普通业务任务重验版本化 verifier。
+- 长期事实写 memory，复杂执行逻辑写 script，机器可判定专项接口写对应 contract；不要全部复制进 Skill。
 
-### 3. Agent = 自动维护流程层
+### Agent / execution
 
-- 真实入口：`scripts/agent-flow.c`、`scripts/agent-flow.sh`、`.github/agents/*.agent.md`、
-  `ysyx-coordinator`、`agent-system`、`.github/ai-env/contracts/agent-env-policy.json`、相关 contract、
-  `scripts/agent-e2e.sh`、`scripts/agent-maintain.sh` 和 `scripts/package-ai-dev-env.sh`。
-- 保存对象：任务分类、显式修改路径、gate pointer、review routing、e2e profile、compact/durable
-  task-run、长期 runner 状态和商业交付包。
-- 验证预算：固定输入与确定性 oracle 默认单次执行；重复只由显式不确定性或机器异常触发。独立 reviewer
-  只由高风险/发布/迁移/破坏性操作/正式架构晋级/用户要求触发，不由文件数或“非平凡”触发。
-- 文件语义：普通任务由 C 调度器在目标轮次末尾按路径收口；只有 profile/release/长链任务才进入
-  完整图执行。工具范围、retention、CI/nightly 和预算规则由 policy 声明。
-- 子任务派发：本地 RV64 RTL 子 agent 在 dispatch 前由 `.github/ai-env/contracts/agent-env-rtl-task-contract.json`、对应 instruction/skill/脚本冻结最小充分工程边界，并由 `agent-system` 的 `rtl-task-contract` 节点验证能力不变的 `rv64-hardware-professional` 语境渲染；该层不使用关键词黑名单，协调状态留在主 agent 记录中，review 暂停只作用于当前节点。
-- 长跑状态：RV64 仿真、综合、STA 与 Linux 系统回放使用 `scripts/task-run-status.sh` 的显式
-  evidence-complete 位；退出码为零但未到证据末端、cleanup 失败或 `HUP/INT/TERM` 都必须落成
-  带 stage/signal/cleanup 返回码的 `FAIL`，不得由 `EXIT` trap 推断 `PASS`。
-- 不承担职责：Database 仍负责事实写回；Skill 内容保持单一真源；各 agent profile 只承担各自维护逻辑。
+- .github/agents、.github/e2e 和 scripts/agent-* 提供专家角色、可选编排、维护、长跑和发布执行器。
+- Agent 根据 objective 和 acceptance criteria 选择最小充分动作；路径、文件数和任务时长只能提示风险，
+  不能自动创建 authorization phase。
+- e2e/profile/task-run/candidate/strict guard 默认 opt-in，只服务于显式跨会话交接、persistent/published
+  长跑、profile 开发、release、migration、security、forensic、publication 或用户明确要求。
+- 显式 persistent/published runner 继续 fail closed：工作负载、必要证据和 cleanup 未全部完成，或发生
+  HUP/INT/TERM，均不能记录 PASS。
 
-## 维护闭环
+## Cross-layer rules
 
-`classify -> implement/verify -> record explicit paths/evidence/decisions -> finish selected gates -> compact result`
+1. 先根据语义选择唯一真源：稳定事实进 Database/memory；可复用方法进 Skill/instruction；自动执行进
+   Agent/script/profile；专项机器接口进已有 contract。
+2. 修改一个层不自动要求同步所有其它层。只有实际接口或被引用语义变化时才更新直接消费者。
+3. 不为普通改动自动更新 rebuild matrix、review routing、branch dashboard、trace manifest、publication
+   或商业交付包；这些对象仅在本次 acceptance criteria 直接涉及它们时维护。
+4. 已进入版本控制并有自身测试的 DB/verifier/runner 默认可信。只有出现 schema mismatch、异常接受/
+   拒绝、矛盾输出、缺失结果或真实故障时才运行相应 audit 或自测。
+5. gate registry、path mapping 和 profile 可以推荐定向检查，但下游不得把推荐升级为新的权限要求。
+6. hash/SHA 仅用于 release/security/persistence/cache/reproducibility/forensic 等 identity 本身承重的
+   边界，不作为普通任务身份或人工汇报主线。
 
-日常入口：
+## Targeted maintenance
 
-```bash
-scripts/agent-flow.sh begin --task <id> --class environment
-scripts/agent-flow.sh record --task <id> --path <changed-path>
-scripts/agent-flow.sh finish --task <id>
-```
+AI 环境修改遵循 inspect → edit → targeted validation → report：
 
-`scripts/agent-maintain.sh` 分层执行：
+- 先读 AI_ENVIRONMENT.md、本文件和被修改对象的直接引用；
+- 只修改拥有该语义的真源及必要消费者；
+- 用最小检查确认链接、格式、解析或行为符合本轮 acceptance criteria；
+- verifier 自身未改且未出现异常时，不重跑其完整自测；
+- 报告累计行为变化、验证结果和仍存在的 machine-enforced 冲突。
 
-- `quick`：shell syntax + C 调度器自测，不调用 Python/DB/profile；
-- `final`：一轮 AI 环境目标结束后运行 quick、非发布类 contract/audit 和 profile binding；
-- `release`：在 final 上追加 package、delivery、branch-health 和 DB coverage；
-- `full`：在 release 上追加 `agent-system` profile；兼容名 `check` 等价于 `final`。
+scripts/agent-maintain.sh、agent-flow、agent-e2e 和 github_index_db.py 的 audit 子命令仍可用于明确专项，
+但普通环境文档编辑不因路径自动运行 quick/final/release/full 或完整 agent-system profile。
 
-日常路径不要求 `final/release/full` 全部执行；C 根据显式修改路径选择 `policy-audit`、
-`profile-bindings`、`state-audit`、`rtl-task-contract` 等固定指针。流程时间相对开发时间约 40%
-是事后观测目标，不作为 PASS/BLOCKED 的精确时间条件。
+## Compatibility
 
-跨层任务还必须维护：
-
-- `.github/ai-env/contracts/agent-env-rebuild-matrix.json`：把外部研究报告的问题、建议、状态、证据和下一步变成机器可读追踪矩阵。
-- `.github/ai-env/contracts/agent-env-schema-contract.json`：把 SQLite runtime schema、实体映射、retention 和只读 API 操作变成机器可读契约。
-- `.github/ai-env/contracts/agent-env-observability.json`：把 task-run trace id、`run-manifest.json`、artifact 链接、DB evidence asset 映射和 `trace-audit` 变成机器可读契约。
-- `.github/ai-env/contracts/agent-env-runtime-artifacts.json`：把源码面、运行态 payload root、artifact store、heavy suffix ignore pattern、raw evidence index-only 和 `artifact-audit` 变成机器可读契约。
-- `.github/ai-env/contracts/agent-env-delivery.json`：把商业交付目录、旧产物归档、包生成脚本、包内必需文件、敏感路径扫描和 `delivery-audit` 变成机器可读契约。
-- `.github/ai-env/contracts/agent-env-state-traceability.json`：把 FSM 状态、`state_traceback` 字段、Reviewer/Inspector 执行节点和 `state-audit` 变成机器可读契约。
-- `.github/ai-env/contracts/agent-env-review-routing.json`：把 R1-R9 和三层路径映射到 reviewer/inspector 路由，避免跨层改动无人复核。
-- `.github/ai-env/contracts/agent-env-branch-health.json`：把当前分支、HEAD、upstream、git status、矩阵状态和维护 gate 变成轻量 dashboard 契约。
-- `.github/instructions/agent-env-state-machine.instructions.md`：把 recall、classify、plan、implement、verify、inspect、persist 状态和回退规则固定下来。
-
-触及 profile 或 e2e 节点时，C 自动选择：
-
-```bash
-scripts/agent-e2e.sh --validate-all-profiles
-```
-
-真实 `agent-system` profile 只在 `full`、release 证据或用户明确要求时运行，不作为普通环境编辑的
-默认收尾。
-
-## 判定规则
-
-- retained DB audit 通过，只能说明 memory/log stored documents、活文件内容和备份一致；不能说明 Skill 规则可用。
-- report-audit 通过，说明研究报告中的高/中优先级要求都有状态、证据、验证命令和下一步；不说明所有项目都已完成。
-- schema-audit 通过，说明显式 schema/API 契约与当前 SQLite runtime schema、实体映射和只读 API op 一致。
-- artifact-audit 通过，说明 runtime artifact 契约、policy/schema/observability 引用、`.gitignore` 重型 payload 边界、`report.sh` evidence index-only 钩子、`agent-maintain` 门禁和 DB 不存 raw payload 的规则一致；带 `--run-id` 时还必须验证指定 task-run 的 raw evidence 已有 `evidence_assets` 索引。
-- delivery-audit 通过，说明旧 `outputs/` 与 `.github/e2e/_manual` 已离开 active surface、归档 manifest 和交付文档齐全、`scripts/package-ai-dev-env.sh` 可生成商业包、包清单为相对路径、包内必需文件齐全且未扫描到本机路径或私有标记。
-- trace-audit 通过，说明 observability 契约、policy 开关、`report.sh` manifest 生成器和 `run-manifest.json`/DB evidence asset 链接一致；带 `--run-id` 时还必须验证指定 task-run 的 trace id 与 artifact 路径。
-- state-audit 通过，说明状态机契约、policy、review routing、`agent-system` profile 节点、`report.sh` 的 `state_traceback` 字段和指定 run 的状态回溯证据一致。
-- policy-audit 通过，说明 agent tool allowlist、MCP 禁用、retention 路径和 CI/nightly gate 的声明与工作区一致。
-- skill-audit 通过，只能说明 Skill 文件结构健康；不能说明 Agent 自动流程闭合。
-- branch-health-audit 通过，说明 review routing、branch-health dashboard、policy 引用和维护脚本接线一致；branch-health-report 只给出当前分支状态，不替代完整 e2e。
-- agent-system profile 通过，才能说明 Database、Skill、Agent 三层的发现入口和轻量维护 gate 同时可执行。
+现有 schema、observability、runtime-artifact、delivery、state-traceability、review-routing 和
+branch-health contract 可以继续服务旧发布物或显式专项。它们不构成工作区日常 operating contract；
+若旧脚本仍强制七状态、全矩阵、publication/hash 或 reviewer/inspector，视为机器实现层兼容债务，在
+对应脚本被授权修改时再定向收敛，不把该限制扩写回文档。

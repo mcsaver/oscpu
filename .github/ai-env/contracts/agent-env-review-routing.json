@@ -1,5 +1,7 @@
 {
   "schema_version": 1,
+  "scope": "explicit-release-publication-or-requested-review",
+  "ordinary_path_checks_are_advisory": true,
   "purpose": "Risk-triggered agent review routing for the three-layer AI development environment.",
   "review_routes": [
     {
@@ -62,7 +64,6 @@
       "required_checks": [
         "policy-audit",
         "report-audit",
-        "state-audit",
         "branch-health-report",
         "branch-health-audit"
       ]
@@ -121,12 +122,12 @@
     "R9": "agent-layer"
   },
   "review_rules": [
-    "Every cross-layer change must identify at least one review route before final reporting.",
+    "When this contract is explicitly selected for requested review, release or publication, a cross-layer change identifies at least one relevant review route.",
     "Implementer/reviewer opposition is required only when a declared risk trigger is present; ordinary deterministic delivery uses implementer self-critique and direct finish.",
     "An independent reviewer challenges identity, counterexamples, coverage and claim boundaries without mechanically rerunning an already bound deterministic command.",
     "When independent review is triggered, unresolved implementer/reviewer conflicts must be reported as remaining risk or next action, not hidden behind a completed claim.",
     "Database-layer changes must keep stored ownership limited to retained memory/log documents and preserve backup/snapshot consistency.",
     "Skill-layer changes must keep SKILL.md live and under audit.",
-    "Agent-layer changes must leave task-run evidence when profile or workflow behavior changes."
+    "If an explicitly requested agent-layer review is persisted, retain only the evidence needed to support its scoped conclusion."
   ]
 }

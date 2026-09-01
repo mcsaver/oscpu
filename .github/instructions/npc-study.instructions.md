@@ -1,16 +1,21 @@
 ---
-description: "NPC 开发的本地学习资料流程。处理 npc/single 或 npc/soc 下的 RTL、仿真、设计或 bring-up 任务时，先读取对应 study 索引和专题笔记，再开始规划、实现和验证。"
+description: "NPC 本地学习资料的按需入口。任务依赖既有设计分析、规范摘录或历史约束时读取相关 study；不把固定开工阅读或摘要当作普通任务门禁。"
 applyTo: "npc/{single,soc}/**"
 ---
 
 # NPC 本地学习资料流程
 
-处理 `npc/single/` 或 `npc/soc/` 下的任务时，先把本地学习资料当作正式输入，而不是只在卡住时回头翻。`npc/soc` 是从 SoC 接入版拆出的目录，若对应 study 文件与 `npc/single` 同步存在，应按当前后端目录读取；若缺失，再回退读取 `npc/single/design/study/` 的正式笔记并在记录里说明。
+`design/study/` 是已有设计分析和规范摘录的检索入口，不是每个 `npc/single/` 或 `npc/soc/` 任务的固定
+开工阶段。当前源码、接口 spec 与直接相关 README 已足以回答问题时，无需额外读取或复述 study；当任务
+依赖既有设计取舍、规范边界或历史分析时，再按问题有界读取。`npc/soc` 的对应资料缺失时，可回退到
+`npc/single/design/study/` 中仍适用的正式笔记，并核对与当前后端是否一致。
 
-## 固定入口
+## 按需入口
 
-- **必须** 先读取当前后端目录下的 `design/study/README.md`，例如 `npc/single/design/study/README.md` 或 `npc/soc/design/study/README.md`
-- 只有在索引无法覆盖问题时，才继续进入同一目录下的 `design/study/tmp/README.md` 和 `design/study/tmp/*.txt` 查找原始摘录
+- 不清楚已有资料覆盖范围时，先查当前后端的 `design/study/README.md`，例如
+  `npc/single/design/study/README.md` 或 `npc/soc/design/study/README.md`。
+- 已知具体专题时可直接读取对应正式笔记；只有正式笔记不足以核对原始上下文时，才进入
+  `design/study/tmp/README.md` 或 `design/study/tmp/*.txt`。
 
 ## 按任务选读
 
@@ -18,8 +23,9 @@ applyTo: "npc/{single,soc}/**"
 - 做功能仿真、异常、trap、CSR、ECALL/EBREAK、MRET、WFI、PMEM 行为时，优先读取 `npc/single/design/study/RISC-V-spec-functional-sim-scope.md` 与 `npc/single/design/study/RISC-V-spec-functional-sim-notes.md`
 - 做 machine CSR、trap controller、mtime/mtimecmp、PMA/PMP、hart/platform、pmem/mmio 边界时，优先读取 `npc/single/design/study/RISC-V-spec-hardware-architecture-scope.md` 与 `npc/single/design/study/RISC-V-spec-hardware-architecture-notes.md`
 
-## 使用要求
+## 使用边界
 
-- 在开始实现前，先把要采用的关键约束从学习资料里提炼成 2 到 4 条明确结论，再据此规划或编码
+- 只提炼会改变本轮 acceptance、接口或实现选择的约束；不要求固定的开工摘要、阅读清单或条目数量。
 - `tmp/` 下的临时提取文本只用于快速定位原始上下文，不直接替代正式笔记结论
-- 若任务与现有笔记冲突，优先回到源码、规范或正式笔记核对，再决定是否更新 study 文档
+- 若当前源码、权威规范与旧笔记冲突，以核实后的当前工程事实为准；只有笔记本身仍属于任务范围时才
+  同步更新，不把一次普通实现自动扩大成全量文档维护。

@@ -1,3 +1,9 @@
+#if defined(CONFIG_NPC_OOO_STATS) && !defined(CONFIG_NPC_SIM_STATS)
+// Match NpcSimTop's file-local build closure for manual OOO-only builds.
+// Normal Kconfig builds already select SIM_STATS before OOO_STATS.
+#define CONFIG_NPC_SIM_STATS 1
+#endif
+
 /* NPC CPU 执行引擎 — C 重构后唯一保留的 C++ 文件
  * 必须用 C++ 是因为 Verilator 生成的 VNpcSimTop 是 C++ 类，
  * std::unique_ptr 用于管理仿真模型和 VCD 的生命周期。
@@ -161,6 +167,34 @@ struct RetireObservationSnapshot {
   bool overflow;
 };
 
+struct SqIdleFusionCounters {
+  uint64_t cycles;
+  uint64_t prequal;
+  uint64_t exact;
+  uint64_t allow;
+  uint64_t forward;
+  uint64_t replay;
+  uint64_t invalid;
+  uint64_t allow_rob_head;
+};
+
+struct SqIdleFusionState {
+  SqIdleFusionCounters counters;
+  uint64_t current_cycle;
+  bool current_valid;
+  bool encoding_malformed;
+  bool sequence_malformed;
+  bool overflow;
+};
+
+struct SqIdleFusionSnapshot {
+  SqIdleFusionCounters counters;
+  uint64_t event_cycle;
+  bool available;
+  bool malformed;
+  bool overflow;
+};
+
 static CommitEvent g_commit_events[kMaxCommitEventsPerCycle] = {};
 static uint32_t    g_commit_event_count = 0;
 static CommitEvent g_recent_commits[kRecentCommitRingSize] = {};
@@ -187,9 +221,12 @@ struct RegionProbeState {
   uint32_t end_lane;
   RetireObservationSnapshot start_counter;
   RetireObservationSnapshot end_counter;
+  SqIdleFusionSnapshot start_sq_idle_fusion;
+  SqIdleFusionSnapshot end_sq_idle_fusion;
 };
 static RegionProbeState g_region_probe = {};
 static RetireObservationStats g_retire_observation = {};
+static SqIdleFusionState g_sq_idle_fusion = {};
 static npc_word_t  g_shadow_gpr[32] = {};
 static uint64_t    g_shadow_fpr[32] = {};   // 阶段2 FPR shadow: 逐提交精确 FP arch 值(对称 GPR)
 // 全状态 difftest: 本拍 CSR+priv 快照(NpcSimTop 每 commit 拍经 npc_arch_csr_event XMR 更新)。
@@ -267,6 +304,35 @@ struct SimPerfStats {
   uint64_t ooo_hazard_busy_cycles;
   uint64_t ooo_branch_flush_cycles;
   uint64_t ooo_exception_busy_cycles;
+  // OooTensorRobSidecar already owns these cumulative counters.  The host
+  // stores a post-posedge RTL snapshot instead of summing it again.
+  uint64_t ooo_tensor_issued_count;
+  uint64_t ooo_tensor_terminal_count;
+  uint64_t ooo_tensor_completion_count;
+  uint64_t ooo_tensor_wait_head_cycles;
+  uint64_t ooo_tensor_wait_drain_cycles;
+  uint64_t ooo_tensor_npu_backpressure_cycles;
+  uint64_t ooo_tensor_serialize_cycles;
+  uint64_t ooo_tensor_alloc_direct_issue_count;
+  uint64_t ooo_tensor_attr_prelaunch_cancel_cycles;
+  uint64_t ooo_tensor_attr_wait_not_exact_head_cycles;
+  uint64_t ooo_tensor_attr_wait_launch_gate_cycles;
+  uint64_t ooo_tensor_attr_wait_src_dependency_cycles;
+  uint64_t ooo_tensor_attr_wait_src_value_cycles;
+  uint64_t ooo_tensor_attr_wait_mem_active_cycles;
+  uint64_t ooo_tensor_attr_wait_mem_retire_cycles;
+  uint64_t ooo_tensor_attr_launch_to_offer_cycles;
+  uint64_t ooo_tensor_attr_offer_backpressure_cycles;
+  uint64_t ooo_tensor_attr_offer_accept_cycles;
+  uint64_t ooo_tensor_attr_sent_terminal_absent_cycles;
+  uint64_t ooo_tensor_attr_sent_terminal_stale_cycles;
+  uint64_t ooo_tensor_attr_sent_terminal_accept_cycles;
+  uint64_t ooo_tensor_attr_complete_wb_backpressure_cycles;
+  uint64_t ooo_tensor_attr_complete_stale_drop_cycles;
+  uint64_t ooo_tensor_attr_complete_wb_accept_cycles;
+  uint64_t ooo_tensor_attr_invalid_state_cycles;
+  uint64_t ooo_tensor_attr_sent_terminal_completion_stale_cycles;
+  uint64_t ooo_tensor_attr_sent_terminal_wb_accept_cycles;
   npc_word_t ooo_branch_wait_pc[kTopBranchWaitPcCount];
   uint64_t ooo_branch_wait_pc_cycles[kTopBranchWaitPcCount];
   npc_word_t ooo_jump_wait_pc[kTopBranchWaitPcCount];
@@ -313,7 +379,8 @@ struct BranchMissPcStat {
   uint64_t count;
 };
 
-/* 这些计数来自 NpcSimTop.sv 对 RTL 内部信号的层次化采样；host 只累加 DPI 事件。 */
+/* 这些计数来自 NpcSimTop.sv 对 RTL 内部信号的层次化采样。逐拍事件在
+ * host 累加；RTL 本身已经累计的 Tensor 计数在 posedge eval 返回后采样。 */
 static SimPerfStats g_sim_perf = {};
 static BpuStats g_bpu_stats = {};
 static BranchMissPcStat g_branch_miss_pc_stats[256] = {};
@@ -327,6 +394,184 @@ static uint64_t g_nr_branch       = 0;  // B-type 条件分支总数
 static uint64_t g_nr_branch_taken = 0;  // 条件分支中实际跳转的次数
 static uint64_t g_nr_jal          = 0;  // JAL 无条件跳转
 static uint64_t g_nr_jalr         = 0;  // JALR 间接跳转（含 ret）
+
+#ifdef CONFIG_NPC_OOO_STATS
+struct RtlCounter32Epoch {
+  uint32_t last_raw = 0;
+  uint64_t extended = 0;
+  bool initialized = false;
+};
+
+struct TensorSnapshotEpochs {
+  RtlCounter32Epoch issued;
+  RtlCounter32Epoch terminal;
+  RtlCounter32Epoch completion;
+  RtlCounter32Epoch wait_head;
+  RtlCounter32Epoch wait_drain;
+  RtlCounter32Epoch npu_backpressure;
+  RtlCounter32Epoch serialize;
+  RtlCounter32Epoch alloc_direct_issue;
+  RtlCounter32Epoch attr_prelaunch_cancel;
+  RtlCounter32Epoch attr_wait_not_exact_head;
+  RtlCounter32Epoch attr_wait_launch_gate;
+  RtlCounter32Epoch attr_wait_src_dependency;
+  RtlCounter32Epoch attr_wait_src_value;
+  RtlCounter32Epoch attr_wait_mem_active;
+  RtlCounter32Epoch attr_wait_mem_retire;
+  RtlCounter32Epoch attr_launch_to_offer;
+  RtlCounter32Epoch attr_offer_backpressure;
+  RtlCounter32Epoch attr_offer_accept;
+  RtlCounter32Epoch attr_sent_terminal_absent;
+  RtlCounter32Epoch attr_sent_terminal_stale;
+  RtlCounter32Epoch attr_sent_terminal_accept;
+  RtlCounter32Epoch attr_complete_wb_backpressure;
+  RtlCounter32Epoch attr_complete_stale_drop;
+  RtlCounter32Epoch attr_complete_wb_accept;
+  RtlCounter32Epoch attr_invalid_state;
+  RtlCounter32Epoch attr_sent_terminal_completion_stale;
+  RtlCounter32Epoch attr_sent_terminal_wb_accept;
+};
+
+static TensorSnapshotEpochs g_tensor_snapshot_epochs = {};
+
+static uint64_t extend_rtl_counter32(RtlCounter32Epoch *epoch,
+                                     uint32_t raw) {
+  if (!epoch->initialized) {
+    epoch->last_raw = raw;
+    epoch->extended = raw;
+    epoch->initialized = true;
+    return epoch->extended;
+  }
+
+  // Sampling every active edge bounds the increment well below 2^32.  The
+  // uint32 subtraction therefore extends a single hardware wrap exactly.
+  const uint32_t delta = raw - epoch->last_raw;
+  epoch->last_raw = raw;
+  epoch->extended += static_cast<uint64_t>(delta);
+  return epoch->extended;
+}
+
+static void reset_tensor_snapshot_epochs(void) {
+  g_tensor_snapshot_epochs = {};
+}
+
+static void sample_tensor_snapshot_post_posedge(void) {
+  if (!g_top || g_top->rst) return;
+
+  g_sim_perf.ooo_tensor_issued_count = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.issued,
+      static_cast<uint32_t>(g_top->debug_tensor_issued_count_o));
+  g_sim_perf.ooo_tensor_terminal_count = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.terminal,
+      static_cast<uint32_t>(g_top->debug_tensor_terminal_count_o));
+  g_sim_perf.ooo_tensor_completion_count = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.completion,
+      static_cast<uint32_t>(g_top->debug_tensor_completion_count_o));
+  g_sim_perf.ooo_tensor_wait_head_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.wait_head,
+      static_cast<uint32_t>(g_top->debug_tensor_wait_head_cycles_o));
+  g_sim_perf.ooo_tensor_wait_drain_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.wait_drain,
+      static_cast<uint32_t>(g_top->debug_tensor_wait_drain_cycles_o));
+  g_sim_perf.ooo_tensor_npu_backpressure_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.npu_backpressure,
+      static_cast<uint32_t>(g_top->debug_tensor_npu_backpressure_cycles_o));
+  g_sim_perf.ooo_tensor_serialize_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.serialize,
+      static_cast<uint32_t>(g_top->debug_tensor_serialize_cycles_o));
+  g_sim_perf.ooo_tensor_alloc_direct_issue_count = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.alloc_direct_issue,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_alloc_direct_issue_count_o));
+  g_sim_perf.ooo_tensor_attr_prelaunch_cancel_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_prelaunch_cancel,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_prelaunch_cancel_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_not_exact_head_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_wait_not_exact_head,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_wait_not_exact_head_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_launch_gate_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_wait_launch_gate,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_wait_launch_gate_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_src_dependency_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_wait_src_dependency,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_wait_src_dependency_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_src_value_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_wait_src_value,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_wait_src_value_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_mem_active_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_wait_mem_active,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_wait_mem_active_cycles_o));
+  g_sim_perf.ooo_tensor_attr_wait_mem_retire_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_wait_mem_retire,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_wait_mem_retire_cycles_o));
+  g_sim_perf.ooo_tensor_attr_launch_to_offer_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_launch_to_offer,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_launch_to_offer_cycles_o));
+  g_sim_perf.ooo_tensor_attr_offer_backpressure_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_offer_backpressure,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_offer_backpressure_cycles_o));
+  g_sim_perf.ooo_tensor_attr_offer_accept_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_offer_accept,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_offer_accept_cycles_o));
+  g_sim_perf.ooo_tensor_attr_sent_terminal_absent_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_sent_terminal_absent,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_sent_terminal_absent_cycles_o));
+  g_sim_perf.ooo_tensor_attr_sent_terminal_stale_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_sent_terminal_stale,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_sent_terminal_stale_cycles_o));
+  g_sim_perf.ooo_tensor_attr_sent_terminal_accept_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_sent_terminal_accept,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_sent_terminal_accept_cycles_o));
+  g_sim_perf.ooo_tensor_attr_complete_wb_backpressure_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_complete_wb_backpressure,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_complete_wb_backpressure_cycles_o));
+  g_sim_perf.ooo_tensor_attr_complete_stale_drop_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_complete_stale_drop,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_complete_stale_drop_cycles_o));
+  g_sim_perf.ooo_tensor_attr_complete_wb_accept_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_complete_wb_accept,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_complete_wb_accept_cycles_o));
+  g_sim_perf.ooo_tensor_attr_invalid_state_cycles = extend_rtl_counter32(
+      &g_tensor_snapshot_epochs.attr_invalid_state,
+      static_cast<uint32_t>(
+          g_top->debug_tensor_attribution_invalid_state_cycles_o));
+  g_sim_perf.ooo_tensor_attr_sent_terminal_completion_stale_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_sent_terminal_completion_stale,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_sent_terminal_completion_stale_cycles_o));
+  g_sim_perf.ooo_tensor_attr_sent_terminal_wb_accept_cycles =
+      extend_rtl_counter32(
+          &g_tensor_snapshot_epochs.attr_sent_terminal_wb_accept,
+          static_cast<uint32_t>(
+              g_top->debug_tensor_attribution_sent_terminal_wb_accept_cycles_o));
+}
+#endif
 
 static const char *kRegNames[32] = {
   "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -387,6 +632,152 @@ static void capture_retire_observation_snapshot(
   snapshot->current_invalid = g_retire_observation.current_invalid;
   snapshot->current_overflow = g_retire_observation.current_overflow;
   snapshot->overflow = g_retire_observation.overflow;
+}
+
+struct SqIdleFusionReport {
+  SqIdleFusionCounters counters;
+  uint64_t identity_or_lq_reject;
+  bool complete;
+  bool available;
+  bool overflow;
+  bool malformed;
+  bool conservation;
+};
+
+static void capture_sq_idle_fusion_snapshot(
+    SqIdleFusionSnapshot *snapshot) {
+  if (snapshot == nullptr) return;
+  memset(snapshot, 0, sizeof(*snapshot));
+  snapshot->counters = g_sq_idle_fusion.counters;
+  snapshot->event_cycle = g_sq_idle_fusion.current_cycle;
+  snapshot->available = g_sq_idle_fusion.current_valid &&
+                        snapshot->event_cycle == npc_stats()->cycles;
+  snapshot->malformed = g_sq_idle_fusion.encoding_malformed ||
+                        g_sq_idle_fusion.sequence_malformed;
+  snapshot->overflow = g_sq_idle_fusion.overflow;
+}
+
+static bool subtract_sq_idle_fusion_counters(
+    const SqIdleFusionCounters &end,
+    const SqIdleFusionCounters &start,
+    SqIdleFusionCounters *delta) {
+  if (delta == nullptr) return false;
+  memset(delta, 0, sizeof(*delta));
+#define SQ_IDLE_FUSION_SUB_FIELD(field)                                  \
+  do {                                                                   \
+    if (end.field < start.field) return false;                           \
+    delta->field = end.field - start.field;                              \
+  } while (0)
+  SQ_IDLE_FUSION_SUB_FIELD(cycles);
+  SQ_IDLE_FUSION_SUB_FIELD(prequal);
+  SQ_IDLE_FUSION_SUB_FIELD(exact);
+  SQ_IDLE_FUSION_SUB_FIELD(allow);
+  SQ_IDLE_FUSION_SUB_FIELD(forward);
+  SQ_IDLE_FUSION_SUB_FIELD(replay);
+  SQ_IDLE_FUSION_SUB_FIELD(invalid);
+  SQ_IDLE_FUSION_SUB_FIELD(allow_rob_head);
+#undef SQ_IDLE_FUSION_SUB_FIELD
+  return true;
+}
+
+static SqIdleFusionReport make_sq_idle_fusion_report(
+    const SqIdleFusionCounters &counters,
+    bool scope_complete,
+    bool available,
+    bool overflow,
+    bool malformed) {
+  SqIdleFusionReport report = {};
+  report.counters = counters;
+  report.available = available;
+  report.overflow = overflow;
+  report.malformed = malformed;
+
+  if (counters.prequal < counters.exact) {
+    report.malformed = true;
+  } else {
+    report.identity_or_lq_reject = counters.prequal - counters.exact;
+  }
+
+  uint64_t decision_sum = 0;
+  if (!add_u64_checked(&decision_sum, counters.allow) ||
+      !add_u64_checked(&decision_sum, counters.forward) ||
+      !add_u64_checked(&decision_sum, counters.replay) ||
+      !add_u64_checked(&decision_sum, counters.invalid)) {
+    report.overflow = true;
+  }
+  report.conservation = !report.overflow && !report.malformed &&
+      counters.exact == decision_sum &&
+      counters.prequal >= counters.exact &&
+      counters.allow_rob_head <= counters.allow;
+  report.complete = scope_complete && report.available &&
+      !report.overflow && !report.malformed && report.conservation;
+  return report;
+}
+
+static void emit_sq_idle_fusion_report(
+    const char *marker,
+    const SqIdleFusionReport &report) {
+  LogBothTag(
+      "sq_idle_fusion",
+      "%s schema=npc-rv64-sq-idle-fusion-qualification-v1"
+      " complete=%u available=%u overflow=%u malformed=%u cycles=%llu"
+      " prequal=%llu exact=%llu identity_or_lq_reject=%llu"
+      " allow=%llu forward=%llu replay=%llu invalid=%llu"
+      " allow_rob_head=%llu conservation=%u",
+      marker,
+      report.complete ? 1u : 0u,
+      report.available ? 1u : 0u,
+      report.overflow ? 1u : 0u,
+      report.malformed ? 1u : 0u,
+      (unsigned long long)report.counters.cycles,
+      (unsigned long long)report.counters.prequal,
+      (unsigned long long)report.counters.exact,
+      (unsigned long long)report.identity_or_lq_reject,
+      (unsigned long long)report.counters.allow,
+      (unsigned long long)report.counters.forward,
+      (unsigned long long)report.counters.replay,
+      (unsigned long long)report.counters.invalid,
+      (unsigned long long)report.counters.allow_rob_head,
+      report.conservation ? 1u : 0u);
+}
+
+static void report_sq_idle_fusion_region(bool boundary_complete) {
+  const SqIdleFusionSnapshot &start =
+      g_region_probe.start_sq_idle_fusion;
+  const SqIdleFusionSnapshot &end =
+      g_region_probe.end_sq_idle_fusion;
+  const bool available = start.available && end.available;
+  bool malformed = start.malformed || end.malformed;
+  const bool overflow = start.overflow || end.overflow;
+  SqIdleFusionCounters delta = {};
+  if (available &&
+      !subtract_sq_idle_fusion_counters(
+          end.counters, start.counters, &delta)) {
+    malformed = true;
+  }
+  if (available &&
+      (start.event_cycle != g_region_probe.start_cycle ||
+       end.event_cycle != g_region_probe.end_cycle ||
+       end.event_cycle < start.event_cycle ||
+       delta.cycles != end.event_cycle - start.event_cycle)) {
+    malformed = true;
+  }
+  const SqIdleFusionReport report = make_sq_idle_fusion_report(
+      delta, boundary_complete, available, overflow, malformed);
+  emit_sq_idle_fusion_report("SQ_IDLE_FUSION_REGION", report);
+}
+
+static void report_sq_idle_fusion_final(void) {
+  const bool available = g_sq_idle_fusion.current_valid &&
+      g_sq_idle_fusion.current_cycle == npc_stats()->cycles;
+  const bool malformed = g_sq_idle_fusion.encoding_malformed ||
+      g_sq_idle_fusion.sequence_malformed ||
+      (available &&
+       g_sq_idle_fusion.counters.cycles != g_sq_idle_fusion.current_cycle);
+  const SqIdleFusionReport report = make_sq_idle_fusion_report(
+      g_sq_idle_fusion.counters, true, available,
+      g_sq_idle_fusion.overflow, malformed);
+  emit_sq_idle_fusion_report("SQ_IDLE_FUSION_FINAL", report);
 }
 
 static double ratio_percent(uint64_t part, uint64_t total) {
@@ -966,6 +1357,8 @@ static void observe_region_boundary(const CommitEvent &event,
       g_region_probe.start_retired = retired_before;
       g_region_probe.start_lane = commit_lane;
       capture_retire_observation_snapshot(&g_region_probe.start_counter);
+      capture_sq_idle_fusion_snapshot(
+          &g_region_probe.start_sq_idle_fusion);
       LogBothTag("region_probe",
                  "BOUNDARY kind=start pc=0x%016" NPC_PRIxWORD
                  " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
@@ -985,6 +1378,8 @@ static void observe_region_boundary(const CommitEvent &event,
       g_region_probe.end_retired = retired_before;
       g_region_probe.end_lane = commit_lane;
       capture_retire_observation_snapshot(&g_region_probe.end_counter);
+      capture_sq_idle_fusion_snapshot(
+          &g_region_probe.end_sq_idle_fusion);
       LogBothTag("region_probe",
                  "BOUNDARY kind=end pc=0x%016" NPC_PRIxWORD
                  " cycle=%llu retired_before=%llu lane=%u cycle_retire=%llu",
@@ -1033,6 +1428,11 @@ static void report_region_probe_final(int termination_rc) {
              (unsigned long long)g_region_probe.start_retired,
              (unsigned long long)g_region_probe.end_retired,
              (unsigned long long)region_retired);
+
+  // These cycle-event snapshots are already inclusive of their boundary
+  // cycles.  Direct subtraction therefore measures (S,E]; unlike retire-slot
+  // counters, no start/end lane suffix correction applies.
+  report_sq_idle_fusion_region(complete);
 
   uint64_t cycle_reason[RETIRE_REASON_COUNT] = {};
   uint64_t slot_reason[RETIRE_REASON_COUNT] = {};
@@ -1396,7 +1796,11 @@ static void reset_event_state(void) {
   memset(g_recent_debug, 0, sizeof(g_recent_debug));
   g_recent_debug_count = 0;
   memset(&g_sim_perf, 0, sizeof(g_sim_perf));
+#ifdef CONFIG_NPC_OOO_STATS
+  reset_tensor_snapshot_epochs();
+#endif
   memset(&g_retire_observation, 0, sizeof(g_retire_observation));
+  memset(&g_sq_idle_fusion, 0, sizeof(g_sq_idle_fusion));
   memset(&g_bpu_stats, 0, sizeof(g_bpu_stats));
   memset(g_branch_miss_pc_stats, 0, sizeof(g_branch_miss_pc_stats));
   g_last_ooo_branch_prefetch_hit = false;
@@ -2090,6 +2494,95 @@ static void record_retire_observation_event(uint32_t retire_count,
       g_retire_observation.overflow || event_overflow;
 }
 
+static constexpr uint64_t sq_idle_fusion_pair_popcount(uint32_t pair) {
+  return static_cast<uint64_t>(pair & 1u) +
+         static_cast<uint64_t>((pair >> 1) & 1u);
+}
+
+static_assert(sq_idle_fusion_pair_popcount(0x3u) == 2u,
+              "a two-lane SQ event pair must contribute two");
+
+static void bump_sq_idle_fusion_counter(uint64_t *counter,
+                                        uint64_t increment,
+                                        bool *event_overflow) {
+  if (add_u64_checked(counter, increment)) return;
+  if (counter != nullptr) *counter = UINT64_MAX;
+  if (event_overflow != nullptr) *event_overflow = true;
+}
+
+static void record_sq_idle_fusion_event(uint32_t mask) {
+  static constexpr uint32_t kReservedMask = 0xffffc000u;
+  bool event_encoding_malformed = (mask & kReservedMask) != 0;
+  bool event_sequence_malformed = false;
+  bool event_overflow = false;
+
+  uint64_t event_cycle = npc_stats()->cycles;
+  if (!add_u64_checked(&event_cycle, 1)) {
+    event_overflow = true;
+  }
+  if (g_sq_idle_fusion.current_valid) {
+    uint64_t expected_cycle = g_sq_idle_fusion.current_cycle;
+    if (!add_u64_checked(&expected_cycle, 1)) {
+      event_overflow = true;
+    } else if (event_cycle != expected_cycle) {
+      event_sequence_malformed = true;
+    }
+  } else if (event_cycle != 1) {
+    event_sequence_malformed = true;
+  }
+
+  const uint32_t prequal = (mask >> 0) & 0x3u;
+  const uint32_t exact = (mask >> 2) & 0x3u;
+  const uint32_t allow = (mask >> 4) & 0x3u;
+  const uint32_t forward = (mask >> 6) & 0x3u;
+  const uint32_t replay = (mask >> 8) & 0x3u;
+  const uint32_t invalid = (mask >> 10) & 0x3u;
+  const uint32_t allow_rob_head = (mask >> 12) & 0x3u;
+  const uint32_t decision_partition = allow | forward | replay | invalid;
+  if ((exact & ~prequal) != 0 ||
+      ((allow | forward | replay | invalid) & ~exact) != 0 ||
+      (allow_rob_head & ~allow) != 0 ||
+      (allow & forward) != 0 || (allow & replay) != 0 ||
+      (allow & invalid) != 0 || (forward & replay) != 0 ||
+      (forward & invalid) != 0 || (replay & invalid) != 0 ||
+      decision_partition != exact) {
+    event_encoding_malformed = true;
+  }
+
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.cycles, 1, &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.prequal,
+      sq_idle_fusion_pair_popcount(prequal), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.exact,
+      sq_idle_fusion_pair_popcount(exact), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.allow,
+      sq_idle_fusion_pair_popcount(allow), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.forward,
+      sq_idle_fusion_pair_popcount(forward), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.replay,
+      sq_idle_fusion_pair_popcount(replay), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.invalid,
+      sq_idle_fusion_pair_popcount(invalid), &event_overflow);
+  bump_sq_idle_fusion_counter(
+      &g_sq_idle_fusion.counters.allow_rob_head,
+      sq_idle_fusion_pair_popcount(allow_rob_head), &event_overflow);
+
+  g_sq_idle_fusion.current_cycle = event_cycle;
+  g_sq_idle_fusion.current_valid = true;
+  g_sq_idle_fusion.encoding_malformed =
+      g_sq_idle_fusion.encoding_malformed || event_encoding_malformed;
+  g_sq_idle_fusion.sequence_malformed =
+      g_sq_idle_fusion.sequence_malformed || event_sequence_malformed;
+  g_sq_idle_fusion.overflow =
+      g_sq_idle_fusion.overflow || event_overflow;
+}
+
 extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t execute_count,
                                     uint32_t dispatch_count,
@@ -2121,11 +2614,40 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
                                     uint32_t retire_slot0_reason,
                                     uint32_t retire_slot1_reason,
                                     uint32_t retire_slot0_request_detail,
-                                    uint32_t retire_slot1_request_detail) {
+                                    uint32_t retire_slot1_request_detail,
+                                    uint32_t tensor_issued_count,
+                                    uint32_t tensor_terminal_count,
+                                    uint32_t tensor_completion_count,
+                                    uint32_t tensor_wait_head_cycles,
+                                    uint32_t tensor_wait_drain_cycles,
+                                    uint32_t tensor_npu_backpressure_cycles,
+                                    uint32_t tensor_serialize_cycles,
+                                    uint32_t tensor_alloc_direct_issue_count,
+                                    uint32_t tensor_attr_prelaunch_cancel_cycles,
+                                    uint32_t tensor_attr_wait_not_exact_head_cycles,
+                                    uint32_t tensor_attr_wait_launch_gate_cycles,
+                                    uint32_t tensor_attr_wait_src_dependency_cycles,
+                                    uint32_t tensor_attr_wait_src_value_cycles,
+                                    uint32_t tensor_attr_wait_mem_active_cycles,
+                                    uint32_t tensor_attr_wait_mem_retire_cycles,
+                                    uint32_t tensor_attr_launch_to_offer_cycles,
+                                    uint32_t tensor_attr_offer_backpressure_cycles,
+                                    uint32_t tensor_attr_offer_accept_cycles,
+                                    uint32_t tensor_attr_sent_terminal_absent_cycles,
+                                    uint32_t tensor_attr_sent_terminal_stale_cycles,
+                                    uint32_t tensor_attr_sent_terminal_accept_cycles,
+                                    uint32_t tensor_attr_complete_wb_backpressure_cycles,
+                                    uint32_t tensor_attr_complete_stale_drop_cycles,
+                                    uint32_t tensor_attr_complete_wb_accept_cycles,
+                                    uint32_t tensor_attr_invalid_state_cycles,
+                                    uint32_t tensor_attr_sent_terminal_completion_stale_cycles,
+                                    uint32_t tensor_attr_sent_terminal_wb_accept_cycles,
+                                    uint32_t sq_idle_fusion_qualification_mask) {
   record_retire_observation_event(retire_count, retire_slot0_reason,
                                   retire_slot1_reason,
                                   retire_slot0_request_detail,
                                   retire_slot1_request_detail);
+  record_sq_idle_fusion_event(sq_idle_fusion_qualification_mask);
   g_sim_perf.ooo_cycles++;
   bump_ooo_hist(g_sim_perf.ooo_retire_hist, retire_count);
   bump_ooo_hist(g_sim_perf.ooo_execute_hist, execute_count);
@@ -2159,6 +2681,36 @@ extern "C" void npc_ooo_cycle_event(uint32_t retire_count,
   g_sim_perf.ooo_hazard_busy_cycles += hazard_busy ? 1u : 0u;
   g_sim_perf.ooo_branch_flush_cycles += branch_flush ? 1u : 0u;
   g_sim_perf.ooo_exception_busy_cycles += exception_busy ? 1u : 0u;
+  // The DPI callback runs in the SV active region, before this edge's NBA
+  // counter updates.  Preserve these parameters for the direct-system ABI,
+  // but production takes its authoritative snapshot after eval() returns.
+  (void)tensor_issued_count;
+  (void)tensor_terminal_count;
+  (void)tensor_completion_count;
+  (void)tensor_wait_head_cycles;
+  (void)tensor_wait_drain_cycles;
+  (void)tensor_npu_backpressure_cycles;
+  (void)tensor_serialize_cycles;
+  (void)tensor_alloc_direct_issue_count;
+  (void)tensor_attr_prelaunch_cancel_cycles;
+  (void)tensor_attr_wait_not_exact_head_cycles;
+  (void)tensor_attr_wait_launch_gate_cycles;
+  (void)tensor_attr_wait_src_dependency_cycles;
+  (void)tensor_attr_wait_src_value_cycles;
+  (void)tensor_attr_wait_mem_active_cycles;
+  (void)tensor_attr_wait_mem_retire_cycles;
+  (void)tensor_attr_launch_to_offer_cycles;
+  (void)tensor_attr_offer_backpressure_cycles;
+  (void)tensor_attr_offer_accept_cycles;
+  (void)tensor_attr_sent_terminal_absent_cycles;
+  (void)tensor_attr_sent_terminal_stale_cycles;
+  (void)tensor_attr_sent_terminal_accept_cycles;
+  (void)tensor_attr_complete_wb_backpressure_cycles;
+  (void)tensor_attr_complete_stale_drop_cycles;
+  (void)tensor_attr_complete_wb_accept_cycles;
+  (void)tensor_attr_invalid_state_cycles;
+  (void)tensor_attr_sent_terminal_completion_stale_cycles;
+  (void)tensor_attr_sent_terminal_wb_accept_cycles;
   bump_ooo_window(retire_count, execute_count, dispatch_count, fetch_busy,
                   mem_busy, axi_wait, hazard_busy, branch_flush,
                   exception_busy);
@@ -2347,6 +2899,7 @@ static void report_cache_stats(void) {
 
 #ifdef CONFIG_NPC_OOO_STATS
 static void report_ooo_stats(void) {
+  report_sq_idle_fusion_final();
   if (g_sim_perf.ooo_cycles == 0) return;
   LogBothTag("statistic", "=== OoO Pipeline Statistics ===");
   LogBothTag("statistic", "ooo cycles observed = %llu",
@@ -2445,6 +2998,130 @@ static void report_ooo_stats(void) {
              (unsigned long long)g_sim_perf.ooo_mem1_req_fire,
              (unsigned long long)g_sim_perf.ooo_mem0_rsp_fire,
              (unsigned long long)g_sim_perf.ooo_mem1_rsp_fire);
+  const uint64_t tensor_attributed_cycles =
+      g_sim_perf.ooo_tensor_wait_head_cycles +
+      g_sim_perf.ooo_tensor_wait_drain_cycles +
+      g_sim_perf.ooo_tensor_npu_backpressure_cycles;
+  const bool tensor_bucket_overflow =
+      tensor_attributed_cycles > g_sim_perf.ooo_tensor_serialize_cycles;
+  const uint64_t tensor_unattributed_cycles = tensor_bucket_overflow
+      ? 0
+      : g_sim_perf.ooo_tensor_serialize_cycles - tensor_attributed_cycles;
+  const int64_t tensor_issued_terminal_gap =
+      static_cast<int64_t>(g_sim_perf.ooo_tensor_issued_count) -
+      static_cast<int64_t>(g_sim_perf.ooo_tensor_terminal_count);
+  const int64_t tensor_terminal_completion_gap =
+      static_cast<int64_t>(g_sim_perf.ooo_tensor_terminal_count) -
+      static_cast<int64_t>(g_sim_perf.ooo_tensor_completion_count);
+  const double tensor_issued_den =
+      g_sim_perf.ooo_tensor_issued_count == 0
+          ? 1.0
+          : static_cast<double>(g_sim_perf.ooo_tensor_issued_count);
+  LogBothTag("statistic",
+             "tensor issued/terminal/completion = %llu/%llu/%llu, gaps issued-terminal/terminal-completion = %lld/%lld",
+             (unsigned long long)g_sim_perf.ooo_tensor_issued_count,
+             (unsigned long long)g_sim_perf.ooo_tensor_terminal_count,
+             (unsigned long long)g_sim_perf.ooo_tensor_completion_count,
+             (long long)tensor_issued_terminal_gap,
+             (long long)tensor_terminal_completion_gap);
+  LogBothTag("statistic",
+             "tensor allocation-edge direct issues = %llu/%llu",
+             (unsigned long long)
+                 g_sim_perf.ooo_tensor_alloc_direct_issue_count,
+             (unsigned long long)g_sim_perf.ooo_tensor_issued_count);
+  LogBothTag("statistic",
+             "tensor cycles: serialize=%llu, wait-head=%llu, wait-drain=%llu, cmd-backpressure=%llu, unattributed=%llu%s",
+             (unsigned long long)g_sim_perf.ooo_tensor_serialize_cycles,
+             (unsigned long long)g_sim_perf.ooo_tensor_wait_head_cycles,
+             (unsigned long long)g_sim_perf.ooo_tensor_wait_drain_cycles,
+             (unsigned long long)g_sim_perf.ooo_tensor_npu_backpressure_cycles,
+             (unsigned long long)tensor_unattributed_cycles,
+             tensor_bucket_overflow ? " [bucket-overflow]" : "");
+  LogBothTag("statistic",
+             "tensor cycles/issued: serialize=%.2f, wait-head=%.2f, wait-drain=%.2f, cmd-backpressure=%.2f, unattributed=%.2f",
+             static_cast<double>(g_sim_perf.ooo_tensor_serialize_cycles) /
+                 tensor_issued_den,
+             static_cast<double>(g_sim_perf.ooo_tensor_wait_head_cycles) /
+                 tensor_issued_den,
+             static_cast<double>(g_sim_perf.ooo_tensor_wait_drain_cycles) /
+                 tensor_issued_den,
+             static_cast<double>(
+                 g_sim_perf.ooo_tensor_npu_backpressure_cycles) /
+                 tensor_issued_den,
+             static_cast<double>(tensor_unattributed_cycles) /
+                 tensor_issued_den);
+  const uint64_t tensor_attribution_counters[] = {
+      g_sim_perf.ooo_tensor_attr_prelaunch_cancel_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_not_exact_head_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_launch_gate_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_src_dependency_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_src_value_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_mem_active_cycles,
+      g_sim_perf.ooo_tensor_attr_wait_mem_retire_cycles,
+      g_sim_perf.ooo_tensor_attr_launch_to_offer_cycles,
+      g_sim_perf.ooo_tensor_attr_offer_backpressure_cycles,
+      g_sim_perf.ooo_tensor_attr_offer_accept_cycles,
+      g_sim_perf.ooo_tensor_attr_sent_terminal_absent_cycles,
+      g_sim_perf.ooo_tensor_attr_sent_terminal_stale_cycles,
+      g_sim_perf.ooo_tensor_attr_sent_terminal_accept_cycles,
+      g_sim_perf.ooo_tensor_attr_complete_wb_backpressure_cycles,
+      g_sim_perf.ooo_tensor_attr_complete_stale_drop_cycles,
+      g_sim_perf.ooo_tensor_attr_complete_wb_accept_cycles,
+      g_sim_perf.ooo_tensor_attr_invalid_state_cycles,
+      g_sim_perf.ooo_tensor_attr_sent_terminal_completion_stale_cycles,
+      g_sim_perf.ooo_tensor_attr_sent_terminal_wb_accept_cycles,
+  };
+  uint64_t tensor_attribution_sum = 0;
+  bool tensor_attribution_overflow = false;
+  for (uint64_t counter : tensor_attribution_counters) {
+    if (!add_u64_checked(&tensor_attribution_sum, counter)) {
+      tensor_attribution_overflow = true;
+      break;
+    }
+  }
+  const bool tensor_attribution_partition_ok =
+      !tensor_attribution_overflow &&
+      tensor_attribution_sum == g_sim_perf.ooo_tensor_serialize_cycles;
+  LogBoth(
+      "[TENSOR-ATTRIBUTION] prelaunch_cancel=%llu wait_not_exact_head=%llu wait_launch_gate=%llu wait_src_dependency=%llu wait_src_value=%llu wait_mem_active=%llu wait_mem_retire=%llu launch_to_offer=%llu offer_backpressure=%llu offer_accept=%llu sent_terminal_absent=%llu sent_terminal_stale=%llu sent_terminal_accept=%llu complete_wb_backpressure=%llu complete_stale_drop=%llu complete_wb_accept=%llu invalid_state=%llu sent_terminal_completion_stale=%llu sent_terminal_wb_accept=%llu sum=%llu serialize=%llu overflow=%u partition_ok=%u",
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_prelaunch_cancel_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_wait_not_exact_head_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_wait_launch_gate_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_wait_src_dependency_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_wait_src_value_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_wait_mem_active_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_wait_mem_retire_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_launch_to_offer_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_offer_backpressure_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_offer_accept_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_sent_terminal_absent_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_sent_terminal_stale_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_sent_terminal_accept_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_complete_wb_backpressure_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_complete_stale_drop_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_complete_wb_accept_cycles,
+      (unsigned long long)g_sim_perf.ooo_tensor_attr_invalid_state_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_sent_terminal_completion_stale_cycles,
+      (unsigned long long)
+          g_sim_perf.ooo_tensor_attr_sent_terminal_wb_accept_cycles,
+      (unsigned long long)tensor_attribution_sum,
+      (unsigned long long)g_sim_perf.ooo_tensor_serialize_cycles,
+      tensor_attribution_overflow ? 1u : 0u,
+      tensor_attribution_partition_ok ? 1u : 0u);
+  LogBothTag("statistic", "tensor attribution partition check = %s",
+             tensor_attribution_partition_ok ? "PASS" : "FAIL");
   report_ooo_window(true);
 }
 #endif  // CONFIG_NPC_OOO_STATS
@@ -2907,6 +3584,9 @@ static void step_cycle(void) {
   npc_device_update();
   eval_half_cycle(0);
   eval_half_cycle(1);
+#ifdef CONFIG_NPC_OOO_STATS
+  sample_tensor_snapshot_post_posedge();
+#endif
   ++npc_stats()->cycles;
   // 在完整 posedge 之后采样 Verilator 顶层调试口，和同一拍的 DPIC cycles 计数对齐。
   npc_stats()->clint_mtime = g_top->debug_clint_mtime_o;
@@ -3002,6 +3682,15 @@ bool npc_init_cpu(int argc, char **argv, const NpcSimConfig *config) {
   }
   g_top = std::make_unique<VNpcSimTop>();
   if (!g_top) return false;
+  // The standard VNpcSimTop host exposes the CPU boundary only; it does not
+  // implement the direct-NPU command/terminal transport.  Initialize every
+  // Tensor input before the first eval/reset edge so the disconnected boundary
+  // is deterministic and inactive.
+  g_top->tensor_cmd_ready_i = 0;
+  g_top->tensor_terminal_valid_i = 0;
+  g_top->tensor_terminal_producer_id_i = 0;
+  g_top->tensor_terminal_error_i = 0;
+  g_top->tensor_terminal_error_code_i = 0;
   if (!init_tohost_watch(config)) return false;
 
 #if VM_TRACE

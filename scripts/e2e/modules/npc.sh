@@ -15,8 +15,7 @@ e2e_npc_sim_contract() {
     .github/e2e/profiles/nemu-dev.tsv || rc=1
 
   echo "[npc] dev profile isolation"
-  if e2e_file_contains .github/e2e/profiles/npc-dev.tsv '@include|software-flow' &&
-     e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-sim-contract|npc|e2e_npc_sim_contract' &&
+  if e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-sim-contract|npc|e2e_npc_sim_contract' &&
      e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-single-contract|npc|e2e_npc_single_contract' &&
      e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-soc-contract|npc|e2e_npc_soc_contract' &&
      e2e_file_contains .github/e2e/profiles/npc-dev.tsv 'npc-rv64-contract|npc|e2e_npc_rv64_contract'; then
@@ -50,8 +49,7 @@ e2e_npc_soc_contract() {
   e2e_print_required_files \
     npc/soc/Makefile \
     npc/soc/Kconfig \
-    ysyxSoC/spec/cpu-interface.md \
-    .github/memory/modules/ysyx-soc.md
+    ysyxSoC/spec/cpu-interface.md
 }
 
 e2e_npc_rv64_contract() {

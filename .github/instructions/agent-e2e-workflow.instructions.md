@@ -1,115 +1,91 @@
 # Agent E2E Workflow
 
-## 场景隔离入口
+`scripts/agent-e2e.sh` 用于用户明确要求的端到端场景、profile 本身开发、跨栈集成、持久长跑以及
+release/security/forensic/publication。它不是普通 review、实现、修 bug 或局部验证的默认前置/收尾门。
+
+## Pick the profile that matches the claim
 
 - NEMU-only 开发：`scripts/agent-e2e.sh --profile nemu-dev`
 - NEMU-only full gate：`AGENT_E2E_NEMU_UBUNTU_FULL_GATE=1 scripts/agent-e2e.sh --profile nemu-dev-full-gate`
 - NPC-only 开发：`scripts/agent-e2e.sh --profile npc-dev`
-- 跨栈集成入口：`scripts/agent-e2e.sh --profile nemu-ubuntu-integrated`
+- 跨栈集成：`scripts/agent-e2e.sh --profile nemu-ubuntu-integrated`
+- AI 环境显式发布检查：`scripts/agent-e2e.sh --profile agent-system --publish`
 
-`nemu-dev*` 和 `npc-dev` 是场景隔离入口；`nemu-ubuntu*` 保留 NEMU Ubuntu 兼容门禁，`nemu-ubuntu-integrated` 保留跨 NEMU/NPC/RV64 Linux 集成功能，不能为了隔离而删除集成 profile。NEMU 软件/系统模型任务使用 `software-flow` 的 `hardware-aware-software-loop`，再叠加 `nemu-dev` 或明确的 `nemu-ubuntu`/`nemu-ubuntu-integrated` gate。
+profile 名称限定它能支持的工程结论。NEMU-only 结果不代表 NPC，NPC-only 结果不代表完整 Linux/Ubuntu，
+focused case 不代表 profile 的完整合取，低层 smoke 不得越级。
 
-运行时边界由 `scripts/agent-e2e.sh` 强制执行：`nemu-dev*` 展开后只能包含 `nemu` 与 `software-flow` 节点，不能拉入 `npc-*`、`rv64-linux` 或 NPC owner/function；`npc-dev` 展开后只能包含 `npc` 与 `software-flow` 节点，不能拉入 NEMU Ubuntu 节点。`--validate-profile`、`--validate-all-profiles` 和真实 dispatch 共用这条检查。真实 dispatch 还会执行 active scenario runtime isolation：默认 `AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=warn`，NEMU-only profile 启动前若看到活跃 NPC e2e/task-run/`ARCH=riscv64-npc`/`npc-systemd`/UART 慢测进程只告警并继续，NPC-only 反向检查活跃 NEMU Ubuntu/PyLong/profile 进程也只告警并继续；但运行超过 `AGENT_E2E_SCENARIO_RUNTIME_STALE_SECONDS`（默认 86400s）的对侧 stale 进程会 fail，以防历史 task-run client 阻塞新 WSL/NEMU 任务；确有显式超长并行实验时可设为 `0` 关闭 stale fail。需要严格单场景复现时显式设置 `AGENT_E2E_SCENARIO_RUNTIME_ISOLATION=strict`，需要完全跳过时设置为 `off`。跨栈集成 profile 不套这条 guard，以保留显式集成功能。
+选择最小能判断 acceptance criterion 的 profile 或 node。不要因为修改路径、文件数或存在 e2e 工具就
+自动运行 profile；也不要在目标已经由直接组件测试判定后再跑 e2e 复制同一结论。
 
-## 执行卫生
+## Scenario isolation is a resource rule
 
-本地 RV64 RTL 子 agent 的派发先读取 `.github/instructions/rtl-agent-task-contract.instructions.md`，
-用 `.github/skills/prepare-rtl-task-contract/` 生成、校验并渲染 task contract；命令范围使用结构化
-`command/mode/purpose`，且 profile 必须运行真实 CLI `create/validate/render` 正负向自测。只读子任务必须明确
-不改文件、不联网、不访问账号、凭据或外部服务；平台 review 只记录当前节点为 `review_pending`，
-不得自动关闭长期父目标。需要发现源码遗漏时默认使用 `workspace-files`，no-tools 仅用于限定材料复核；
-所有模式都保留未知项、替代假设、反例、`scope_extension_request`、置信依据和 `inconclusive` 出口。
-主 agent 使用 `rv64-hardware-professional` 术语描述任务，`render` 向子 agent 追加 RV64 微架构/RTL/
-验证/PPA 语境，`review_pending` 等协调状态留在主 agent；该措辞层不使用关键词黑名单，也不得改变工具、
-shell、路径或推理能力。`agent-system` profile 的 `rtl-task-contract` 节点负责该接线、硬件语境正例与
-合同范围 mutation 反例。
-新派发的渲染提示必须原样使用；validate 失败或手工改写边界后的 reviewer 结果只能是
-`candidate-only`。范围扩展必须创建 versioned JSON、重跑 validate/render 并绑定新 SHA，不能沿用旧合同。
+`nemu-dev*` 和 `npc-dev` 保持场景隔离，`nemu-ubuntu-integrated` 保留显式跨栈能力。profile validator 与
+dispatch 可以检查节点归属，防止 NEMU-only 配置意外拉入 NPC 节点，反之亦然。
 
-- 本节仅适用于真实 e2e profile dispatch，不适用于普通 review/analysis 或一般 RTL/软件开发。
-  profile dispatch 开工用 bounded brief；普通任务由
-  `.github/instructions/agent-lightweight-workflow.instructions.md` 分类，只有需要历史召回时才调用
-  brief。正式 `agent-e2e.sh` 仍在 context brief 前刷新 active live 索引，排除
-  `.github/{memory,task-runs,archive,shujuku_aireview}/**`；刷新或 recall 失败必须非零。
-  历史 task-run/evidence 回查使用 `runs --profile` 和 `evidence --run-id`。
-- CLI/API 与 e2e runner 的 bounded brief 默认预算统一为 2400 tokens，runner 可用 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 显式覆盖；覆盖只改硬预算，不改必需 focus 的 fail-closed 契约。
-- e2e runner 把 `task_slug` 作为审计身份并从中提取 focus：按字母/数字/CJK 边界拆出最多 8 个去重语义词，过滤日期、序号及 `agent/e2e/run/rerun/final/test/fix` 等生命周期噪声。版本/迭代身份只能用受控相邻片段 `revtag-v<数字><可选字母>` 显式声明，runner 只删除这一对；未声明的裸 `v8`、`v2ray`、内部 `v8a` 等必须作为真实领域词保留，畸形或重复 `revtag` 必须 fail closed。profile 只通过 `--profile` 绑定，不得重复成为 AND focus term。默认 slug `agent-e2e-<profile>` 会退化为 profile 的非泛化语义词（例如 `agent-e2e-npc-dev` → `npc dev`），只作为 profile smoke 兼容入口，不等同于任务特异 focus；真实任务应显式给出可辨识 slug。若过滤后为空则 recall fail closed。runner 固定使用 `--focus-scope non-history`，所以旧 task-run/report/evidence 即使含同 slug 也不能充当独立 primary focus；历史回查仍走默认 `brief` 或更明确的 `runs`/`evidence`。
-- 收尾阶段的 task-specific e2e slug 必须使用已经存在于当前 non-history source/rule 或 DB-owned stored memory 的领域词。若本轮稳定结论本身就是独立 focus，先用 `update-stored` 发布 project/module memory，再运行同词 slug；不得用旧 task-run 自证，也不得放宽 recall gate。`no independent primary focus match` 的 blocked run 只作为顺序反例和诊断证据，不能计入完成证据。
-- 工程命令通过 WSL single-flight 执行，避免并发启动多个 `wsl.exe`。日常 NEMU/NPC 并行开发保持 runtime isolation 默认 `warn`；遇到 `Wsl/Service/E_UNEXPECTED` 或 NEMU profile 被 NPC 残留任务拖慢，先做 WSL 健康检查和 active scenario runtime isolation 判定；若看到超过 86400s 的历史对侧 task-run client，应清理该历史 client 后再补跑当前 NEMU/NPC gate，严谨复现实验再切到 `strict`。
-- 前台调用器 timeout 不等于 WSL 内仿真/构建进程退出。重跑前先用 Windows PowerShell 只读核对对应 PID、子进程和 canonical evidence；live child 存在时继续占用唯一工程命令 lane。只完成中间 phase、但缺少 final result/publication 的流程保持 `GAP`。预计超过前台等待窗口的 canonical flow 应以一个隐藏的 `Start-Process wsl.exe` 启动，保存 PID 与 stdout/stderr 路径并仅由 PowerShell 轮询；确认退出后再核对 return code、design-id 和终态证据，随后才允许下一条 WSL 工程命令。
-- 真实构建/e2e 优先使用 `scripts/agent-run.sh`，让非交互环境加载 `scripts/agent-env.sh`。
-- 外层工具控制符会污染命令字符串。多模式搜索优先使用 `rg -e foo -e bar`，不要依赖带 `|` 的单个正则穿过外层 shell。
-- PowerShell 包裹 `wsl.exe -- bash -lc '...'` 时，不要在一次性命令中裸用 Bash `$var`；`$run`、`$p`、`$args` 等会被 PowerShell 先展开。优先写字面路径，或把复杂逻辑放进仓库脚本后调用。
-- Windows `Start-Process wsl.exe` 传递复杂 Bash 命令时，必须把 `-- bash -lc "..."` 作为单个 argument string 保持完整；否则只会执行前半段命令，造成假 PASS/假退出。
-- NEMU 慢速诊断 gate 若设置 `NEMU_INTERPRETER_BASIC_BLOCK=0`、`NEMU_INTERPRETER_WIDE_IFETCH=0`、`NEMU_INTERPRETER_DECODE_CACHE=0`、`NEMU_VADDR_HOST_FAST=0` 或 `NEMU_RISCV_MMU_TLB=0`，e2e 应自动提高 systemd start timeout，并使用较大的 serial input chunk，避免把上传过慢误判为 guest 行为。
+runtime isolation 只处理真实共享资源：同一 build/scratch、current artifact、数据库、端口、许可证或设备。
+宽泛进程名扫描默认只是 advisory，`off` 可跳过它；调用者显式选择 `strict`/`fail` 时，可把匹配作为保守
+preflight 并 fail closed，但匹配本身仍不证明真实冲突。严格可复现实验以具体 runner 的规范化路径、
+端口、设备或 lock identity 排它为准。历史 stale client 若确实占用上述资源，应先确认目标进程再清理。
+互不冲突的读取、分析和独立 scratch 构建可以并行，不存在 workspace-wide single-flight shell。
 
-## 完成判定
+## Context and task labels
 
-普通任务在一轮目标结束时运行 `scripts/agent-flow.sh finish`，不进入本节的完整 publication guard。
-只有 `release`、e2e 迁移兼容或用户明确要求完整 workflow evidence 时才运行下述 strict guard，并且
-必须传入 C 生成的 `paths.log` 或显式 `--path`。因此下段历史措辞中的“收尾前运行”仅指这些
-release/迁移场景；guard 不再扫描 Git 工作树，删除项以显式 paths-file 的 mtime 作为任务基线。
+只加载当前 profile、相关 module contract、直接源码/配置与 acceptance criteria。需要历史 task-run 或
+跨会话决定时才运行 bounded brief、`runs --profile` 或 `evidence --run-id`；普通 e2e smoke 不要求先刷新
+所有 DB、发布 memory 或构造 recall 闭包。
 
-仅在 release、迁移兼容或用户明确要求时运行 `scripts/agent-e2e.sh --guard --guard-mode strict`。
-guard 必须显式消费 `--paths-file` / `--path`，不枚举 Git 工作树；存在路径使用文件时间，不存在或
-已删除路径使用 paths-file 时间作为基线，无法建立可信基线时 fail closed。每个候选都校验 canonical
-task-report 基本信息和普通 `run-manifest.json`：JSON 必须无重复键、无 NaN/Infinity，completed 必须
-全节点 PASS，run/report/manifest/index/dispatch 的 task/trace/slug 必须一致，report/manifest 的
-started/updated 必须逐字一致且顺序合法；report mtime、touch、复制或格式化不能刷新证据。缺字段、
-重复/冲突字段、非对象 manifest、profile/status 冲突、无时区/未来时间、symlink evidence
-root/run dir/artifact（含 dangling）均 fail closed；多个合格候选按 UTC 微秒时间选择最新者。
-`context-brief.md` 还必须证明 canonical+profile+独立 focus chunks 在硬预算内且每个 chunk 有完整
-metadata/非空正文，`profile-resolve.md` 必须带连续编号、唯一 ID 的非空 Nodes 闭包；resolve、
-manifest、report、dispatch 和 `nodes.tsv` 必须绑定
-`node_id/source_profile/module/owner/function/status/inputs/outputs/evidence` 全元组，并由 validator
-现场递归解析 live profile include closure，逐节点复核前八项。dispatch 的 startup 与节点事件必须
-保持 canonical 全局顺序，11 个 payload 字段逐项相等；每个节点首要 evidence 必须是 canonical
-`evidence/<node_id>.log`，全部辅助指针也必须属于 actual indexed ordinary evidence。
-`evidence-index.md` 必须逐项重算 ordinary evidence 的路径、尺寸与 SHA-256。runner 对 recall、
-resolve、report render、sanitizer、index、marker、staged sync 或 publish 任一失败都保留
-非零/blocked；completed 先用 `archive-markdown --sync-task-run` 精确同步 staged Markdown，再生成
-绑定七份 artifact 的 `complete.marker` 与严格 EOF 的 `completion-publication.md`，最后由
-`publish-task-run` 在单个 SQLite 事务内复核 marker/artifact/staged DB 并提交完成记录。普通
-archive/promote/migrate/backup/rehydrate 不得制造或撤销 publication，`runs` 只承认 canonical
-`db-marker-v1` completed report；失败会撤销本次 live marker/publication 并重渲染 blocked，既有
-已提交 publication 不会被通用 sync 误删。strict guard 同时重算 marker、publication 与 DB/live
-精确集合。若缺证据，必须补跑建议的
-`scripts/agent-e2e.sh --profile <profile> --task-slug <task> --stop-on-fail>`，或在 task-run/memory/
-最终回复中写清豁免理由；不能用 difftest、riscv-tests、module TB 或 CoreMark 的 PASS 代替
-agent/e2e workflow 证据契约。
+`task_slug` 是人类可读的运行标签和目录区分符，不是授权身份或语义检索 gate。使用稳定、可辨识的短名；
+不需要从 slug 推导最多八个 focus token，也不因历史文档缺少同词而拒绝执行当前工程场景。
 
-RV64 systemd checker 合同的精确脚本、parser、三份定向单测与冻结
-`v9s-rerun4-incomplete.console` 由 strict guard 路由到更贴合的
-`rv64-systemd-contract` profile；该 profile 同时执行 benign/critical checker
-正负例、guest terminal contract、transaction parser、rootfs 工作副本与
-debug-valid 合同。其它 `Linux/**`（包括 kernel、rootfs、Makefile 和通用 Ubuntu
-检查）仍路由到 `rv64-linux`。这个 exact-path 分流只避免 checker-only 修改触发
-完整 rootfs 长门，不允许用窄 profile 替代实际 Linux/boot 语义变化。
+复杂 RV64 子任务可以使用可选结构化 handoff，原则见
+`.github/instructions/rtl-agent-task-contract.instructions.md`。profile 不要求每轮生成/校验 JSON contract、
+绑定 SHA、固定 `fork_turns`、设置 `review_pending` 或把普通结果降成 candidate-only。只有 profile 的明确
+acceptance criterion 就是兼容 generator 时，才运行它的直接自测。
 
-完成后必须查看 task-run report、profile resolve、关键 evidence、FAIL marker 和 memory 更新。不能只看外层退出码，也不能从 `.github/db-backup` 绕开当前 DB/index recall 链路问题。
+## Execution and evidence
 
-Full cron daemon execution gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_CRON_JOB_TIMEOUT__`、`__NEMU_CHECK_FULL_CRON_JOB__`、`__NEMU_CHECK_FULL_CRON_EXEC_WAIT_SECONDS__`、`__NEMU_CHECK_FULL_CRON_EXEC_FILE__:1:/run/nemu-full-cron.out` 与 `full-userland-cron-exec`；full e2e 默认 `NEMU_SYSTEMD_CRON_JOB_TIMEOUT=180`。该 gate 只证明 cron daemon 能读取 `/etc/cron.d` 并执行单个 root job，不代表 anacron、完整 timer 矩阵或长期定时维护完成。
+每个实际运行的 node 必须对应一个清楚的工程 claim，并保存判断该 claim 所需的结果。真实性能、RTL、
+Linux/Ubuntu 和设备 profile 的具体 markers、oracles、negative scans 与结论边界由对应
+`.github/e2e/modules/*.md` 和 runner 定义。
 
-Full anacron maintenance gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_ANACRON_TIMEOUT__`、`__NEMU_CHECK_FULL_ANACRON_TAB__`、`__NEMU_CHECK_FULL_ANACRON_RC__:0`、`__NEMU_CHECK_FULL_ANACRON_OUTPUT__:nemu-full-anacron-ok`、`full-userland-anacron-units` 与 `full-userland-anacron-run`；full e2e 默认 `NEMU_SYSTEMD_ANACRON_TIMEOUT=120`。该 gate 只证明 anacron 能解析临时 anacrontab、使用独立 spool 并 forced foreground 执行一个自定义 job，不代表真实 daily/weekly/monthly 全量维护、长期错过任务补跑矩阵或完整服务器维护策略完成。
+以下规则保持 fail-closed：
 
-Full systemd-run transient gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_RC__:0`、`__NEMU_CHECK_FULL_SYSTEMD_RUN_SERVICE_OUTPUT__:systemd-run-service-ok`、`full-userland-systemd-run-transient-service`、`__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_RC__:0`、`__NEMU_CHECK_FULL_SYSTEMD_RUN_TIMER_OUTPUT__:systemd-run-timer-ok` 与 `full-userland-systemd-run-transient-timer`。该 gate 证明 PID1 systemd transient service 与 on-active transient timer 路径可用，不代表 user manager、resource-control、anacron 或长期维护矩阵完成。
+- non-zero exit、timeout、signal、中断或缺失 terminal evidence 不得写成 PASS；
+- persistent/published 长跑只有 workload、必要 evidence 与 cleanup 都完成后才能 PASS；
+- DiffTest/compare 必须绑定两侧可比较产物；
+- PPA 必须绑定相同 RTL/filelist/config/tool/corner/workload；
+- full profile 的 PASS 只代表该 profile 明示的合取，不代表未运行场景。
 
-Full systemd calendar timer gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_TIMEOUT__`、`__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_UNIT__`、`__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_CALENDAR_TIMER_OUTPUT__:systemd-calendar-timer-ok` 与 `full-userland-systemd-calendar-timer`；full e2e 默认 `NEMU_SYSTEMD_CALENDAR_TIMER_TIMEOUT=90`。该 gate 证明 PID1 system manager 能解析并触发系统级 `OnCalendar=` timer，并且复用 NEMU 下 daemon-reload 慢路径/HUP 兜底，不代表 user manager timer、resource-control、anacron 或长期 timer 策略矩阵完成。
+固定输入、固定命令、固定 tool/seed/thread 且 oracle 确定时运行一次。随机、并发、flaky、测量噪声、
+机器异常或用户明确要求时才重复，并在运行前说明次数、阈值与停止条件。
 
-Full systemd resource-control gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_OUTPUT__:systemd-resource-control-ok`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_MEMORY_MAX__:67108864`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_PIDS_MAX__:64`、`__NEMU_CHECK_FULL_SYSTEMD_RESOURCE_CONTROL_SHOW__` 与 `full-userland-systemd-resource-control`。该 gate 证明 PID1 system manager 下的普通 service 能创建 cgroup 并应用基础 `MemoryMax`/`TasksMax`/accounting 属性，不代表 user manager、OOM policy 或长期资源治理完成。
+版本控制内未修改且有自身测试的 runner/checker/parser 默认可信。只有本次修改了它、观察到异常接受/
+拒绝、矛盾输出、缺失文件或可疑 fallback 时，才运行相应 verifier 自测；不要先重验 validator 再验证
+真实 workload。
 
-Full systemd CPU quota gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_OUTPUT__:systemd-cpu-quota-ok`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CGROUP__:/system.slice/nemu-full-cpu-quota.service`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_MAX__:50000 100000`、`__NEMU_CHECK_FULL_SYSTEMD_CPU_QUOTA_CPU_STAT_READABLE__:1` 与 `full-userland-systemd-cpu-quota`。该 gate 证明 PID1 system manager 下普通 service 的 `CPUQuota=50%` 能下发为 cgroup v2 `cpu.max=50000 100000`，不代表 CPU throttling 性能曲线、user manager、OOM policy 或长期资源治理完成。
+## Persistence and publication
 
-Full systemd pressure feedback gate 的关键 evidence 需要看到 kernel config gate 中 `CONFIG_PSI=y` 且 `CONFIG_PSI_DEFAULT_DISABLED=disabled`，以及 guest runtime 中 `__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_OUTPUT__:systemd-pressure-feedback-ok`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP__:/system.slice/nemu-full-pressure-feedback.service`、proc/cgroup 六个 `*_READABLE__:1`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_PROC_CPU_SOME__:some avg10=`、`__NEMU_CHECK_FULL_SYSTEMD_PRESSURE_FEEDBACK_CGROUP_MEMORY_SOME__:some avg10=` 与 `full-userland-systemd-pressure-feedback`。该 gate 证明 NEMU full Ubuntu kernel 和 systemd service cgroup 的 PSI 压力反馈接口可见，不代表真实压力曲线、OOM policy、user manager delegation、CPU throttling 性能曲线或长期资源治理完成。
+普通显式 e2e 默认使用 runner 的 compact/direct 模式，只保留本轮直接结果。需要跨会话继续、正式
+release/security/forensic/publication 或用户明确要求时，才选择 durable；`--publish` 才启用 DB recall、
+manifest、SHA/size 绑定和 publication。独立 reviewer 仍只由高风险边界决定，不因 durable 自动出现。
 
-Full systemd OOM policy gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_OUTPUT__:systemd-oom-policy-started`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_CGROUP__:/system.slice/nemu-full-oom-policy.service`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_DONE__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_SHOW__:stop:yes:67108864`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOP_POST__:1:systemd-oom-policy-stop-post`、`__NEMU_CHECK_FULL_SYSTEMD_OOM_POLICY_STOPPED__:1`、OOM result 或 `memory.events oom_kill>=1` 与 `full-userland-systemd-oom-policy`。该 gate 证明 PID1 system manager 下普通 service 的 cgroup OOM kill 能触发 `OOMPolicy=stop` 停止整个 unit，不代表完整 OOM 策略矩阵、systemd-oomd managed pressure/swap kill 矩阵、user manager delegation、真实压力曲线或长期资源治理完成。
+- `compact` 保存结论、输入范围、命令、返回码和必要指针；
+- `durable` 保存长期运行恢复与正式 publication 所需的有界 evidence；
+- hash 只用于 byte identity、cache integrity、release provenance、security 或明确 reproducibility；
+- strict guard 只用于显式 release/migration/security/forensic，并提供准确 path/paths-file；
+- candidate/reviewer 只用于高风险、难恢复、正式 Architecture/Pareto promotion、对外发布或用户要求。
 
-Full systemd-oomd service gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_OOMD_FILES__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_USER__:systemd-oom`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_CONFIG__:1:1:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_SUBSTATE__:running`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_MAINPID__:`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_SHOW__:systemd-oom:org.freedesktop.oom1:67108864:67108864`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_RC__:0`、`__NEMU_CHECK_FULL_SYSTEMD_OOMD_OOMCTL_NONEMPTY__:1` 与 `full-userland-systemd-oomd-service`。该 gate 证明 full rootfs 中 `systemd-oomd` 包、`systemd-oom` sysusers、默认配置、D-Bus unit 和 `oomctl --no-pager dump` 管理面可用；`systemctl start` 在慢速 NEMU D-Bus 下可能同步返回 timeout，但以 `START_OK=1`、active/running 和 `oomctl rc=0` 作为完成证据；不代表 managed pressure/swap kill 决策矩阵、user manager delegation、真实长期压力曲线或完整 OOM 策略完成。
+archive、backup、rehydrate、memory 更新和 report 生成不应改变工程 PASS/FAIL；它们失败时只影响对应的
+persistence/publication criterion，不能回写或伪造原始 workload 结果。
 
+## Result review
 
-Full systemd-oomd pressure-kill gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_OOMD_PRESSURE_CONF__:1`、`RELOAD_OK:1`、`OOMD_READY:1`、`START_OK:1`、`OUTPUT:systemd-oomd-pressure-started`、`CGROUP:/nemuoomdpressure.slice/nemuoomdpressure-victim.service`、`PROBE_OK:1`、`OOM_GROUP_AFTER:1`、`SLICE_SHOW:kill:*:yes:33554432`、`SERVICE_SHOW:yes:`、`OOMCTL_HAS_SLICE:1`、`SLICE_MEMORY_EVENTS_HIGH`、`SLICE_MEMORY_SOME:some avg10=`、`CACHE_STARTED:1`、`CACHE_WRITE_SEEN:1`、`STOPPED:1`、`KILLED:1`、`JOURNAL_KILL:1`、`STOP_POST:1:systemd-oomd-pressure-stop-post` 与 `full-userland-systemd-oomd-pressure-kill`。该 gate 使用 `/etc/systemd/oomd.conf.d`、父 slice `MemoryHigh=32M` 和 file-cache reclaim probe，避免只有匿名内存 PSI 但 `Pgscan=0` 时 oomd 不 kill；它证明一条 NEMU full Ubuntu managed memory-pressure kill 路径，不代表 swap kill 矩阵、user manager delegation、长期压力曲线或完整 OOM 策略完成。
-Full systemd slice/delegation gate 的关键 evidence 需要看到 `__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_RELOAD_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_START_OK__:1`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_OUTPUT__:systemd-slice-delegation-ok`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CGROUP__:/nemu.slice/nemu-full-delegated.service`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_SHOW__:nemu.slice:yes:yes:yes:yes`、`__NEMU_CHECK_FULL_SYSTEMD_SLICE_DELEGATION_CONTROLLERS_READABLE__:1` 与 `full-userland-systemd-slice-delegation`。该 gate 证明 PID1 system manager 下 custom slice、service cgroup 归属和 `Delegate=yes` 属性链路可用，不代表 user manager delegation、OOM policy 或长期资源治理完成。
+运行后先看实际 node 的命令、配置、返回码、terminal marker 和最接近根因的日志。最终报告说明：
 
-Full systemd user-manager gate 的关键 evidence 需要看到 full rootfs 含 `dbus-user-session` 和 `/usr/lib/systemd/user/dbus.{socket,service}`，guest runtime 含 `__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LOGIND_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_LINGER__:0:1:/var/lib/systemd/linger/nemuacct`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_USER_SERVICE_ACTIVE__:active`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_PRIVATE_SOCKET__:1`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_BUS_SOCKET__:1`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_RC__:0`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_OUTPUT__:systemd-user-manager-ok`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CGROUP__:/user.slice/user-2010.slice/user@2010.service/`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_SCRIPT_SHOW__:yes:yes:yes:yes`、`__NEMU_CHECK_FULL_SYSTEMD_USER_MANAGER_CONTROLLERS_READABLE__:1` 与 `full-userland-systemd-user-manager-service`。该 gate 通过 `loginctl enable-linger`、`user@2010.service`、user bus socket 与 `systemctl --user` 证明 linger user manager 和 user service cgroup/delegation 属性链路可用，不代表图形登录、多用户会话策略、完整 D-Bus API/session policy 矩阵或长期资源治理完成。
+1. 哪个 profile/node 在什么配置下运行；
+2. 哪些 acceptance criteria 得到满足；
+3. 哪些层级或场景没有运行；
+4. 是否存在 timeout、信号、缺失 evidence、异常 fallback 或资源冲突。
 
-NEMU-only full Ubuntu 22.04 开发使用 `nemu-dev-full-gate`，不要误走 NPC 或旧集成 profile。full userland runtime 的关键 evidence 需要看到 `/dev/ttyS0` serial-getty autologin marker（`__NEMU_LOGIN_CHECK_DONE__ rc=0`，root-login、ttyS0-login、PID1 systemd、login binary、PAM module path 全 PASS）、非 root sudoers smoke（`__NEMU_CHECK_FULL_SUDO_NONROOT_OK__`，UID 0/root）、machine-id committed、`systemd-hostnamed` active、`hostnamectl status` 返回 `ysyx-ubuntu2204`、`systemd-sysusers` 创建用户/组、`systemd-tmpfiles --create`、journald active、`systemd-cat` 写入、`journalctl -t` 读回、`systemd-run` transient service/timer、systemd calendar timer、systemd resource-control、systemd CPU quota、systemd pressure feedback、systemd OOM policy、systemd-oomd service/oomctl、systemd-oomd managed pressure-kill、systemd slice/delegation、systemd user-manager service、cron daemon execution、anacron forced foreground job、logrotate forced rotation smoke（`__NEMU_CHECK_FULL_LOGROTATE_RC__:0` 与 `full-userland-logrotate-rotate`）、locale generation smoke（`__NEMU_CHECK_FULL_LOCALE_GEN_TIMEOUT__`、`__NEMU_CHECK_FULL_LOCALE_GEN_RC__:0`、`__NEMU_CHECK_FULL_LOCALE_GEN_CHARMAP__:UTF-8` 与 `full-userland-locale-gen-en-us-utf8`；full e2e 默认 `NEMU_SYSTEMD_LOCALE_GEN_TIMEOUT=600`）、`systemctl --root=/ enable/is-enabled/disable` 与 runtime unit start、默认 hard 的 Python/CNF/stdlib gate（`NEMU_SYSTEMD_PYTHON_CNF_DIAG_HARD=1`、`textwrap.py`/`textwrap.pyc`/`lsb_release` hash、`re,textwrap,optparse` import loop、`lsb_release -a` retry、`PYTHONPYCACHEPREFIX` retry、Python stdlib stress、`datetime`/`sqlite3`/`CommandNotFound`/`cnf-update-db`）、hostless signed APT、hostless APT direct actual lifecycle（install、dpkg ownership、upgrade、remove、purge）和 guest rc=0；涉及 `systemd-cat` 命令模式时使用 `/bin/sh -c 'printf ...'`，不要假设 `/bin/echo` 一定存在。hostless APT 的私有 repo gate 应保留 `99nemu-hostless-clear-hooks` 与 `#clear APT::Update::Post-Invoke-Success; #clear DPkg::Post-Invoke;` 证据，避免全局 hook 污染私有 repo 测试；`Dir::Etc::parts=-` 单独不足以阻止已加载 hook。hostless APT direct lifecycle 是 NEMU 私有 repo 的 full gate 默认完成条件，但不代表外部 Ubuntu mirror、联网 apt、dist-upgrade 或复杂 conffile/冲突解析完成；serial-getty marker 证明 NEMU 默认 UART/getty/login shell 入口可复核，不代表手工密码登录、外部终端仿真、host/TAP/NAT 登录或桌面 Ubuntu 完成；sudoers smoke 不代表默认 Ubuntu sudo policy、密码认证、sudo 日志审计或完整 sudoers/PAM 兼容矩阵；cron execution smoke 不等同于 anacron，anacron smoke 不代表真实 daily/weekly/monthly 全量维护、长期错过任务补跑矩阵或完整服务器维护策略；systemd-run/calendar/resource-control/cpu-quota/pressure-feedback/OOM-policy/systemd-oomd/slice-delegation/user-manager smoke 不代表图形登录、多用户会话策略、完整 OOM 策略矩阵、systemd-oomd swap kill 矩阵、复杂 ManagedOOMPreference 策略、真实长期压力曲线、CPU throttling 性能曲线或长期 timer/resource 策略；logrotate smoke 不代表完整系统日志保留策略或长期定时维护完成；locale generation smoke 不代表全部语言包、桌面区域设置或完整 locale 矩阵完成。Python/CNF hard gate PASS 是当前功能验收证据；[76] PyLong/int transient 已在 2026-06-21 定位并修复根因：NEMU CSR 读 `mstatus/sstatus` 时没有按 `FS=Dirty` 派生只读 `SD` summary bit，Linux 因此在 page fault/trap 返回路径漏保存用户态 FPU。当前状态是“已修根因，回归观察”：focused/staged reproducer、CPython `PyLongObject` sentinel、`ARGS_LOOPS_ERROR_STATE`、prewarm-fail-probe-continue 与对象布局 marker 继续保留为回归哨兵。若后续 full Ubuntu gate 再出现 `bit_length=276701161105643274181`、`ValueError: Exceeds the limit (4300)`、`OverflowError: too many digits in integer` 或 `datetime` 的 `timedelta` assert，应按新问题重新定位，并补采 CSR `SD`/`FS`、trap/page-fault 返回与 FPR 证据；不要继续假定旧的对象复用/初始化旧高位、host-fast 或 wide-ifetch 根因。
+不要只引用外层 task-run 状态，也不要用 profile resolve、hash、marker 数量、memory 更新或 verifier PASS
+替代实际工程行为。

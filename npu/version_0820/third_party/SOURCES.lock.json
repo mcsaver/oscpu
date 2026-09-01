@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "llama.cpp",
+      "upstream": "https://github.com/ggml-org/llama.cpp",
+      "tag": "b10507",
+      "commit": "95c409c13625a23da2aa37270339ce9179215a18",
+      "archive": "tmp/downloads/llama.cpp-b10507.tar.gz",
+      "archive_sha256": "18d06fc33f098514249addcb97da120bee6e753070e84d9dda3dd351c1680826",
+      "source_directory": "third_party/llama.cpp",
+      "license": "MIT",
+      "license_file": "third_party/llama.cpp/LICENSE"
+    },
+    {
+      "name": "fpu-sp",
+      "upstream": "https://github.com/taneroksuz/fpu-sp",
+      "tag": "main",
+      "commit": "14f7f9f88a97f96d2cbfa1988bdd958bfaaddae8",
+      "archive": "tmp/downloads/fpu-sp-14f7f9f.tar.gz",
+      "archive_sha256": "9fed1c1d8e2e4b09a04a07a96685333d000e2175f754fdbeb7422ac8e8241574",
+      "source_directory": "third_party/fpu-sp",
+      "license": "MIT",
+      "license_file": "third_party/fpu-sp/LICENSE"
+    },
+    {
+      "name": "Berkeley HardFloat",
+      "upstream": "https://www.jhauser.us/arithmetic/HardFloat.html",
+      "version": "Release 1",
+      "archive": "tmp/downloads/HardFloat-1.zip",
+      "archive_sha256": "6b3757c9fbfa2230c6a2b84605e39372cb589dd7500e979c4f0b8ecc8a03b14b",
+      "source_directory": "third_party/hardfloat",
+      "license": "BSD-3-Clause",
+      "license_file": "third_party/hardfloat/README.txt"
+    },
+    {
+      "name": "cmake-python",
+      "upstream": "https://pypi.org/project/cmake/3.31.6/",
+      "version": "3.31.6",
+      "source_directory": "tools/cmake-python",
+      "license": "BSD-3-Clause"
+    }
+  ]
+}

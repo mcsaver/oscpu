@@ -1,0 +1,40 @@
+{
+  "schema": "qwen35-08b-q8_0-strict-smoke-oracle-v2",
+  "model_sha256": "37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f",
+  "llama_commit": "95c409c13625a23da2aa37270339ce9179215a18",
+  "prompt_mode": "raw-no-conversation",
+  "scripted_profiles": {
+    "prefix-2": 2,
+    "extended-8": 8
+  },
+  "sampler": {
+    "seed": 1,
+    "temperature": 0,
+    "top_k": 1,
+    "n_batch": 1,
+    "n_ubatch": 1,
+    "n_predict": 8
+  },
+  "provenance": {
+    "backend": "CPU reference only",
+    "evidence_run": "tmp/analysis/cpu-oracle-raw-x-n8-20260826-a",
+    "llama_completion_sha256": "ba1db088d3cdc2cee49b3f4805a3906b9e225978d902549052d6dd80948efe46",
+    "token_capture_sha256": "a3dbd7a779532449bcda36ab253784733d38c9e083a391c5f8f8a8f364bcfcdc",
+    "cpu_wall_seconds": 0.57,
+    "one_token_npu_comparison_run": "tmp/analysis/strict-actual-x-completion-20260824-f",
+    "one_token_npu_wall_seconds": 8213.90
+  },
+  "turns": [
+    {
+      "turn": "smoke",
+      "prompt_file": "tests/vectors/qwen35_08b_q8_0/smoke.txt",
+      "prompt_text": "x",
+      "max_tokens": 8,
+      "prompt_tokens": 1,
+      "generated_tokens": 8,
+      "prompt_token_ids": [87],
+      "generated_token_ids": [283, 220, 16, 15, 198, 88, 283, 220],
+      "output_text": " = 10\ny = "
+    }
+  ]
+}

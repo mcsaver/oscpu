@@ -125,6 +125,7 @@ module OooFpBackend #(
   input [PHY_REG_ADDR_W-1:0] int_wake1_preg_i,
 
   output [PHY_REG_ADDR_W-1:0] gpr_read_addr_o,
+  output gpr_read_fire_o,
   input [`XLEN-1:0] gpr_read_data_i,
 
   output fpwb_valid_o,
@@ -731,6 +732,11 @@ module OooFpBackend #(
                          (!op_long_w || (!long_busy_any_w && !long_meta_valid_q)) &&
                          (!issue_is_comb_w || !exec1_valid_q);
   wire issue_fire_w = issue_valid_w && issue_ready_w;
+  // read8 is shared with the Tensor sidecar.  Occupancy is the exact launch
+  // event of the two FP classes which actually consume a GPR operand; neither
+  // a resident/stalled issue packet nor a non-zero address reserves the port.
+  assign gpr_read_fire_o = issue_fire_w &&
+      (op_mv_to_fpr_w || op_cvt_int_to_fpr_w);
 
   // ===========================================================================
   // 执行簇: arith(自流水) / long(div·sqrt) / 组合类(1 拍寄存)
@@ -1194,6 +1200,19 @@ module OooFpBackend #(
   // T3Q issue-packet 承重合同：ROB kill/全局 flush 拍不得把 raw stage
   // valid 当作 launch；refill/pop 已由显式 gate 禁止，PipeStageReg 负责 hold/kill。
   always @(posedge clk) begin
+    if (!rst &&
+        (gpr_read_fire_o !==
+         (issue_fire_w && (op_mv_to_fpr_w || op_cvt_int_to_fpr_w))))
+      $error("[FP-GPR-READ-ACTUAL-USE] read fire diverged from actual FP launch @%0t",
+             $time);
+    if (!rst && gpr_read_fire_o &&
+        (^gpr_read_addr_o === 1'bx))
+      $error("[FP-GPR-READ-ADDR-KNOWN] actual FP GPR read has unknown address @%0t",
+             $time);
+    if (!rst && issue_valid_w && !issue_ready_w &&
+        (op_mv_to_fpr_w || op_cvt_int_to_fpr_w) && gpr_read_fire_o)
+      $error("[FP-GPR-READ-NO-RAW-CLAIM] stalled FP packet claimed shared read8 @%0t",
+             $time);
     if (!rst && (flush_i || kill_valid_i) && issue_fire_w)
       $error("[FP-ISSUE-STAGE-NO-KILL-LAUNCH] kill/flush 拍仍 launch @%0t",
              $time);

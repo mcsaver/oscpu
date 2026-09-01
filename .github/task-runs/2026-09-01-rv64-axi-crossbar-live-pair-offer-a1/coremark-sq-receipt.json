@@ -1,0 +1,38 @@
+{
+  "final": {
+    "allow": 504237,
+    "allow_rob_head": 223590,
+    "available": 1,
+    "complete": 1,
+    "conservation": 1,
+    "cycles": 4533483,
+    "exact": 534628,
+    "forward": 12633,
+    "identity_or_lq_reject": 0,
+    "invalid": 0,
+    "malformed": 0,
+    "overflow": 0,
+    "prequal": 534628,
+    "replay": 17758,
+    "schema": "npc-rv64-sq-idle-fusion-qualification-v1"
+  },
+  "region": {
+    "allow": 499886,
+    "allow_rob_head": 222127,
+    "available": 1,
+    "complete": 1,
+    "conservation": 1,
+    "cycles": 4455744,
+    "exact": 528736,
+    "forward": 12628,
+    "identity_or_lq_reject": 0,
+    "invalid": 0,
+    "malformed": 0,
+    "overflow": 0,
+    "prequal": 528736,
+    "replay": 16222,
+    "schema": "npc-rv64-sq-idle-fusion-qualification-v1"
+  },
+  "schema": "npc-rv64-sq-idle-fusion-qualification-v1",
+  "status": "SQ_IDLE_FUSION_QUALIFIED"
+}

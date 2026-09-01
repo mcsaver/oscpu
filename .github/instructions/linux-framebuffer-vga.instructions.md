@@ -1,6 +1,6 @@
 ---
 description: "Linux framebuffer/VGA 显示约束。处理 NPC RV64 上 Linux/Ubuntu 屏幕输出、simple-framebuffer、simpledrm、fbcon、SDL scanout 或 VGA 设备时使用。"
-applyTo: "npc/rv64/**"
+applyTo: "Linux/platform/**,Linux/scripts/*display*,Linux/scripts/*framebuffer*,Linux/tools/*display*,npc/rv64/csrc/device/**"
 ---
 
 # Linux Framebuffer / VGA 约束

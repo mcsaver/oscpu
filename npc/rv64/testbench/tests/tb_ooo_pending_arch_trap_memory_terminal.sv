@@ -33,6 +33,7 @@ module tb_ooo_pending_arch_trap_memory_terminal;
   ) drain_gate (
     .rob_count_i({ROB_COUNT_W{1'b0}}),
     .issue_count_i({ISSUE_COUNT_W{1'b0}}),
+    .tensor_pre_rob_owner_live_i(1'b0),
     .synth_lane1_ret_pending_i(1'b0),
     .synth_lane1_branch_drop_pending_i(1'b0),
     .direct_frontend_flush_i(1'b0),

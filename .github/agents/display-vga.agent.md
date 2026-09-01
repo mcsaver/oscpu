@@ -14,10 +14,10 @@ tools: [read, edit, search, execute, agent, todo]
 
 ## 开始工作前
 
-1. 读取 `.github/instructions/linux-framebuffer-vga.instructions.md`。
-2. 读取 `.github/memory/modules/npc.md` 中 VGA、Linux bring-up 与已知显示边界记录。
-3. 读取 `Linux/platform/common-rv64.yml`(共享 SoC 契约)、`Linux/platform/{npc,nemu}-rv64.yml`(平台差异)、`Linux/platform/gen_dts.py`。
-4. 读取现有 VGA/SDL/legacy framebuffer 设备实现，但不得默认 Linux 会使用它们。
+1. 读取 `.github/instructions/linux-framebuffer-vga.instructions.md` 和直接相关的 VGA/SDL/framebuffer 实现。
+2. 读取 `Linux/platform/common-rv64.yml`、相关平台差异配置和 `Linux/platform/gen_dts.py`。
+3. 只有历史 Linux bring-up/显示边界会改变本轮判断时才查询 npc memory；不得默认 Linux 会消费 legacy
+   AM framebuffer。
 
 ## 近期目标
 
@@ -34,7 +34,8 @@ OpenSBI -> Linux -> Ubuntu 22.04 probe initramfs -> framebuffer console -> SDL �
 - 不把 `CONFIG_NPC_HAS_VGA` 或 AM `AM_GPU_FBDRAW` 作为 Linux 屏幕已接通的证据。
 - 不把 SoC 地址图中预留的 VGA window 视为已实现设备。
 - 不在近期目标里追图形桌面；先闭合 fbcon 文本显示。
-- 修改 RTL 前必须按 RTL 四段式推导；host SDL scanout 改动也要保留 Linux-visible 设备契约说明。
+- 修改 RTL 时先核对 Linux-visible 设备的接口、时序、地址/格式和 host scanout 消费链；
+  只展开当前变更所需的 contract，不强制固定阶段文档。
 
 ## 输出格式
 

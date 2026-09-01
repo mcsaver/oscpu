@@ -49,23 +49,15 @@ make ARCH=native          # 本地运行
 make ARCH=riscv32-npc run NPC_SIM_BACKEND=soc NPC_RUN_ARGS="--diff=default --no-progress -m 0"
 ```
 
-## 持久化记忆
+## 历史上下文与记录
 
-### 开始工作前
-1. 读取 `.github/memory/project-status.md` 了解项目当前状态
-2. 读取 `.github/memory/modules/abstract-machine.md` 了解本模块历史上下文
-3. 若涉及 `riscv32-npc`，读取 `.github/memory/modules/npc.md`，确认当前应通过 `npc/sim` 而不是硬编码 `npc/single`
-4. 若涉及 guest ISA 生成参数，读取 `.github/memory/modules/nemu.md` 与 `.github/memory/modules/difftest.md`
-5. 如果是调试任务，读取 `.github/memory/known-issues.md`
-
-### 完成工作后
-1. 更新 `.github/memory/modules/abstract-machine.md` 记录本次工作内容
-2. 更新 `.github/memory/project-status.md` 更新进度
-3. 如果做了设计决策，追加到 `.github/memory/decisions.md`
-4. 如果遇到坑，记录到 `.github/memory/known-issues.md`
+先读取当前 AM API、platform 实现、调用 workload 和目标 backend。需要历史平台决定或跨会话 debug 事实
+时才查询 memory/brief。普通工作不更新 project-status；稳定 API 决定、可复用 root cause 或长期 GAP
+才写 memory。
 
 ## 约束
-- 只修改 `abstract-machine/` 目录下的文件（记忆文件除外）
+- 主要 ownership 是 `abstract-machine/`；直接相关 workload/backend consumer 可在协调 ownership 后随
+  root cause 一并修改，目录范围不是平台权限白名单
 - 保持 API 的跨平台兼容性，不引入平台特定的依赖到公共接口
 - `riscv32-npc` 平台运行桥只负责把 AM 镜像交给 `npc/sim`；后端选择由 `npc/sim/.config` 或显式 `NPC_SIM_BACKEND` 覆盖控制
 - klib 实现应是独立的，不依赖宿主机的 libc

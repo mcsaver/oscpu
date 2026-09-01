@@ -3299,6 +3299,12 @@ module tb_ooo_int_backend;
   reg mem_rsp_cacheable;
   reg tb_mem_rsp_attr_valid;
   reg [1:0] tb_mem_rsp_class;
+  // Focused malformed-response injection stays at the leaf testbench port;
+  // all tracker/MIQ/SQ state is still built through real backend traffic.
+  reg sq_idle_mem_rsp_identity_override;
+  reg [1:0] sq_idle_mem_rsp_owner_kind;
+  reg [4:0] sq_idle_mem_rsp_owner_token;
+  reg [1:0] sq_idle_mem_rsp_mmu_epoch;
   wire mem_expected_valid;
   wire [1:0] mem_expected_owner_kind;
   wire [4:0] mem_expected_owner_token;
@@ -3362,6 +3368,10 @@ module tb_ooo_int_backend;
   reg mem1_rsp_cacheable;
   reg tb_mem1_rsp_attr_valid;
   reg [1:0] tb_mem1_rsp_class;
+  reg sq_idle_mem1_rsp_identity_override;
+  reg [1:0] sq_idle_mem1_rsp_owner_kind;
+  reg [4:0] sq_idle_mem1_rsp_owner_token;
+  reg [1:0] sq_idle_mem1_rsp_mmu_epoch;
   wire mem1_expected_valid;
   wire [1:0] mem1_expected_owner_kind;
   wire [4:0] mem1_expected_owner_token;
@@ -3460,7 +3470,9 @@ module tb_ooo_int_backend;
   wire unused_mem_ready = mem_rsp_ready;
   wire unused_mem1_ready = mem1_rsp_ready;
 
-`ifdef V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+  localparam TB_ENABLE_DUAL_MEM = 1;
+`elsif V11P_CHECKPOINT_IRREVOCABLE_WRITE_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
 `elsif V11R_INT_LANE1_PACKET_FOCUSED
   localparam TB_ENABLE_DUAL_MEM = 1;
@@ -3489,6 +3501,25 @@ module tb_ooo_int_backend;
 `endif
 
 `include "tests/tb_ooo_int_backend_v8x_bridge.svh"
+
+  wire [1:0] tb_backend_mem_rsp_owner_kind_i =
+      sq_idle_mem_rsp_identity_override ? sq_idle_mem_rsp_owner_kind :
+                                          backend_mem_rsp_owner_kind_i;
+  wire [4:0] tb_backend_mem_rsp_owner_token_i =
+      sq_idle_mem_rsp_identity_override ? sq_idle_mem_rsp_owner_token :
+                                          backend_mem_rsp_owner_token_i;
+  wire [1:0] tb_backend_mem_rsp_mmu_epoch_i =
+      sq_idle_mem_rsp_identity_override ? sq_idle_mem_rsp_mmu_epoch :
+                                          backend_mem_rsp_mmu_epoch_i;
+  wire [1:0] tb_backend_mem1_rsp_owner_kind_i =
+      sq_idle_mem1_rsp_identity_override ? sq_idle_mem1_rsp_owner_kind :
+                                           backend_mem1_rsp_owner_kind_i;
+  wire [4:0] tb_backend_mem1_rsp_owner_token_i =
+      sq_idle_mem1_rsp_identity_override ? sq_idle_mem1_rsp_owner_token :
+                                           backend_mem1_rsp_owner_token_i;
+  wire [1:0] tb_backend_mem1_rsp_mmu_epoch_i =
+      sq_idle_mem1_rsp_identity_override ? sq_idle_mem1_rsp_mmu_epoch :
+                                           backend_mem1_rsp_mmu_epoch_i;
 
   OooIntBackend #(
     .ENABLE_DUAL_MEM(TB_ENABLE_DUAL_MEM)
@@ -3523,6 +3554,16 @@ module tb_ooo_int_backend;
     .dispatch0_rs2_arch_i(dispatch0_rs2_arch),
     .dispatch0_rd_arch_i(dispatch0_rd_arch),
     .dispatch0_imm_i(dispatch0_imm),
+    .dispatch0_is_tensor_i(1'b0),
+    .dispatch0_tensor_bits_i(64'b0),
+    .dispatch0_tensor_is_64_i(1'b0),
+    .dispatch0_tensor_required_i(1'b0),
+    .dispatch0_tensor_opclass_i(8'b0),
+    .tensor_cmd_ready_i(1'b0),
+    .tensor_terminal_valid_i(1'b0),
+    .tensor_terminal_producer_id_i({PRODUCER_ID_W{1'b0}}),
+    .tensor_terminal_error_i(1'b0),
+    .tensor_terminal_error_code_i(8'b0),
     .dispatch0_bht_idx_i(dispatch0_bht_idx),
     .dispatch0_pred_taken_i(dispatch0_pred_taken),
     .dispatch0_is_fp_i(dispatch0_is_fp),
@@ -3587,9 +3628,9 @@ module tb_ooo_int_backend;
     // The leaf TB models an in-order bridge by echoing the registered MIQ-head
     // tuple.  Drop/query/residency behavior is covered by the bridge/full-chain
     // focused benches rather than guessed in this functional backend model.
-    .mem_rsp_owner_kind_i(backend_mem_rsp_owner_kind_i),
-    .mem_rsp_owner_token_i(backend_mem_rsp_owner_token_i),
-    .mem_rsp_mmu_epoch_i(backend_mem_rsp_mmu_epoch_i),
+    .mem_rsp_owner_kind_i(tb_backend_mem_rsp_owner_kind_i),
+    .mem_rsp_owner_token_i(tb_backend_mem_rsp_owner_token_i),
+    .mem_rsp_mmu_epoch_i(tb_backend_mem_rsp_mmu_epoch_i),
     .mem_rsp_fault_tval_i(backend_mem_rsp_fault_tval_i),
     .mem_expected_valid_o(mem_expected_valid),
     .mem_expected_owner_kind_o(mem_expected_owner_kind),
@@ -3662,9 +3703,9 @@ module tb_ooo_int_backend;
     .mem1_rsp_attr_valid_i(backend_mem1_rsp_attr_valid_i),
     .mem1_rsp_class_i(backend_mem1_rsp_class_i),
     .mem1_rsp_cacheable_i(backend_mem1_rsp_cacheable_i),
-    .mem1_rsp_owner_kind_i(backend_mem1_rsp_owner_kind_i),
-    .mem1_rsp_owner_token_i(backend_mem1_rsp_owner_token_i),
-    .mem1_rsp_mmu_epoch_i(backend_mem1_rsp_mmu_epoch_i),
+    .mem1_rsp_owner_kind_i(tb_backend_mem1_rsp_owner_kind_i),
+    .mem1_rsp_owner_token_i(tb_backend_mem1_rsp_owner_token_i),
+    .mem1_rsp_mmu_epoch_i(tb_backend_mem1_rsp_mmu_epoch_i),
     .mem1_rsp_fault_tval_i(backend_mem1_rsp_fault_tval_i),
     .mem1_expected_valid_o(mem1_expected_valid),
     .mem1_expected_owner_kind_o(mem1_expected_owner_kind),
@@ -5156,6 +5197,10 @@ module tb_ooo_int_backend;
 	      mem_rsp_cacheable = 1'b1;
 	      tb_mem_rsp_attr_valid = 1'b1;
 	      tb_mem_rsp_class = `OOO_MEM_CLASS_CACHED;
+	      sq_idle_mem_rsp_identity_override = 1'b0;
+	      sq_idle_mem_rsp_owner_kind = 2'b0;
+	      sq_idle_mem_rsp_owner_token = 5'b0;
+	      sq_idle_mem_rsp_mmu_epoch = 2'b0;
 	      mem_translate_active = 1'b0;
 	      mem_owner_query_valid = 1'b0;
 	      mem_owner_query_token = 5'b0;
@@ -5181,6 +5226,10 @@ module tb_ooo_int_backend;
 	      mem1_rsp_cacheable = 1'b1;
 	      tb_mem1_rsp_attr_valid = 1'b1;
 	      tb_mem1_rsp_class = `OOO_MEM_CLASS_CACHED;
+	      sq_idle_mem1_rsp_identity_override = 1'b0;
+	      sq_idle_mem1_rsp_owner_kind = 2'b0;
+	      sq_idle_mem1_rsp_owner_token = 5'b0;
+	      sq_idle_mem1_rsp_mmu_epoch = 2'b0;
 	      mem1_translate_active = 1'b0;
 	      mem1_owner_query_valid = 1'b0;
 	      mem1_owner_query_token = 5'b0;
@@ -18302,6 +18351,8 @@ module tb_ooo_int_backend;
 
       mem_station_query_valid = 1'b1;
       mem_station_query_token = b_token;
+      mem_owner_query_valid = 1'b1;
+      mem_owner_query_token = a_token;
       mem_sq_query_valid = 1'b1;
       mem_sq_query_owner_kind = dut.miq_next_head_owner_kind_w;
       mem_sq_query_owner_token = b_token;
@@ -18374,6 +18425,8 @@ module tb_ooo_int_backend;
       tb_check1("V8U B SQ allow", mem_sq_query_allow, 1'b1);
       tb_check1("V8U B no forward", mem_sq_query_forward, 1'b0);
       tb_check1("V8U B no replay", mem_sq_query_replay, 1'b0);
+      tb_check1("V8U B production next LQ update preserved",
+                dut.lq_query0_update_w, 1'b1);
       tb_check1("V8U B lookahead retry credit remains zero",
                 mem_sq_query_retry_ready, 1'b0);
       tb_check1("V8U response owns sole queue pop",
@@ -18386,6 +18439,8 @@ module tb_ooo_int_backend;
       mem_sq_query_class = `OOO_MEM_CLASS_RSVD;
       mem_sq_query_wstrb = {`STRB_W{1'b0}};
       mem_station_query_valid = 1'b0;
+      mem_owner_query_valid = 1'b0;
+      mem_owner_query_token = 5'b0;
       #1;
       tb_check32("V8U one pop leaves B", dut.miq_count_w, 32'd1);
       tb_check32("V8U B becomes current",
@@ -18417,6 +18472,427 @@ module tb_ooo_int_backend;
       $display("[V8U-F4-BACKEND-NEXT] no-pop/killed-current fail-closed + exact A-pop/B-allow PASS");
     end
   endtask
+
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+  task automatic sq_idle_seed_bank0_load_with_unfilled_older_store;
+    output [PRODUCER_ID_W-1:0] load_pid;
+    output [4:0] load_token;
+    output [1:0] load_epoch;
+    output [`XLEN-1:0] load_tval;
+    begin
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8000_cb00,
+                    make_store_ctrl(`MEM_SIZE_DWORD),
+                    5'd0, 5'd0, 5'd0, 64'h0000_0000_0000_0d08);
+      set_dispatch1(64'h0000_0000_8000_cb04,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd28, 64'h0000_0000_0000_0d00);
+      #1;
+      tb_check1("SQ-idle replay seed store dispatch ready",
+                dispatch0_ready, 1'b1);
+      tb_check1("SQ-idle replay seed load dispatch ready",
+                dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("SQ-idle replay seed bank0 load request",
+                mem_req_valid && !mem_req_write, 1'b1);
+      tb_check1("SQ-idle replay seed bank1 store probe",
+                mem1_req_valid && mem1_req_write && mem1_req_probe, 1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check32("SQ-idle replay seed bank0 MIQ resident",
+                 dut.miq_count_w, 32'd1);
+      tb_check32("SQ-idle replay seed bank1 MIQ resident",
+                 dut.miq1_count_w, 32'd1);
+      tb_check32("SQ-idle replay seed real SQ resident",
+                 dut.sq_count_w, 32'd1);
+      load_pid = dut.mem_completion_producer_id_w;
+      load_token = dut.miq_head_owner_token_w;
+      load_epoch = dut.miq_head_mmu_epoch_w;
+      load_tval = dut.miq_head_fault_tval_w;
+    end
+  endtask
+
+  task automatic run_sq_idle_fusion_qualification_backend;
+    localparam [`XLEN-1:0] ALLOW0_PA = 64'h0000_0000_a000_0c00;
+    localparam [`XLEN-1:0] ALLOW1_PA = 64'h0000_0000_a000_0c08;
+    localparam [`XLEN-1:0] REPLAY_PA = 64'h0000_0000_a000_0d00;
+    localparam [`XLEN-1:0] FORWARD_PA = 64'h0000_0000_a000_0e00;
+    reg [4:0] token0;
+    reg [4:0] token1;
+    reg [PRODUCER_ID_W-1:0] allow0_pid;
+    reg [PRODUCER_ID_W-1:0] allow1_pid;
+    reg [PRODUCER_ID_W-1:0] load_pid;
+    reg [4:0] load_token;
+    reg [1:0] load_epoch;
+    reg [`XLEN-1:0] load_tval;
+    integer lq_entry;
+    integer allow0_lq_hits;
+    integer allow1_lq_hits;
+    begin
+      tb_check32("SQ current allow uses production dual-memory mode",
+                 TB_ENABLE_DUAL_MEM, 32'd1);
+
+      // Empty-SQ allow, both physical banks.  Two real dispatched loads create
+      // the tracker, MIQ and LQ owners; only the bridge station/query inputs are
+      // modeled.  The production current-head query records an exact strict
+      // ALLOW in both LQ entries, but owns no retry-holder transfer or MIQ pop.
+      reset_dut();
+      commit_ready = 1'b0;
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      set_dispatch0(64'h0000_0000_8000_ca00,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd26, 64'h0000_0000_0000_0c00);
+      set_dispatch1(64'h0000_0000_8000_ca04,
+                    make_load_ctrl(`MEM_SIZE_DWORD, 1'b1),
+                    5'd0, 5'd0, 5'd27, 64'h0000_0000_0000_0c08);
+      #1;
+      tb_check1("SQ-idle dual allow dispatch0 ready", dispatch0_ready, 1'b1);
+      tb_check1("SQ-idle dual allow dispatch1 ready", dispatch1_ready, 1'b1);
+      `TB_TICK(clk);
+      clear_dispatch();
+      `TB_TICK(clk);
+      #1;
+      tb_check1("SQ-idle dual allow bank0 request", mem_req_valid, 1'b1);
+      tb_check1("SQ-idle dual allow bank1 request", mem1_req_valid, 1'b1);
+      mem_req_ready = 1'b1;
+      mem1_req_ready = 1'b1;
+      `TB_TICK(clk);
+      mem_req_ready = 1'b0;
+      mem1_req_ready = 1'b0;
+      #1;
+      tb_check32("SQ-idle dual allow bank0 MIQ resident",
+                 dut.miq_count_w, 32'd1);
+      tb_check32("SQ-idle dual allow bank1 MIQ resident",
+                 dut.miq1_count_w, 32'd1);
+      tb_check32("SQ-idle dual allow SQ empty", dut.sq_count_w, 32'd0);
+      token0 = dut.miq_head_owner_token_w;
+      token1 = dut.miq1_head_owner_token_w;
+
+      mem_station_query_valid = 1'b1;
+      mem_station_query_token = token0;
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = dut.miq_head_owner_kind_w;
+      mem_sq_query_owner_token = token0;
+      mem_sq_query_mmu_epoch = dut.miq_head_mmu_epoch_w;
+      mem_sq_query_paddr = ALLOW0_PA;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = 8'hff;
+      mem1_station_query_valid = 1'b1;
+      mem1_station_query_token = token1;
+      mem1_sq_query_valid = 1'b1;
+      mem1_sq_query_owner_kind = dut.miq1_head_owner_kind_w;
+      mem1_sq_query_owner_token = token1;
+      mem1_sq_query_mmu_epoch = dut.miq1_head_mmu_epoch_w;
+      mem1_sq_query_paddr = ALLOW1_PA;
+      mem1_sq_query_attr_valid = 1'b1;
+      mem1_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem1_sq_query_wstrb = 8'hff;
+      #1;
+      tb_check1("SQ-idle bank0 station source recognized",
+                dut.mem_sq_query_station_source_w, 1'b1);
+      tb_check1("SQ-idle bank1 station source recognized",
+                dut.mem1_sq_query_station_source_w, 1'b1);
+      tb_check1("SQ-idle bank0 current MIQ exact nonvacuous",
+                dut.mem_sq_query_current_miq_exact_w, 1'b1);
+      tb_check1("SQ-idle bank1 current MIQ exact nonvacuous",
+                dut.mem1_sq_query_current_miq_exact_w, 1'b1);
+      tb_check1("SQ-idle bank0 full exact", dut.mem_sq_query_exact_w, 1'b1);
+      tb_check1("SQ-idle bank1 full exact", dut.mem1_sq_query_exact_w, 1'b1);
+      tb_check1("SQ-idle bank0 real SQ allow", mem_sq_query_allow, 1'b1);
+      tb_check1("SQ-idle bank1 real SQ allow", mem1_sq_query_allow, 1'b1);
+      tb_check1("SQ-idle bank0 strict allow updates LQ",
+                dut.lq_query0_update_w, 1'b1);
+      tb_check1("SQ-idle bank1 strict allow updates LQ",
+                dut.lq_query1_update_w, 1'b1);
+      tb_check1("SQ-idle bank0 retry credit/capture suppressed",
+                mem_sq_query_retry_ready | dut.mem_sq_retry0_capture_w, 1'b0);
+      tb_check1("SQ-idle bank1 retry credit/capture suppressed",
+                mem1_sq_query_retry_ready | dut.mem_sq_retry1_capture_w, 1'b0);
+      tb_check1("SQ-idle dual query owns no MIQ pop",
+                dut.miq_queue_pop_valid_w | dut.miq1_queue_pop_valid_w, 1'b0);
+      allow0_pid = dut.mem_sq_query_producer_id_w;
+      allow1_pid = dut.mem1_sq_query_producer_id_w;
+      `TB_TICK(clk);
+      #1;
+      allow0_lq_hits = 0;
+      allow1_lq_hits = 0;
+      for (lq_entry = 0; lq_entry < V11I_LQ_ENTRY_N;
+           lq_entry = lq_entry + 1) begin
+        if (dut.u_load_queue.valid_q[lq_entry] &&
+            (dut.u_load_queue.producer_id_q[lq_entry] == allow0_pid)) begin
+          allow0_lq_hits = allow0_lq_hits + 1;
+          tb_check1("SQ-idle bank0 LQ PA valid",
+                    dut.u_load_queue.pa_valid_q[lq_entry], 1'b1);
+          tb_check64("SQ-idle bank0 LQ PA",
+                     dut.u_load_queue.paddr_q[lq_entry], ALLOW0_PA);
+          tb_check1("SQ-idle bank0 LQ attr valid",
+                    dut.u_load_queue.attr_valid_q[lq_entry], 1'b1);
+          tb_check32("SQ-idle bank0 LQ class",
+                     {30'b0, dut.u_load_queue.class_q[lq_entry]},
+                     {30'b0, `OOO_MEM_CLASS_CACHED});
+          tb_check32("SQ-idle bank0 LQ strb",
+                     {{(32-`STRB_W){1'b0}},
+                      dut.u_load_queue.strb_q[lq_entry]}, 32'h0000_00ff);
+          tb_check1("SQ-idle bank0 LQ ordered",
+                    dut.u_load_queue.ordered_q[lq_entry], 1'b1);
+        end
+        if (dut.u_load_queue.valid_q[lq_entry] &&
+            (dut.u_load_queue.producer_id_q[lq_entry] == allow1_pid)) begin
+          allow1_lq_hits = allow1_lq_hits + 1;
+          tb_check1("SQ-idle bank1 LQ PA valid",
+                    dut.u_load_queue.pa_valid_q[lq_entry], 1'b1);
+          tb_check64("SQ-idle bank1 LQ PA",
+                     dut.u_load_queue.paddr_q[lq_entry], ALLOW1_PA);
+          tb_check1("SQ-idle bank1 LQ attr valid",
+                    dut.u_load_queue.attr_valid_q[lq_entry], 1'b1);
+          tb_check32("SQ-idle bank1 LQ class",
+                     {30'b0, dut.u_load_queue.class_q[lq_entry]},
+                     {30'b0, `OOO_MEM_CLASS_CACHED});
+          tb_check32("SQ-idle bank1 LQ strb",
+                     {{(32-`STRB_W){1'b0}},
+                      dut.u_load_queue.strb_q[lq_entry]}, 32'h0000_00ff);
+          tb_check1("SQ-idle bank1 LQ ordered",
+                    dut.u_load_queue.ordered_q[lq_entry], 1'b1);
+        end
+      end
+      tb_check32("SQ-idle bank0 unique LQ owner", allow0_lq_hits, 32'd1);
+      tb_check32("SQ-idle bank1 unique LQ owner", allow1_lq_hits, 32'd1);
+      tb_check32("SQ-idle bank0 allow leaves MIQ unchanged",
+                 dut.miq_count_w, 32'd1);
+      tb_check32("SQ-idle bank1 allow leaves MIQ unchanged",
+                 dut.miq1_count_w, 32'd1);
+      tb_check1("SQ-idle bank0 allow leaves retry holder empty",
+                dut.mem_retry0_valid_q, 1'b0);
+      tb_check1("SQ-idle bank1 allow leaves retry holder empty",
+                dut.mem_retry1_valid_q, 1'b0);
+
+      // Cross-bank disposition mix isolates the allow-only write gate in one
+      // edge.  The real StoreQueue cases below still supply the independent
+      // replay and forward outcomes; this forced split is only the focused
+      // same-edge bank interaction oracle.
+      force dut.sq_query0_allow_w = 1'b0;
+      force dut.sq_query0_forward_w = 1'b0;
+      force dut.sq_query0_replay_w = 1'b1;
+      #1;
+      tb_check1("SQ-idle mixed bank0 replay",
+                mem_sq_query_replay && !mem_sq_query_allow &&
+                !mem_sq_query_forward, 1'b1);
+      tb_check1("SQ-idle mixed bank1 allow",
+                mem1_sq_query_allow && !mem1_sq_query_replay &&
+                !mem1_sq_query_forward, 1'b1);
+      tb_check1("SQ-idle mixed replay bank has no LQ update",
+                dut.lq_query0_update_w, 1'b0);
+      tb_check1("SQ-idle mixed allow bank updates LQ",
+                dut.lq_query1_update_w, 1'b1);
+      tb_check1("SQ-idle mixed banks own no retry/pop",
+                mem_sq_query_retry_ready | mem1_sq_query_retry_ready |
+                dut.mem_sq_retry0_capture_w | dut.mem_sq_retry1_capture_w |
+                dut.miq_queue_pop_valid_w | dut.miq1_queue_pop_valid_w,
+                1'b0);
+      `TB_TICK(clk);
+      release dut.sq_query0_allow_w;
+      release dut.sq_query0_forward_w;
+      release dut.sq_query0_replay_w;
+      #1;
+
+      // Do not clock malformed decisions: the OOO assertion intentionally
+      // rejects them at an edge.  These combinational probes independently
+      // prove the new functional current-head LQ write gate itself is
+      // fail-closed for both X and known nononehot StoreQueue results.
+      force dut.sq_query0_allow_w = 1'bx;
+      force dut.sq_query0_forward_w = 1'b0;
+      force dut.sq_query0_replay_w = 1'b0;
+      #1;
+      tb_check1("SQ-idle X decision strict allow closed",
+                dut.sq_query0_strict_allow_r, 1'b0);
+      tb_check1("SQ-idle X decision cannot update LQ",
+                dut.lq_query0_update_w, 1'b0);
+      release dut.sq_query0_allow_w;
+      release dut.sq_query0_forward_w;
+      release dut.sq_query0_replay_w;
+      #1;
+      force dut.sq_query0_allow_w = 1'b1;
+      force dut.sq_query0_forward_w = 1'b1;
+      force dut.sq_query0_replay_w = 1'b0;
+      #1;
+      tb_check1("SQ-idle nononehot decision strict allow closed",
+                dut.sq_query0_strict_allow_r, 1'b0);
+      tb_check1("SQ-idle nononehot decision cannot update LQ",
+                dut.lq_query0_update_w, 1'b0);
+      release dut.sq_query0_allow_w;
+      release dut.sq_query0_forward_w;
+      release dut.sq_query0_replay_w;
+      #1;
+
+      // Model a production S_LOOKUP face: the registered active-owner query
+      // is valid while the station SQ tuple aliases the current MIQ head.
+      // A valid response with a deliberately wrong token makes the current
+      // response malformed.  This must fail closed as production replay; it
+      // must never be reclassified as the S_IDLE stats-current source.
+      mem_owner_query_valid = 1'b1;
+      mem_owner_query_token = token0;
+      mem1_owner_query_valid = 1'b1;
+      mem1_owner_query_token = token1;
+      mem_rsp_valid = 1'b1;
+      mem1_rsp_valid = 1'b1;
+      sq_idle_mem_rsp_identity_override = 1'b1;
+      sq_idle_mem_rsp_owner_kind = dut.miq_head_owner_kind_w;
+      sq_idle_mem_rsp_owner_token = token0 ^ 5'b10000;
+      sq_idle_mem_rsp_mmu_epoch = dut.miq_head_mmu_epoch_w;
+      sq_idle_mem1_rsp_identity_override = 1'b1;
+      sq_idle_mem1_rsp_owner_kind = dut.miq1_head_owner_kind_w;
+      sq_idle_mem1_rsp_owner_token = token1 ^ 5'b10000;
+      sq_idle_mem1_rsp_mmu_epoch = dut.miq1_head_mmu_epoch_w;
+      #1;
+      tb_check1("SQ-idle malformed production bank0 response nonexact",
+                dut.mem_current_rsp_exact_candidate_w, 1'b0);
+      tb_check1("SQ-idle malformed production bank1 response nonexact",
+                dut.mem1_current_rsp_exact_candidate_w, 1'b0);
+      tb_check1("SQ-idle malformed production bank0 remains station source",
+                dut.mem_sq_query_station_source_w, 1'b1);
+      tb_check1("SQ-idle malformed production bank1 remains station source",
+                dut.mem1_sq_query_station_source_w, 1'b1);
+      tb_check1("SQ-idle malformed production bank0 is not current",
+                dut.mem_sq_query_current_miq_exact_w, 1'b0);
+      tb_check1("SQ-idle malformed production bank1 is not current",
+                dut.mem1_sq_query_current_miq_exact_w, 1'b0);
+      tb_check1("SQ-idle malformed production bank0 has no exact/allow",
+                dut.mem_sq_query_exact_w | mem_sq_query_allow, 1'b0);
+      tb_check1("SQ-idle malformed production bank1 has no exact/allow",
+                dut.mem1_sq_query_exact_w | mem1_sq_query_allow, 1'b0);
+      tb_check1("SQ-idle malformed production bank0 replays",
+                mem_sq_query_replay, 1'b1);
+      tb_check1("SQ-idle malformed production bank1 replays",
+                mem1_sq_query_replay, 1'b1);
+      tb_check1("SQ-idle malformed production has no LQ update",
+                dut.lq_query0_update_w | dut.lq_query1_update_w, 1'b0);
+      tb_check1("SQ-idle malformed production has no retry capture",
+                dut.mem_sq_retry0_capture_w | dut.mem_sq_retry1_capture_w,
+                1'b0);
+      tb_check1("SQ-idle malformed production transport drains",
+                dut.miq_pop_transport_w & dut.miq1_pop_transport_w, 1'b1);
+      tb_check1("SQ-idle malformed production identity rejects pop",
+                dut.miq_pop_w | dut.miq1_pop_w, 1'b0);
+      mem_rsp_valid = 1'b0;
+      mem1_rsp_valid = 1'b0;
+      mem_owner_query_valid = 1'b0;
+      mem1_owner_query_valid = 1'b0;
+      sq_idle_mem_rsp_identity_override = 1'b0;
+      sq_idle_mem1_rsp_identity_override = 1'b0;
+      #1;
+
+      // A real unfilled older store makes the current bank0 load replay.  The
+      // existing seed stops before its active-source capture edge; switching to
+      // the exact station face proves stats-current replay has zero credit.
+      sq_idle_seed_bank0_load_with_unfilled_older_store(
+          load_pid, load_token, load_epoch, load_tval);
+      mem_station_query_valid = 1'b1;
+      mem_station_query_token = load_token;
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = dut.miq_head_owner_kind_w;
+      mem_sq_query_owner_token = load_token;
+      mem_sq_query_mmu_epoch = load_epoch;
+      mem_sq_query_paddr = REPLAY_PA;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = 8'hff;
+      #1;
+      tb_check1("SQ-idle replay current MIQ exact",
+                dut.mem_sq_query_current_miq_exact_w, 1'b1);
+      tb_check1("SQ-idle replay full exact", dut.mem_sq_query_exact_w, 1'b1);
+      tb_check1("SQ-idle real SQ replay", mem_sq_query_replay, 1'b1);
+      tb_check1("SQ-idle replay does not allow/forward",
+                mem_sq_query_allow | mem_sq_query_forward, 1'b0);
+      tb_check1("SQ-idle replay LQ update suppressed",
+                dut.lq_query0_update_w, 1'b0);
+      tb_check1("SQ-idle replay credit/capture suppressed",
+                mem_sq_query_retry_ready | dut.mem_sq_retry0_capture_w, 1'b0);
+      tb_check1("SQ-idle replay owns no MIQ pop",
+                dut.miq_queue_pop_valid_w, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("SQ-idle replay leaves MIQ unchanged",
+                 dut.miq_count_w, 32'd1);
+      tb_check1("SQ-idle replay leaves retry holder empty",
+                dut.mem_retry0_valid_q, 1'b0);
+
+      // Fill that same real older store through its bank1 probe response, then
+      // query the resident younger load at the alias PA.  Its all-byte zero
+      // store data must come from the actual StoreQueue forward path.
+      mem_sq_query_valid = 1'b0;
+      mem_station_query_valid = 1'b0;
+      #1;
+      mem1_rsp_valid = 1'b1;
+      mem1_rsp_rdata = FORWARD_PA;
+      mem1_rsp_error = 1'b0;
+      tb_mem1_rsp_attr_valid = 1'b1;
+      tb_mem1_rsp_class = `OOO_MEM_CLASS_CACHED;
+      mem1_rsp_cacheable = 1'b1;
+      #1;
+      tb_check1("SQ-idle forward older store probe response ready",
+                mem1_rsp_ready, 1'b1);
+      tb_check1("SQ-idle forward older store fills real SQ",
+                dut.sq_fill1_valid_w, 1'b1);
+      `TB_TICK(clk);
+      mem1_rsp_valid = 1'b0;
+      mem1_rsp_rdata = {`XLEN{1'b0}};
+      #1;
+      tb_check32("SQ-idle forward load remains current",
+                 dut.miq_count_w, 32'd1);
+      tb_check32("SQ-idle forward store MIQ drains",
+                 dut.miq1_count_w, 32'd0);
+
+      mem_station_query_valid = 1'b1;
+      mem_station_query_token = load_token;
+      mem_sq_query_valid = 1'b1;
+      mem_sq_query_owner_kind = dut.miq_head_owner_kind_w;
+      mem_sq_query_owner_token = load_token;
+      mem_sq_query_mmu_epoch = load_epoch;
+      mem_sq_query_paddr = FORWARD_PA;
+      mem_sq_query_attr_valid = 1'b1;
+      mem_sq_query_class = `OOO_MEM_CLASS_CACHED;
+      mem_sq_query_wstrb = 8'hff;
+      #1;
+      tb_check1("SQ-idle forward current MIQ exact",
+                dut.mem_sq_query_current_miq_exact_w, 1'b1);
+      tb_check1("SQ-idle forward full exact", dut.mem_sq_query_exact_w, 1'b1);
+      tb_check1("SQ-idle real SQ forward", mem_sq_query_forward, 1'b1);
+      tb_check1("SQ-idle forward does not allow/replay",
+                mem_sq_query_allow | mem_sq_query_replay, 1'b0);
+      tb_check64("SQ-idle real SQ forward data",
+                 mem_sq_query_forward_data, {`XLEN{1'b0}});
+      tb_check1("SQ-idle forward LQ update suppressed",
+                dut.lq_query0_update_w, 1'b0);
+      tb_check1("SQ-idle forward credit/capture suppressed",
+                mem_sq_query_retry_ready | dut.mem_sq_retry0_capture_w, 1'b0);
+      tb_check1("SQ-idle forward owns no MIQ pop",
+                dut.miq_queue_pop_valid_w, 1'b0);
+      `TB_TICK(clk);
+      #1;
+      tb_check32("SQ-idle forward leaves MIQ unchanged",
+                 dut.miq_count_w, 32'd1);
+      tb_check1("SQ-idle forward leaves retry holder empty",
+                dut.mem_retry0_valid_q, 1'b0);
+
+      // Existing current-response/next-head scenario is deliberately retained
+      // as the regression that production station lookahead still updates LQ.
+      run_v8u_current_pop_next_head_query();
+      $display("[SQ-IDLE-FUSION-QUAL-BACKEND][PASS] allow_banks=2 replay=1 forward=1 mixed_allow_replay=1 x_nononehot_failclosed=2 malformed_production_banks=2 current_allow_lq_update=2 fallback_lq_update=0 retry_capture=0 production_next_update=1");
+    end
+  endtask
+`endif
 
   task automatic run_v8t_final_pa_retry_lifecycle;
     reg [PRODUCER_ID_W-1:0] load_pid;
@@ -19891,7 +20367,9 @@ module tb_ooo_int_backend;
     tb_errors = 0;
     reset_dut();
 
-`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+    run_sq_idle_fusion_qualification_backend();
+`elsif HIST_SER_QH_YOUNGER_STORE_FOCUSED
     run_hist_ser_qh_younger_store_cycle();
 `elsif V11R_INT_LANE1_PACKET_FOCUSED
     run_v11r_int_lane1_packet_semantic();
@@ -21312,7 +21790,9 @@ module tb_ooo_int_backend;
     release dut.branch_resolve_payload_bht_idx_w;
     $display("[V9O-PENDING-CSR-BRANCH-PRIORITY] older action-NONE commit suppresses younger branch PASS");
 
-`ifdef HIST_SER_QH_YOUNGER_STORE_FOCUSED
+`ifdef SQ_IDLE_FUSION_QUAL_FOCUSED
+        tb_finish("tb_ooo_int_backend_sq_idle_fusion_qualification");
+`elsif HIST_SER_QH_YOUNGER_STORE_FOCUSED
         tb_finish("tb_ooo_int_backend_hist_ser_qh_younger_store");
 `elsif V11R_INT_LANE1_PACKET_FOCUSED
         tb_finish("tb_ooo_int_backend_v11r_int_lane1_packet");

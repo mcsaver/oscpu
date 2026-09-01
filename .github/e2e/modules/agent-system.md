@@ -1,19 +1,30 @@
 # agent-system E2E Contract
 
-- **范围**: `AI_ENVIRONMENT.md` 一页导航、`.github/AGENTS.md`、入口 shim、canonical contracts、agents、instructions、memory、task-runs、e2e profile、review routing、branch-health dashboard、observability/run-manifest、runtime artifact/source boundary、commercial delivery package、state traceback、Reviewer/Inspector gate、非交互软环境入口。
-- **上游**: 用户目标、已有 memory、蓝图。
-- **下游**: 所有模块 profile 与跨模块图。
-- **L0 gate**: `e2e_agent_system_discovery` 检查规则入口、e2e 目录、task-run 模板、memory、delivery contract、商业交付文档、`scripts/package-ai-dev-env.sh`、`scripts/agent-env.sh` 与 runner source hook、半初始化 `YSYX_AGENT_ENV_SOURCED` 继承自修复钩子、外层工具控制符命令卫生文档钩子（例如 `rg -e` 替代正则中的 `|`）、Codex/WSL single-flight 文档钩子（不要并发启动多个 `wsl.exe` 做工程命令；`Wsl/Service/E_UNEXPECTED` 先按宿主 WSL 健康问题处理；工程命令回到 `scripts/agent-run.sh` 入口）、收尾 `scripts/agent-e2e.sh --guard --guard-mode strict` 证据守门（按触碰路径推荐 profile，要求本轮 task-run evidence 晚于触发文件，且包含 completed report、带 `recall_status=complete` 的 `context-brief.md`、`profile-resolve.md`、`evidence-index.md`；context brief 失败必须使 runner 非零，缺证据或 DB 召回产物时阻断 strict 模式）、NEMU/NPC 场景隔离运行时边界（`nemu-dev*` 只能展开到 `nemu`/`software-flow`，`npc-dev` 只能展开到 `npc`/`software-flow`，旧 `nemu-ubuntu*` 集成 profile 保留跨模块节点），以及可配置 active scenario runtime isolation（默认 `warn`，NEMU-only/NPC-only dispatch 发现对侧活跃进程只告警并继续；超过 `AGENT_E2E_SCENARIO_RUNTIME_STALE_SECONDS` 默认 86400s 的对侧 stale 进程会失败；`strict` 拒绝所有对侧冲突；`off` 跳过）、持久 agent/e2e/review-routing/branch-health/observability/state-traceability/runtime-artifacts/delivery 源文件是否已被 Git 跟踪，以及 `report.sh` 的 context brief、run manifest、state_traceback、task-run 文本 artifact sanitizer、runtime evidence index-only 和 Markdown DB 归档 hook 是否定义、调用并限制在当前 run dir。
-- **启动/终结 fail-closed gate**: runner 在生成 `context-brief.md` 前先 `rebuild` live 索引，通过目录级剪枝排除 DB-first 的 `.github/{memory,task-runs}/**` 与历史 `.github/{archive,shujuku_aireview}/**`，只刷新 active rules/profile/root shims，并保留 `evidence/context-live-index-refresh.log`；scoped rebuild 的 missing 更新只覆盖实际扫描且未排除的旧行，排除区状态必须保持。刷新失败会阻止旧规则 chunk 形成 complete recall，同时避免为 active-rule 刷新重复扫描海量历史证据。`context-brief.md` 与 `profile-resolve.md` 必须是原子落盘的普通文件；前者绑定硬预算内 canonical+profile+独立 focus chunks，并要求逐 chunk 完整 metadata/非空正文；后者绑定连续编号、唯一 ID 的非空 Nodes 闭包。completed 只允许全节点 PASS，run/report/manifest/index/dispatch 身份与时间一致，resolve/manifest/report/dispatch/`nodes.tsv` 绑定节点全元组；validator 同时递归解析当前 live profile include closure，逐节点复核 `node/source/module/owner/function/status/inputs/outputs`，拒绝多产物一致改写。dispatch 保持 canonical 全局事件顺序与 11 字段 payload；节点首要 evidence 必须是 canonical `evidence/<node_id>.log`，辅助指针也必须属于 actual indexed ordinary asset。strict guard 拒绝 diagnostic/header 注入、header-only/空壳截断、profile/count mismatch、未来时间、未知 deletion baseline、symlink run/evidence/artifact；`evidence-index.md` 的路径/尺寸/SHA 与 actual ordinary evidence 逐项重算。recall、resolve、report render、sanitizer、index、marker、staged sync、publish 任一失败都传播为非零/blocked。completed 先精确同步 staged Markdown，再生成七 artifact marker 与严格 EOF 的 `completion-publication.md`，最后由 `publish-task-run` 在单 SQLite 事务内复核并提交；普通 archive/promote/migrate/backup/rehydrate 不得创建或撤销 completion publication。失败撤销本次 live marker/publication 并重渲染 blocked，既有已提交 publication 不会被通用同步误删；strict guard 同时复核 marker、publication 与 DB/live 精确集合。
-- **Bounded recall/publication route lock**: CLI/API 与 runner 的 brief 默认硬预算统一为 2400 tokens，显式 `E2E_CONTEXT_BRIEF_MAX_TOKENS` 覆盖仍须传入 recall CLI 并保留 fail-closed；runner 将 task slug 拆为至多 8 个非泛化语义词、只用 `--profile` 绑定 profile，并固定 `focus_scope=non-history`，使旧 task-run/report/evidence 不能为同 slug 重跑提供独立 primary focus，纯生命周期 slug 必须失败；通用 brief 默认 `all` 以保留显式历史召回。普通 backup 和 snapshot-stored 对 task-run publication 的 direct/default 路由都必须过滤，audit 不得出现 publication backup violation。
-- **三层 gate**: `e2e_agent_system_three_layer_contract` 检查一页导航、canonical contract 路径、Database/Skill/Agent 边界、report matrix、schema contract、observability contract、runtime artifact contract、delivery contract、state traceability contract、review routing、branch-health dashboard、policy、workflow、skill、`agent-maintain` 和对应 audit/report 命令。
-- **R3 gate**: `runtime-artifact-boundary` 检查 `.github/ai-env/contracts/agent-env-runtime-artifacts.json`、`.gitignore` 重型 artifact pattern、`report.sh` 的 raw evidence index-only 钩子、`artifact-audit` 维护门禁和 `agent-system` profile 节点。
-- **R7 gate**: `state-machine-traceback` 检查 `state_traceback` 字段进入 task report 和 run manifest；`reviewer-inspector-gate` 检查 R7 review routing、`ysyx-coordinator` reviewer 与 `agent-system` inspector 已落成 profile 节点，并要求实现者/审查者只由声明的高风险触发，普通确定性交付可 self-critic 后直接 finish，触发后的冲突和剩余风险仍进入 review contract。
-- **RTL 子任务契约 gate**: `rtl-task-contract` 检查 canonical JSON、path-specific instruction、`prepare-rtl-task-contract` skill、policy、coordinator/NPC 接线和打包入口；合同 JSON 的仓库相对路径、文件 SHA-256 与“只绑定该 JSON”三项语义分别检查，不把正常 Markdown 换行当成缺字段。渲染首屏还必须绑定正向本地 RTL/spec/testbench/EDA/证据作用域，并要求多义术语携带对象、层级、作用域和工程目的；该检查不建立关键词黑名单。`workspace-files` 是默认探索模式，no-tools 只用于限定材料复核，渲染结果必须保留 unknowns、替代假设、反例、`scope_extension_request`、置信依据与 `inconclusive` 出口，并拒绝强制 PASS 或固定发现数量上限。脚本还要证明 schema v2 的四字段 scope、历史 v1 validate/render 兼容，以及 read-only、implementation、verification 和 no-tools 正例；额外 v2 scope 字段、历史非零扩展标志、只读写入、路径穿越、写路径超出 `allowed_paths`、父目标错误传播、缺产物、缺 canonical context 与 context 超出 `allowed_paths` 的 mutation 必须逐项被检出。
-- **长跑状态 gate**: `task-run-status-fail-closed` 执行 `scripts/tests/test-task-run-status.sh`，要求
-  `scripts/task-run-status.sh` 只有显式 evidence-complete、命令返回零、cleanup 返回零且无 signal 时才写
-  `PASS`；clean early-exit、命令失败、cleanup failure 和 `HUP` 必须分别产生可审计 `FAIL`。
-- **商业交付 gate**: `commercial-delivery-readiness` 重新生成 `deliverables/ai-dev-env-commercial-v1/package/ysyx-ai-dev-env-commercial`，检查旧 `outputs/` 与 `.github/e2e/_manual` 已离开 active surface、归档 manifest 完整、包清单为相对路径、e2e 目录无重复嵌套、包内无本机路径/私有标记，并执行 `delivery-audit`。
-- **L1 gate**: `agent-system` profile 列出全部 profile，证明配置可发现。
-- **证据**: task-run `context-brief.md`、`profile-resolve.md`、`evidence-index.md`、report、dispatch-log、`run-manifest.json`、`nodes.tsv`、`complete.marker`、`completion-publication.md`、DB 精确集合、单边与多产物一致 tuple mutation、真实但错属 evidence mutation 负例、RTL 子任务契约正例/九类合同外路径 mutation、`state_traceback` 字段、实现者/审查者冲突结论、profile 列表、agent-env PASS marker、sanitizer PASS marker、trace-audit PASS marker、artifact-audit PASS marker、delivery-audit PASS marker、state-audit PASS marker、branch-health-report 输出、branch-health-audit PASS marker、diff check。
-- **升级路线**: 增加 profile schema 校验、重复 node 检测、agent/module 覆盖率检查；把 `--guard` 接入具体 agent runtime 的 Stop/PreToolUse hook 或 CI advisory job。
+本 profile 是显式的 AI 环境/release 自检，不是普通开发、文档修改或环境编辑的默认收尾。
+
+## Acceptance criteria
+
+- 通用入口都回链 `.github/AGENTS.md`，且日常路径是 objective → acceptance criteria → safe local work →
+  minimum sufficient validation → report。
+- `agent-flow` 只执行显式 gate；路径不自动派生 gate，零 gate finish 不声明工程 PASS，task-run 默认关闭。
+- PR 只做轻量入口检查；nightly/manual release 显式运行 release suite。
+- runtime payload 不混入 active source；显式 persistent longrun 的中断或不完整结果不得 PASS。
+- 商业 package/publication 被明确选择时，由 `scripts/agent-maintain.sh --mode release` 执行 manifest、完整性和交付检查。
+
+## Nodes
+
+- `operating-contract`：检查顶层规则、薄入口、轻量工作流、policy、controller 和 CI 的新默认语义，并用
+  代表性场景覆盖普通修复、最小充分验证、硬件 correctness、verifier 异常、破坏性动作、compaction、
+  hash/persistence、并发资源、严格例外和高信号汇报。
+- `runtime-artifact-boundary`：检查显式持久化时的 source/runtime 分层。
+- `rtl-task-contract`：仅在显式本地 RTL 交接工具被纳入 profile 时检查其生成/校验能力；它不授权普通
+  RTL build/test。
+- `task-run-status-fail-closed`：验证显式 persistent/published 长跑的完成状态。
+- `profile-index`：列出可用 profile。
+
+商业交付不属于基础 `agent-system` profile；它只在显式 release/商业发布命令中运行，避免 profile 与
+release suite 重复构建和重复审计同一产物。
+
+profile 内的 hash、manifest、publication 和完整 evidence bundle 只服务该显式 e2e/release 边界，不能
+反向传播成普通任务的前置条件。每个节点只声明自身观察范围，不用低层 PASS 外推业务 RTL、Linux、
+Ubuntu、系统签核或 PPA 结论。

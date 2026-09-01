@@ -1,6 +1,6 @@
 ---
 description: "RV64 Linux/Ubuntu 22.04 bring-up 约束。处理 Linux/、npc/rv64 target 的 OpenSBI、Linux、DTB、initramfs/rootfs、QEMU reference 或 Verilator Ubuntu 启动任务时使用。"
-applyTo: "Linux/**,npc/rv64/**"
+applyTo: "Linux/{Makefile,README.md,platform/**,configs/**,scripts/**,lightweight/**,mini-system/**,tools/**}"
 ---
 
 # RV64 分层 Linux / Ubuntu Bring-up 约束
@@ -8,19 +8,16 @@ applyTo: "Linux/**,npc/rv64/**"
 ## 总目标
 
 近期默认目标是用 **Verilator** 闭合 L0 directed RTL、L1 full-core DiffTest、L2 mini-system 与最高优先级
-L3 轻量 Linux；暂不把 Vivado/FPGA 作为前置。Ubuntu 22.04/systemd 全量仿真只在用户明确要求时运行，
-不作为默认系统签核的必要条件。长期目标是让 core 和平台边界继续走向可综合、可验证、可流片水准。
+L3 轻量 Linux；暂不把 Vivado/FPGA 作为前置。Ubuntu 22.04/systemd 全量仿真只在 acceptance criteria
+明确要求完整 Ubuntu，或用户明确要求该工作负载时运行，不作为默认系统签核的必要条件。长期目标是让
+core 和平台边界继续走向可综合、可验证、可流片水准。
 
-## 必读
+## 上下文入口
 
-- `.github/memory/project-status.md`
-- `.github/memory/known-issues.md`
-- `.github/memory/modules/npc.md`
-- `npc/rv64/README.md`
-- `Linux/README.md`
-- `Linux/env/README.md`
-- `npc/rv64/design/README.md`（当前导航；早期学习笔记已归档到
-  `npc/rv64/design/history/study/README.md`，只在历史追溯时读取）
+读取与当前层级直接相关的 `npc/rv64/README.md`、`Linux/README.md`、`Linux/env/README.md`、runner、
+payload 与平台配置；设计导航从 `npc/rv64/design/README.md` 进入。只有历史 bring-up 决定、已知问题或
+跨会话状态会改变本轮判断时，才查询 project-status/known-issues/npc memory。早期学习笔记仅在历史追溯
+时读取。
 
 ## 证据层级
 
@@ -49,10 +46,13 @@ L3 轻量 Linux；暂不把 Vivado/FPGA 作为前置。Ubuntu 22.04/systemd 全�
 
 - QEMU 是 reference，不是 NPC target 证据；NPC 必须有独立日志。
 - 新 guest/boot 产物需要 reference 时只运行对应轻量产物；不得由此自动启动 Ubuntu 22.04 全量仿真。
-- `run-system-recertification-current.sh` 的真实执行必须来自用户本轮明确请求并带
-  `--user-authorized-full-ubuntu`；自动化、候选收尾或其它层失败都不能隐式授权。
+- `run-system-recertification-current.sh` 的 `--user-authorized-full-ubuntu` 是高成本 workload selection，
+  不是独立工程授权或二次确认门禁。当本轮 acceptance criteria 已明确要求完整 Ubuntu，或用户已明确
+  要求该工作负载时，agent 可直接传入该 flag；普通候选收尾、较低层失败或无关自动化不应自行扩大到
+  完整 Ubuntu 回放。
 - Ubuntu Base tarball/rootfs 构建成功不等于 guest 已运行 Ubuntu。
 - rv64imac/lp64 syscall-only probe 只证明 kernel -> initramfs -> 用户态链路，不等同于 rv64gc/lp64d 官方用户态。
 - 不把 toy payload、mini SBI handler、AM legacy 设备 PASS 当作完整 Linux 设备栈证据。
-- 长时间系统回放按 durable task-run 保留 fail-closed 状态、身份、bounded 日志与终端/断言摘要；
-  可再生 kernel/OpenSBI/Verilator 二级产物留在 runtime 并按缓存策略清理。
+- 只有显式 persistent/published、release 或跨会话交接的长时间系统回放才需要 durable task-run，并保留
+  fail-closed 状态、workload identity、bounded 日志与终端/断言摘要。普通交互式或一次性回放直接报告
+  命令结果与未完成范围；可再生 kernel/OpenSBI/Verilator 二级产物留在 runtime 并按缓存策略清理。

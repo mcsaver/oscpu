@@ -1,5 +1,8 @@
 # npc E2E Contract
 
+本文件只描述显式选择的 NPC/NPC RV64 profile。局部 RTL、仿真或工具任务直接按 acceptance criteria 运行
+focused build/test；不因路径自动进入 full CPU-test、Linux、strict guard、systemd 或 PPA profile。
+
 - **范围**: `npc/sim`、`npc/single`、`npc/soc`、`npc/rv64`。
 - **上游**: am-kernels 镜像、NEMU reference、ysyxSoC CPU ABI。
 - **下游**: DiffTest、SoC、STA/PPA、RV64 Linux。

@@ -1,6 +1,10 @@
 # 设计决策记录
 
 > 本文件记录项目中的重要设计决策及其理由，供后续参考。
+>
+> 流程类条目是带时间语境的历史记录，不自动构成当前授权、permission gate 或固定执行顺序。现行规则以
+> `.github/AGENTS.md` 和直接相关的当前 instruction 为准；标为“已取代/历史”的条目只保留背景与仍有效的
+> 工程事实。
 
 ## 决策格式
 
@@ -35,17 +39,23 @@
 - **理由**: 单模块 spec 挡不住跨模块涌现；散文契约不会自动报警；实现会悄悄偏离且无护栏。防住 bug 的是把契约转成连续运行的可执行检查，不是更多文档。是 [19]（根因非补丁）在架构层的延伸、[18]（产物与记忆分层）的方法论化；业界并非纯瀑布，正确姿势是"契约冻结 + 受控迭代"。
 - **落地约束（已复核）**: 全核 SVA 时序断言命中 0、Verilator flags 无 `--assert` → 断言须用立即断言 `always @(posedge clk) if (违约) $error(...)`（iverilog + Verilator 通吃），不能用 `|->`/`$stable`；两种烂法须防（真空通过 / 照 RTL 写的同盲区）。`design/arch/ooo-core-architecture.md` C7/§7 自认"≥12 redirect/flush 源、≥5 汇合、无统一优先级链" → flush 是结构缺陷，应局部重写成单点优先编码仲裁器（true by construction），而非"加表 + 挂断言"。判据：非法状态随源数组合爆炸且无单一收敛点 → 重写；边界清晰状态小 → 立即断言够。`design/arch/SPEC-TEMPLATE.md` §2/§3 已是正确契约骨架但 specs/ 从没填过一次。
 - **本周最小起步**: ①`rv64ua/uf/ud` 加进默认回归（近一半涌现 bug 唯一现实拦截网，零成本）；②30 分钟 `--assert` 立即断言探针验证工具链能否走"契约转可执行检查"。大表 / flush 重写排其后。
-- **影响 / 完整分析**: 后续 rv64 bug 修复与新模块开发应先答"该模块什么条件 stall、flush 来时清谁保持谁"再写逻辑；完整两份报告 + 证据见 `.github/task-runs/2026-07-05-rv64-debug-methodology-reflection/`，auto-memory `rv64-architecture-first-reflection`。
+- **影响 / 完整分析**: 后续触及 stall/flush/redirect/trap 的 rv64 修改应理解“什么条件 stall、flush 来时
+  清谁保持谁”，但不要求固定开工问卷或逐段输出；局部且边界清楚的修复可直接围绕真实接口与定向测试
+  工作。完整两份历史报告见 `.github/task-runs/2026-07-05-rv64-debug-methodology-reflection/`。
 
 ### [37] 软件开发全流程采用独立 `software-flow` agent
 
 - **日期**: 2026-06-09
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；保留为 agent/profile 建设历史）
 - **上下文**: 工作区已经有硬件落地前的 `hardware-flow`、`npc`、`ysyx-soc`、`rv64-linux` 等 agent，但软件侧需求、脚本/工具链、NEMU/AM/am-kernels/Linux guest check 和 host side 软件开发仍缺一个对称的全流程入口，容易在实现、测试、回归和记录之间靠临时口头串联。
 - **决策**: 新增 `software-flow` 作为 L1 软件开发流程 agent，负责 `scope-contract -> design-plan -> implement -> unit-or-contract-test -> integration-smoke -> regression-or-e2e -> review-record` 的完整闭环，并补充 `software-bugfix-loop` 与 `software-refactor-loop`。它可以调度 `nemu`、`abstract-machine`、`am-kernels`、`fceux-am`、`rv64-linux`、`linux-device`、`agent-system` 等软件相关模块；当任务需要 RTL/Chisel/SoC/STA/PPA 或 target/difftest 证据时，必须交接给 `hardware-flow` 或对应硬件模块 agent。
 - **理由**: 这样软件任务在落地前也有清晰 owner、静态图、节点产物和 e2e contract，不再把软件开发流程混进硬件 bring-up 或 agent-system 维护任务里。
 - **影响**: 后续新增软件功能、软件 bug 修复、脚本工具链重构或软件测试补齐时，应优先判断是否命中 `software-dev-loop`、`software-bugfix-loop` 或 `software-refactor-loop`；新增/调整该 agent 时必须同步更新 `.github/e2e/modules/software-flow.md`、`.github/e2e/profiles/software-flow.tsv`、`contracts` profile、脚本 gate 和 `.github/memory/modules/software-flow.md`。
 - **2026-06-09 追加**: 对 NEMU/RV64/Linux 这类“用软件建硬件/系统模型”的任务，不能把 `software-flow` 只当环境校验；新增 `hardware-aware-software-loop` 作为组合图，先用 `software-flow` 收敛软件工程闭环，再叠加 `nemu-ubuntu`、`hardware-flow`、`rv64-linux`、`difftest` 或 target gate 做硬件/系统语义完成判定。
+- **现行解释**: `software-flow` 及其 profile 是显式选择的软件流程工具，不是普通软件任务的默认路由、
+  授权层或完成门禁。普通修复按 objective → targeted implementation → minimum sufficient validation 直接
+  闭环；只有开发该 profile、显式 e2e/release 场景或用户要求时才运行并同步其配套合同。RTL、DiffTest、
+  Linux 层级和 PPA 的真实 correctness 边界继续有效，但由实际 acceptance 与受影响层决定。
 
 ### [36] RV64 外部中断对 Linux S 态按 SEI delegation 建模
 
@@ -90,7 +100,10 @@
 - **上下文**: 用户要求后续目标是启动完整 Linux/Ubuntu 22.04，近期先不考虑 Vivado，而是用 Verilator 做尽量真实的性能/系统仿真，同时要求 core 后期能达到流片水准。旧 agent 体系主要围绕 RV32/NPC/AM/NEMU，容易把 QEMU PASS、toy payload、AM VGA 或 probe init 误判成完整 Ubuntu。
 - **决策**: 新增 RV64 Linux/Ubuntu 专用 agent 和 instructions，把 `rv64-ubuntu-probe-loop`、`rv64-ubuntu-rootfs-loop`、`linux-display-loop`、`rv64gc-userland-loop`、`verilator-tapeout-readiness-loop` 接入总调度。近期不把 Vivado/FPGA 作为功能 bring-up 前置；Verilator 是主验证平台，但必须保留 core/SoC 可综合边界，DPI/host C++/SDL 只能作为仿真平台层。
 - **理由**: 这样可以让完整 Ubuntu 的证据按 QEMU reference、NPC/Verilator target、`/init`、完整 `/etc/os-release`、官方 `/bin/sh`、rootfs mount 分层推进，避免未来开发因旧图任务或旧 agent 口径造成错判。
-- **影响**: 后续 `npc/rv64` 任务必须优先读取新的 RV64/Linux/Verilator instructions；涉及 RTL 或性能优化时仍叠加 RTL 四段式和 NPC 性能优化流程。Vivado/FPGA 只作为后续硬件原型/PPA 节点，不替代当前 Verilator Linux/Ubuntu 功能闭环。
+- **影响**: 相关 Linux/Ubuntu 任务按需读取当前 RV64/Linux/Verilator instruction，并保持 QEMU reference、
+  NPC target、rootfs 与自然 poweroff 的 claim 边界。涉及 RTL 或全局性能/PPA promotion 时才叠加对应的
+  correctness/PPA 合同；普通局部任务不因路径自动进入固定四段式或完整系统回放。Vivado/FPGA 只作为
+  后续硬件原型/PPA 节点，不替代当前 Verilator Linux/Ubuntu 功能闭环。
 
 ## 实现决策
 
@@ -234,11 +247,13 @@
 ### [2] 代码建议默认不直接落盘
 
 - **日期**: 2026-03-30
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；授权语义由顶层合同统一）
 - **上下文**: 用户要求所有代码建议先在对话框中给出，保留人工审核权，不希望 agent 在未明确授权时直接修改工作区文件。
 - **决策**: 后续默认以对话框代码片段、补丁建议或实现说明的形式回复；只有当用户明确要求直接修改文件时，agent 才执行编辑。
 - **理由**: 这样更符合用户的审阅流程，也能降低误改工作区文件的风险。
 - **影响**: 后续回答实现类问题时，agent 优先提供可复制的代码和修改说明，而不是直接应用补丁。
+- **现行解释**: 仅请求解释、建议或 review 时不自行落盘；用户要求修复、实现、修改或验证时，相关的
+  安全本地 inspect/edit/build/test 属同一授权，无需再追问“是否允许修改”。
 
 ### [3] NEMU 调试默认采用非交互优先流程
 
@@ -279,7 +294,7 @@
 ### [7] 短代码建议优先使用缩进代码块展示
 
 - **日期**: 2026-04-02
-- **状态**: 已决定
+- **状态**: 已取代（由 [10] 恢复标准 Markdown 代码块）
 - **上下文**: 虽然已要求 agent 直接展示短代码正文，但当前聊天界面对部分围栏代码块显示不稳定，曾出现解释文本保留而代码正文被吞掉的现象。
 - **决策**: 在本工作区中，对几行补全、局部修正和实现方法说明，agent 优先使用缩进代码块或直接缩进的多行代码展示，不依赖围栏代码块；若上一条代码未正常显示，下一条必须完整重发代码正文。
 - **理由**: 这能降低界面吞掉代码正文的概率，确保用户在新旧聊天中都能直接看到可复制代码。
@@ -297,7 +312,7 @@
 ### [9] 避免块级代码格式以绕开聊天界面空白灰块
 
 - **日期**: 2026-04-02
-- **状态**: 已决定
+- **状态**: 已取代（由 [10] 恢复标准 Markdown 代码块）
 - **上下文**: 实际对话中已观察到，无论是围栏代码块还是缩进代码块，当前聊天界面对部分代码段都会渲染成空白灰块，导致解释文字存在而代码正文不可见；此前“优先用缩进代码块”的修正并没有解决这个显示层问题。
 - **决策**: 在本工作区中，对非整文件级代码建议默认避免使用任何块级代码格式，改用普通正文逐行展示代码，必要时把每一行代码单独成行或使用逐行内联代码；若上一条代码未显示，下一条必须按这种非块级方式完整重发。
 - **理由**: 问题根因在于聊天界面对块级代码格式的渲染异常，而不是代码内容本身；只有避开块级代码容器，才能稳定显示代码正文。
@@ -315,11 +330,13 @@
 ### [11] 直接落盘修改必须附带设计意图注释
 
 - **日期**: 2026-04-02
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；保留“解释非显然设计意图”的原则）
 - **上下文**: 用户要求 agent 在直接修改工作区代码时，不要只留下机械实现，而要在修改点附近明确说明“为什么这么改”和“改完能带来什么效果”；同时希望这条规则在后续会话中持续生效。
 - **决策**: 后续只要 agent 直接修改代码文件，就在修改块前后补充简短中文注释；若是一组连续改动，可用 1 到 2 条块前注释统一说明目的与收益，避免重复噪音。
 - **理由**: 这样用户回看代码时能直接看到设计意图与收益，减少重复追问“这段改动是干什么的”。
 - **影响**: 后续直接落盘实现时，agent 需要同时交付“代码本身”和“修改意图说明”，并在不影响可读性的前提下控制注释粒度。
+- **现行解释**: 只在意图、硬件不变量、协议边界或反直觉取舍无法由代码清楚表达时写注释；不为每个
+  修改块机械添加中文说明。设计意图也可在直接相关 spec、测试名或最终报告中表达。
 
 ### [12] RV32 分层译码优先使用宏表项表达
 
@@ -333,47 +350,58 @@
 ### [14] NPC 开发前先读取本地学习资料
 
 - **日期**: 2026-04-13
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；study 改为按需检索入口）
 - **上下文**: `npc/single/design/study/` 已沉淀出 RV32I、功能仿真语义、硬件架构三条稳定学习线，但原有 agent 流程只强制读取记忆文件，没有把这些资料纳入正式执行流，导致后续开发容易脱离现有知识基线重复摸索。
 - **决策**: 将“索引 README → 专题正式笔记 → tmp 原始摘录”的本地学习资料读取顺序固化到 `.github/copilot-instructions.md`、`.github/instructions/memory-protocol.instructions.md`、`.github/instructions/npc-study.instructions.md`、`.github/agents/npc.agent.md` 和 `.github/agents/ysyx-coordinator.agent.md` 中；后续处理 `npc/single/**` 任务时必须先读 `npc/single/design/study/README.md`，再按任务类型进入 RV32I / functional-sim / hardware-architecture 对应资料。
 - **理由**: 这样能把已经整理好的学习成果变成可复用输入，统一术语和边界，减少反复翻规范、重复试错和实现方向漂移。
 - **影响**: 后续 NPC 相关任务在规划或实现前都应先说明参考了哪些 study 文件；未来若其他模块也沉淀出本地学习资料，可沿用同样的“索引优先、正式笔记优先、tmp 兜底”流程。
+- **现行解释**: 当前源码、接口 spec 与直接相关 README 足以回答问题时直接工作；只有既有设计分析或
+  规范摘录会影响本轮判断时才有界读取 study。无需固定开工摘要或阅读证明，`tmp/` 仍只作原始上下文。
 
 ### [15] 工作区 agent 系统采用“图任务 + 工作流 agent + 模块专家”三层结构
 
 - **日期**: 2026-04-13
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；保留为可选复杂任务编排模型）
 - **上下文**: 当前工作区已经沉淀出模块专家 agent、记忆系统和 NPC 学习资料，但复杂任务仍主要依赖人工口头串联，缺少类似 NVIDIA Marco 的图任务求解、子任务 agent 配置和工具/知识绑定机制。用户希望把工作区升级成真正可调用的 AI 驱动硬件开发环境，同时仍以现有可运行的 NEMU、AM、am-kernels、NPC/Verilator 协同链路为主。
 - **决策**: 在现有模块专家之上新增两层：由 `ysyx-coordinator` 先按静态图或动态图切分任务节点，再引入 `hardware-flow` 负责 `NEMU + AM + NPC/Verilator` 闭环，`agent-system` 负责 `.github/` 下的 agent / instructions / memory / blueprint 演进；同时用 `.github/agentic-hardware-blueprint.md` 统一沉淀节点契约、静态图模板和阶段路线图。
 - **理由**: 这样既吸收了 Marco 的核心方法，也不会脱离当前工作区真实可执行的工程后端；复杂任务能被稳定拆成有输入、输出、验证标准和回退策略的节点，而不是退化成松散的多轮提示词交互。
 - **影响**: 后续大型任务应优先判断是否命中 `rv32-bringup`、`am-device-loop`、`agent-env-refactor` 等静态图；未来接入 difftest、Yosys/STA 或更多 EDA 节点时，也应继续沿用这套图任务协议扩展，而不是另起一套调度逻辑。
+- **现行解释**: 普通任务不需要先命中静态图、生成节点产物或经过 workflow agent。复杂并行、显式持久化、
+  profile 开发或正式 release 可以按需使用这些组件；它们组织工作但不创造新的工程授权。
 
 ### [16] 当前默认闭环先收敛到 NEMU 参考路径
 
 - **日期**: 2026-04-13
-- **状态**: 已决定
+- **状态**: 历史快照（NPC 尚未实现的前提已经过时）
 - **上下文**: 在第一阶段骨架落盘后，用户明确说明 `npc` 尚未实现，因此当前如果继续把 `NPC/Verilator` 放在默认主闭环里，会让调度层错误地把未来目标当成现成依赖，造成伪闭环。
 - **决策**: 当前默认工作流改为 `am-kernels -> abstract-machine -> NEMU(reference)`，并新增 `rv32-reference-loop` 作为默认静态图；`rv32-bringup`、`rtl-sim`、`compare-or-difftest` 只在 NPC/Verilator 目标实现后启用。
 - **理由**: 先围绕真实可执行的参考后端收敛工作流，能让 AI 驱动环境从一开始就建立在可验证链路上，而不是依赖尚未落地的 target 节点。
 - **影响**: 近期工作重点从“补 NPC 运行链路”调整为“稳定 NEMU 参考闭环与结构化记录”；待 NPC 实现后，再把 target 路径和对比诊断按既有图任务协议接入。
+- **现行解释**: 根据当前 worktree 和本轮 acceptance 选择 NEMU reference、NPC target 或二者对拍；不从该
+  历史条目推导默认后端。NEMU PASS 仍不能替代 NPC target 证据。
 
 ### [17] 图任务采用“静态图优先、动态图补洞、稳定后模板化”策略
 
 - **日期**: 2026-04-13
-- **状态**: 已决定
+- **状态**: 已取代（2026-08-23；仅作为可选编排方法）
 - **上下文**: 仅有静态图会让系统在异常、回归和跨模块边界问题上不够灵活；仅靠动态图又会让流程长期停留在临时编排状态，难以积累成稳定方法。NVIDIA Marco 的强项正是在“图模板 + 动态扩图 + 专用工具/知识绑定”之间取得平衡。
 - **决策**: 工作区图任务默认先命中静态图模板；当模板缺少证据链、定位链或边界澄清步骤时，再做最小动态扩图；如果某类动态图反复稳定出现，就把它升级成新的静态图模板，例如新增 `regression-debug-loop`。
 - **理由**: 这样既能保持流程可复用、可审计，也能在真实硬件调试场景里保留足够的探索与恢复能力，避免体系退化成僵硬模板或纯临时拼装。
 - **影响**: 后续 coordinator、hardware-flow 和 agent-system 在处理失败恢复、日志收集、边界澄清时都应优先考虑“是否需要插入诊断节点”，同时注意把成熟的动态子图沉淀回蓝图。
+- **现行解释**: 先选择能最快降低 acceptance 不确定性的安全动作；只有 profile/图本身开发、重复出现且
+  值得产品化的流程或用户明确要求时才模板化，不为一次任务预先搭建图或诊断节点。
 
 ### [18] 单次图任务产物与长期记忆分层保存
 
 - **日期**: 2026-04-13
-- **状态**: 已决定
+- **状态**: 部分保留（2026-08-23；默认 task-run 要求已取代）
 - **上下文**: 当前 `memory/` 已承担项目状态、设计决策和长期经验的沉淀职责，但随着图任务逐渐复杂，仅靠记忆文件无法干净表达单次任务的节点状态、证据链、派发历史和阶段性阻塞，容易让长期记忆被运行细节污染。
 - **决策**: 新增 `.github/task-runs/` 作为单次图任务的结构化产物目录，并提供 `task-report.template.md` 与 `dispatch-log.template.md` 两个模板；`memory/` 继续只保存稳定结论和长期经验，节点级执行细节优先写入 `task-runs/`。
 - **理由**: 这样既保留了 Marco 风格的证据链和任务执行可审计性，又能维持长期记忆的简洁度与可复用性。
 - **影响**: 后续重要图任务在完成时，除了更新 `project-status.md`、`decisions.md`、模块记忆外，还应在 `.github/task-runs/<日期-任务名>/` 下维护对应的 `task-report.md` 与 `dispatch-log.md`。
+- **现行解释**: “长期 memory 只保存稳定事实”继续有效；task-run 只用于显式 persistent/published 长跑、
+  release/migration/security/forensic、真实跨会话交接或用户要求。普通任务以最终报告和直接测试结果收尾，
+  不默认创建 task-report、dispatch-log 或额外记忆更新。
 
 ### [19] Bug 修复默认按“架构/数据流根因”而不是“补丁叠补丁”推进
 
@@ -382,7 +410,8 @@
 - **上下文**: 随着 `npc`、`nemu`、`abstract-machine` 和工作区 agent 系统逐步工程化，单点报错往往只是更深层职责错位、状态机边界不清或数据流断裂的表象；如果每次都只围绕症状补一层特判，短期虽然能过当前 case，但会不断累积不可见耦合，最终演化成难以定位和清理的技术债。
 - **决策**: 后续 agent 处理 bug 时，必须先从架构职责、模块边界、控制流和数据流定位根因，再在正确抽象层修复；默认禁止“哪里坏了就在哪里缝一块”的补丁式修法。只有在明确属于兼容层、过渡期或外部约束导致无法立即做根修时，才允许保留局部补丁，并且必须显式说明边界、退出条件和债务控制方式。
 - **理由**: 这样能把修复动作和系统结构对齐，避免局部症状消失但全局复杂度持续上升，也更符合当前工作区希望沉淀长期可维护架构而不是堆临时 workaround 的方向。
-- **影响**: 后续无论是代码实现、review 还是 task-run 记录，遇到 bug 修复都应优先解释“根因在什么层、修复为什么放在这一层、数据流如何恢复正确”，而不是只记录表面补丁点。
+- **影响**: 后续无论是代码实现、review、最终报告还是显式 task-run，遇到 bug 修复都应优先解释“根因在
+  什么层、修复为什么放在这一层、数据流如何恢复正确”，而不是只记录表面补丁点。
 
 ### [20] NPC RTL 源码采用功能目录 + 统一 filelist 管理
 

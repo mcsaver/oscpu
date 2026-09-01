@@ -44,22 +44,14 @@ Verilog RTL → Yosys 综合 → 门级网表 (netlist.v) → iSTA 时序分析 
                                                   → iPA 功耗分析  → 报告
 ```
 
-## 持久化记忆
+## 上下文与记录
 
-### 开始工作前
-1. 读取 `.github/memory/project-status.md` 了解项目当前状态
-2. 读取 `.github/memory/modules/yosys-sta.md` 了解历史综合结果
-3. 若综合对象来自 NPC，读取 `.github/memory/modules/npc.md`，确认当前应综合可综合核心（如 `NpcCore`）而不是含 DPI/仿真壳的 `NpcSimTop`
-4. 如果是调试任务，读取 `.github/memory/known-issues.md`
-5. 对 NPC RV64 做 PPA qualification 时，读取 `.github/instructions/rv64-ppa-optimization-workflow.instructions.md` 与 `npc/rv64/design/arch/rv64-architecture-ppa-contract.md`，不得把中间检查点或未限定 proxy 当成完整设计点结论。
-
-### 完成工作后
-1. 更新 `.github/memory/modules/yosys-sta.md` 记录综合/STA 结果数据
-2. 更新 `.github/memory/project-status.md` 更新进度
-3. 如果发现关键路径问题，记录到 `.github/memory/known-issues.md`
+先读取当前综合 top、filelist、constraint、library/corner 和报告 consumer。需要历史基线或跨会话决定时才
+查询 yosys-sta/npc memory。NPC RV64 正式 PPA qualification 读取对应 architecture/PPA contract；普通
+OOC/诊断不自动升级为 promotion。只有可复用基线、长期关键路径决定或稳定 root cause 才写 memory。
 
 ## 约束
-- 只修改 `yosys-sta/` 目录下的文件（记忆文件除外）
+- 主要 ownership 是 `yosys-sta/`；若 root cause 在直接相关 RTL/filelist/constraint，协调 owner 后处理
 - 不修改 PDK 库文件（`pdk/` 下的内容）
 - `npc/single` / `npc/soc` 的 `NpcSimTop`、DPI、ysyxSoC smoke 顶层属于 Verilator 仿真壳，不应直接作为综合对象；综合入口应优先选择可综合 RTL core 或明确的 SoC 生成物
 - 当前已知本机可能缺少 `oss-cad-suite/bin/yosys`，跑综合前先做环境检查并把工具链缺口记录成基础设施问题

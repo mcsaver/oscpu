@@ -65,6 +65,7 @@ module OooDispatchBackend #(
   input [PHY_REG_ADDR_W-1:0] dispatch0_fp_st_src_preg_i,
   input dispatch0_fp_st_src_ready_i,
   input [`XLEN-1:0] dispatch0_imm_i,
+  input dispatch0_is_tensor_i,
   // 【F2】BPU 查询快照随行(thread 进 IQ, issue 侧导出供 resolve 回训)
   input [`BPU_BHT_INDEX_W-1:0] dispatch0_bht_idx_i,
   input dispatch0_pred_taken_i,
@@ -136,6 +137,9 @@ module OooDispatchBackend #(
   input completion7_query_valid_i,
   input [PRODUCER_ID_W-1:0] completion7_query_producer_id_i,
   output completion7_query_match_o,
+  input completion8_query_valid_i,
+  input [PRODUCER_ID_W-1:0] completion8_query_producer_id_i,
+  output completion8_query_match_o,
   // v8j branch resolve uses a dedicated cycle-free ROB authority query.
   // This layer is transport-only: no storage, arbitration or ready coupling.
   input resolve_query_valid_i,
@@ -269,6 +273,9 @@ module OooDispatchBackend #(
   output head0_full_flush_pregrant_o,
   output [`REDIR_REASON_W-1:0] head0_full_flush_reason_o,
   output [FREE_COUNT_W-1:0] free_count_o,
+  // Explicit edge-old ROB emptiness authority.  Consumers must not infer
+  // this from head_valid, which can be suppressed by recovery/control state.
+  output rob_empty_o,
   output [ROB_COUNT_W-1:0] rob_count_o,
   output [ISSUE_COUNT_W-1:0] issue_count_o,
 
@@ -432,7 +439,8 @@ module OooDispatchBackend #(
                            rob_recover_active_w || rob_kill_valid_w ||
                            rob_head0_control_event_pregrant_w;
   assign dispatch0_ready_o = rob_slot0_ready_w &&
-                             (iq_slot0_ready_w || dispatch0_fp_arith_w) &&
+                             (iq_slot0_ready_w || dispatch0_fp_arith_w ||
+                              dispatch0_is_tensor_i) &&
                              free_ok0_w && sq_ok0_w &&
                              lq_ok0_w &&
                              dispatch1_pair_ready_w &&
@@ -706,6 +714,10 @@ module OooDispatchBackend #(
     .completion7_query_producer_id_i(
         completion7_query_producer_id_i),
     .completion7_query_match_o(completion7_query_match_o),
+    .completion8_query_valid_i(completion8_query_valid_i),
+    .completion8_query_producer_id_i(
+        completion8_query_producer_id_i),
+    .completion8_query_match_o(completion8_query_match_o),
     .resolve_query_valid_i(resolve_query_valid_i),
     .resolve_query_producer_id_i(resolve_query_producer_id_i),
     .resolve_query_match_o(resolve_query_match_o),
@@ -791,7 +803,8 @@ module OooDispatchBackend #(
     .memory_pair_peek_enable_i(memory_pair_peek_enable_i),
     .memory_pair_peek_valid_o(memory_pair_peek_valid_o),
     .memory_pair_peek_ready_i(memory_pair_peek_ready_i),
-    .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w),
+    .dispatch0_valid_i(dispatch0_fire_w && !dispatch0_fp_arith_w &&
+                       !dispatch0_is_tensor_i),
     .dispatch0_ready_o(iq_dispatch0_ready_w),
     .dispatch0_pc_i(dispatch0_pc_i),
     .dispatch0_next_pc_i(dispatch0_next_pc_i),
@@ -901,6 +914,7 @@ module OooDispatchBackend #(
   );
 
   assign free_count_o = free_count_w;
+  assign rob_empty_o = rob_empty_w;
   assign rob_count_o = rob_count_w;
   assign issue_count_o = iq_count_w;
   assign commit0_producer_id_o = rob_commit0_producer_id_w;

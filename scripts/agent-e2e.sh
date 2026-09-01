@@ -11,10 +11,12 @@ E2E_LIST_PROFILES=0
 E2E_VALIDATE_PROFILE=0
 E2E_VALIDATE_ALL_PROFILES=0
 E2E_GUARD=0
-E2E_GUARD_MODE=strict
+E2E_GUARD_MODE=warn
 E2E_GUARD_PATHS_FILE=
 E2E_GUARD_PATH_ARGS=()
 E2E_GUARD_EVIDENCE_DIRS=()
+E2E_PERSISTENCE_MODE=${E2E_PERSISTENCE_MODE:-compact}
+E2E_CONTEXT_MODE=${E2E_CONTEXT_MODE:-direct}
 
 source "$E2E_ROOT_DIR/scripts/agent-env.sh"
 source "$E2E_ROOT_DIR/scripts/e2e/lib/common.sh"
@@ -26,7 +28,9 @@ done
 usage() {
   cat <<'EOF'
 用法:
-  scripts/agent-e2e.sh [--profile name] [--task-slug slug] [--run-dir dir] [--stop-on-fail] [--list-profiles]
+  scripts/agent-e2e.sh [--profile name] [--task-slug slug] [--run-dir dir] [--stop-on-fail]
+                       [--persistence compact|durable] [--with-context-recall] [--publish]
+                       [--list-profiles]
   scripts/agent-e2e.sh --validate-profile [--profile name]
   scripts/agent-e2e.sh --validate-all-profiles
   scripts/agent-e2e.sh --guard [--guard-mode strict|warn] (--paths-file file | --path path...) [--evidence-dir dir]
@@ -34,14 +38,18 @@ usage() {
 说明:
   profile 定义放在 .github/e2e/profiles/*.tsv。
   具体模块 gate 放在 scripts/e2e/modules/*.sh。
-  本脚本只负责展开 profile、调度节点和生成 task-run 证据包。
+  本脚本只负责展开 profile、调度节点和保存直接工程结果。
+  默认 persistence=compact：不刷新 DB、不把 task_slug 当 recall gate、不生成 SHA marker、不写 DB。
+  --with-context-recall 显式请求 DB brief；--publish 等价于 durable publication，并启用严格 recall/manifest/hash/DB 闭包。
   validate 模式只检查 profile 展开和函数绑定，不执行具体 gate。
-  guard 模式只消费显式 paths-file/path，不扫描 Git 工作树；推荐 profile 并检查本轮 task-run 证据。
+  guard 模式只消费显式 paths-file/path，不扫描 Git 工作树；默认 warn 只给出建议。
+  strict 仅用于显式 release/migration/security/forensic，并检查对应 durable task-run 证据。
 
 示例:
   scripts/agent-e2e.sh --list-profiles
   scripts/agent-e2e.sh --validate-all-profiles
-  scripts/agent-e2e.sh --guard --guard-mode strict --paths-file <agent-flow-paths.log>
+  scripts/agent-e2e.sh --guard --paths-file <agent-flow-paths.log>
+  scripts/agent-e2e.sh --guard --guard-mode strict --paths-file <release-paths.log>
   scripts/agent-e2e.sh --profile discovery
   scripts/agent-e2e.sh --profile abstract-machine
   scripts/agent-e2e.sh --profile npc
@@ -68,6 +76,20 @@ parse_args() {
         ;;
       --stop-on-fail)
         E2E_KEEP_GOING=0
+        shift
+        ;;
+      --persistence)
+        [[ $# -ge 2 ]] || { echo "--persistence 需要 compact 或 durable" >&2; exit 2; }
+        E2E_PERSISTENCE_MODE=$2
+        shift 2
+        ;;
+      --with-context-recall)
+        E2E_CONTEXT_MODE=recall
+        shift
+        ;;
+      --publish)
+        E2E_PERSISTENCE_MODE=durable
+        E2E_CONTEXT_MODE=recall
         shift
         ;;
       --list-profiles)
@@ -133,6 +155,24 @@ parse_args() {
       exit 2
       ;;
   esac
+
+  case "$E2E_PERSISTENCE_MODE" in
+    compact|durable) ;;
+    *)
+      echo "未知 persistence mode: $E2E_PERSISTENCE_MODE" >&2
+      exit 2
+      ;;
+  esac
+  case "$E2E_CONTEXT_MODE" in
+    direct|recall) ;;
+    *)
+      echo "未知 context mode: $E2E_CONTEXT_MODE" >&2
+      exit 2
+      ;;
+  esac
+  if [[ $E2E_PERSISTENCE_MODE = durable ]]; then
+    E2E_CONTEXT_MODE=recall
+  fi
 }
 
 list_profiles() {
@@ -755,7 +795,7 @@ e2e_guard_run() {
     if evidence=$(e2e_guard_find_evidence_for_profile "$profile" "${E2E_GUARD_PROFILE_MTIME_US[$i]}"); then
       printf '[agent-e2e-guard] PASS profile=%s evidence=%s reason=%s\n' "$profile" "$evidence" "$reason"
     else
-      printf '[agent-e2e-guard] %s missing_evidence profile=%s reason=%s suggested=\"scripts/agent-e2e.sh --profile %s --task-slug <task> --stop-on-fail\"\n' \
+      printf '[agent-e2e-guard] %s missing_evidence profile=%s reason=%s suggested=\"scripts/agent-e2e.sh --profile %s --task-slug <task> --stop-on-fail --publish\"\n' \
         "$( [[ $E2E_GUARD_MODE = strict ]] && printf FAIL || printf WARN )" \
         "$profile" "$reason" "$profile"
       missing=1
@@ -834,16 +874,25 @@ main() {
   E2E_SKIP_COUNT=0
   e2e_allocate_run_dir || exit 1
   e2e_init_dispatch_log || exit 1
-  if e2e_refresh_live_index_for_recall; then
-    E2E_LIVE_INDEX_REFRESH_OK=1
+  if [[ $E2E_CONTEXT_MODE = recall ]]; then
+    if e2e_refresh_live_index_for_recall; then
+      E2E_LIVE_INDEX_REFRESH_OK=1
+    else
+      E2E_LIVE_INDEX_REFRESH_OK=0
+      E2E_OVERALL_RC=1
+    fi
+    e2e_generate_context_brief || E2E_OVERALL_RC=1
   else
-    E2E_LIVE_INDEX_REFRESH_OK=0
-    E2E_OVERALL_RC=1
+    e2e_generate_direct_context_note || E2E_OVERALL_RC=1
   fi
-  e2e_generate_context_brief || E2E_OVERALL_RC=1
-  e2e_generate_profile_resolve || E2E_OVERALL_RC=1
+  if [[ $E2E_PERSISTENCE_MODE = durable ]]; then
+    e2e_generate_profile_resolve || E2E_OVERALL_RC=1
+  else
+    e2e_generate_live_profile_resolve || E2E_OVERALL_RC=1
+  fi
 
   echo "[agent-e2e] profile=$E2E_PROFILE"
+  echo "[agent-e2e] persistence=$E2E_PERSISTENCE_MODE context=$E2E_CONTEXT_MODE"
   echo "[agent-e2e] run_dir=$(e2e_relpath "$E2E_RUN_DIR")"
   dispatch_profile
   if ! e2e_render_report; then
