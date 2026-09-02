@@ -752,11 +752,11 @@ static void serial_register_bus(SerialPort *port) {
    * 当前 Linux DTS 是 ns16550a + reg-shift=0；这里仍通过 profile 计算 PIO
    * span，避免前端重新隐含“offset 就是寄存器号”的旧 mini UART 假设。
    */
-  port->bus_map_size = MUXDEF(CONFIG_HAS_PORT_IO,
+  port->bus_map_size = MUXDEF(NEMU_HAS_PORT_IO,
       uart16550_bus_profile_span(&port->bus_profile),
       UART16550_MMIO_MAP_SIZE);
   port->bus_space = new_space(port->bus_map_size);
-#ifdef CONFIG_HAS_PORT_IO
+#ifdef NEMU_HAS_PORT_IO
   add_pio_map(port->name, CONFIG_SERIAL_PORT, port->bus_space,
       port->bus_map_size, serial_io_handler);
 #else

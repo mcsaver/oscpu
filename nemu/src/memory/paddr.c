@@ -96,8 +96,8 @@ static void paddr_write_trace_log_snapshot(const char *phase,
       MUXDEF(CONFIG_ISA_riscv, cpu.csr.satp, 0));
 }
 
-static bool paddr_runtime_env_u64(const char *name, uint64_t *value) {
 #ifndef CONFIG_TARGET_AM
+static bool paddr_runtime_env_u64(const char *name, uint64_t *value) {
   const char *env = getenv(name);
   if (env == NULL || env[0] == '\0') {
     return false;
@@ -109,12 +109,8 @@ static bool paddr_runtime_env_u64(const char *name, uint64_t *value) {
       "invalid %s=%s, expect an integer", name, env);
   *value = parsed;
   return true;
-#else
-  (void)name;
-  (void)value;
-  return false;
-#endif
 }
+#endif
 
 void paddr_write_trace_arm_range(paddr_t start, paddr_t end,
     uint64_t max_count, const char *reason) {
@@ -457,11 +453,12 @@ static void paddr_dma_notify_cpu(paddr_t addr, uint32_t len) {
 // guest 读 dcache 返回 stale 旧值(看不到 DMA 数据), dirty 行将来 writeback 还会
 // 反向覆盖 DMA 数据。与 #108 tohost 漏判同源(write-back dcache 的 host 侧直访问)。
 static void paddr_dma_coherent_copy_in(paddr_t addr, const uint8_t *src, uint32_t len) {
+  const uint32_t chunk = sizeof(word_t);
   uint32_t i = 0;
-  for (; i + 8 <= len && ((addr + i) & 7) == 0; i += 8) {
+  for (; i + chunk <= len && ((addr + i) & (chunk - 1)) == 0; i += chunk) {
     word_t v;
-    memcpy(&v, src + i, 8);
-    dcache_coherent_write(addr + i, 8, v);
+    memcpy(&v, src + i, chunk);
+    dcache_coherent_write(addr + i, chunk, v);
   }
   for (; i < len; i++) dcache_coherent_write(addr + i, 1, src[i]);
 }
@@ -480,7 +477,7 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
 }
 
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
-  assert(len >= 1 && len <= 8);
+  assert(len >= 1 && len <= (int)sizeof(word_t));
   if (!pmem_range_ok(addr, (uint32_t)len)) return false;
   dcache_coherent_write(addr, len, data);
   paddr_dma_notify_cpu(addr, (uint32_t)len);
@@ -494,20 +491,30 @@ bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
 // DMA 读的对称一致入口: 设备读 guest 内存(virtio ring/描述符/数据段)必须看到
 // guest 经 dcache 写入(可能 dirty 未回 pmem)的最新值。旧路径 paddr_read/裸 memcpy
 // 读 pmem 会拿到 stale——guest 刚 kick 的描述符 dirty 在 dcache 时 virtio 必错。
-word_t paddr_dma_read_value(paddr_t addr, int len) {
+// Virtio 描述符包含 64-bit 字段；RV32 下用两个 XLEN 宽度的 coherent read
+// 组合结果，不能让 8-byte DMA 读取经过 32-bit word_t 后静默截断。
+uint64_t paddr_dma_read_value(paddr_t addr, int len) {
   assert(len >= 1 && len <= 8);
   if (!pmem_range_ok(addr, (uint32_t)len)) return 0;
-  return dcache_peek_read(addr, len);
+  uint64_t value = 0;
+  for (int offset = 0; offset < len; offset += (int)sizeof(word_t)) {
+    int chunk = len - offset;
+    if (chunk > (int)sizeof(word_t)) chunk = sizeof(word_t);
+    word_t part = dcache_peek_read(addr + (paddr_t)offset, chunk);
+    value |= (uint64_t)part << (offset * 8);
+  }
+  return value;
 }
 
 bool paddr_dma_read(paddr_t addr, void *buf, uint32_t len) {
   if (len == 0) return true;
   if (!pmem_range_ok(addr, len)) return false;
   uint8_t *out = buf;
+  const uint32_t chunk = sizeof(word_t);
   uint32_t i = 0;
-  for (; i + 8 <= len && ((addr + i) & 7) == 0; i += 8) {
-    word_t v = dcache_peek_read(addr + i, 8);
-    memcpy(out + i, &v, 8);
+  for (; i + chunk <= len && ((addr + i) & (chunk - 1)) == 0; i += chunk) {
+    word_t v = dcache_peek_read(addr + i, chunk);
+    memcpy(out + i, &v, chunk);
   }
   for (; i < len; i++) out[i] = (uint8_t)dcache_peek_read(addr + i, 1);
   return true;
@@ -545,7 +552,11 @@ bool paddr_is_accessible(paddr_t addr, int len) {
   if (last < addr) return false;  // 长度回绕/溢出视为不可访问
   if (likely(in_pmem(addr) && in_pmem(last))) return true;
   if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) return true;
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) return true;
+  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
+    // PLIC 只接受自然对齐的 32-bit 寄存器事务；false 交给 vaddr 层抬 access-fault。
+    return MUXDEF(CONFIG_ISA_riscv,
+        isa_riscv_plic_access_valid(addr, len), false);
+  }
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) return true;
   if (MUXDEF(CONFIG_DEVICE, mmio_is_mapped(addr, len), false)) return true;
   return false;

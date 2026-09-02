@@ -4,6 +4,49 @@ set -euo pipefail
 require_perf="${NEMU_PERFORMANCE_REQUIRED:-1}"
 config_path="${NEMU_CONFIG:-}"
 autoconf_path="${NEMU_AUTOCONF:-}"
+policy_header_path="${NEMU_POLICY_HEADER:-}"
+device_address_path="${NEMU_DEVICE_ADDRESS_HEADER:-}"
+
+if [[ -z "$policy_header_path" ]]; then
+  policy_header_path="$(dirname "$config_path")/include/nemu-config.h"
+fi
+if [[ ! -f "$policy_header_path" ]]; then
+  echo "missing NEMU fixed-policy header: $policy_header_path" >&2
+  exit 1
+fi
+
+if [[ -z "$device_address_path" ]]; then
+  device_address_path="$(dirname "$config_path")/include/device/device_address.h"
+fi
+if [[ ! -f "$device_address_path" ]]; then
+  echo "missing NEMU device-address header: $device_address_path" >&2
+  exit 1
+fi
+
+require_header_value() {
+  local header="$1"
+  local opt="$2"
+  local value="$3"
+  local pattern="^[[:space:]]*#[[:space:]]*define[[:space:]]+${opt}[[:space:]]+${value}([[:space:]]|$)"
+  if ! grep -Eq "$pattern" "$header"; then
+    echo "required #define ${opt} ${value} in $header" >&2
+    exit 1
+  fi
+}
+
+# 这些是已从 Kconfig 退出的 NEMU 固定策略/平台 ABI，即使使用
+# Linux debug defconfig 放开性能守门，也不应该跳过它们。
+require_header_value "$policy_header_path" NEMU_ENGINE_NAME '"interpreter"'
+require_header_value "$policy_header_path" NEMU_SYSTEM_MODE 1
+require_header_value "$policy_header_path" NEMU_RV64_DECODE_CACHE 1
+require_header_value "$policy_header_path" NEMU_RV64_DECODE_CACHE_ENTRIES 32768
+require_header_value "$device_address_path" DEV_SERIAL_MMIO 0x10000000
+require_header_value "$device_address_path" DEV_DISK_MMIO 0x10001000
+require_header_value "$device_address_path" DEV_VIRTIO_RNG_MMIO 0x10002000
+require_header_value "$device_address_path" DEV_GOLDFISH_RTC_MMIO 0x10003000
+require_header_value "$device_address_path" DEV_VIRTIO_NET_MMIO 0x10004000
+require_header_value "$device_address_path" DEV_SYSCON_RESET_MMIO 0x00100000
+echo "__NEMU_FIXED_POLICY__:ok"
 
 if [[ "$require_perf" != "1" ]]; then
   echo "__NEMU_PERFORMANCE_CONFIG__:skipped"
@@ -82,44 +125,26 @@ require_config_enabled CONFIG_INTERPRETER_WIDE_IFETCH
 require_autoconf_define CONFIG_INTERPRETER_WIDE_IFETCH
 require_config_enabled CONFIG_INTERPRETER_IFETCH_PAGE_CACHE
 require_autoconf_define CONFIG_INTERPRETER_IFETCH_PAGE_CACHE
-require_config_enabled CONFIG_INTERPRETER_DECODE_CACHE
-require_autoconf_define CONFIG_INTERPRETER_DECODE_CACHE
-require_config_enabled CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH
-require_autoconf_define CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH
-require_config_value CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES 32768
-require_autoconf_value CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES 32768
 require_config_enabled CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_autoconf_define CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_config_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
 require_autoconf_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
 require_config_enabled CONFIG_HAS_SERIAL
 require_autoconf_define CONFIG_HAS_SERIAL
-require_config_value CONFIG_SERIAL_MMIO 0x10000000
-require_autoconf_value CONFIG_SERIAL_MMIO 0x10000000
 require_config_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
 require_autoconf_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
 require_config_enabled CONFIG_HAS_DISK
 require_autoconf_define CONFIG_HAS_DISK
-require_config_value CONFIG_DISK_CTL_MMIO 0x10001000
-require_autoconf_value CONFIG_DISK_CTL_MMIO 0x10001000
 require_config_enabled CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
 require_autoconf_define CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
 require_config_enabled CONFIG_HAS_VIRTIO_RNG
 require_autoconf_define CONFIG_HAS_VIRTIO_RNG
-require_config_value CONFIG_VIRTIO_RNG_MMIO 0x10002000
-require_autoconf_value CONFIG_VIRTIO_RNG_MMIO 0x10002000
 require_config_enabled CONFIG_HAS_GOLDFISH_RTC
 require_autoconf_define CONFIG_HAS_GOLDFISH_RTC
-require_config_value CONFIG_GOLDFISH_RTC_MMIO 0x10003000
-require_autoconf_value CONFIG_GOLDFISH_RTC_MMIO 0x10003000
 require_config_enabled CONFIG_HAS_VIRTIO_NET
 require_autoconf_define CONFIG_HAS_VIRTIO_NET
-require_config_value CONFIG_VIRTIO_NET_MMIO 0x10004000
-require_autoconf_value CONFIG_VIRTIO_NET_MMIO 0x10004000
 require_config_enabled CONFIG_HAS_SYSCON_RESET
 require_autoconf_define CONFIG_HAS_SYSCON_RESET
-require_config_value CONFIG_SYSCON_RESET_MMIO 0x100000
-require_autoconf_value CONFIG_SYSCON_RESET_MMIO 0x100000
 require_config_value CONFIG_MSIZE 0x40000000
 require_autoconf_value CONFIG_MSIZE 0x40000000
 
@@ -145,6 +170,7 @@ debug_opts=(
 )
 
 legacy_device_opts=(
+  CONFIG_DEVICE_MAP_LEGACY
   CONFIG_HAS_TIMER
   CONFIG_HAS_KEYBOARD
   CONFIG_HAS_VGA

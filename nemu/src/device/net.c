@@ -5,6 +5,7 @@
 ***************************************************************************************/
 
 #include <device/map.h>
+#include <device/virtio.h>
 #include <isa.h>
 #include <memory/host.h>
 #include <memory/paddr.h>
@@ -20,43 +21,10 @@
 #include <time.h>
 #include <unistd.h>
 
-// 当前 virtio-net 先闭合 hostless 最小数据路径：Linux 可枚举的 modern
-// virtio-mmio 网卡、稳定 MAC/link-up、TX/RX vring，以及固定 10.0.2.2
+// 当前 virtio-net 闭合 hostless 数据路径：Linux 可枚举的 Virtio 1.x
+// MMIO 网卡、稳定 MAC/link-up、TX/RX split virtqueue，以及固定 10.0.2.2
 // 的 ARP/ICMP/DHCP/DNS/TCP responder；真实 TAP/NAT/packet backend 留给后续切片，
 // 避免现在假装已经具备外网能力。
-#define VIRTIO_MMIO_MAGIC          0x000
-#define VIRTIO_MMIO_VERSION        0x004
-#define VIRTIO_MMIO_DEVICE_ID      0x008
-#define VIRTIO_MMIO_VENDOR_ID      0x00c
-#define VIRTIO_MMIO_DEVICE_FEATURES     0x010
-#define VIRTIO_MMIO_DEVICE_FEATURES_SEL 0x014
-#define VIRTIO_MMIO_DRIVER_FEATURES     0x020
-#define VIRTIO_MMIO_DRIVER_FEATURES_SEL 0x024
-#define VIRTIO_MMIO_QUEUE_SEL      0x030
-#define VIRTIO_MMIO_QUEUE_NUM_MAX  0x034
-#define VIRTIO_MMIO_QUEUE_NUM      0x038
-#define VIRTIO_MMIO_QUEUE_READY    0x044
-#define VIRTIO_MMIO_QUEUE_NOTIFY   0x050
-#define VIRTIO_MMIO_INTERRUPT_STATUS 0x060
-#define VIRTIO_MMIO_INTERRUPT_ACK  0x064
-#define VIRTIO_MMIO_STATUS         0x070
-#define VIRTIO_MMIO_QUEUE_DESC_LOW 0x080
-#define VIRTIO_MMIO_QUEUE_DESC_HIGH 0x084
-#define VIRTIO_MMIO_QUEUE_DRIVER_LOW 0x090
-#define VIRTIO_MMIO_QUEUE_DRIVER_HIGH 0x094
-#define VIRTIO_MMIO_QUEUE_DEVICE_LOW 0x0a0
-#define VIRTIO_MMIO_QUEUE_DEVICE_HIGH 0x0a4
-#define VIRTIO_MMIO_CONFIG_GENERATION 0x0fc
-#define VIRTIO_MMIO_CONFIG         0x100
-
-#define VIRTIO_NET_DEVICE_ID 1u
-#define VIRTIO_MMIO_VERSION_2 2u
-#define VIRTIO_VENDOR_YSYX 0x58535959u
-#define VIRTIO_RING_F_INDIRECT_DESC 28
-#define VIRTIO_RING_F_EVENT_IDX 29
-#define VIRTIO_F_VERSION_1 32
-#define VIRTIO_MMIO_INT_USED_BUFFER 0x1u
-#define VIRTIO_MMIO_INT_CONFIG_CHANGE 0x2u
 #define VIRTIO_NET_F_MTU 3
 #define VIRTIO_NET_F_MAC 5
 #define VIRTIO_NET_F_MRG_RXBUF 15
@@ -90,13 +58,6 @@
 #define VIRTIO_NET_CTRL_VLAN_DEL 1u
 #define VIRTIO_NET_CTRL_ANNOUNCE 3u
 #define VIRTIO_NET_CTRL_ANNOUNCE_ACK 0u
-#define VRING_AVAIL_F_NO_INTERRUPT 0x1u
-#define VIRTIO_STATUS_FEATURES_OK 0x08u
-#define VIRTIO_STATUS_DRIVER_OK 0x04u
-#define VIRTQ_DESC_F_NEXT  0x1u
-#define VIRTQ_DESC_F_WRITE 0x2u
-#define VIRTQ_DESC_F_INDIRECT 0x4u
-
 #define VIRTIO_NET_QUEUE_RX 0u
 #define VIRTIO_NET_QUEUE_TX 1u
 #define VIRTIO_NET_QUEUE_CTRL 2u
@@ -170,22 +131,6 @@
 #define TCP_FLAG_ACK 0x10u
 
 typedef struct {
-  paddr_t addr;
-  uint32_t len;
-  uint16_t flags;
-  uint16_t next;
-} VirtqDesc;
-
-typedef struct {
-  uint16_t num;
-  bool ready;
-  paddr_t desc;
-  paddr_t driver;
-  paddr_t device;
-  uint16_t last_avail_idx;
-} VirtqState;
-
-typedef struct {
   uint8_t data[VIRTIO_NET_FRAME_MAX];
   uint32_t len;
 } VirtioNetPacket;
@@ -234,13 +179,8 @@ typedef struct {
 } VirtioNetStats;
 
 static uint8_t *net_base;
-static uint32_t device_features_sel;
-static uint32_t driver_features_sel;
-static uint32_t driver_features[2];
-static uint32_t interrupt_status;
-static uint32_t device_status;
-static uint32_t queue_sel;
-static VirtqState queues[VIRTIO_NET_QUEUE_COUNT];
+static VirtioMmioTransportState transport;
+static VirtqueueState queues[VIRTIO_NET_QUEUE_COUNT];
 static const uint8_t virtio_net_default_mac[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
 static uint8_t virtio_net_mac[6];
 static const uint8_t virtio_net_host_mac[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x57};
@@ -360,7 +300,7 @@ static uint32_t virtio_net_device_features(uint32_t sel) {
 
 static bool virtio_net_driver_features_supported(void) {
   for (uint32_t sel = 0; sel < 2; sel++) {
-    uint32_t unsupported = driver_features[sel] & ~virtio_net_device_features(sel);
+    uint32_t unsupported = transport.driver_features[sel] & ~virtio_net_device_features(sel);
     if (unsupported != 0) {
       Log("virtio-net: unsupported driver features sel=%u bits=0x%08x", sel, unsupported);
       return false;
@@ -370,9 +310,7 @@ static bool virtio_net_driver_features_supported(void) {
 }
 
 static bool virtio_net_driver_feature_enabled(uint32_t bit) {
-  uint32_t sel = bit / 32;
-  uint32_t off = bit % 32;
-  return sel < 2 && (driver_features[sel] & (1u << off)) != 0;
+  return virtio_driver_feature_enabled(&transport, bit);
 }
 
 static bool virtio_net_event_idx_enabled(void) {
@@ -412,7 +350,7 @@ static const char *virtio_net_json_bool(bool value) {
 }
 
 static void virtio_net_raise_irq(void) {
-  IFDEF(CONFIG_ISA_riscv, isa_riscv_plic_set_irq(VIRTIO_NET_IRQ, interrupt_status != 0));
+  IFDEF(CONFIG_ISA_riscv, isa_riscv_plic_set_irq(VIRTIO_NET_IRQ, transport.interrupt_status != 0));
 }
 
 static uint16_t virtio_net_config_status(void) {
@@ -427,7 +365,8 @@ static void virtio_net_request_guest_announce(void) {
    */
   ctrl_announce_pending = true;
   ctrl_announce_requested = true;
-  interrupt_status |= VIRTIO_MMIO_INT_CONFIG_CHANGE;
+  virtio_transport_raise_interrupt(
+      &transport, VIRTIO_INTERRUPT_CONFIG_CHANGE);
   virtio_net_raise_irq();
 }
 
@@ -529,19 +468,15 @@ static bool virtq_aligned(paddr_t addr, uint32_t align) {
   return (addr & (paddr_t)(align - 1)) == 0;
 }
 
-static paddr_t virtq_used_event_addr(const VirtqState *q) {
+static paddr_t virtq_used_event_addr(const VirtqueueState *q) {
   return q->driver + 4 + (paddr_t)q->num * 2;
 }
 
-static paddr_t virtq_avail_event_addr(const VirtqState *q) {
+static paddr_t virtq_avail_event_addr(const VirtqueueState *q) {
   return q->device + 4 + (paddr_t)q->num * 8;
 }
 
-static bool virtq_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old_idx) {
-  return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old_idx);
-}
-
-static void virtq_set_avail_event(VirtqState *q, uint16_t avail_idx) {
+static void virtq_set_avail_event(VirtqueueState *q, uint16_t avail_idx) {
   if (virtio_net_event_idx_enabled() && q->num != 0 &&
       guest_range_ok(virtq_avail_event_addr(q), 2)) {
     // 和 virtio-blk 保持一致：先不抑制 driver kick，只把设备已消费到的位置回写给 Linux。
@@ -550,7 +485,7 @@ static void virtq_set_avail_event(VirtqState *q, uint16_t avail_idx) {
   }
 }
 
-static bool virtq_dma_range_valid(const char *name, const VirtqState *q,
+static bool virtq_dma_range_valid(const char *name, const VirtqueueState *q,
     paddr_t addr, uint32_t len, uint32_t align) {
   if (addr != 0 && virtq_aligned(addr, align) && guest_range_ok(addr, len)) {
     return true;
@@ -560,7 +495,7 @@ static bool virtq_dma_range_valid(const char *name, const VirtqState *q,
   return false;
 }
 
-static bool virtq_validate_queue_layout(VirtqState *q) {
+static bool virtq_validate_queue_layout(VirtqueueState *q) {
   if (q->num == 0 || q->num > VIRTIO_NET_QUEUE_SIZE) {
     Log("virtio-net: invalid QueueNum q=%u num=%u max=%u",
         (unsigned)(q - queues), q->num, VIRTIO_NET_QUEUE_SIZE);
@@ -576,7 +511,7 @@ static bool virtq_validate_queue_layout(VirtqState *q) {
 }
 
 static bool virtq_read_desc_from(paddr_t table, uint16_t table_num,
-    uint16_t idx, VirtqDesc *desc) {
+    uint16_t idx, VirtqueueDescriptor *desc) {
   if (idx >= table_num) return false;
   paddr_t base = table + (paddr_t)idx * 16;
   if (!guest_range_ok(base, 16)) return false;
@@ -588,7 +523,7 @@ static bool virtq_read_desc_from(paddr_t table, uint16_t table_num,
 }
 
 static bool virtq_collect_table(paddr_t table, uint16_t table_num, uint16_t head,
-    VirtqDesc *out, int *out_count) {
+    VirtqueueDescriptor *out, int *out_count) {
   if (table_num == 0 || table_num > VIRTIO_NET_MAX_CHAIN) return false;
   bool seen[VIRTIO_NET_MAX_CHAIN] = {};
   uint16_t idx = head;
@@ -600,22 +535,22 @@ static bool virtq_collect_table(paddr_t table, uint16_t table_num, uint16_t head
     }
     seen[idx] = true;
     if (!virtq_read_desc_from(table, table_num, idx, &out[count])) return false;
-    if (out[count].flags & VIRTQ_DESC_F_INDIRECT) return false;
+    if (out[count].flags & VIRTQUEUE_DESCRIPTOR_F_INDIRECT) return false;
     count++;
-    if ((out[count - 1].flags & VIRTQ_DESC_F_NEXT) == 0) break;
+    if ((out[count - 1].flags & VIRTQUEUE_DESCRIPTOR_F_NEXT) == 0) break;
     idx = out[count - 1].next;
   }
   *out_count = count;
   return true;
 }
 
-static bool virtq_collect_chain(VirtqState *q, uint16_t head,
-    VirtqDesc *out, int *out_count) {
-  VirtqDesc first;
+static bool virtq_collect_chain(VirtqueueState *q, uint16_t head,
+    VirtqueueDescriptor *out, int *out_count) {
+  VirtqueueDescriptor first;
   if (!virtq_read_desc_from(q->desc, q->num, head, &first)) return false;
 
-  if (first.flags & VIRTQ_DESC_F_INDIRECT) {
-    if ((first.flags & (VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE)) ||
+  if (first.flags & VIRTQUEUE_DESCRIPTOR_F_INDIRECT) {
+    if ((first.flags & (VIRTQUEUE_DESCRIPTOR_F_NEXT | VIRTQUEUE_DESCRIPTOR_F_WRITE)) ||
         first.len == 0 || (first.len % 16) != 0) {
       return false;
     }
@@ -627,11 +562,11 @@ static bool virtq_collect_chain(VirtqState *q, uint16_t head,
   return virtq_collect_table(q->desc, q->num, head, out, out_count);
 }
 
-static bool virtq_copy_from_readable_chain(const VirtqDesc *descs, int count,
+static bool virtq_copy_from_readable_chain(const VirtqueueDescriptor *descs, int count,
     uint32_t skip, uint8_t *dst, uint32_t len) {
   uint32_t copied = 0;
   for (int i = 0; i < count && copied < len; i++) {
-    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0 ||
+    if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) != 0 ||
         !guest_range_ok(descs[i].addr, descs[i].len)) {
       return false;
     }
@@ -643,16 +578,16 @@ static bool virtq_copy_from_readable_chain(const VirtqDesc *descs, int count,
     skip = 0;
     uint32_t avail = descs[i].len - off;
     uint32_t take = len - copied < avail ? len - copied : avail;
-    memcpy(dst + copied, guest_to_host(descs[i].addr + off), take);
+    if (!paddr_dma_read(descs[i].addr + off, dst + copied, take)) return false;
     copied += take;
   }
   return copied == len;
 }
 
-static bool virtq_readable_chain_len(const VirtqDesc *descs, int count, uint32_t *len) {
+static bool virtq_readable_chain_len(const VirtqueueDescriptor *descs, int count, uint32_t *len) {
   uint32_t total = 0;
   for (int i = 0; i < count; i++) {
-    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0) continue;
+    if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) != 0) continue;
     if (!guest_range_ok(descs[i].addr, descs[i].len) ||
         UINT32_MAX - total < descs[i].len) {
       return false;
@@ -663,14 +598,14 @@ static bool virtq_readable_chain_len(const VirtqDesc *descs, int count, uint32_t
   return true;
 }
 
-static bool virtq_write_to_writable_chain(const VirtqDesc *descs, int count,
+static bool virtq_write_to_writable_chain(const VirtqueueDescriptor *descs, int count,
     const uint8_t *frame, uint32_t frame_len, uint32_t *used_len) {
   uint8_t net_hdr[VIRTIO_NET_RX_HDR_LEN] = {};
   net_hdr[10] = 1;
   uint32_t total = VIRTIO_NET_RX_HDR_LEN + frame_len;
   uint32_t written = 0;
   for (int i = 0; i < count && written < total; i++) {
-    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) == 0 ||
+    if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) == 0 ||
         !guest_range_ok(descs[i].addr, descs[i].len)) {
       return false;
     }
@@ -698,7 +633,7 @@ static bool virtq_write_to_writable_chain(const VirtqDesc *descs, int count,
   return true;
 }
 
-static void virtq_push_used(VirtqState *q, uint16_t head, uint32_t used_len,
+static void virtq_push_used(VirtqueueState *q, uint16_t head, uint32_t used_len,
     uint16_t *used_idx) {
   uint16_t used_off = *used_idx % q->num;
   guest_write32(q->device + 4 + used_off * 8, head);
@@ -707,19 +642,21 @@ static void virtq_push_used(VirtqState *q, uint16_t head, uint32_t used_len,
   guest_write16(q->device + 2, *used_idx);
 }
 
-static void virtq_maybe_interrupt(VirtqState *q,
+static void virtq_maybe_interrupt(VirtqueueState *q,
     uint16_t old_used_idx, uint16_t new_used_idx) {
   bool notify;
   if (virtio_net_event_idx_enabled()) {
     uint16_t used_event = guest_range_ok(virtq_used_event_addr(q), 2) ?
       guest_read16(virtq_used_event_addr(q)) : old_used_idx;
-    notify = virtq_need_event(used_event, new_used_idx, old_used_idx);
+    notify = virtqueue_event_needed(
+        used_event, new_used_idx, old_used_idx);
   } else {
     uint16_t avail_flags = guest_read16(q->driver);
-    notify = (avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0;
+    notify = (avail_flags & VIRTQUEUE_AVAILABLE_F_NO_INTERRUPT) == 0;
   }
   if (notify) {
-    interrupt_status |= VIRTIO_MMIO_INT_USED_BUFFER;
+    virtio_transport_raise_interrupt(
+        &transport, VIRTIO_INTERRUPT_USED_BUFFER);
     virtio_net_raise_irq();
   }
 }
@@ -1910,8 +1847,8 @@ static bool virtio_net_frame_type_known(const uint8_t *frame, uint32_t len) {
   return eth_type == ETH_P_ARP || eth_type == ETH_P_IP;
 }
 
-static uint32_t virtio_net_handle_tx_chain(VirtqState *q, uint16_t head) {
-  VirtqDesc descs[VIRTIO_NET_MAX_CHAIN];
+static uint32_t virtio_net_handle_tx_chain(VirtqueueState *q, uint16_t head) {
+  VirtqueueDescriptor descs[VIRTIO_NET_MAX_CHAIN];
   int count = 0;
   if (!virtq_collect_chain(q, head, descs, &count) || count == 0) {
     net_stats.tx_errors++;
@@ -1919,7 +1856,7 @@ static uint32_t virtio_net_handle_tx_chain(VirtqState *q, uint16_t head) {
   }
   uint32_t total = 0;
   for (int i = 0; i < count; i++) {
-    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0 ||
+    if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) != 0 ||
         !guest_range_ok(descs[i].addr, descs[i].len)) {
       net_stats.tx_errors++;
       return 0;
@@ -1963,7 +1900,7 @@ static uint32_t virtio_net_handle_tx_chain(VirtqState *q, uint16_t head) {
 }
 
 static void virtio_net_process_tx_queue(void) {
-  VirtqState *q = &queues[VIRTIO_NET_QUEUE_TX];
+  VirtqueueState *q = &queues[VIRTIO_NET_QUEUE_TX];
   if (!q->ready || q->num == 0 || q->desc == 0 || q->driver == 0 || q->device == 0) {
     return;
   }
@@ -1983,9 +1920,9 @@ static void virtio_net_process_tx_queue(void) {
   if (used_any) virtq_maybe_interrupt(q, old_used_idx, used_idx);
 }
 
-static bool virtio_net_write_ctrl_ack(const VirtqDesc *descs, int count, uint8_t ack) {
+static bool virtio_net_write_ctrl_ack(const VirtqueueDescriptor *descs, int count, uint8_t ack) {
   for (int i = count - 1; i >= 0; i--) {
-    if ((descs[i].flags & VIRTQ_DESC_F_WRITE) != 0 &&
+    if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) != 0 &&
         descs[i].len >= 1 && guest_range_ok(descs[i].addr, 1)) {
       paddr_dma_write_value(descs[i].addr, 1, ack);
       return true;
@@ -1994,7 +1931,7 @@ static bool virtio_net_write_ctrl_ack(const VirtqDesc *descs, int count, uint8_t
   return false;
 }
 
-static bool virtio_net_read_ctrl_u32(const VirtqDesc *descs, int count,
+static bool virtio_net_read_ctrl_u32(const VirtqueueDescriptor *descs, int count,
     uint32_t *offset, uint32_t *value) {
   uint8_t data[4];
   if (!virtq_copy_from_readable_chain(descs, count, *offset, data, sizeof(data))) {
@@ -2008,7 +1945,7 @@ static bool virtio_net_read_ctrl_u32(const VirtqDesc *descs, int count,
   return true;
 }
 
-static bool virtio_net_parse_ctrl_mac_table(const VirtqDesc *descs, int count,
+static bool virtio_net_parse_ctrl_mac_table(const VirtqueueDescriptor *descs, int count,
     uint32_t *unicast_count, uint32_t *multicast_count) {
   uint32_t readable_len = 0;
   uint32_t offset = 2;
@@ -2032,7 +1969,7 @@ static bool virtio_net_parse_ctrl_mac_table(const VirtqDesc *descs, int count,
   return true;
 }
 
-static bool virtio_net_parse_ctrl_mac_addr(const VirtqDesc *descs, int count,
+static bool virtio_net_parse_ctrl_mac_addr(const VirtqueueDescriptor *descs, int count,
     uint8_t mac[6]) {
   uint32_t readable_len = 0;
   if (!virtq_readable_chain_len(descs, count, &readable_len) ||
@@ -2042,7 +1979,7 @@ static bool virtio_net_parse_ctrl_mac_addr(const VirtqDesc *descs, int count,
   return virtq_copy_from_readable_chain(descs, count, sizeof(uint16_t), mac, 6);
 }
 
-static bool virtio_net_parse_ctrl_vlan(const VirtqDesc *descs, int count,
+static bool virtio_net_parse_ctrl_vlan(const VirtqueueDescriptor *descs, int count,
     uint16_t *vid) {
   uint8_t data[2];
   uint32_t readable_len = 0;
@@ -2057,7 +1994,7 @@ static bool virtio_net_parse_ctrl_vlan(const VirtqDesc *descs, int count,
   return true;
 }
 
-static bool virtio_net_parse_ctrl_no_payload(const VirtqDesc *descs, int count) {
+static bool virtio_net_parse_ctrl_no_payload(const VirtqueueDescriptor *descs, int count) {
   uint32_t readable_len = 0;
   return virtq_readable_chain_len(descs, count, &readable_len) &&
          readable_len == sizeof(uint16_t);
@@ -2080,8 +2017,8 @@ static bool virtio_net_ctrl_vlan_cmd(uint8_t cmd) {
          cmd == VIRTIO_NET_CTRL_VLAN_DEL;
 }
 
-static uint32_t virtio_net_handle_ctrl_chain(VirtqState *q, uint16_t head) {
-  VirtqDesc descs[VIRTIO_NET_MAX_CHAIN];
+static uint32_t virtio_net_handle_ctrl_chain(VirtqueueState *q, uint16_t head) {
+  VirtqueueDescriptor descs[VIRTIO_NET_MAX_CHAIN];
   int count = 0;
   uint8_t hdr[2] = {};
   if (!virtq_collect_chain(q, head, descs, &count) ||
@@ -2233,7 +2170,7 @@ static uint32_t virtio_net_handle_ctrl_chain(VirtqState *q, uint16_t head) {
 }
 
 static void virtio_net_process_ctrl_queue(void) {
-  VirtqState *q = &queues[VIRTIO_NET_QUEUE_CTRL];
+  VirtqueueState *q = &queues[VIRTIO_NET_QUEUE_CTRL];
   if (!virtio_net_ctrl_vq_enabled() ||
       !q->ready || q->num == 0 || q->desc == 0 || q->driver == 0 || q->device == 0) {
     return;
@@ -2255,7 +2192,7 @@ static void virtio_net_process_ctrl_queue(void) {
 }
 
 static void virtio_net_try_deliver_rx_queue(void) {
-  VirtqState *q = &queues[VIRTIO_NET_QUEUE_RX];
+  VirtqueueState *q = &queues[VIRTIO_NET_QUEUE_RX];
   if (rx_pending_count == 0 ||
       !q->ready || q->num == 0 || q->desc == 0 || q->driver == 0 || q->device == 0) {
     return;
@@ -2268,7 +2205,7 @@ static void virtio_net_try_deliver_rx_queue(void) {
   while (rx_pending_count != 0 && q->last_avail_idx != avail_idx) {
     uint16_t ring_off = q->last_avail_idx % q->num;
     uint16_t head = guest_read16(q->driver + 4 + ring_off * 2);
-    VirtqDesc descs[VIRTIO_NET_MAX_CHAIN];
+    VirtqueueDescriptor descs[VIRTIO_NET_MAX_CHAIN];
     int count = 0;
     uint32_t used_len = 0;
     bool ok = virtq_collect_chain(q, head, descs, &count) &&
@@ -2293,7 +2230,8 @@ static void virtio_net_try_deliver_rx_queue(void) {
 }
 
 static void virtio_net_reset(void) {
-  memset(driver_features, 0, sizeof(driver_features));
+  /* Status=0 resets the transport before device-specific control state. */
+  virtio_transport_reset(&transport);
   memset(queues, 0, sizeof(queues));
   memset(rx_pending, 0, sizeof(rx_pending));
   rx_pending_head = 0;
@@ -2317,11 +2255,6 @@ static void virtio_net_reset(void) {
   ctrl_vlan_last_cmd = 0;
   ctrl_announce_pending = false;
   ctrl_announce_requested = false;
-  device_features_sel = 0;
-  driver_features_sel = 0;
-  interrupt_status = 0;
-  device_status = 0;
-  queue_sel = 0;
   virtio_net_raise_irq();
 }
 
@@ -2594,7 +2527,7 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       hostless_bool, hostless_bool, hostless_bool, hostless_bool, hostless_bool,
       VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX,
       VIRTIO_NET_MTU, VIRTIO_NET_LINK_SPEED_MBIT, VIRTIO_NET_CONFIG_BYTES,
-      device_status,
+      transport.device_status,
       queues[VIRTIO_NET_QUEUE_RX].ready ? "true" : "false",
       queues[VIRTIO_NET_QUEUE_TX].ready ? "true" : "false",
       queues[VIRTIO_NET_QUEUE_CTRL].ready ? "true" : "false",
@@ -2720,27 +2653,27 @@ void virtio_net_statistic(void) {
       ctrl_mac_unicast_count, ctrl_mac_multicast_count, mac, rx_pending_count);
 }
 
-static VirtqState *selected_queue(void) {
-  return queue_sel < VIRTIO_NET_QUEUE_COUNT ? &queues[queue_sel] : NULL;
+static VirtqueueState *selected_queue(void) {
+  return transport.queue_select < VIRTIO_NET_QUEUE_COUNT ? &queues[transport.queue_select] : NULL;
 }
 
 static uint32_t virtio_net_read_reg(uint32_t offset) {
-  VirtqState *q = selected_queue();
+  VirtqueueState *q = selected_queue();
   switch (offset) {
-    case VIRTIO_MMIO_MAGIC: return 0x74726976u;
-    case VIRTIO_MMIO_VERSION: return VIRTIO_MMIO_VERSION_2;
-    case VIRTIO_MMIO_DEVICE_ID: return VIRTIO_NET_DEVICE_ID;
+    case VIRTIO_MMIO_MAGIC: return VIRTIO_MMIO_MAGIC_VALUE;
+    case VIRTIO_MMIO_VERSION: return VIRTIO_MMIO_VERSION_MODERN;
+    case VIRTIO_MMIO_DEVICE_ID: return VIRTIO_DEVICE_ID_NETWORK;
     case VIRTIO_MMIO_VENDOR_ID: return VIRTIO_VENDOR_YSYX;
-    case VIRTIO_MMIO_DEVICE_FEATURES: return virtio_net_device_features(device_features_sel);
-    case VIRTIO_MMIO_DEVICE_FEATURES_SEL: return device_features_sel;
-    case VIRTIO_MMIO_DRIVER_FEATURES_SEL: return driver_features_sel;
-    case VIRTIO_MMIO_QUEUE_SEL: return queue_sel;
+    case VIRTIO_MMIO_DEVICE_FEATURES: return virtio_net_device_features(transport.device_features_select);
+    case VIRTIO_MMIO_DEVICE_FEATURES_SEL: return transport.device_features_select;
+    case VIRTIO_MMIO_DRIVER_FEATURES_SEL: return transport.driver_features_select;
+    case VIRTIO_MMIO_QUEUE_SEL: return transport.queue_select;
     case VIRTIO_MMIO_QUEUE_NUM_MAX:
-      return queue_sel < VIRTIO_NET_QUEUE_COUNT ? VIRTIO_NET_QUEUE_SIZE : 0;
+      return transport.queue_select < VIRTIO_NET_QUEUE_COUNT ? VIRTIO_NET_QUEUE_SIZE : 0;
     case VIRTIO_MMIO_QUEUE_NUM: return q != NULL ? q->num : 0;
     case VIRTIO_MMIO_QUEUE_READY: return q != NULL && q->ready ? 1 : 0;
-    case VIRTIO_MMIO_INTERRUPT_STATUS: return interrupt_status;
-    case VIRTIO_MMIO_STATUS: return device_status;
+    case VIRTIO_MMIO_INTERRUPT_STATUS: return transport.interrupt_status;
+    case VIRTIO_MMIO_STATUS: return transport.device_status;
     case VIRTIO_MMIO_QUEUE_DESC_LOW: return q != NULL ? (uint32_t)q->desc : 0;
     case VIRTIO_MMIO_QUEUE_DESC_HIGH: return q != NULL ? (uint32_t)((uint64_t)q->desc >> 32) : 0;
     case VIRTIO_MMIO_QUEUE_DRIVER_LOW: return q != NULL ? (uint32_t)q->driver : 0;
@@ -2776,19 +2709,19 @@ static void virtio_net_read_config(uint32_t offset, int len) {
 }
 
 static void virtio_net_write_reg(uint32_t offset, uint32_t value) {
-  VirtqState *q = selected_queue();
+  VirtqueueState *q = selected_queue();
   switch (offset) {
     case VIRTIO_MMIO_DEVICE_FEATURES_SEL:
-      device_features_sel = value;
+      transport.device_features_select = value;
       break;
     case VIRTIO_MMIO_DRIVER_FEATURES:
-      if (driver_features_sel < 2) driver_features[driver_features_sel] = value;
+      if (transport.driver_features_select < 2) transport.driver_features[transport.driver_features_select] = value;
       break;
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
-      driver_features_sel = value;
+      transport.driver_features_select = value;
       break;
     case VIRTIO_MMIO_QUEUE_SEL:
-      queue_sel = value;
+      transport.queue_select = value;
       break;
     case VIRTIO_MMIO_QUEUE_NUM:
       if (q != NULL) {
@@ -2796,7 +2729,7 @@ static void virtio_net_write_reg(uint32_t offset, uint32_t value) {
           q->num = value;
         } else {
           Log("virtio-net: reject unsupported QueueNum q=%u num=%u max=%u",
-              queue_sel, value, VIRTIO_NET_QUEUE_SIZE);
+              transport.queue_select, value, VIRTIO_NET_QUEUE_SIZE);
           q->num = 0;
           q->ready = false;
         }
@@ -2811,7 +2744,7 @@ static void virtio_net_write_reg(uint32_t offset, uint32_t value) {
           q->ready = true;
           q->last_avail_idx = guest_read16(q->driver + 2);
           virtq_set_avail_event(q, q->last_avail_idx);
-          if (queue_sel == VIRTIO_NET_QUEUE_RX) {
+          if (transport.queue_select == VIRTIO_NET_QUEUE_RX) {
             virtio_net_try_deliver_rx_queue();
           }
         } else {
@@ -2830,40 +2763,37 @@ static void virtio_net_write_reg(uint32_t offset, uint32_t value) {
       }
       break;
     case VIRTIO_MMIO_INTERRUPT_ACK:
-      interrupt_status &= ~value;
+      virtio_transport_acknowledge_interrupt(&transport, value);
       virtio_net_raise_irq();
       break;
     case VIRTIO_MMIO_STATUS:
       if (value == 0) {
         virtio_net_reset();
       } else {
-        device_status = value;
-        if ((value & VIRTIO_STATUS_FEATURES_OK) &&
-            !virtio_net_driver_features_supported()) {
-          device_status &= ~VIRTIO_STATUS_FEATURES_OK;
-        }
-        if ((device_status & VIRTIO_STATUS_DRIVER_OK) != 0) {
+        virtio_transport_accept_status(&transport, value,
+            virtio_net_driver_features_supported());
+        if ((transport.device_status & VIRTIO_STATUS_DRIVER_OK) != 0) {
           virtio_net_request_guest_announce();
         }
       }
       break;
     case VIRTIO_MMIO_QUEUE_DESC_LOW:
-      if (q != NULL) q->desc = (q->desc & 0xffffffff00000000ull) | value;
+      if (q != NULL) virtqueue_write_address_low(&q->desc, value);
       break;
     case VIRTIO_MMIO_QUEUE_DESC_HIGH:
-      if (q != NULL) q->desc = ((uint64_t)value << 32) | (uint32_t)q->desc;
+      if (q != NULL) virtqueue_write_address_high(&q->desc, value);
       break;
     case VIRTIO_MMIO_QUEUE_DRIVER_LOW:
-      if (q != NULL) q->driver = (q->driver & 0xffffffff00000000ull) | value;
+      if (q != NULL) virtqueue_write_address_low(&q->driver, value);
       break;
     case VIRTIO_MMIO_QUEUE_DRIVER_HIGH:
-      if (q != NULL) q->driver = ((uint64_t)value << 32) | (uint32_t)q->driver;
+      if (q != NULL) virtqueue_write_address_high(&q->driver, value);
       break;
     case VIRTIO_MMIO_QUEUE_DEVICE_LOW:
-      if (q != NULL) q->device = (q->device & 0xffffffff00000000ull) | value;
+      if (q != NULL) virtqueue_write_address_low(&q->device, value);
       break;
     case VIRTIO_MMIO_QUEUE_DEVICE_HIGH:
-      if (q != NULL) q->device = ((uint64_t)value << 32) | (uint32_t)q->device;
+      if (q != NULL) virtqueue_write_address_high(&q->device, value);
       break;
     default:
       break;
@@ -2897,7 +2827,7 @@ void init_virtio_net() {
   net_base = new_space(0x1000);
   virtio_net_reset();
   virtio_net_tap_open_if_requested();
-#ifdef CONFIG_HAS_PORT_IO
+#ifdef NEMU_HAS_PORT_IO
   add_pio_map("virtio-net", DEV_VIRTIO_NET_MMIO, net_base, 0x1000,
       virtio_net_io_handler);
 #else

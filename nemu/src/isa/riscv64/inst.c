@@ -14,6 +14,8 @@
 ***************************************************************************************/
 
 #include "local-include/reg.h"
+#include "local-include/privileged.h"
+#include "local-include/instruction.h"
 #include <cpu/cpu.h>
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
@@ -38,5 +40,6 @@
 #include "inst/amo.c"
 #include "inst/bitmanip.c"
 #include "inst/compressed.c"
+#include "inst/execute.c"
 #include "inst/decode_cache.c"
 #include "inst/decode.c"

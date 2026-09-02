@@ -1,0 +1,64 @@
+
+//////////////////////////////////////////////////
+nemu/
+├── src/
+│   ├── device/
+│   │   └── npu.c
+│   │
+│   └── npu/
+│       ├── npu_model.cpp
+│       ├── command_processor.cpp
+│       ├── dma.cpp
+│       ├── sram.cpp
+│       ├── pe_array.cpp
+│       ├── matmul.cpp
+│       └── scheduler.cpp
+│
+└── include/
+    └── npu/
+        ├── npu.h
+        └── npu_model.h
+///////////////////////////////////////////////////
+          RISC-V CPU
+              │
+              │ load/store
+              ↓
+         MMIO Registers
+              │
+        src/device/npu.c
+              │
+              │ C ABI
+              ↓
+      ┌───────────────────┐
+      │    NPU Model      │
+      │                   │
+      │ command processor │
+      │ DMA               │
+      │ SRAM              │
+      │ scheduler         │
+      │ PE / MAC array    │
+      └───────────────────┘
+              │
+              │ DMA
+              ↓
+         Guest Memory
+////////////////////////////////////////////////////
+NEMU C
+│
+│
+├── device/npu.c
+│
+├── MMIO
+├── IRQ
+├── paddr_read/write
+│
+└────── C ABI ──────────────┐
+                            │
+                            ▼
+                     C++ NPU Simulator
+                     ├── NPU
+                     ├── DMAEngine
+                     ├── SRAM
+                     ├── PEArray
+                     ├── Scheduler
+                     └── CommandProcessor

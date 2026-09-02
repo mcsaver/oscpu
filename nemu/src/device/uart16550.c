@@ -15,7 +15,7 @@
 
 #include <device/uart16550.h>
 
-#include <assert.h>
+#include <common.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -173,12 +173,14 @@ static void uart_refresh_irq(Uart16550 *uart) {
 }
 
 static uint32_t uart_bus_stride(const Uart16550BusProfile *profile) {
-  assert(profile != NULL);
-  assert(profile->reg_shift < 8);
+  Assert(profile != NULL, "UART 总线配置不能为空");
+  Assert(profile->reg_shift < 8, "UART 寄存器间距移位超出可表示范围");
   uint32_t stride = 1u << profile->reg_shift;
-  assert(profile->reg_io_width == 1 || profile->reg_io_width == 2 ||
-      profile->reg_io_width == 4 || profile->reg_io_width == 8);
-  assert(profile->reg_io_width <= stride);
+  Assert(profile->reg_io_width == 1 || profile->reg_io_width == 2 ||
+      profile->reg_io_width == 4 || profile->reg_io_width == 8,
+      "UART 总线访问宽度必须是 1、2、4 或 8 字节");
+  Assert(profile->reg_io_width <= stride,
+      "UART 总线访问宽度不能跨越相邻寄存器");
   return stride;
 }
 
@@ -357,7 +359,7 @@ void uart16550_destroy(Uart16550 *uart) {
 }
 
 void uart16550_reset(Uart16550 *uart) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 复位对象不能为空");
   fifo_clear(&uart->rx_fifo);
 
   uart->dll = 1;
@@ -376,7 +378,7 @@ void uart16550_reset(Uart16550 *uart) {
 }
 
 uint8_t uart16550_read(Uart16550 *uart, uint32_t offset) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 读操作对象不能为空");
   if (offset >= UART16550_REG_COUNT) {
     return 0;
   }
@@ -399,7 +401,7 @@ uint8_t uart16550_read(Uart16550 *uart, uint32_t offset) {
 }
 
 void uart16550_write(Uart16550 *uart, uint32_t offset, uint8_t value) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 写操作对象不能为空");
   if (offset >= UART16550_REG_COUNT) {
     return;
   }
@@ -446,8 +448,8 @@ uint32_t uart16550_bus_profile_span(const Uart16550BusProfile *profile) {
 
 uint64_t uart16550_bus_read(Uart16550 *uart,
     const Uart16550BusProfile *profile, uint32_t offset, int len) {
-  assert(uart != NULL);
-  assert(len >= 1 && len <= 8);
+  Assert(uart != NULL, "UART 总线读操作对象不能为空");
+  Assert(len >= 1 && len <= 8, "UART 总线读宽度必须为 1 至 8 字节");
 
   uint64_t value = 0;
   for (int i = 0; i < len; i++) {
@@ -462,8 +464,8 @@ uint64_t uart16550_bus_read(Uart16550 *uart,
 void uart16550_bus_write(Uart16550 *uart,
     const Uart16550BusProfile *profile, uint32_t offset, int len,
     uint64_t value) {
-  assert(uart != NULL);
-  assert(len >= 1 && len <= 8);
+  Assert(uart != NULL, "UART 总线写操作对象不能为空");
+  Assert(len >= 1 && len <= 8, "UART 总线写宽度必须为 1 至 8 字节");
 
   for (int i = 0; i < len; i++) {
     uint32_t reg = 0;
@@ -474,13 +476,13 @@ void uart16550_bus_write(Uart16550 *uart,
 }
 
 uint32_t uart16550_rx_room(const Uart16550 *uart) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 接收空间查询对象不能为空");
   uint32_t visible = uart_rx_visible_capacity(uart);
   return visible > uart->rx_fifo.count ? visible - uart->rx_fifo.count : 0;
 }
 
 size_t uart16550_receive(Uart16550 *uart, const uint8_t *data, size_t len) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 接收对象不能为空");
   if (data == NULL || len == 0) {
     return 0;
   }
@@ -496,18 +498,18 @@ size_t uart16550_receive(Uart16550 *uart, const uint8_t *data, size_t len) {
 }
 
 void uart16550_service(Uart16550 *uart) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 服务对象不能为空");
   uart_refresh_irq(uart);
 }
 
 bool uart16550_irq_level(const Uart16550 *uart) {
-  assert(uart != NULL);
+  Assert(uart != NULL, "UART 中断电平查询对象不能为空");
   return uart->irq_level;
 }
 
 void uart16550_snapshot(const Uart16550 *uart, Uart16550Snapshot *snapshot) {
-  assert(uart != NULL);
-  assert(snapshot != NULL);
+  Assert(uart != NULL, "UART 快照对象不能为空");
+  Assert(snapshot != NULL, "UART 快照输出不能为空");
 
   memset(snapshot, 0, sizeof(*snapshot));
   snapshot->dll = uart->dll;

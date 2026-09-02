@@ -14,10 +14,13 @@
 ***************************************************************************************/
 
 #include "local-include/reg.h"
+#include "local-include/instruction.h"
 #include <cpu/cpu.h>
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
+#include <isa/riscv/pmp.h>
 #include <memory/cache.h>
+#include <memory/vaddr.h>
 #include <ftrace.h>
 #include <etrace.h>
 
@@ -61,7 +64,9 @@
 #define OPC_JAL    0x6f
 #define OPC_SYSTEM 0x73
 
-#define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
+#define OP_KEY(funct3, funct7) \
+  ((uint32_t)((((uint32_t)(funct7) & 0x7fu) << 3) | \
+              ((uint32_t)(funct3) & 0x7u)))
 #define SHAMT5(value) ((value) & 0x1f)
 #define SHAMT_XLEN(value) ((value) & (XLEN_BITS - 1))
 #define BAD_DECODE() return false
@@ -91,21 +96,6 @@ void isa_riscv32_lr_sc_invalidate(paddr_t paddr, int len) {
 }
 #endif
 
-bool isa_riscv32_pmp_check(paddr_t paddr, int len, int type) {
-  (void)paddr;
-  (void)len;
-  (void)type;
-  return true;
-}
-
-word_t isa_riscv32_mmu_fault_cause(int type) {
-  switch (type) {
-    case MEM_TYPE_IFETCH: return CAUSE_INST_PAGE_FAULT;
-    case MEM_TYPE_WRITE:  return CAUSE_STORE_PAGE_FAULT;
-    case MEM_TYPE_READ:
-    default: return CAUSE_LOAD_PAGE_FAULT;
-  }
-}
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \
@@ -117,79 +107,6 @@ static int csr_boot_log_budget = 8;
 #else
 #define CSR_DEBUG_LOG(...) do {} while (0)
 #endif
-
-static inline word_t rol_xlen(word_t value, word_t shamt) {
-  shamt = SHAMT_XLEN(shamt);
-  return shamt == 0 ? value : (word_t)((value << shamt) | (value >> (XLEN_BITS - shamt)));
-}
-
-static inline word_t ror_xlen(word_t value, word_t shamt) {
-  shamt = SHAMT_XLEN(shamt);
-  return shamt == 0 ? value : (word_t)((value >> shamt) | (value << (XLEN_BITS - shamt)));
-}
-
-static inline word_t clz_xlen(word_t value) {
-  if (value == 0) return XLEN_BITS;
-  return (word_t)__builtin_clz((uint32_t)value);
-}
-
-static inline word_t ctz_xlen(word_t value) {
-  if (value == 0) return XLEN_BITS;
-  return (word_t)__builtin_ctz((uint32_t)value);
-}
-
-static inline word_t cpop_xlen(word_t value) {
-  return (word_t)__builtin_popcount((uint32_t)value);
-}
-
-static inline word_t sext_b_xlen(word_t value) {
-  return SEXT(BITS(value, 7, 0), 8);
-}
-
-static inline word_t sext_h_xlen(word_t value) {
-  return SEXT(BITS(value, 15, 0), 16);
-}
-
-static inline word_t orc_b_xlen(word_t value) {
-  word_t r = 0;
-  for (int i = 0; i < (int)(XLEN_BITS / 8); i++) {
-    word_t b = (value >> (i * 8)) & 0xffu;
-    if (b != 0) r |= (word_t)0xff << (i * 8);
-  }
-  return r;
-}
-
-static inline word_t rev8_xlen(word_t value) {
-  word_t r = 0;
-  for (int i = 0; i < (int)(XLEN_BITS / 8); i++) {
-    r |= ((value >> (i * 8)) & 0xffu) << ((XLEN_BITS / 8 - 1 - i) * 8);
-  }
-  return r;
-}
-
-static inline word_t clmul_xlen(word_t src1, word_t src2) {
-  word_t r = 0;
-  for (int i = 0; i < (int)XLEN_BITS; i++) {
-    if ((src2 >> i) & 1u) r ^= src1 << i;
-  }
-  return r;
-}
-
-static inline word_t clmulh_xlen(word_t src1, word_t src2) {
-  word_t r = 0;
-  for (int i = 1; i < (int)XLEN_BITS; i++) {
-    if ((src2 >> i) & 1u) r ^= src1 >> (XLEN_BITS - i);
-  }
-  return r;
-}
-
-static inline word_t clmulr_xlen(word_t src1, word_t src2) {
-  word_t r = 0;
-  for (int i = 0; i < (int)XLEN_BITS; i++) {
-    if ((src2 >> i) & 1u) r ^= src1 >> (XLEN_BITS - 1 - i);
-  }
-  return r;
-}
 
 /* CSR 执行基础设施集中在这里。SYSTEM 分发只决定“是哪类系统指令”，
  * CSR 的读改写语义、misa 配置回显和 mepc 对齐规则都不散到主 switch 里。 */
@@ -212,10 +129,8 @@ static inline word_t csr_misa_value() {
 #ifdef CONFIG_RISCV_EXT_C
   misa |= (word_t)1 << ('C' - 'A');
 #endif
-#ifdef CONFIG_MODE_SYSTEM
   misa |= (word_t)1 << ('S' - 'A');
   misa |= (word_t)1 << ('U' - 'A');
-#endif
   return misa;
 }
 
@@ -256,7 +171,78 @@ static inline word_t csr_sanitize_satp(word_t value) {
   return value;
 }
 
+/* RV32 packs four 8-bit PMP configurations into each pmpcfg CSR. */
+static inline bool csr_pmpcfg_base(uint32_t csr, uint32_t *base) {
+  if (csr < CSR_PMPCFG0 || csr > CSR_PMPCFG3) return false;
+  *base = (csr - CSR_PMPCFG0) * 4;
+  return true;
+}
+
+static inline bool csr_pmpaddr_write_locked(uint32_t index) {
+  if ((cpu.csr.pmpcfg[index] & RISCV_PMP_LOCKED) != 0) return true;
+  return index + 1 < RISCV_PMP_ENTRY_COUNT &&
+         (cpu.csr.pmpcfg[index + 1] & RISCV_PMP_LOCKED) != 0 &&
+         riscv_pmp_address_matching(cpu.csr.pmpcfg[index + 1]) ==
+             RISCV_PMP_TOR;
+}
+
+static inline void csr_update_pmp_active(void) {
+  cpu.csr.pmp_active = false;
+  for (uint32_t index = 0; index < RISCV_PMP_ENTRY_COUNT; index++) {
+    if (riscv_pmp_address_matching(cpu.csr.pmpcfg[index]) !=
+        RISCV_PMP_OFF) {
+      cpu.csr.pmp_active = true;
+      return;
+    }
+  }
+}
+
+static inline word_t csr_read_pmpcfg(uint32_t base) {
+  word_t value = 0;
+  for (uint32_t byte = 0; byte < 4; byte++) {
+    value |= (word_t)cpu.csr.pmpcfg[base + byte] << (byte * 8);
+  }
+  return value;
+}
+
+static inline void csr_write_pmpcfg(uint32_t base, word_t value) {
+  bool changed = false;
+  for (uint32_t byte = 0; byte < 4; byte++) {
+    uint32_t index = base + byte;
+    if ((cpu.csr.pmpcfg[index] & RISCV_PMP_LOCKED) != 0) continue;
+    uint8_t next = riscv_pmp_sanitize_config(
+        (uint8_t)(value >> (byte * 8)));
+    if (cpu.csr.pmpcfg[index] != next) {
+      cpu.csr.pmpcfg[index] = next;
+      changed = true;
+    }
+  }
+  if (changed) {
+    csr_update_pmp_active();
+    isa_riscv32_mmu_tlb_flush();
+  }
+}
+
+static inline void csr_write_pmpaddr(uint32_t index, word_t value) {
+  if (csr_pmpaddr_write_locked(index)) return;
+  word_t next = value & PMPADDR_MASK;
+  if (cpu.csr.pmpaddr[index] != next) {
+    cpu.csr.pmpaddr[index] = next;
+    isa_riscv32_mmu_tlb_flush();
+  }
+}
+
 static inline bool csr_read(uint32_t csr, word_t *value) {
+  uint32_t pmpcfg_base = 0;
+  if (csr_pmpcfg_base(csr, &pmpcfg_base)) {
+    *value = csr_read_pmpcfg(pmpcfg_base);
+    return true;
+  }
+  if (csr >= CSR_PMPADDR0 && csr <= CSR_PMPADDR15) {
+    *value = cpu.csr.pmpaddr[csr - CSR_PMPADDR0] & PMPADDR_MASK;
+    return true;
+  }
+
   switch (csr) {
     // 身份与计数器 CSR 对齐 NPC，避免 guest 在 difftest 下读到 reference illegal trap。
     case CSR_MVENDORID: *value = 0x79737978u; return true;
@@ -306,6 +292,16 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
 
 static inline bool csr_write(uint32_t csr, word_t value) {
   word_t mepc_mask = MUXDEF(CONFIG_RISCV_EXT_C, ~(word_t)0x1, ~(word_t)0x3);
+  uint32_t pmpcfg_base = 0;
+  if (csr_pmpcfg_base(csr, &pmpcfg_base)) {
+    csr_write_pmpcfg(pmpcfg_base, value);
+    return true;
+  }
+  if (csr >= CSR_PMPADDR0 && csr <= CSR_PMPADDR15) {
+    csr_write_pmpaddr(csr - CSR_PMPADDR0, value);
+    return true;
+  }
+
   switch (csr) {
     case CSR_FFLAGS:   cpu.csr.fflags = value & 0x1f; return true;
     case CSR_FRM:      cpu.csr.frm = value & 0x7; return true;
@@ -393,7 +389,7 @@ static inline word_t csr_encode_mpp(uint8_t priv) {
 }
 
 static inline bool ebreak_should_raise_breakpoint_trap(void) {
-#if defined(CONFIG_MODE_SYSTEM) && !defined(CONFIG_TARGET_AM)
+#ifndef CONFIG_TARGET_AM
   // Linux/system 模式必须按官方 ISA 把 ebreak 当 breakpoint trap，不能被 PA 退出协议抢走。
   return true;
 #else
@@ -436,6 +432,9 @@ static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   bool need_write = false;
 
   if (cpu.priv < BITS(csr, 9, 8)) return false;
+  /* TVM makes satp inaccessible to S-mode; M-mode remains unrestricted. */
+  if (csr == CSR_SATP && cpu.priv == PRIV_S &&
+      (cpu.csr.mstatus & MSTATUS_TVM) != 0) return false;
   if (!csr_counter_allowed(csr)) return false;
   if (!csr_read(csr, &old_val)) return false;
 
@@ -460,41 +459,9 @@ static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
   return true;
 }
 
-/* RV32I 基础执行块：主干 ISA 按指令格式归类，直接 switch 到最终语义。
- * 这层是热路径，不使用表生成宏，读起来就是规范编码到行为的最短映射。 */
-static inline bool exec_rv32i_op_imm(uint32_t inst, int rd, word_t src1) {
-  uint32_t funct3 = FUNCT3(inst);
-  uint32_t funct7 = FUNCT7(inst);
-  word_t imm = IMM_I(inst);
-  uint32_t shamt = BITS(inst, 24, 20);
-  (void)funct7;
-
-  switch (funct3) {
-    case 0x0: R(rd) = src1 + imm; return true;                                // addi
-    case 0x2: R(rd) = (sword_t)src1 < (sword_t)imm ? 1 : 0; return true;       // slti
-    case 0x3: R(rd) = src1 < (word_t)imm ? 1 : 0; return true;                 // sltiu
-    case 0x4: R(rd) = src1 ^ imm; return true;                                 // xori
-    case 0x6: R(rd) = src1 | imm; return true;                                  // ori
-    case 0x7: R(rd) = src1 & imm; return true;                                  // andi
-    case 0x1:
-      if (funct7 == 0x00) {
-        R(rd) = src1 << shamt; return true;                                      // slli
-      }
-      break;
-    case 0x5:
-      if (funct7 == 0x00) {
-        R(rd) = src1 >> shamt; return true;                                      // srli
-      }
-      if (funct7 == 0x20) {
-        R(rd) = (sword_t)src1 >> shamt; return true;                             // srai
-      }
-      break;
-  }
-
-  return false;
-}
-
-static inline bool exec_rv32i_load(uint32_t funct3, int rd, word_t addr) {
+/* 压缩指令适配器仍复用旧的基础整数加载入口。 */
+static inline bool legacy_exec_rv32i_load(
+    uint32_t funct3, int rd, word_t addr) {
   word_t val = 0;
   switch (funct3) {
     case 0x0:
@@ -517,15 +484,6 @@ static inline bool exec_rv32i_load(uint32_t funct3, int rd, word_t addr) {
       val = Mr(addr, 2);
       if (vaddr_has_fault()) return true;
       R(rd) = val; return true;           // lhu
-    default: return false;
-  }
-}
-
-static inline bool exec_rv32i_store(uint32_t funct3, word_t addr, word_t data) {
-  switch (funct3) {
-    case 0x0: Mw(addr, 1, data); return true; // sb
-    case 0x1: Mw(addr, 2, data); return true; // sh
-    case 0x2: Mw(addr, 4, data); return true; // sw
     default: return false;
   }
 }
@@ -582,34 +540,6 @@ static inline bool exec_rvf_store(uint32_t funct3, word_t addr, int rs2) {
   }
 }
 
-static inline bool exec_rv32i_branch(Decode *s, uint32_t funct3, word_t src1, word_t src2, word_t imm) {
-  switch (funct3) {
-    case 0x0: if (src1 == src2) s->dnpc = s->pc + imm; return true;                 // beq
-    case 0x1: if (src1 != src2) s->dnpc = s->pc + imm; return true;                 // bne
-    case 0x4: if ((sword_t)src1 < (sword_t)src2) s->dnpc = s->pc + imm; return true; // blt
-    case 0x5: if ((sword_t)src1 >= (sword_t)src2) s->dnpc = s->pc + imm; return true;// bge
-    case 0x6: if (src1 < src2) s->dnpc = s->pc + imm; return true;                  // bltu
-    case 0x7: if (src1 >= src2) s->dnpc = s->pc + imm; return true;                 // bgeu
-    default: return false;
-  }
-}
-
-static inline bool exec_rv32i_op(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  switch (OP_KEY(funct3, funct7)) {
-    case OP_KEY(0x0, 0x00): R(rd) = src1 + src2; return true;                             // add
-    case OP_KEY(0x0, 0x20): R(rd) = src1 - src2; return true;                             // sub
-    case OP_KEY(0x1, 0x00): R(rd) = src1 << SHAMT_XLEN(src2); return true;                // sll
-    case OP_KEY(0x2, 0x00): R(rd) = (sword_t)src1 < (sword_t)src2 ? 1 : 0; return true;   // slt
-    case OP_KEY(0x3, 0x00): R(rd) = src1 < src2 ? 1 : 0; return true;                     // sltu
-    case OP_KEY(0x4, 0x00): R(rd) = src1 ^ src2; return true;                             // xor
-    case OP_KEY(0x5, 0x00): R(rd) = src1 >> SHAMT_XLEN(src2); return true;                // srl
-    case OP_KEY(0x5, 0x20): R(rd) = (sword_t)src1 >> SHAMT_XLEN(src2); return true;       // sra
-    case OP_KEY(0x6, 0x00): R(rd) = src1 | src2; return true;                             // or
-    case OP_KEY(0x7, 0x00): R(rd) = src1 & src2; return true;                             // and
-    default: return false;
-  }
-}
-
 static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd, int rs1) {
   if (funct3 != 0) return exec_csr(inst, funct3, rd, rs1);
 
@@ -629,6 +559,7 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       return true;
     case 0x10200073: // sret
       if (cpu.priv < PRIV_S) return false;
+      if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TSR)) return false;
       csr_sret(s);
       return true;
     case 0x30200073: // mret
@@ -636,75 +567,22 @@ static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd
       csr_mret(s);
       return true;
     case 0x10500073: // wfi
+      if (cpu.priv != PRIV_M && (cpu.csr.mstatus & MSTATUS_TW)) return false;
       return true;
     default:
       if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
+        if (cpu.priv < PRIV_S) return false;
+        if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
+        uint32_t fence_vaddr_register = RS1(inst);
+        uint32_t fence_asid_register = RS2(inst);
+        isa_riscv32_mmu_tlb_flush_selective(
+            R(fence_vaddr_register), fence_vaddr_register != 0,
+            R(fence_asid_register), fence_asid_register != 0);
         return true;
       }
       return false;
   }
 }
-
-static inline bool exec_misc_mem(uint32_t funct3) {
-  switch (funct3) {
-    case 0x0: // fence
-      return true;
-    case 0x1: // fence.i
-      // NEMU 的 cache 是透明模拟层；fence.i 时写回 DCache 并失效 ICache，保证自修改代码后能重新取指。
-      IFDEF(CONFIG_CACHE, cache_flush_all());
-      return true;
-    default:
-      return false;
-  }
-}
-
-#ifdef CONFIG_RISCV_EXT_M
-/* RVM 扩展：乘除相关编码集中在一个入口。关闭 Kconfig 后整组编码自然非法。 */
-static inline bool exec_rvm_op(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  if (funct7 != 0x01) return false;
-
-  switch (funct3) {
-    case 0x0: { // mul
-      R(rd) = (word_t)((unsigned __int128)src1 * (unsigned __int128)src2);
-      return true;
-    }
-    case 0x1: { // mulh
-      __int128 prod = (__int128)(sword_t)src1 * (__int128)(sword_t)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
-      return true;
-    }
-    case 0x2: { // mulhsu
-      __int128 prod = (__int128)(sword_t)src1 * (__int128)(unsigned __int128)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
-      return true;
-    }
-    case 0x3: { // mulhu
-      unsigned __int128 prod = (unsigned __int128)src1 * (unsigned __int128)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
-      return true;
-    }
-    case 0x4: // div
-      if (src2 == 0) R(rd) = (word_t)-1;
-      else if (src1 == WORD_SIGN_BIT && src2 == (word_t)-1) R(rd) = WORD_SIGN_BIT;
-      else R(rd) = (sword_t)src1 / (sword_t)src2;
-      return true;
-    case 0x5: // divu
-      R(rd) = (src2 == 0) ? (word_t)-1 : src1 / src2;
-      return true;
-    case 0x6: // rem
-      if (src2 == 0) R(rd) = src1;
-      else if (src1 == WORD_SIGN_BIT && src2 == (word_t)-1) R(rd) = 0;
-      else R(rd) = (sword_t)src1 % (sword_t)src2;
-      return true;
-    case 0x7: // remu
-      R(rd) = (src2 == 0) ? src1 : src1 % src2;
-      return true;
-    default:
-      return false;
-  }
-}
-
-#endif
 
 #ifdef CONFIG_RISCV_EXT_A
 static inline word_t amo_sext_word(uint32_t value) {
@@ -784,94 +662,6 @@ static inline bool exec_rva_amo(uint32_t inst, int rd, int rs1, int rs2) {
 
   return false;
 }
-#endif
-
-#ifdef CONFIG_RISCV_EXT_B
-/* Zba/Zbb/Zbc/Zbs 扩展：所有 bitmanip 逻辑集中在这里。
- * 主译码只在 RV32I 没命中时进入本块，常见基础指令不为扩展表付额外层次。 */
-static inline bool exec_zb_op_imm(uint32_t inst, int rd, word_t src1) {
-  uint32_t funct3 = FUNCT3(inst);
-  uint32_t funct7 = FUNCT7(inst);
-  uint32_t funct6 = BITS(inst, 31, 26);
-  uint32_t imm = BITS(inst, 24, 20);
-  uint32_t imm5 = imm;
-
-  if (funct3 == 0x1) {
-    switch (funct6) {
-      case 0x0a: R(rd) = src1 | ((word_t)1 << imm); return true;       // bseti
-      case 0x12: R(rd) = src1 & ~((word_t)1 << imm); return true;      // bclri
-      case 0x1a: R(rd) = src1 ^ ((word_t)1 << imm); return true;       // binvi
-      default: break;
-    }
-    switch (funct7) {
-      case 0x30:
-        switch (imm5) {
-          case 0x00: R(rd) = clz_xlen(src1); return true;        // clz
-          case 0x01: R(rd) = ctz_xlen(src1); return true;        // ctz
-          case 0x02: R(rd) = cpop_xlen(src1); return true;       // cpop
-          case 0x04: R(rd) = sext_b_xlen(src1); return true;     // sext.b
-          case 0x05: R(rd) = sext_h_xlen(src1); return true;     // sext.h
-          default: return false;
-        }
-      default:
-        return false;
-    }
-  }
-
-  if (funct3 == 0x5) {
-    switch (funct6) {
-      case 0x18: R(rd) = ror_xlen(src1, imm); return true;       // rori
-      case 0x12: R(rd) = (src1 >> imm) & 1u; return true;        // bexti
-      default: break;
-    }
-    switch (funct7) {
-      case 0x14:
-        if (imm5 != 0x07) return false;
-        R(rd) = orc_b_xlen(src1);                               // orc.b
-        return true;
-      case 0x34:
-      case 0x35:
-        if (imm5 != 0x18) return false;
-        R(rd) = rev8_xlen(src1);                                // rev8
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  return false;
-}
-
-static inline bool exec_zb_op(uint32_t funct3, uint32_t funct7, int rd, int rs2, word_t src1, word_t src2) {
-  switch (OP_KEY(funct3, funct7)) {
-    case OP_KEY(0x2, 0x10): R(rd) = (src1 << 1) + src2; return true; // sh1add
-    case OP_KEY(0x4, 0x10): R(rd) = (src1 << 2) + src2; return true; // sh2add
-    case OP_KEY(0x6, 0x10): R(rd) = (src1 << 3) + src2; return true; // sh3add
-    case OP_KEY(0x7, 0x20): R(rd) = src1 & ~src2; return true;       // andn
-    case OP_KEY(0x6, 0x20): R(rd) = src1 | ~src2; return true;       // orn
-    case OP_KEY(0x4, 0x20): R(rd) = ~(src1 ^ src2); return true;     // xnor
-    case OP_KEY(0x1, 0x30): R(rd) = rol_xlen(src1, src2); return true;  // rol
-    case OP_KEY(0x5, 0x30): R(rd) = ror_xlen(src1, src2); return true;  // ror
-    case OP_KEY(0x4, 0x05): R(rd) = ((sword_t)src1 < (sword_t)src2) ? src1 : src2; return true; // min
-    case OP_KEY(0x5, 0x05): R(rd) = (src1 < src2) ? src1 : src2; return true;                   // minu
-    case OP_KEY(0x6, 0x05): R(rd) = ((sword_t)src1 > (sword_t)src2) ? src1 : src2; return true; // max
-    case OP_KEY(0x7, 0x05): R(rd) = (src1 > src2) ? src1 : src2; return true;                   // maxu
-    case OP_KEY(0x1, 0x05): R(rd) = clmul_xlen(src1, src2); return true;  // clmul
-    case OP_KEY(0x2, 0x05): R(rd) = clmulr_xlen(src1, src2); return true; // clmulr
-    case OP_KEY(0x3, 0x05): R(rd) = clmulh_xlen(src1, src2); return true; // clmulh
-    case OP_KEY(0x1, 0x14): R(rd) = src1 | ((word_t)1 << SHAMT_XLEN(src2)); return true;      // bset
-    case OP_KEY(0x1, 0x24): R(rd) = src1 & ~((word_t)1 << SHAMT_XLEN(src2)); return true;     // bclr
-    case OP_KEY(0x5, 0x24): R(rd) = (src1 >> SHAMT_XLEN(src2)) & 1u; return true;             // bext
-    case OP_KEY(0x1, 0x34): R(rd) = src1 ^ ((word_t)1 << SHAMT_XLEN(src2)); return true;      // binv
-    case OP_KEY(0x4, 0x04):
-      if (rs2 != 0) return false;
-      R(rd) = src1 & 0xffffu;                                      // zext.h
-      return true;
-    default:
-      return false;
-  }
-}
-
 #endif
 
 #ifdef CONFIG_RISCV_EXT_C
@@ -980,7 +770,8 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           }
           return true;
         case 0x2: // c.lw
-          if (!exec_rv32i_load(0x2, C_RD(inst), R(C_RS1(inst)) + c_imm_lw_sw(inst))) {
+          if (!legacy_exec_rv32i_load(
+                  0x2, C_RD(inst), R(C_RS1(inst)) + c_imm_lw_sw(inst))) {
             BAD_DECODE();
           }
           return true;
@@ -1080,7 +871,7 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
           return true;
         case 0x2: // c.lwsp
           if (rd == 0) BAD_DECODE();
-          if (!exec_rv32i_load(0x2, rd, R(2) + c_imm_lwsp(inst))) {
+          if (!legacy_exec_rv32i_load(0x2, rd, R(2) + c_imm_lwsp(inst))) {
             BAD_DECODE();
           }
           return true;
@@ -1134,116 +925,68 @@ static inline bool exec_rv32c(Decode *s, uint16_t inst) {
 }
 #endif
 
-static int decode_exec(Decode *s) {
-  s->dnpc = s->snpc;
-  uint32_t inst = s->isa.inst;
-
+/*
+ * 这些函数是尚未迁移扩展的唯一兼容边界。统一执行器按具名 adapter
+ * 调用它们，旧 helper 不再承担顶层 opcode 分发。
+ */
+static inline bool legacy_execute_compressed_adapter(
+    Decode *state, const Rv32DecodedInstruction *instruction) {
 #ifdef CONFIG_RISCV_EXT_C
-  if ((inst & 0x3) != 0x3) {
-    if (!exec_rv32c(s, inst & 0xffffu)) goto invalid;
-    R(0) = 0;
-    return 0;
-  }
-#endif
-
-  uint32_t opcode = OPCODE(inst);
-  uint32_t funct3 = FUNCT3(inst);
-  int rd = RD(inst);
-  int rs1 = RS1(inst);
-  int rs2 = RS2(inst);
-
-  switch (opcode) {
-    case OPC_OP_IMM: {
-      word_t src1 = R(rs1);
-      if (!exec_rv32i_op_imm(inst, rd, src1)) {
-#ifdef CONFIG_RISCV_EXT_B
-        if (!exec_zb_op_imm(inst, rd, src1)) goto invalid;
+  return exec_rv32c(state, (uint16_t)instruction->encoding);
 #else
-        goto invalid;
+  (void)state;
+  (void)instruction;
+  return false;
 #endif
-      }
-      break;
-    }
-    case OPC_LOAD: {
-      word_t addr = R(rs1) + IMM_I(inst);
-      if (!exec_rv32i_load(funct3, rd, addr)) goto invalid;
-      break;
-    }
-    case OPC_LOAD_FP: {
-      word_t addr = R(rs1) + IMM_I(inst);
-      if (!exec_rvf_load(funct3, rd, addr)) goto invalid;
-      break;
-    }
-    case OPC_MISC_MEM:
-      if (!exec_misc_mem(funct3)) goto invalid;
-      break;
-    case OPC_STORE: {
-      word_t addr = R(rs1) + IMM_S(inst);
-      if (!exec_rv32i_store(funct3, addr, R(rs2))) goto invalid;
-      break;
-    }
-    case OPC_STORE_FP: {
-      word_t addr = R(rs1) + IMM_S(inst);
-      if (!exec_rvf_store(funct3, addr, rs2)) goto invalid;
-      break;
-    }
-    case OPC_AMO:
+}
+
+static inline bool legacy_execute_floating_load_adapter(
+    const Rv32DecodedInstruction *instruction) {
+  const word_t address = R(instruction->rs1) + instruction->immediate;
+  return exec_rvf_load(
+      FUNCT3(instruction->encoding), instruction->rd, address);
+}
+
+static inline bool legacy_execute_floating_store_adapter(
+    const Rv32DecodedInstruction *instruction) {
+  const word_t address = R(instruction->rs1) + instruction->immediate;
+  return exec_rvf_store(
+      FUNCT3(instruction->encoding), address, instruction->rs2);
+}
+
+static inline bool legacy_execute_atomic_adapter(
+    const Rv32DecodedInstruction *instruction) {
 #ifdef CONFIG_RISCV_EXT_A
-      if (!exec_rva_amo(inst, rd, rs1, rs2)) goto invalid;
-      break;
+  return exec_rva_amo(
+      instruction->encoding, instruction->rd,
+      instruction->rs1, instruction->rs2);
 #else
-      goto invalid;
+  (void)instruction;
+  return false;
 #endif
-    case OPC_OP: {
-      uint32_t funct7 = FUNCT7(inst);
-      word_t src1 = R(rs1);
-      word_t src2 = R(rs2);
-      if (exec_rv32i_op(funct3, funct7, rd, src1, src2)) break;
-#ifdef CONFIG_RISCV_EXT_M
-      if (exec_rvm_op(funct3, funct7, rd, src1, src2)) break;
-#endif
-#ifdef CONFIG_RISCV_EXT_B
-      if (exec_zb_op(funct3, funct7, rd, rs2, src1, src2)) break;
-#endif
-      goto invalid;
-    }
-    case OPC_BRANCH:
-      if (!exec_rv32i_branch(s, funct3, R(rs1), R(rs2), IMM_B(inst))) goto invalid;
-      break;
-    case OPC_JALR: {
-      if (funct3 != 0x0) goto invalid;
-      word_t target = (R(rs1) + IMM_I(inst)) & ~(word_t)1;
-      R(rd) = s->pc + 4;
-      s->dnpc = target;
-      IFDEF(CONFIG_FTRACE, {
-        if (rd == 0 && rs1 == 1) ftrace_log(-1, s->pc, target);
-        else if (rd == 1 || rd == 5) ftrace_log(1, s->pc, target);
-      })
-      break;
-    }
-    case OPC_JAL:
-      R(rd) = s->pc + 4;
-      s->dnpc = s->pc + IMM_J(inst);
-      IFDEF(CONFIG_FTRACE, if (rd == 1 || rd == 5) ftrace_log(1, s->pc, s->dnpc));
-      break;
-    case OPC_LUI:
-      R(rd) = IMM_U(inst);
-      break;
-    case OPC_AUIPC:
-      R(rd) = s->pc + IMM_U(inst);
-      break;
-    case OPC_SYSTEM:
-      if (!exec_system(s, inst, funct3, rd, rs1)) goto invalid;
-      break;
-    default:
-      goto invalid;
+}
+
+static inline bool legacy_execute_system_adapter(
+    Decode *state, const Rv32DecodedInstruction *instruction) {
+  return exec_system(
+      state, instruction->encoding, FUNCT3(instruction->encoding),
+      instruction->rd, instruction->rs1);
+}
+
+#include "inst/decode.c"
+#include "inst/muldiv.c"
+#include "inst/bitmanip.c"
+#include "inst/execute.c"
+
+static int decode_exec(Decode *s) {
+  Rv32DecodedInstruction instruction;
+  rv32_decode_instruction(s->isa.inst, &instruction);
+  if (!rv32_execute_decoded_instruction(s, &instruction)) {
+    s->dnpc = isa_raise_intr_with_tval(
+        CAUSE_ILLEGAL_INST, s->pc, s->isa.inst);
   }
 
-  R(0) = 0;
-  return 0;
-
-invalid:
-  s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, inst);
+  /* 旧适配器完全迁移前，这里仍作为兼容性断言边界。 */
   R(0) = 0;
   return 0;
 }

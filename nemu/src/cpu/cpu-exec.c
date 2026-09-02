@@ -45,7 +45,7 @@
 #define MAX_INST_TO_PRINT 10
 
 // 这里把 g_print_step 提前定义到 ITRACE 辅助函数之前。
-// 这样改完后，无论是否打开 ITRACE/ITRACE_COND，need_itrace_logbuf() 都能在同一份源码下稳定看到它。
+// 这样改完后，无论是否打开 ITRACE，need_itrace_logbuf() 都能在同一份源码下稳定看到它。
 static bool g_print_step = false;
 
 static bool cpu_runtime_env_enabled_default_true(const char *name) {
@@ -58,9 +58,8 @@ static bool cpu_runtime_env_enabled_default_true(const char *name) {
 #endif
 }
 
-#if defined(CONFIG_ISA_riscv)
+#if defined(CONFIG_ISA_riscv) && !defined(CONFIG_TARGET_AM)
 static bool cpu_runtime_env_u64(const char *name, uint64_t *value) {
-#ifndef CONFIG_TARGET_AM
   const char *env = getenv(name);
   if (env == NULL || env[0] == '\0') {
     return false;
@@ -72,13 +71,10 @@ static bool cpu_runtime_env_u64(const char *name, uint64_t *value) {
       "invalid %s=%s, expect an integer", name, env);
   *value = parsed;
   return true;
-#else
-  (void)name;
-  (void)value;
-  return false;
-#endif
 }
+#endif
 
+#if defined(CONFIG_ISA_riscv)
 static bool pc_gpr_trace_is_enabled = false;
 static word_t pc_gpr_trace_start = 0;
 static word_t pc_gpr_trace_end = 0;
@@ -249,12 +245,12 @@ void iringbuf_dump() {
   }
 }
 
-#if !defined(CONFIG_TARGET_AM) && defined(CONFIG_ITRACE_COND)
+#ifndef CONFIG_TARGET_AM
 // 这里先判断“这条指令的 logbuf 会不会真的被用到”，避免普通长跑时白做反汇编。
 // 这样改完后，保留 ITRACE 编译开关也不会默认在每条指令上都支付日志构造成本。
 static inline bool need_itrace_logbuf() {
   extern bool log_enable();
-  return g_print_step || (log_enable() && ITRACE_COND);
+  return g_print_step || (log_enable() && NEMU_ITRACE_COND);
 }
 #else
 static inline bool need_itrace_logbuf() {
@@ -324,10 +320,10 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
 //条件日志记录
 //Itrace是Instruction Trace指令追踪的缩写。
-//ITRACE_COND 保留为内部条件宏，当前默认 true；日志范围统一交给 TRACE_START/TRACE_END 控制，避免菜单里重复配置。
+//内部 trace 条件来自 nemu-config.h；日志范围统一交给 TRACE_START/TRACE_END 控制。
 //数据：_this->logbuf存储了刚才执行的那条指令的反汇编字符串，也就是译码并且打印
-  #ifdef CONFIG_ITRACE_COND
-  if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
+#ifdef CONFIG_ITRACE
+  if (NEMU_ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
 //屏幕输出
 //功能：在屏幕上打印当前执行的指令

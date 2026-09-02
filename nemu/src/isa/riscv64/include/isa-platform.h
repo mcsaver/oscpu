@@ -33,6 +33,7 @@ void isa_riscv64_clint_dump_machine_info(FILE *out);
 void isa_riscv64_clint_qmp_snapshot(char *out, size_t out_size);
 #endif
 bool isa_riscv64_plic_in_range(paddr_t addr);
+bool isa_riscv64_plic_access_valid(paddr_t addr, int len);
 word_t isa_riscv64_plic_read(paddr_t addr, int len);
 void isa_riscv64_plic_write(paddr_t addr, int len, word_t data);
 void isa_riscv64_plic_reset(void);
@@ -51,19 +52,9 @@ void isa_riscv64_mmu_tlb_flush(void);
 void isa_riscv64_mmu_tlb_flush_selective(vaddr_t vaddr, bool flush_vaddr,
     word_t asid, bool flush_asid);
 extern bool isa_riscv64_decode_cache_is_enabled;
-extern bool isa_riscv64_decode_cache_rvc_fast_is_enabled;
-extern bool isa_riscv64_decode_cache_int_fast_is_enabled;
 
 static inline bool isa_riscv64_decode_cache_runtime_enabled(void) {
   return likely(isa_riscv64_decode_cache_is_enabled);
-}
-
-static inline bool isa_riscv64_decode_cache_rvc_fast_runtime_enabled(void) {
-  return likely(isa_riscv64_decode_cache_rvc_fast_is_enabled);
-}
-
-static inline bool isa_riscv64_decode_cache_int_fast_runtime_enabled(void) {
-  return likely(isa_riscv64_decode_cache_int_fast_is_enabled);
 }
 
 word_t isa_riscv64_mmu_fault_cause(int type);
@@ -105,6 +96,7 @@ bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
 #define isa_riscv_clint_qmp_snapshot isa_riscv64_clint_qmp_snapshot
 #endif
 #define isa_riscv_plic_in_range isa_riscv64_plic_in_range
+#define isa_riscv_plic_access_valid isa_riscv64_plic_access_valid
 #define isa_riscv_plic_read isa_riscv64_plic_read
 #define isa_riscv_plic_write isa_riscv64_plic_write
 #define isa_riscv_plic_reset isa_riscv64_plic_reset
@@ -122,8 +114,6 @@ bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
 #define isa_riscv_mmu_tlb_flush isa_riscv64_mmu_tlb_flush
 #define isa_riscv_mmu_tlb_flush_selective isa_riscv64_mmu_tlb_flush_selective
 #define isa_riscv_decode_cache_runtime_enabled isa_riscv64_decode_cache_runtime_enabled
-#define isa_riscv_decode_cache_rvc_fast_runtime_enabled isa_riscv64_decode_cache_rvc_fast_runtime_enabled
-#define isa_riscv_decode_cache_int_fast_runtime_enabled isa_riscv64_decode_cache_int_fast_runtime_enabled
 #define isa_riscv_mmu_fault_cause isa_riscv64_mmu_fault_cause
 #define isa_riscv_pmp_check isa_riscv64_pmp_check
 #ifndef CONFIG_TARGET_AM

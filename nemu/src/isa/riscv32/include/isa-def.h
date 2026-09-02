@@ -17,6 +17,7 @@
 #define __ISA_RISCV32_H__
 
 #include <common.h>
+#include <isa/riscv/pmp-encoding.h>
 
 #define PRIV_U 0u
 #define PRIV_S 1u
@@ -43,6 +44,12 @@
 #define CSR_MTVEC    0x305
 #define CSR_MCOUNTEREN 0x306
 #define CSR_MCOUNTINHIBIT 0x320
+#define CSR_PMPCFG0  0x3a0
+#define CSR_PMPCFG1  0x3a1
+#define CSR_PMPCFG2  0x3a2
+#define CSR_PMPCFG3  0x3a3
+#define CSR_PMPADDR0 0x3b0
+#define CSR_PMPADDR15 0x3bf
 #define CSR_MSCRATCH 0x340
 #define CSR_MEPC     0x341
 #define CSR_MCAUSE   0x342
@@ -91,6 +98,9 @@
 #define MSTATUS_MPRV       ((word_t)1 << 17)
 #define MSTATUS_SUM        ((word_t)1 << 18)
 #define MSTATUS_MXR        ((word_t)1 << 19)
+#define MSTATUS_TVM        ((word_t)1 << 20)
+#define MSTATUS_TW         ((word_t)1 << 21)
+#define MSTATUS_TSR        ((word_t)1 << 22)
 #define MSTATUS_SXL_UXL    0
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
@@ -98,7 +108,7 @@
 #define MSTATUS_WRITABLE_MASK \
     (MSTATUS_SIE | MSTATUS_MIE | MSTATUS_SPIE | MSTATUS_MPIE | \
      MSTATUS_SPP | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | MSTATUS_MPRV | \
-     MSTATUS_SUM | MSTATUS_MXR)
+     MSTATUS_SUM | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TW | MSTATUS_TSR)
 
 #define MIP_SSIP           ((word_t)1 << 1)
 #define MIP_MSIP           ((word_t)1 << 3)
@@ -126,6 +136,8 @@
 #define MCOUNTINHIBIT_CY 0x00000001u
 #define MCOUNTINHIBIT_IR 0x00000004u
 
+#define PMPADDR_MASK ((word_t)~0u)
+
 //mtvec：trap入口地址，发生异常或中断后，CPU最终要跳到哪里执行，故障处理程序的起点
 //mepc：异常发生时的程序计数器，记录出事的时候执行到那一条指令了，进入trap会把当前PC存放到这里，后面mret返回时再用它恢复现场
 //mcause：trap原因码表，告诉你为何进入（ecall、非法指令、定时器中断、外部中断）
@@ -138,6 +150,9 @@ typedef struct {
   word_t stvec, sepc, scause, sscratch, stval;
   word_t medeleg, mideleg, satp;
   word_t mcounteren, scounteren, mcountinhibit;
+  uint8_t pmpcfg[RISCV_PMP_ENTRY_COUNT];
+  word_t pmpaddr[RISCV_PMP_ENTRY_COUNT];
+  bool pmp_active;
   uint64_t mcycle, minstret;
   uint8_t fflags, frm;
 } riscv32_CSR_state;

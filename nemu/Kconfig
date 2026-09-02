@@ -1,5 +1,9 @@
 mainmenu "NEMU Configuration Menu"
 
+# 这里是 NEMU 唯一的 Kconfig 入口，只描述会改变构建产物、guest ISA、平台
+# ABI 或用户可观察能力的选择。只有一个合法取值和纯实现内部条件集中在
+# include/nemu-config.h，避免出现“菜单可配置、运行时却没有实际分支”的假接口。
+
 choice
   prompt "Base ISA"
   default ISA_riscv
@@ -33,38 +37,77 @@ config RV64
   bool "64-bit RISC-V architecture"
   default n
 
-if RV64
-source "src/isa/riscv64/Kconfig"
-endif
-if !RV64
-source "src/isa/riscv32/Kconfig"
-endif
-endif
+menu "RISC-V ISA Extensions"
 
-choice
-  prompt "NEMU execution engine"
-  default ENGINE_INTERPRETER
+config RVE
+  depends on !RV64
+  bool "Use E extension"
+  default n
 
-config ENGINE_INTERPRETER
-  bool "Interpreter"
+config RISCV_EXT_M
+  bool "Enable M extension (integer multiply/divide)"
+  default y
   help
-    Interpreter guest instructions one by one.
-endchoice
+    控制 NEMU 是否接受 RISC-V 乘除法指令编码。关闭后，mul/div/rem
+    等编码按 illegal instruction trap 处理；AM guest 编译参数同步移除 m。
 
-config ENGINE
-  string
-  default "interpreter" if ENGINE_INTERPRETER
-  default "none"
-
-choice
-  prompt "Running mode"
-  default MODE_SYSTEM
-
-config MODE_SYSTEM
-  bool "System mode"
+config RISCV_EXT_A
+  bool "Enable A extension (atomic memory operations)"
+  default n
   help
-    Support full-system functionality, including privileged instructions, MMU and devices.
-endchoice
+    控制 NEMU 是否接受 LR/SC/AMO 指令。RV64 Linux/OpenSBI 常用 AMO
+    实现自旋锁和原子变量，因此 Linux 平台配置需要显式打开。
+
+config RISCV_EXT_F
+  bool "Enable F extension (single-precision floating point)"
+  default n
+  help
+    控制 NEMU 是否接受浮点寄存器相关基础指令。Linux/Ubuntu 的
+    rv64gc 用户态启动会通过内核 fstate 路径使用 F/D 寄存器搬运。
+
+config RISCV_EXT_D
+  depends on RISCV_EXT_F
+  bool "Enable D extension (double-precision floating point)"
+  default n
+  help
+    控制 NEMU 是否接受双精度浮点寄存器搬运指令。当前 Linux bring-up
+    至少需要 fld/fsd 以及对应压缩指令恢复用户态浮点上下文。
+
+config RISCV_EXT_B
+  bool "Enable B extension (Zba/Zbb/Zbc/Zbs bit manipulation)"
+  default n
+  help
+    控制 NEMU 是否接受当前 GCC 已拆分命名的 bitmanip 子扩展：
+    Zba/Zbb/Zbc/Zbs。AM guest 编译参数会同步追加
+    _zba_zbb_zbc_zbs，而不是使用 GCC 不接受默认版本的裸 b。
+
+config RISCV_EXT_C
+  bool "Enable C extension (compressed instructions)"
+  default n
+  help
+    控制 NEMU 是否按 16/32 位可变长度取指并执行压缩整数指令；
+    AM guest 编译参数同步追加 c。
+
+config SOC_SIM
+  depends on !RV64
+  bool "Enable ysyxSoC platform simulation map"
+  default n
+  help
+    打开后，NEMU 在 paddr 层直接模拟当前 NPC/ysyxSoC 使用的 SoC 地址图
+    和最小设备窗口。该模型不依赖 CONFIG_DEVICE，可用于构建 NPC
+    difftest reference；默认关闭以免覆盖普通 AM/NEMU legacy 地址图。
+
+config RISCV_CLINT_HOST_TIME
+  depends on RV64
+  bool "Use host monotonic time for RV64 CLINT mtime"
+  default n
+  help
+    让 RV64 CLINT mtime/CSR time 以宿主 monotonic time 为基准前进，WFI
+    只做短 host sleep。Linux/Ubuntu 可获得真实时间语义；AM/指令级实验
+    可继续关闭本选项，保留 instruction-time 语义。
+
+endmenu
+endif
 
 choice
   prompt "Build target"
@@ -137,12 +180,106 @@ config CC_DEBUG
   default n
 
 config CC_ASAN
-  depends on MODE_SYSTEM && !PERFORMANCE
+  depends on !PERFORMANCE
   bool "Enable address sanitizer"
   default n
 endmenu
 
-source "src/cpu/Kconfig"
+menu "CPU Performance Models"
+  depends on TARGET_NATIVE_ELF && ISA_riscv
+
+config INTERPRETER_BASIC_BLOCK
+  depends on PERFORMANCE
+  bool "Enable conservative interpreter basic-block batching"
+  default y
+  help
+    在 Ubuntu/Linux performance 配置下，把普通连续指令按小块执行；
+    中断查询和设备轮询只在块边界发生。遇到控制流、SYSTEM、store/AMO、
+    fence 或压缩控制/存储指令时立即结束当前块。
+
+config INTERPRETER_TB_MAX_INST
+  depends on INTERPRETER_BASIC_BLOCK
+  int "Maximum instructions in one interpreter basic block"
+  range 1 256
+  default 32 if PERFORMANCE
+  default 16
+  help
+    单个解释器 basic block 最多连续退休的 guest 指令数。它只是保守上限，
+    不是 TB chaining 或 JIT。
+
+config INTERPRETER_WIDE_IFETCH
+  depends on INTERPRETER_BASIC_BLOCK && RISCV_EXT_C
+  bool "Enable one-translation wide ifetch for RVC"
+  default y
+  help
+    同页 PMEM host pointer 命中时一次读取 4 字节并判断 16/32 位指令；
+    跨页、MMIO 或 fault 场景仍回退精确路径。
+
+config INTERPRETER_IFETCH_PAGE_CACHE
+  depends on INTERPRETER_WIDE_IFETCH && RV64 && !CACHE && !MTRACE
+  bool "Cache current ifetch host page"
+  default y if PERFORMANCE
+  default n
+  help
+    为 wide ifetch 缓存当前虚拟页对应的 PMEM host page；tag 包含虚拟页、
+    satp 和特权级，sfence.vma、fence.i、TLB flush 和相关写入会使其失效。
+
+config INTERPRETER_INTR_FAST_FLAG
+  depends on INTERPRETER_BASIC_BLOCK && RV64
+  bool "Enable fast interrupt pending guard at TB boundary"
+  default y
+  help
+    在进入完整 isa_query_intr() 前做保守 pending/enable/global 判断；
+    不改变 CLINT、PLIC 或 CSR 语义。
+
+config BPU
+  depends on TARGET_NATIVE_ELF && ISA_riscv && !PERFORMANCE
+  bool "Enable branch prediction model"
+  default y
+  help
+    启用透明的 BPU 统计模型；它只比较预测结果，不改变真实执行 PC。
+
+config BPU_BTB_ENTRIES
+  depends on BPU
+  int "BPU BTB entries"
+  range 1 4096
+  default 128
+
+config BPU_BHT_ENTRIES
+  depends on BPU
+  int "BPU BHT entries"
+  range 1 8192
+  default 256
+
+config BPU_RAS_ENTRIES
+  depends on BPU
+  int "BPU RAS entries"
+  range 1 128
+  default 16
+
+config BPU_COUNTER_BITS
+  depends on BPU
+  int "BPU saturating counter bits"
+  range 1 8
+  default 2
+
+config BPU_COUNTER_INIT
+  depends on BPU
+  int "BPU initial counter value"
+  range 0 255
+  default 1
+  help
+    2-bit 计数器默认值 1 表示 weakly not-taken；该值必须能由计数器位宽表示。
+
+config BPU_GHR_BITS
+  depends on BPU
+  int "BPU global history bits"
+  range 0 16
+  default 0
+  help
+    0 表示 BHT 只按 PC 索引；大于 0 时用 PC 与全局分支历史异或索引。
+
+endmenu
 
 menu "Testing and Debugging"
 
@@ -251,27 +388,14 @@ config MTRACE
   default y
 
 config ITRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable instruction tracer"
   default y
-
-config ITRACE_COND
-  depends on ITRACE
-  # 当前统一用 TRACE_START/TRACE_END 控制日志范围，条件表达式保持内部默认 true，
-  # 避免 menuconfig 里再暴露一层重复的 trace 条件配置。
-  string
-  default "true"
 
 config DTRACE
   depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable device trace (MMIO)"
   default y
-
-config DTRACE_COND
-  depends on DTRACE
-  # 和 ITRACE_COND 一样保留内部默认 true，由全局 TRACE_START/TRACE_END 统一控范围。
-  string
-  default "true"
 
 config ETRACE
   # ETRACE 直接记录 RISC-V trap 入口和 mret 返回，依赖 native 日志文件承载输出。
@@ -286,13 +410,6 @@ config FTRACE
   depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable function call trace (ftrace)"
   default y
-
-config FTRACE_ELF
-  depends on FTRACE
-  string "ELF file for ftrace symbol table"
-  default ""
-  help
-    Path to the ELF binary whose symbol table will be used by ftrace.
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF && !PERFORMANCE
@@ -335,9 +452,256 @@ config DIFFTEST_REF_NAME
   default "none"
 endmenu
 
-if MODE_SYSTEM
-source "src/memory/Kconfig"
-source "src/device/Kconfig"
+menu "Memory Configuration"
+
+config MBASE
+  hex "Memory base address"
+  default 0x0 if ISA_x86
+  default 0x80000000
+
+config MSIZE
+  hex "Memory size"
+  default 0x8000000
+
+config PC_RESET_OFFSET
+  hex "Offset of reset vector from the base of memory"
+  default 0x100000 if ISA_x86
+  default 0
+
+choice
+  prompt "Physical memory definition"
+  default PMEM_GARRAY
+config PMEM_MALLOC
+  bool "Using malloc()"
+config PMEM_GARRAY
+  depends on !TARGET_AM
+  bool "Using global array"
+endchoice
+
+config MEM_RANDOM
+  depends on !DIFFTEST && !TARGET_AM && !PERFORMANCE
+  bool "Initialize the memory with random values"
+  default y
+  help
+    This may help to find undefined behaviors.
+
+config CACHE
+  depends on TARGET_NATIVE_ELF
+  bool "Enable ICache and DCache model"
+  default y
+  help
+    在 vaddr 层启用透明 ICache/DCache 模型；MMIO 仍直通 paddr 层。
+
+config CACHE_STATISTIC
+  depends on CACHE && !PERFORMANCE
+  bool "Print cache access counters"
+  default y
+  help
+    控制退出时是否打印 cache 统计；关闭后仍执行必要的 DCache flush。
+
+config ICACHE_SIZE
+  depends on CACHE
+  int "ICache size in bytes"
+  default 4096
+
+config DCACHE_SIZE
+  depends on CACHE
+  int "DCache size in bytes"
+  default 4096
+
+config CACHE_LINE_SIZE
+  depends on CACHE
+  int "Cache line size in bytes"
+  default 64
+
+endmenu
+
+menuconfig DEVICE
+  depends on !TARGET_SHARE
+  bool "Devices"
+  default n
+  help
+    Provide device support for NEMU.
+
+config DEVICE_UPDATE_CHECK_INTERVAL
+  int "Guest instructions between host device polls"
+  range 1 4096
+  default 512 if PERFORMANCE
+  default 64
+  help
+    device_update_after_inst() 先按 retired 指令数节流，再按宿主时间维持约
+    60Hz 的串口/RTC/VGA/SDL 刷新语义。
+
+if DEVICE
+
+config DEVICE_MAP_LEGACY
+  bool "Use legacy AM device map (0xa0000000 family)"
+  default n
+  help
+    默认使用 include/device/device_address.h 的统一 Linux/SoC 地址图；
+    仅封存的 RV32 旧目标需要切回 legacy AM 图。
+
+menuconfig HAS_SERIAL
+  bool "Enable serial"
+  default y
+
+if HAS_SERIAL
+config SERIAL_PORT
+  depends on ISA_x86
+  hex "Port address of the serial controller"
+  default 0x3f8
+
+config SERIAL_INPUT_FIFO
+  depends on !TARGET_AM
+  bool "Enable input FIFO with /tmp/nemu.serial"
+  default n
+
+config SERIAL_INPUT_STDIN
+  depends on !TARGET_AM
+  bool "Attach host stdin to serial RX"
+  default y if BATCH_MODE
+  default n
+
+config SERIAL_INPUT_HOST_POLL_INTERVAL
+  depends on SERIAL_INPUT_STDIN || SERIAL_INPUT_FIFO
+  int "Host device ticks between serial input polls"
+  range 1 64
+  default 4 if PERFORMANCE
+  default 1
+  help
+    guest 主动读取 UART 时仍立即轮询宿主输入；该值只控制空闲 host tick。
+endif
+
+menuconfig HAS_TIMER
+  bool "Enable timer"
+  default n if ISA64 && !TARGET_AM
+  default y
+
+if HAS_TIMER
+config RTC_PORT
+  depends on ISA_x86
+  hex "Port address of the timer"
+  default 0x48
+endif
+
+menuconfig HAS_KEYBOARD
+  bool "Enable keyboard"
+  default n if ISA64 && !TARGET_AM
+  default y
+
+if HAS_KEYBOARD
+config I8042_DATA_PORT
+  depends on ISA_x86
+  hex "Port address of the keyboard controller"
+  default 0x60
+endif
+
+menuconfig HAS_VGA
+  bool "Enable VGA"
+  default n if ISA64 && !TARGET_AM
+  default y
+
+if HAS_VGA
+config VGA_CTL_PORT
+  depends on ISA_x86
+  hex "Port address of the VGA controller"
+  default 0x100
+
+config VGA_SHOW_SCREEN
+  bool "Enable SDL SCREEN"
+  default y
+
+choice
+  prompt "Screen Size"
+  default VGA_SIZE_400x300
+config VGA_SIZE_400x300
+  bool "400 x 300"
+config VGA_SIZE_800x600
+  bool "800 x 600"
+endchoice
+endif
+
+if !TARGET_AM
+menuconfig HAS_AUDIO
+  bool "Enable audio"
+  default n if ISA64
+  default y
+
+if HAS_AUDIO
+config SB_SIZE
+  hex "Size of the audio stream buffer"
+  default 0x10000
+
+config AUDIO_CTL_PORT
+  depends on ISA_x86
+  hex "Port address of the audio controller"
+  default 0x200
+endif
+
+menuconfig HAS_DISK
+  bool "Enable disk"
+  default y
+
+if HAS_DISK
+config DISK_CTL_PORT
+  depends on ISA_x86
+  hex "Port address of the disk controller"
+  default 0x300
+
+config DISK_IMG_PATH
+  string "The path of disk image"
+  default ""
+
+config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
+  bool "Skip empty virtio-blk async completion polls"
+  default y if PERFORMANCE
+  default n
+  help
+    空闲时用原子 pending flag 跳过 completion mutex；有完成项时仍由主线程
+    写回 guest PMEM/used ring 并触发 PLIC IRQ。
+endif
+
+menuconfig HAS_VIRTIO_RNG
+  bool "Enable virtio-mmio random number generator"
+  default n
+
+menuconfig HAS_VIRTIO_NET
+  bool "Enable virtio-mmio network device"
+  default n
+
+menuconfig HAS_GOLDFISH_RTC
+  bool "Enable goldfish RTC"
+  default n
+
+menuconfig HAS_SYSCON_RESET
+  bool "Enable syscon reset/poweroff"
+  default n
+
+if HAS_SYSCON_RESET
+config SYSCON_POWEROFF_VALUE
+  hex "Poweroff value"
+  default 0x5555
+
+config SYSCON_REBOOT_VALUE
+  hex "Reboot value"
+  default 0x7777
+endif
+
+menuconfig HAS_SDCARD
+  bool "Enable sdcard"
+  default n
+
+if HAS_SDCARD
+config SDCARD_CTL_MMIO
+  hex "MMIO address of the sdcard controller"
+  default 0xa3000000
+
+config SDCARD_IMG_PATH
+  string "The path of sdcard image"
+  default ""
+endif
+endif
+
 endif
 
 

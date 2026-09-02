@@ -47,7 +47,7 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len);
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data);
 // DMA 一致读: 经 dcache peek 视图读 guest 内存(dirty 未回写也拿到最新值)。
 // 设备(virtio ring/描述符/数据段)读 guest 内存一律走这两个入口, 禁止 paddr_read/裸 memcpy。
-word_t paddr_dma_read_value(paddr_t addr, int len);
+uint64_t paddr_dma_read_value(paddr_t addr, int len);
 bool paddr_dma_read(paddr_t addr, void *buf, uint32_t len);
 extern bool paddr_write_trace_is_enabled;
 void paddr_write_trace_arm_range(paddr_t start, paddr_t end,

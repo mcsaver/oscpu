@@ -26,7 +26,8 @@ typedef unsigned int uintptr_t;
 int main() {
   uintptr_t out;
 
-  asm volatile("bseti %0, %1, 5" : "=r"(out) : "r"(WORD_C(0x12345678)));
+  /* bit5 原本为零，确保 bseti 的正向断言能观察到真实改位。 */
+  asm volatile("bseti %0, %1, 5" : "=r"(out) : "r"(WORD_C(0x12345658)));
   check(out == WORD_C(0x12345678));
   asm volatile("bclri %0, %1, 4" : "=r"(out) : "r"(WORD_C(0x12345678)));
   check(out == WORD_C(0x12345668));
@@ -42,6 +43,8 @@ int main() {
   check(out == WORD_C(0x00000001));
 
 #ifdef __ISA_RISCV64__
+  CHECK1("clz", 0ul, 64ul);
+  CHECK1("ctz", 0ul, 64ul);
   CHECK1("clz", 0x00100000ul, 0x0000002bul);
   CHECK1("ctz", 0x00100000ul, 0x00000014ul);
   CHECK1("cpop", 0xf0f10001ul, 0x0000000aul);
@@ -51,6 +54,8 @@ int main() {
   CHECK1("rev8", 0x12345678ul, 0x7856341200000000ul);
   CHECK1("zext.h", 0xffffabcdul, 0x0000abcdul);
 #else
+  CHECK1("clz", 0u, 32u);
+  CHECK1("ctz", 0u, 32u);
   CHECK1("clz", 0x00100000u, 0x0000000bu);
   CHECK1("ctz", 0x00100000u, 0x00000014u);
   CHECK1("cpop", 0xf0f10001u, 0x0000000au);
@@ -97,7 +102,17 @@ int main() {
   CHECK2("clmul", 0x12345678u, 0x10203040u, 0x0dbd1e00u);
   CHECK2("clmulr", 0x12345678u, 0x10203040u, 0x02420118u);
   CHECK2("clmulh", 0x12345678u, 0x10203040u, 0x0121008cu);
+
+  /* RV32 寄存器位号只取低五位，37/35/34 分别等价于 5/3/2。 */
+  CHECK2("rol", 0x12345678u, 37u, 0x468acf02u);
+  CHECK2("ror", 0x12345678u, 37u, 0xc091a2b3u);
+  CHECK2("bset", 0x12345678u, 33u, 0x1234567au);
+  CHECK2("bclr", 0x12345678u, 35u, 0x12345670u);
+  CHECK2("bext", 0x12345678u, 35u, 0x00000001u);
+  CHECK2("binv", 0x12345678u, 34u, 0x1234567cu);
 #endif
+  CHECK2("rol", WORD_C(0x12345678), WORD_C(0), WORD_C(0x12345678));
+  CHECK2("ror", WORD_C(0x12345678), WORD_C(0), WORD_C(0x12345678));
   CHECK2("bset", WORD_C(0x12345678), WORD_C(1), WORD_C(0x1234567a));
   CHECK2("bclr", WORD_C(0x12345678), WORD_C(3), WORD_C(0x12345670));
   CHECK2("bext", WORD_C(0x12345678), WORD_C(3), WORD_C(0x00000001));

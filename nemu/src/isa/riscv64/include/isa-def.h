@@ -17,6 +17,7 @@
 #define __ISA_RISCV64_H__
 
 #include <common.h>
+#include <isa/riscv/pmp-encoding.h>
 
 #define PRIV_U 0u
 #define PRIV_S 1u
@@ -169,16 +170,6 @@
 #define MCOUNTINHIBIT_CY 0x00000001u
 #define MCOUNTINHIBIT_IR 0x00000004u
 
-#define RISCV64_PMP_ENTRY_COUNT 16u
-#define PMP_CFG_R 0x01u
-#define PMP_CFG_W 0x02u
-#define PMP_CFG_X 0x04u
-#define PMP_CFG_A_MASK 0x18u
-#define PMP_CFG_A_OFF 0x00u
-#define PMP_CFG_A_TOR 0x08u
-#define PMP_CFG_A_NA4 0x10u
-#define PMP_CFG_A_NAPOT 0x18u
-#define PMP_CFG_L 0x80u
 #define PMPADDR_MASK ((word_t)((1ull << 54) - 1))
 
 //mtvec：trap入口地址，发生异常或中断后，CPU最终要跳到哪里执行，故障处理程序的起点
@@ -194,8 +185,8 @@ typedef struct {
   word_t medeleg, mideleg, satp;
   word_t menvcfg;
   word_t mcounteren, scounteren, mcountinhibit;
-  uint8_t pmpcfg[RISCV64_PMP_ENTRY_COUNT];
-  word_t pmpaddr[RISCV64_PMP_ENTRY_COUNT];
+  uint8_t pmpcfg[RISCV_PMP_ENTRY_COUNT];
+  word_t pmpaddr[RISCV_PMP_ENTRY_COUNT];
   bool pmp_active;
   uint64_t mcycle, minstret;
   uint8_t fflags, frm;

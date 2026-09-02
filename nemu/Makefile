@@ -37,12 +37,14 @@ remove_quote = $(patsubst "%",%,$(1))
 
 ##在Makefile中，自定义宏（函数）的调用和C语言不同
 ##Makefile使用$(call 宏名，参数1， 参数2，...)的形式来调用自定义宏
-##?=表示如果没有被赋值过，则赋值为右侧内容
-##CONFIG_ISA="riscv32"，CONFIG_ENGINE="interpreter"
+##CONFIG_ISA="riscv32"，执行引擎固定为 interpreter
 ##NAME=riscv32-nemu-interpreter
 # Extract variabls from menuconfig
 GUEST_ISA ?= $(call remove_quote,$(CONFIG_ISA))
-ENGINE ?= $(call remove_quote,$(CONFIG_ENGINE))
+# NEMU 只有 interpreter 这一种执行引擎；不允许环境或命令行把
+# 产物改名成一个实际不存在的其他 engine，否则 Linux 入口可能继续
+# 运行 build/riscv64-nemu-interpreter 中的旧二进制。
+override ENGINE := interpreter
 NAME    = $(GUEST_ISA)-nemu-$(ENGINE)
 
 ##$(shell ...)这是makefile的内置函数，用于执行括号内的shell命令，并把输出结果作为字符串返回
@@ -82,21 +84,14 @@ CFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
 ##如果启用了AddressSanitizer，追加-fsanitize=addresss
 CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,)
 
-##追踪相关参数
-##作用：为条件指令追踪（ITRACE）定义宏ITRACE_COND，值为CONFIG_ITRACE_COND（去引号），如果没定义则为true
-##例子：CFLAGS_TRACE += -DITRACE_COND=true
-CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
-##作用：为设备追踪（DTRACE）定义宏DTRACE_COND，值为CONFIG_DTRACE_COND（去引号），如果没定义则为true
-CFLAGS_TRACE += -DDTRACE_COND=$(if $(CONFIG_DTRACE_COND),$(call remove_quote,$(CONFIG_DTRACE_COND)),true)
 ##拼接最终的C编译参数，并定义当前目标结构的宏
 ##CFLAGS +=....：把右侧内容追加到CFLAGS变量中，CFLAGS是GCC/Clang等C编译器的标准参数变量
 ##$(FLAGS_BUILD)：包含了所有构建相关的编译参数，比如优化选项（如-o2)、调试选项（如-Og -ggdb3）、LTO（如-flto)、ASAN（如-fsanitize=address)等
-##$(CFLAGS_TRACE)：包含了与指令追踪相关的参数，比如-DITRACE_COND=xxx，用于条件性地开启指令追踪功能
 ##-D__GUEST_ISA__=$(GUEST_ISA)，通过-D选项定义一个宏__GUEST_ISA__，其值为当前配置的架构名（如RISCV32,X86等等）
 ##这样在C代码中可以通过#ifdef __GUEST_ISA__或#if_GUEST_ISA__==riscv32进行条件编译，实现多架构适配
 ##-D是GCC/Clang等C编译器的宏定义参数，用于在编译时定义一个宏
 ##注：-D和后面的宏名、等号、宏值之间不能又空格，必须连携，这样才会被识别为宏
-CFLAGS  += $(CFLAGS_BUILD) $(CFLAGS_TRACE) -D__GUEST_ISA__=$(GUEST_ISA)
+CFLAGS  += $(CFLAGS_BUILD) -D__GUEST_ISA__=$(GUEST_ISA)
 ##LDFLAGS是Makefile中用于指定链接器参数的标准变量，最终会传递给链接器(如ld或gcc的链接阶段)
 ##CFAGS_BUILD变量中包含了所有和构建相关的编译参数，比如优化选项（如-O2)、LTO（-flto）、调试选项（如-Og -ggdb3）、ASAN（如-fsanitize=addresss)等
 ##这行代码的作用是：把所有构建相关的编译参数也追加到链接参数中，保证链接阶段和编译阶段使用一致的优化、调试等选项，避免因为参数不一致导致的链接作物或运行时出问题

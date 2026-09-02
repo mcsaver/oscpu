@@ -48,8 +48,12 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   }
 }
 
-#if defined(CONFIG_ISA_riscv)
-// 全状态 difftest 扩展：旁路通道拷 CSR + priv(不动 regcpy 的 gpr+pc memcpy, 分阶段友好)。
+#if defined(CONFIG_ISA_riscv) && defined(CONFIG_RV64)
+/*
+ * RV64 NPC 的全状态 difftest 扩展：旁路导出 CSR/priv 和 FPR。
+ * 该 ABI 的字段约定属于 RV64 NPC，不是通用 RISC-V regcpy 接口；
+ * RV32 reference 因此不导出这两个可选符号，也不伪造空 snapshot。
+ */
 __EXPORT void difftest_csr_snapshot(void *buf) {
   isa_difftest_csr_snapshot((uint64_t *)buf);
 }

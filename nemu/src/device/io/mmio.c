@@ -117,7 +117,7 @@ word_t mmio_read(paddr_t addr, int len) {
   word_t map_result = map_read(addr, len, map_fetch_reg);
 
 #ifdef CONFIG_DTRACE
-  if (DTRACE_COND) {
+  if (NEMU_DTRACE_COND) {
     log_write("[Dtrace] MMIO R %-8s addr=" FMT_PADDR
             " off=" FMT_PADDR " len=%d val=" FMT_WORD
             " pc=" FMT_WORD "\n",
@@ -140,7 +140,7 @@ void mmio_write(paddr_t addr, int len, word_t data) {
   map_write(addr, len, data, map_fetch_reg);
 
 #ifdef CONFIG_DTRACE
-  if (DTRACE_COND) {
+  if (NEMU_DTRACE_COND) {
     log_write("[Dtrace] MMIO W %-8s addr=" FMT_PADDR
             " off=" FMT_PADDR " len=%d val=" FMT_WORD
             " pc=" FMT_WORD "\n",

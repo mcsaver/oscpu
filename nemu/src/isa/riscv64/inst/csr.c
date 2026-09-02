@@ -3,6 +3,8 @@
 /* CSR 执行基础设施集中在这里。SYSTEM 分发只决定“是哪类系统指令”，
  * CSR 的读改写语义、misa 配置回显和 mepc 对齐规则都不散到主 switch 里。 */
 #include <utils/profile.h>
+#include <isa/riscv/pmp.h>
+#include "../local-include/privileged.h"
 
 static bool csr_last_sstatus_write_valid = false;
 static bool csr_last_sstatus_write_changed = true;
@@ -52,10 +54,8 @@ static inline word_t csr_misa_value() {
 #ifdef CONFIG_RISCV_EXT_C
   misa |= (word_t)1 << ('C' - 'A');
 #endif
-#ifdef CONFIG_MODE_SYSTEM
   misa |= (word_t)1 << ('S' - 'A');
   misa |= (word_t)1 << ('U' - 'A');
-#endif
   return misa;
 }
 
@@ -195,19 +195,70 @@ static inline bool csr_pmpcfg_base(uint32_t csr, uint32_t *base) {
   return false;
 }
 
-static inline uint8_t csr_sanitize_pmpcfg(uint8_t cfg) {
-  cfg &= PMP_CFG_R | PMP_CFG_W | PMP_CFG_X | PMP_CFG_A_MASK | PMP_CFG_L;
-  if ((cfg & PMP_CFG_W) && !(cfg & PMP_CFG_R)) {
-    cfg &= ~PMP_CFG_W;
+static inline bool csr_is_implemented(uint32_t csr) {
+  uint32_t pmpcfg_base = 0;
+  if (csr_pmpcfg_base(csr, &pmpcfg_base)) return true;
+  if (csr >= CSR_PMPADDR0 && csr <= CSR_PMPADDR15) return true;
+
+  switch (csr) {
+    case CSR_MVENDORID:
+    case CSR_MARCHID:
+    case CSR_MIMPID:
+#ifdef CONFIG_RISCV_EXT_F
+    case CSR_FFLAGS:
+    case CSR_FRM:
+    case CSR_FCSR:
+#endif
+    case CSR_SSTATUS:
+    case CSR_SIE:
+    case CSR_STVEC:
+    case CSR_SCOUNTEREN:
+    case CSR_SSCRATCH:
+    case CSR_SEPC:
+    case CSR_SCAUSE:
+    case CSR_STVAL:
+    case CSR_SIP:
+    case CSR_SATP:
+    case CSR_MSTATUS:
+    case CSR_MEDELEG:
+    case CSR_MIDELEG:
+    case CSR_MIE:
+    case CSR_MTVEC:
+    case CSR_MCOUNTEREN:
+    case CSR_MENVCFG:
+    case CSR_MCOUNTINHIBIT:
+    case CSR_MSCRATCH:
+    case CSR_MEPC:
+    case CSR_MCAUSE:
+    case CSR_MTVAL:
+    case CSR_MIP:
+    case CSR_MCYCLE:
+    case CSR_MINSTRET:
+    case CSR_CYCLE:
+    case CSR_TIME:
+    case CSR_INSTRET:
+    case CSR_MISA:
+    case CSR_MHARTID:
+    case CSR_TSELECT:
+    case CSR_TDATA1:
+    case CSR_TDATA2:
+    case CSR_TCONTROL:
+      return true;
+    default:
+      return false;
   }
-  return cfg;
+}
+
+static inline uint8_t csr_sanitize_pmpcfg(uint8_t cfg) {
+  return riscv_pmp_sanitize_config(cfg);
 }
 
 static inline bool csr_pmpaddr_write_locked(uint32_t index) {
-  if (cpu.csr.pmpcfg[index] & PMP_CFG_L) return true;
-  if (index + 1 < RISCV64_PMP_ENTRY_COUNT &&
-      (cpu.csr.pmpcfg[index + 1] & PMP_CFG_L) &&
-      ((cpu.csr.pmpcfg[index + 1] & PMP_CFG_A_MASK) == PMP_CFG_A_TOR)) {
+  if (cpu.csr.pmpcfg[index] & RISCV_PMP_LOCKED) return true;
+  if (index + 1 < RISCV_PMP_ENTRY_COUNT &&
+      (cpu.csr.pmpcfg[index + 1] & RISCV_PMP_LOCKED) &&
+      riscv_pmp_address_matching(cpu.csr.pmpcfg[index + 1]) ==
+          RISCV_PMP_TOR) {
     return true;
   }
   return false;
@@ -215,8 +266,8 @@ static inline bool csr_pmpaddr_write_locked(uint32_t index) {
 
 static inline void csr_update_pmp_active(void) {
   cpu.csr.pmp_active = false;
-  for (uint32_t i = 0; i < RISCV64_PMP_ENTRY_COUNT; i++) {
-    if ((cpu.csr.pmpcfg[i] & PMP_CFG_A_MASK) != PMP_CFG_A_OFF) {
+  for (uint32_t i = 0; i < RISCV_PMP_ENTRY_COUNT; i++) {
+    if (riscv_pmp_address_matching(cpu.csr.pmpcfg[i]) != RISCV_PMP_OFF) {
       cpu.csr.pmp_active = true;
       return;
     }
@@ -235,7 +286,7 @@ static inline void csr_write_pmpcfg(uint32_t base, word_t value) {
   bool changed = false;
   for (uint32_t i = 0; i < 8; i++) {
     uint32_t index = base + i;
-    if (cpu.csr.pmpcfg[index] & PMP_CFG_L) continue;
+    if (cpu.csr.pmpcfg[index] & RISCV_PMP_LOCKED) continue;
     uint8_t next = csr_sanitize_pmpcfg((uint8_t)(value >> (i * 8)));
     if (cpu.csr.pmpcfg[index] != next) {
       cpu.csr.pmpcfg[index] = next;
@@ -377,7 +428,7 @@ static inline bool csr_write(uint32_t csr, word_t value) {
       return true;
     }
     case CSR_STVEC:
-      cpu.csr.stvec = value & ~(word_t)0x3;
+      cpu.csr.stvec = riscv_tvec_warl_value(value);
       CSR_DEBUG_LOG("CSR write stvec=" FMT_WORD " raw=" FMT_WORD " pc=" FMT_WORD
           " priv=%u", cpu.csr.stvec, value, cpu.pc, cpu.priv);
       return true;
@@ -416,7 +467,7 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     case CSR_MEDELEG:  cpu.csr.medeleg = value & MEDELEG_WRITABLE_MASK; return true;
     case CSR_MIDELEG:  cpu.csr.mideleg = value & MIDELEG_WRITABLE_MASK; return true;
     case CSR_MIE:      isa_riscv64_write_mie(value); return true;
-    case CSR_MTVEC:    cpu.csr.mtvec = value & ~(word_t)0x3; return true;
+    case CSR_MTVEC:    cpu.csr.mtvec = riscv_tvec_warl_value(value); return true;
     case CSR_MCOUNTEREN: cpu.csr.mcounteren = value & COUNTEREN_MASK; return true;
     case CSR_MENVCFG:  cpu.csr.menvcfg = value & MENVCFG_WRITABLE_MASK; return true;
     case CSR_MCOUNTINHIBIT: cpu.csr.mcountinhibit = value & (MCOUNTINHIBIT_CY | MCOUNTINHIBIT_IR); return true;
@@ -474,7 +525,7 @@ static inline bool csr_write_masked(uint32_t csr, word_t value, word_t write_mas
   return csr_write(csr, value);
 }
 
-static inline uint8_t csr_mpp_to_priv(word_t status) {
+static inline uint8_t riscv_mstatus_previous_privilege(word_t status) {
   switch (status & MSTATUS_MPP_MASK) {
     case MSTATUS_MPP_S: return PRIV_S;
     case MSTATUS_MPP_M: return PRIV_M;
@@ -482,16 +533,8 @@ static inline uint8_t csr_mpp_to_priv(word_t status) {
   }
 }
 
-static inline word_t csr_encode_mpp(uint8_t priv) {
-  switch (priv) {
-    case PRIV_S: return MSTATUS_MPP_S;
-    case PRIV_M: return MSTATUS_MPP_M;
-    default: return 0;
-  }
-}
-
 static inline bool ebreak_should_raise_breakpoint_trap(void) {
-#if defined(CONFIG_MODE_SYSTEM) && !defined(CONFIG_TARGET_AM)
+#ifndef CONFIG_TARGET_AM
   // Linux/system 模式按官方 ISA 把 ebreak 当 breakpoint trap(ACT4/semihost 等依赖);
   // AM 系统测试统一用设备树 syscon 退出, 不依赖 ebreak 停机。
   return true;
@@ -500,71 +543,166 @@ static inline bool ebreak_should_raise_breakpoint_trap(void) {
 #endif
 }
 
-static inline void csr_mret(Decode *s) {
-  uint8_t next_priv = csr_mpp_to_priv(cpu.csr.mstatus);
-  word_t mstatus = cpu.csr.mstatus;
-  if (mstatus & MSTATUS_MPIE) cpu.csr.mstatus |= MSTATUS_MIE;
-  else cpu.csr.mstatus &= ~MSTATUS_MIE;
-  cpu.csr.mstatus |= MSTATUS_MPIE;
-  cpu.csr.mstatus &= ~MSTATUS_MPP_MASK;
-  if (next_priv != PRIV_M) cpu.csr.mstatus &= ~MSTATUS_MPRV;
-  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
-  cpu.priv = next_priv;
-  s->dnpc = cpu.csr.mepc;
-  etrace_log_mret(s->pc, s->dnpc, cpu.csr.mstatus);
-}
-
-static inline void csr_sret(Decode *s) {
-  uint8_t next_priv = (cpu.csr.mstatus & MSTATUS_SPP) ? PRIV_S : PRIV_U;
-  word_t mstatus = cpu.csr.mstatus;
-  if (mstatus & MSTATUS_SPIE) cpu.csr.mstatus |= MSTATUS_SIE;
-  else cpu.csr.mstatus &= ~MSTATUS_SIE;
-  cpu.csr.mstatus |= MSTATUS_SPIE;
-  cpu.csr.mstatus &= ~MSTATUS_SPP;
-  if (next_priv != PRIV_M) cpu.csr.mstatus &= ~MSTATUS_MPRV;
-  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
-  cpu.priv = next_priv;
-  s->dnpc = cpu.csr.sepc;
-  syscall_debug_log_return(s->dnpc);
-}
-
-static inline bool exec_csr(uint32_t inst, uint32_t funct3, int rd, int rs1) {
-  uint32_t csr = BITS(inst, 31, 20);
-  word_t old_val = 0;
-  word_t new_val = 0;
-  word_t write_mask = 0;
-  bool need_write = false;
-
+static inline void csr_reset_sstatus_write_observer(void) {
   csr_last_sstatus_write_valid = false;
   csr_last_sstatus_write_changed = true;
   csr_last_sstatus_write_only_cleared_sie = false;
   csr_last_sstatus_write_old = 0;
   csr_last_sstatus_write_new = 0;
   csr_last_sstatus_write_delta = 0;
+}
 
-  if (cpu.priv < BITS(csr, 9, 8)) return false;
-  // TVM: S 态且 mstatus.TVM=1 时访问 satp 触发 illegal instruction(读写皆然); M 态不受影响。
-  if (csr == CSR_SATP && cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
-  if (!csr_counter_allowed(csr)) return false;
-  if (!csr_read(csr, &old_val)) return false;
+static inline bool riscv_csr_access_is_legal(
+    const RiscvCsrInstruction *instruction) {
+  const uint32_t address = instruction->address;
 
-  switch (funct3) {
-    case 0x1:
-      new_val = R(rs1); write_mask = ~(word_t)0; need_write = true; break;                 // csrrw
-    case 0x2:
-      write_mask = R(rs1); new_val = old_val | write_mask; need_write = (rs1 != 0); break;  // csrrs
-    case 0x3:
-      write_mask = R(rs1); new_val = old_val & ~write_mask; need_write = (rs1 != 0); break; // csrrc
-    case 0x5:
-      new_val = rs1; write_mask = ~(word_t)0; need_write = true; break;                    // csrrwi
-    case 0x6:
-      write_mask = (word_t)rs1; new_val = old_val | write_mask; need_write = (rs1 != 0); break;
-    case 0x7:
-      write_mask = (word_t)rs1; new_val = old_val & ~write_mask; need_write = (rs1 != 0); break;
-    default: return false;
+  if (!csr_is_implemented(address)) return false;
+  if (cpu.priv < BITS(address, 9, 8)) return false;
+
+  /* TVM makes every S-mode access to satp illegal, including a suppressed
+   * read or write. M-mode is not constrained by TVM. */
+  if (address == CSR_SATP && cpu.priv == PRIV_S &&
+      (cpu.csr.mstatus & MSTATUS_TVM)) {
+    return false;
+  }
+  if (!csr_counter_allowed(address)) return false;
+  if (instruction->access.writes_csr &&
+      riscv_csr_address_is_read_only(address)) {
+    return false;
   }
 
-  if (need_write && !csr_write_masked(csr, new_val, write_mask)) return false;
-  R(rd) = old_val;
+#ifdef CONFIG_RISCV_EXT_F
+  if ((address == CSR_FFLAGS || address == CSR_FRM || address == CSR_FCSR) &&
+      !fp_state_enabled()) {
+    return false;
+  }
+#endif
+  return true;
+}
+
+static inline bool riscv_csr_capture_source(
+    const RiscvCsrInstruction *instruction, word_t *source) {
+  switch (instruction->source_kind) {
+    case RISCV_CSR_SOURCE_REGISTER:
+      *source = R(instruction->source_field);
+      return true;
+    case RISCV_CSR_SOURCE_IMMEDIATE:
+      *source = instruction->source_field;
+      return true;
+    default:
+      return false;
+  }
+}
+
+static inline bool riscv_csr_calculate_write(
+    const RiscvCsrInstruction *instruction, word_t source, word_t old_value,
+    word_t *new_value, word_t *write_mask) {
+  switch (instruction->access.operation) {
+    case RISCV_CSR_OPERATION_WRITE:
+      *new_value = source;
+      *write_mask = ~(word_t)0;
+      return true;
+    case RISCV_CSR_OPERATION_SET_BITS:
+      *new_value = old_value | source;
+      *write_mask = source;
+      return true;
+    case RISCV_CSR_OPERATION_CLEAR_BITS:
+      *new_value = old_value & ~source;
+      *write_mask = source;
+      return true;
+    default:
+      return false;
+  }
+}
+
+/*
+ * Zicsr architectural order:
+ *   check access -> capture source/old value -> compute modification
+ *   -> commit CSR -> commit rd.
+ *
+ * source_field is the encoded rs1/zimm field. Therefore rs1=x0 and zimm=0
+ * suppress CSRRS/CSRRC writes even if x0 happens to contain a stale host-side
+ * value, while rd=x0 suppresses only the CSRRW/CSRRWI CSR read.
+ */
+static inline bool riscv_execute_csr_instruction(
+    const RiscvCsrInstruction *instruction) {
+  word_t source = 0;
+  word_t old_value = 0;
+  word_t new_value = 0;
+  word_t write_mask = 0;
+
+  csr_reset_sstatus_write_observer();
+  if (!riscv_csr_access_is_legal(instruction)) return false;
+
+  if (!riscv_csr_capture_source(instruction, &source)) return false;
+  if (instruction->access.reads_csr &&
+      !csr_read(instruction->address, &old_value)) {
+    return false;
+  }
+  if (!riscv_csr_calculate_write(
+          instruction, source, old_value, &new_value, &write_mask)) {
+    return false;
+  }
+
+  if (instruction->access.writes_csr &&
+      !csr_write_masked(instruction->address, new_value, write_mask)) {
+    return false;
+  }
+  if (instruction->destination_register != 0) {
+    R(instruction->destination_register) = old_value;
+  }
+  return true;
+}
+
+/* MRET legality and the full xRET state transition deliberately live together. */
+static inline bool riscv_execute_machine_return(Decode *state) {
+  if (cpu.priv != PRIV_M) return false;
+
+  const word_t previous_status = cpu.csr.mstatus;
+  const uint8_t return_privilege =
+      riscv_mstatus_previous_privilege(previous_status);
+  word_t returned_status = previous_status;
+
+  /* MIE <- MPIE; MPIE <- 1; MPP <- least-supported privilege (U). */
+  if (previous_status & MSTATUS_MPIE) returned_status |= MSTATUS_MIE;
+  else returned_status &= ~MSTATUS_MIE;
+  returned_status |= MSTATUS_MPIE;
+  returned_status &= ~MSTATUS_MPP_MASK;
+
+  /* Leaving M-mode also clears MPRV. SXL/UXL are fixed WARL fields here. */
+  if (return_privilege != PRIV_M) returned_status &= ~MSTATUS_MPRV;
+  returned_status |= MSTATUS_SXL_UXL;
+
+  cpu.csr.mstatus = returned_status;
+  cpu.priv = return_privilege;
+  state->dnpc = cpu.csr.mepc;
+  etrace_log_mret(state->pc, state->dnpc, returned_status);
+  return true;
+}
+
+/* SRET legality and the full xRET state transition deliberately live together. */
+static inline bool riscv_execute_supervisor_return(Decode *state) {
+  if (cpu.priv < PRIV_S) return false;
+  if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TSR)) return false;
+
+  const word_t previous_status = cpu.csr.mstatus;
+  const uint8_t return_privilege =
+      (previous_status & MSTATUS_SPP) ? PRIV_S : PRIV_U;
+  word_t returned_status = previous_status;
+
+  /* SIE <- SPIE; SPIE <- 1; SPP <- least-supported privilege (U). */
+  if (previous_status & MSTATUS_SPIE) returned_status |= MSTATUS_SIE;
+  else returned_status &= ~MSTATUS_SIE;
+  returned_status |= MSTATUS_SPIE;
+  returned_status &= ~MSTATUS_SPP;
+
+  /* SRET always returns below M-mode and therefore clears MPRV. */
+  returned_status &= ~MSTATUS_MPRV;
+  returned_status |= MSTATUS_SXL_UXL;
+
+  cpu.csr.mstatus = returned_status;
+  cpu.priv = return_privilege;
+  state->dnpc = cpu.csr.sepc;
+  syscall_debug_log_return(state->dnpc);
   return true;
 }

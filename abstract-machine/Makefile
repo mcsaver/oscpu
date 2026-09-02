@@ -22,7 +22,7 @@ endif
 
 ##若不是clean/clean-all/html就执行后面的检查块
 ### Override checks when `make clean/clean-all/html`
-ifeq ($(findstring $(MAKECMDGOALS),clean|clean-all|html),)
+ifneq ($(filter-out clean clean-all html,$(MAKECMDGOALS)),)
 
 ##打印构建的信息
 ### Print build info message

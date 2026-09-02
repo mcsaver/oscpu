@@ -26,6 +26,7 @@ uint64_t isa_riscv32_clint_timebase_hz(void);
 uint64_t isa_riscv32_mtime_value(void);
 const char *isa_riscv32_clint_time_source(void);
 bool isa_riscv32_plic_in_range(paddr_t addr);
+bool isa_riscv32_plic_access_valid(paddr_t addr, int len);
 word_t isa_riscv32_plic_read(paddr_t addr, int len);
 void isa_riscv32_plic_write(paddr_t addr, int len, word_t data);
 void isa_riscv32_plic_reset(void);
@@ -59,6 +60,7 @@ void isa_riscv32_raise_timer_intr(void);
 #define isa_riscv_mtime_value isa_riscv32_mtime_value
 #define isa_riscv_clint_time_source isa_riscv32_clint_time_source
 #define isa_riscv_plic_in_range isa_riscv32_plic_in_range
+#define isa_riscv_plic_access_valid isa_riscv32_plic_access_valid
 #define isa_riscv_plic_read isa_riscv32_plic_read
 #define isa_riscv_plic_write isa_riscv32_plic_write
 #define isa_riscv_plic_reset isa_riscv32_plic_reset

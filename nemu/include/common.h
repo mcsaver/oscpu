@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include <generated/autoconf.h>
+#include <nemu-config.h>
 #include <macro.h>
 
 #ifdef CONFIG_TARGET_AM

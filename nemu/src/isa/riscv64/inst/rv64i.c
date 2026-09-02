@@ -132,6 +132,37 @@ static inline bool exec_rv64i_branch(Decode *s, uint32_t funct3, word_t src1, wo
   return true;
 }
 
+typedef enum {
+  RV64I_JUMP_JAL,
+  RV64I_JUMP_JALR,
+} Rv64iJumpKind;
+
+/*
+ * JAL/JALR 共用一个体系结构提交点：目标违反 IALIGN 时，先触发
+ * Instruction Address Misaligned 异常，不提交 link register、dnpc 或 ftrace。
+ * 普通译码和 decode-cache 命中都走这里，二者因而具有相同的跳转语义。
+ */
+static inline void exec_rv64i_jump(Decode *s, Rv64iJumpKind kind,
+                                   int rd, int rs1, word_t src1,
+                                   word_t immediate) {
+  word_t target = kind == RV64I_JUMP_JALR
+                      ? (src1 + immediate) & ~(word_t)1
+                      : s->pc + immediate;
+  if (!rv_instruction_target_valid(target)) return;
+
+  R(rd) = s->pc + 4;
+  s->dnpc = target;
+
+  (void)rs1;
+  IFDEF(CONFIG_FTRACE, {
+    if (kind == RV64I_JUMP_JALR && rd == 0 && rs1 == 1) {
+      ftrace_log(-1, s->pc, s->dnpc);
+    } else if (rd == 1 || rd == 5) {
+      ftrace_log(1, s->pc, s->dnpc);
+    }
+  })
+}
+
 static inline bool exec_rv64i_op(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
   switch (OP_KEY(funct3, funct7)) {
     case OP_KEY(0x0, 0x00): R(rd) = src1 + src2; return true;                             // add
@@ -187,68 +218,5 @@ static inline bool exec_rv64i_op_32(uint32_t funct3, uint32_t funct7, int rd, wo
     case OP_KEY(0x5, 0x00): R(rd) = sext32(a >> shamt); return true; // srlw
     case OP_KEY(0x5, 0x20): R(rd) = sext32((uint32_t)((int32_t)a >> shamt)); return true; // sraw
     default: return false;
-  }
-}
-
-static inline bool exec_system(Decode *s, uint32_t inst, uint32_t funct3, int rd, int rs1, int rs2) {
-  if (funct3 != 0) return exec_csr(inst, funct3, rd, rs1);
-
-  switch (inst) {
-    case 0x00000073: // ecall
-      syscall_debug_log_enter(s->pc);
-      s->dnpc = isa_raise_intr(
-          cpu.priv == PRIV_M ? CAUSE_ECALL_M :
-          cpu.priv == PRIV_S ? CAUSE_ECALL_S : CAUSE_ECALL_U,
-          s->pc);
-      return true;
-    case 0x00100073: // ebreak
-      if (ebreak_should_raise_breakpoint_trap()) {
-        s->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, s->pc);
-      } else {
-        NEMUTRAP(s->pc, R(10));
-      }
-      return true;
-    case 0x10200073: // sret
-      if (cpu.priv < PRIV_S) return false;
-      // TSR: S 态且 mstatus.TSR=1 时 SRET 触发 illegal(M 态不约束; 对齐 NPC
-      // OooFetchHeadClassifyGate sret_tsr_illegal: sret && priv==S && TSR)。
-      if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TSR)) return false;
-      csr_sret(s);
-      return true;
-    case 0x30200073: // mret
-      if (cpu.priv != PRIV_M) return false;
-      csr_mret(s);
-      return true;
-    case 0x10500073: // wfi
-      // TW: priv<M 且 mstatus.TW=1 时 WFI 触发 illegal(本核 WFI=立即 no-op 即超 bounded time;
-      // 对齐 NPC OooFetchHeadClassifyGate wfi_tw_illegal: wfi && priv!=M && TW)。
-      if (cpu.priv != PRIV_M && (cpu.csr.mstatus & MSTATUS_TW)) return false;
-      isa_riscv64_wfi();
-      return true;
-    default:
-      if ((inst & 0xfe007fffu) == 0x12000073u) { // sfence.vma
-        // SFENCE.VMA 是 S/M 级特权指令；U-mode 必须产生 illegal instruction。
-        if (cpu.priv < PRIV_S) return false;
-        // TVM: S 态且 mstatus.TVM=1 时 SFENCE.VMA 触发 illegal instruction; M 态不受影响。
-        if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
-        isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0);
-        return true;
-      }
-      return false;
-  }
-}
-
-static inline bool exec_misc_mem(uint32_t funct3) {
-  switch (funct3) {
-    case 0x0: // fence
-      return true;
-    case 0x1: // fence.i
-      // fence.i 是自修改代码的架构同步点；硬件 cache 模型和解释器预译码缓存都在这里失效。
-      IFDEF(CONFIG_CACHE, cache_flush_all());
-      vaddr_ifetch_cache_flush();
-      rv_decode_cache_flush();
-      return true;
-    default:
-      return false;
   }
 }

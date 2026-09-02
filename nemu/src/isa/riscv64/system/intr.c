@@ -17,6 +17,7 @@
 #include <etrace.h>
 #include <utils.h>
 #include <utils/profile.h>
+#include "../local-include/privileged.h"
 #ifndef CONFIG_TARGET_AM
 #include <stdio.h>
 #include <stdlib.h>
@@ -362,12 +363,8 @@ bool isa_riscv64_intr_pending_fast(void) {
   raw_pending &= enabled;
   if (raw_pending == 0) return false;
 
-  bool s_global = (cpu.priv == PRIV_U) ||
-                  (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_SIE));
-  if (s_global && (raw_pending & MIP_SUPERVISOR_MASK) != 0) return true;
-
-  bool m_global = (cpu.priv != PRIV_M) || (cpu.csr.mstatus & MSTATUS_MIE);
-  return m_global && (raw_pending & MIP_MACHINE_MASK) != 0;
+  return riscv_select_interrupt(raw_pending, cpu.csr.mideleg, cpu.priv,
+                                cpu.csr.mstatus).pending;
 }
 
 void isa_riscv64_write_mie(word_t value) {
@@ -404,18 +401,9 @@ void isa_riscv64_raise_timer_intr(void) {
   host_timer_irq_pending = true;
 }
 
-static bool riscv_trap_is_intr(word_t cause) {
-  return (cause >> (sizeof(word_t) * 8 - 1)) != 0;
-}
-
-static word_t riscv_trap_cause_code(word_t cause) {
-  word_t intr_bit = (word_t)1 << (sizeof(word_t) * 8 - 1);
-  return cause & ~intr_bit;
-}
-
 static const char *riscv_trap_cause_name(word_t cause) {
-  word_t code = riscv_trap_cause_code(cause);
-  if (riscv_trap_is_intr(cause)) {
+  word_t code = riscv_cause_code(cause);
+  if (riscv_cause_is_interrupt(cause)) {
     switch (code) {
       case 3:  return "machine software interrupt";
       case 1:  return "supervisor software interrupt";
@@ -453,9 +441,9 @@ static bool should_log_trap(word_t cause, uint8_t from_priv) {
   return false;
 #else
   if (trap_log_budget <= 0) return false;
-  if (riscv_trap_is_intr(cause)) return false;
+  if (riscv_cause_is_interrupt(cause)) return false;
 
-  word_t code = riscv_trap_cause_code(cause);
+  word_t code = riscv_cause_code(cause);
   switch (code) {
     case CAUSE_ECALL_U:
     case CAUSE_ECALL_S:
@@ -482,60 +470,67 @@ static inline word_t encode_mpp(uint8_t priv) {
   }
 }
 
-static inline bool trap_delegated_to_s(word_t cause) {
-  if (cpu.priv == PRIV_M) return false;
+static vaddr_t riscv_enter_supervisor_trap(const RiscvTrapRequest *trap) {
+  cpu.csr.sepc = trap->exception_pc;
+  cpu.csr.scause = trap->cause;
+  cpu.csr.stval = trap->trap_value;
 
-  word_t code = riscv_trap_cause_code(cause);
-  const word_t xlen = sizeof(word_t) * 8;
-  if (riscv_trap_is_intr(cause)) {
-    return code < xlen && ((cpu.csr.mideleg >> code) & 1u);
-  }
-  return code < xlen && ((cpu.csr.medeleg >> code) & 1u);
+  if (cpu.csr.mstatus & MSTATUS_SIE) cpu.csr.mstatus |= MSTATUS_SPIE;
+  else cpu.csr.mstatus &= ~MSTATUS_SPIE;
+  cpu.csr.mstatus &= ~MSTATUS_SIE;
+  if (trap->previous_privilege == PRIV_S) cpu.csr.mstatus |= MSTATUS_SPP;
+  else cpu.csr.mstatus &= ~MSTATUS_SPP;
+
+  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+  cpu.priv = PRIV_S;
+  return riscv_tvec_trap_target(cpu.csr.stvec, trap->cause);
+}
+
+static vaddr_t riscv_enter_machine_trap(const RiscvTrapRequest *trap) {
+  cpu.csr.mepc = trap->exception_pc;
+  cpu.csr.mcause = trap->cause;
+  cpu.csr.mtval = trap->trap_value;
+
+  if (cpu.csr.mstatus & MSTATUS_MIE) cpu.csr.mstatus |= MSTATUS_MPIE;
+  else cpu.csr.mstatus &= ~MSTATUS_MPIE;
+  cpu.csr.mstatus &= ~MSTATUS_MIE;
+  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_MPP_MASK) |
+                    encode_mpp(trap->previous_privilege);
+
+  cpu.csr.mstatus |= MSTATUS_SXL_UXL;
+  cpu.priv = PRIV_M;
+  return riscv_tvec_trap_target(cpu.csr.mtvec, trap->cause);
 }
 
 vaddr_t isa_raise_intr_with_tval(word_t NO, vaddr_t epc, word_t tval) {
-  uint8_t from_priv = cpu.priv;
-  bool to_s = trap_delegated_to_s(NO);
-  word_t target;
+  const RiscvTrapRequest trap = {
+    .cause = NO,
+    .exception_pc = epc & riscv_mepc_mask(),
+    .trap_value = tval,
+    .previous_privilege = cpu.priv,
+    .target = riscv_select_trap_target(
+        NO, cpu.csr.medeleg, cpu.csr.mideleg, cpu.priv),
+  };
 
-  if (to_s) {
-    cpu.csr.sepc = epc & riscv_mepc_mask();
-    cpu.csr.scause = NO;
-    cpu.csr.stval = tval;
+  const vaddr_t target =
+      trap.target == RISCV_TRAP_TARGET_SUPERVISOR
+          ? riscv_enter_supervisor_trap(&trap)
+          : riscv_enter_machine_trap(&trap);
 
-    if (cpu.csr.mstatus & MSTATUS_SIE) cpu.csr.mstatus |= MSTATUS_SPIE;
-    else cpu.csr.mstatus &= ~MSTATUS_SPIE;
-    cpu.csr.mstatus &= ~MSTATUS_SIE;
-    if (cpu.priv == PRIV_S) cpu.csr.mstatus |= MSTATUS_SPP;
-    else cpu.csr.mstatus &= ~MSTATUS_SPP;
-    cpu.csr.mstatus |= MSTATUS_SXL_UXL;
-    cpu.priv = PRIV_S;
-    target = cpu.csr.stvec & ~(word_t)0x3;
-  } else {
-    cpu.csr.mepc = epc & riscv_mepc_mask();
-    cpu.csr.mcause = NO;
-    cpu.csr.mtval = tval;
-
-    if (cpu.csr.mstatus & MSTATUS_MIE) cpu.csr.mstatus |= MSTATUS_MPIE;
-    else cpu.csr.mstatus &= ~MSTATUS_MPIE;
-    cpu.csr.mstatus &= ~MSTATUS_MIE;
-    cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_MPP_MASK) | encode_mpp(cpu.priv);
-    cpu.csr.mstatus |= MSTATUS_SXL_UXL;
-    cpu.priv = PRIV_M;
-    target = cpu.csr.mtvec & ~(word_t)0x3;
-  }
-
-  if (should_log_trap(NO, from_priv)) {
+  if (should_log_trap(trap.cause, trap.previous_privilege)) {
     // 常规 SBI ecall/timer interrupt 会极高频出现；这里只保留少量真正异常入口。
-    const bool is_intr = riscv_trap_is_intr(NO);
+    const bool is_intr = riscv_cause_is_interrupt(trap.cause);
     const char *type_color = is_intr ? ANSI_FG_YELLOW : ANSI_FG_RED;
     Log("RISC-V trap %s cause=%" PRIu64 " type=%s%s%s to=%c epc=" FMT_WORD
         " mtval=" FMT_WORD " target=" FMT_WORD,
-        is_intr ? "interrupt" : "exception", (uint64_t)riscv_trap_cause_code(NO),
-        type_color, riscv_trap_cause_name(NO), ANSI_NONE,
-        to_s ? 'S' : 'M', epc & riscv_mepc_mask(), tval, target);
+        is_intr ? "interrupt" : "exception",
+        (uint64_t)riscv_cause_code(trap.cause),
+        type_color, riscv_trap_cause_name(trap.cause), ANSI_NONE,
+        trap.target == RISCV_TRAP_TARGET_SUPERVISOR ? 'S' : 'M',
+        trap.exception_pc, trap.trap_value, target);
   }
-  etrace_log_raise(NO, epc & riscv_mepc_mask(), tval, target, cpu.csr.mstatus);
+  etrace_log_raise(trap.cause, trap.exception_pc, trap.trap_value,
+                   target, cpu.csr.mstatus);
 
   return target;
 }
@@ -546,24 +541,13 @@ vaddr_t isa_raise_intr(word_t NO, vaddr_t epc) {
 
 word_t isa_query_intr() {
   word_t enabled_pending = isa_riscv64_mip_value() & cpu.csr.mie & MIP_IRQ_MASK;
-  word_t s_pending = enabled_pending & MIP_SUPERVISOR_MASK;
-  bool s_global = (cpu.priv == PRIV_U) ||
-                  (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_SIE));
-  if (s_global && s_pending != 0) {
-    if (s_pending & MIP_SEIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_SEI;
-    if (s_pending & MIP_SSIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_SSI;
-    if (s_pending & MIP_STIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_STI;
-  }
+  RiscvInterruptSelection selected =
+      riscv_select_interrupt(enabled_pending, cpu.csr.mideleg, cpu.priv,
+                             cpu.csr.mstatus);
+  if (!selected.pending) return INTR_EMPTY;
 
-  word_t m_pending = enabled_pending & MIP_MACHINE_MASK;
-  bool m_global = (cpu.priv != PRIV_M) || (cpu.csr.mstatus & MSTATUS_MIE);
-  if (!m_global || m_pending == 0) return INTR_EMPTY;
-
-  if (m_pending & MIP_MEIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MEI;
-  if (m_pending & MIP_MSIP) return MCAUSE_INTERRUPT | IRQ_CAUSE_MSI;
-  if (m_pending & MIP_MTIP) {
+  if (selected.cause_code == IRQ_CAUSE_MTI) {
     host_timer_irq_pending = false;
-    return MCAUSE_INTERRUPT | IRQ_CAUSE_MTI;
   }
-  return INTR_EMPTY;
+  return MCAUSE_INTERRUPT | selected.cause_code;
 }

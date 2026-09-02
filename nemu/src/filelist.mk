@@ -17,8 +17,8 @@
 SRCS-y += src/nemu-main.c
 #把这些子目录加入DIRS-y,表示需要递归进入这些目录构建
 DIRS-y += src/cpu src/monitor src/utils
-#表示CONFIG_MODE_SYSTEM作为条件化变量拓展，当该值为y的时候（或者其他非空值），会最终影响DIRC-的处理
-DIRS-$(CONFIG_MODE_SYSTEM) += src/memory
+# NEMU 只保留 system mode，物理/虚拟内存实现始终参与构建。
+DIRS-y += src/memory
 #黑名单，针对某个目标（CONFIG_TARGET_AM）把src/monitor/sdb从要进入构建的目录中排除
 DIRS-BLACKLIST-$(CONFIG_TARGET_AM) += src/monitor/sdb
 

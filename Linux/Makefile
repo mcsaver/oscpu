@@ -510,6 +510,7 @@ run: $(RUN_DEPS)
 	fi
 	@printf '[Linux] log:      %s\n' '$(CONSOLE_LOG)'
 ifeq ($(ARCH),riscv64-nemu)
+	@set -o pipefail; \
 	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b --max-insts=$(MAX_CYCLES) \
 	  --log='$(LOG_FILE)' \
 	  --boot-hartid=0 \
@@ -607,17 +608,15 @@ nemu-linux-defconfig:
 sim: nemu-linux-defconfig
 	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'
 
-check-sim: nemu-linux-defconfig
-	+@if [ ! -x '$(NEMU_SIM)' ]; then \
-	  $(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'; \
-	else \
-	  echo '[Linux] NEMU sim exists: $(NEMU_SIM)'; \
-	fi
+check-sim: sim
+	@test -x '$(NEMU_SIM)'
 
 check-nemu-performance-config: nemu-linux-defconfig
 	NEMU_PERFORMANCE_REQUIRED='$(NEMU_PERFORMANCE_REQUIRED)' \
 	NEMU_CONFIG='$(NEMU_HOME)/.config' \
 	NEMU_AUTOCONF='$(NEMU_HOME)/include/generated/autoconf.h' \
+	NEMU_POLICY_HEADER='$(NEMU_HOME)/include/nemu-config.h' \
+	NEMU_DEVICE_ADDRESS_HEADER='$(NEMU_HOME)/include/device/device_address.h' \
 	  bash '$(SCRIPT_DIR)/check-nemu-performance-config.sh'
 
 nemu-machine-info: sim

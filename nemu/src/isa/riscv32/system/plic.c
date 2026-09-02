@@ -5,181 +5,52 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <isa/riscv/plic.h>
 
-#define PLIC_BASE 0x0c000000u
-#define PLIC_SIZE 0x04000000u
-#define PLIC_NR_IRQS 32
-
-#define PLIC_PRIORITY_BASE 0x000000u
-#define PLIC_PENDING       0x001000u
-#define PLIC_M_ENABLE     0x002000u
-#define PLIC_S_ENABLE     0x002080u
-#define PLIC_M_THRESHOLD  0x200000u
-#define PLIC_M_CLAIM      0x200004u
-#define PLIC_S_THRESHOLD  0x201000u
-#define PLIC_S_CLAIM      0x201004u
-
-static uint32_t plic_priority[PLIC_NR_IRQS + 1];
-static uint32_t plic_enable_m;
-static uint32_t plic_enable_s;
-static uint32_t plic_threshold_m;
-static uint32_t plic_threshold_s;
-// level 记录设备线电平，in_service 防止 claim 后到 complete 前反复重入；
-// complete 时若电平仍高再重新 pending，匹配 UART THRE/virtio 这类电平中断。
-static uint32_t plic_level;
-static uint32_t plic_in_service;
-static uint32_t plic_pending;
-
-static uint32_t plic_best_irq(bool supervisor) {
-  uint32_t enable = supervisor ? plic_enable_s : plic_enable_m;
-  uint32_t threshold = supervisor ? plic_threshold_s : plic_threshold_m;
-
-  for (uint32_t irq = 1; irq <= PLIC_NR_IRQS && irq < 32; irq++) {
-    if ((plic_pending & (1u << irq)) == 0) continue;
-    if ((enable & (1u << irq)) == 0) continue;
-    if (plic_priority[irq] <= threshold) continue;
-    return irq;
-  }
-  return 0;
-}
+static RiscvPlicState plic;
 
 void isa_riscv32_plic_reset(void) {
-  memset(plic_priority, 0, sizeof(plic_priority));
-  plic_enable_m = 0;
-  plic_enable_s = 0;
-  plic_threshold_m = 0;
-  plic_threshold_s = 0;
-  plic_level = 0;
-  plic_in_service = 0;
-  plic_pending = 0;
+  riscv_plic_reset(&plic);
 }
 
 void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
-  if (irq == 0 || irq > PLIC_NR_IRQS || irq >= 32) return;
-  uint32_t bit = 1u << irq;
-  if (level) {
-    plic_level |= bit;
-    if ((plic_in_service & bit) == 0) plic_pending |= bit;
-  } else {
-    plic_level &= ~bit;
-    plic_pending &= ~bit;
-  }
+  riscv_plic_gateway_update_level(&plic, irq, level);
 }
 
 bool isa_riscv32_plic_maybe_pending(void) {
-  uint32_t enabled = plic_enable_m | plic_enable_s;
-  return (plic_pending & enabled) != 0;
+  return riscv_plic_any_context_notifies(&plic);
 }
 
 word_t isa_riscv32_plic_pending_bits(void) {
   word_t pending = 0;
-  if (plic_best_irq(false) != 0) pending |= MIP_MEIP;
-  if (plic_best_irq(true) != 0) pending |= MIP_SEIP;
+  if (riscv_plic_select_notification(&plic, RISCV_PLIC_MACHINE_CONTEXT) != 0) {
+    pending |= MIP_MEIP;
+  }
+  if (riscv_plic_select_notification(&plic, RISCV_PLIC_SUPERVISOR_CONTEXT) != 0) {
+    pending |= MIP_SEIP;
+  }
   return pending;
 }
 
 bool isa_riscv32_plic_in_range(paddr_t addr) {
-  return addr >= PLIC_BASE && addr < PLIC_BASE + PLIC_SIZE;
+  return riscv_plic_address_in_aperture(addr);
 }
 
-static uint32_t plic_read32(uint32_t offset) {
-  if (offset < PLIC_PENDING) {
-    uint32_t irq = offset >> 2;
-    return irq <= PLIC_NR_IRQS ? plic_priority[irq] : 0;
-  }
-
-  switch (offset) {
-    case PLIC_PENDING:     return plic_pending;
-    case PLIC_M_ENABLE:    return plic_enable_m;
-    case PLIC_S_ENABLE:    return plic_enable_s;
-    case PLIC_M_THRESHOLD: return plic_threshold_m;
-    case PLIC_S_THRESHOLD: return plic_threshold_s;
-    case PLIC_M_CLAIM: {
-      uint32_t irq = plic_best_irq(false);
-      if (irq != 0) {
-        uint32_t bit = 1u << irq;
-        plic_pending &= ~bit;
-        plic_in_service |= bit;
-      }
-      return irq;
-    }
-    case PLIC_S_CLAIM: {
-      uint32_t irq = plic_best_irq(true);
-      if (irq != 0) {
-        uint32_t bit = 1u << irq;
-        plic_pending &= ~bit;
-        plic_in_service |= bit;
-      }
-      return irq;
-    }
-    default: return 0;
-  }
-}
-
-static void plic_write32(uint32_t offset, uint32_t value, uint32_t mask) {
-  if (offset < PLIC_PENDING) {
-    uint32_t irq = offset >> 2;
-    if (irq <= PLIC_NR_IRQS) plic_priority[irq] = (plic_priority[irq] & ~mask) | (value & mask);
-    return;
-  }
-
-  switch (offset) {
-    case PLIC_PENDING:
-      plic_pending = (plic_pending & ~mask) | (value & mask);
-      break;
-    case PLIC_M_ENABLE:
-      plic_enable_m = (plic_enable_m & ~mask) | (value & mask);
-      break;
-    case PLIC_S_ENABLE:
-      plic_enable_s = (plic_enable_s & ~mask) | (value & mask);
-      break;
-    case PLIC_M_THRESHOLD:
-      plic_threshold_m = (plic_threshold_m & ~mask) | (value & mask);
-      break;
-    case PLIC_S_THRESHOLD:
-      plic_threshold_s = (plic_threshold_s & ~mask) | (value & mask);
-      break;
-    case PLIC_M_CLAIM:
-    case PLIC_S_CLAIM:
-      if ((value & 31u) > 0 && (value & 31u) <= PLIC_NR_IRQS) {
-        uint32_t bit = 1u << (value & 31u);
-        plic_in_service &= ~bit;
-        if (plic_level & bit) plic_pending |= bit;
-      }
-      break;
-    default:
-      break;
-  }
+bool isa_riscv32_plic_access_valid(paddr_t addr, int len) {
+  return riscv_plic_mmio_access_valid(addr, len);
 }
 
 word_t isa_riscv32_plic_read(paddr_t addr, int len) {
-  assert(len >= 1 && len <= 8);
-  if (len == 8) {
-    uint64_t value = (uint64_t)isa_riscv32_plic_read(addr, 4) |
-                     ((uint64_t)isa_riscv32_plic_read(addr + 4, 4) << 32);
-    return (word_t)value;
-  }
-  uint32_t offset = addr - PLIC_BASE;
-  uint32_t shift = (offset & 0x3u) * 8u;
-  uint32_t word = plic_read32(offset & ~0x3u);
-  uint32_t mask = len == 4 ? 0xffffffffu : ((1u << (len * 8)) - 1u);
-  return (word >> shift) & mask;
+  /* vaddr 预检负责给 guest 抬 access-fault；这里仍防御直接 paddr 调用。 */
+  if (!isa_riscv32_plic_access_valid(addr, len)) return 0;
+  uint32_t offset = (uint32_t)(addr - RISCV_PLIC_BASE);
+  return riscv_plic_read_register(&plic, offset, NULL);
 }
 
 void isa_riscv32_plic_write(paddr_t addr, int len, word_t data) {
-  assert(len >= 1 && len <= 8);
-  if (len == 8) {
-    uint64_t value = data;
-    isa_riscv32_plic_write(addr, 4, (uint32_t)data);
-    isa_riscv32_plic_write(addr + 4, 4, (uint32_t)(value >> 32));
-    return;
-  }
-  uint32_t offset = addr - PLIC_BASE;
-  uint32_t shift = (offset & 0x3u) * 8u;
-  uint32_t mask = len == 4 ? 0xffffffffu : ((1u << (len * 8)) - 1u);
-  uint32_t word_mask = mask << shift;
-  uint32_t word_value = ((uint32_t)data << shift) & word_mask;
-  plic_write32(offset & ~0x3u, word_value, word_mask);
+  if (!isa_riscv32_plic_access_valid(addr, len)) return;
+  uint32_t offset = (uint32_t)(addr - RISCV_PLIC_BASE);
+  riscv_plic_write_register(&plic, offset, data, NULL);
 }
 
 void isa_riscv32_plic_statistic(void) {

@@ -1,372 +1,376 @@
-/* RV64C 压缩指令扩展。 */
-
-#include <utils/profile.h>
+/* RV64C：16-bit encoding 到手册 mnemonic 的纯体系结构译码。 */
 
 #ifdef CONFIG_RISCV_EXT_C
-/* RV64C 扩展：可变长取指只负责拿到 16/32 位原始指令，压缩语义全部收口在本块。 */
 #define C_FUNCT3(i) BITS(i, 15, 13)
-#define C_RD(i)     (8 + BITS(i, 4, 2))
-#define C_RS1(i)    (8 + BITS(i, 9, 7))
-#define C_RS2(i)    (8 + BITS(i, 4, 2))
+#define C_RD_PRIME(i)  (8 + BITS(i, 4, 2))
+#define C_RS1_PRIME(i) (8 + BITS(i, 9, 7))
+#define C_RS2_PRIME(i) (8 + BITS(i, 4, 2))
 
-static inline word_t c_imm_addi4spn(uint16_t inst) {
-  return (BITS(inst, 10, 7) << 6) |
-         (BITS(inst, 12, 11) << 4) |
-         (BITS(inst, 5, 5) << 3) |
-         (BITS(inst, 6, 6) << 2);
+static inline word_t c_imm_addi4spn(uint16_t encoding) {
+  return (BITS(encoding, 10, 7) << 6) |
+         (BITS(encoding, 12, 11) << 4) |
+         (BITS(encoding, 5, 5) << 3) |
+         (BITS(encoding, 6, 6) << 2);
 }
 
-static inline word_t c_imm_lw_sw(uint16_t inst) {
-  return (BITS(inst, 5, 5) << 6) |
-         (BITS(inst, 12, 10) << 3) |
-         (BITS(inst, 6, 6) << 2);
+static inline word_t c_imm_lw_sw(uint16_t encoding) {
+  return (BITS(encoding, 5, 5) << 6) |
+         (BITS(encoding, 12, 10) << 3) |
+         (BITS(encoding, 6, 6) << 2);
 }
 
-static inline word_t c_imm_ld_sd(uint16_t inst) {
-  return (BITS(inst, 6, 5) << 6) |
-         (BITS(inst, 12, 10) << 3);
+static inline word_t c_imm_ld_sd(uint16_t encoding) {
+  return (BITS(encoding, 6, 5) << 6) |
+         (BITS(encoding, 12, 10) << 3);
 }
 
-static inline word_t c_imm_6(uint16_t inst) {
-  return SEXT((BITS(inst, 12, 12) << 5) | BITS(inst, 6, 2), 6);
+static inline word_t c_imm_6(uint16_t encoding) {
+  return SEXT((BITS(encoding, 12, 12) << 5) |
+              BITS(encoding, 6, 2), 6);
 }
 
-static inline word_t c_imm_j(uint16_t inst) {
-  uint32_t imm = (BITS(inst, 12, 12) << 11) |
-                 (BITS(inst, 11, 11) << 4) |
-                 (BITS(inst, 10, 9) << 8) |
-                 (BITS(inst, 8, 8) << 10) |
-                 (BITS(inst, 7, 7) << 6) |
-                 (BITS(inst, 6, 6) << 7) |
-                 (BITS(inst, 5, 3) << 1) |
-                 (BITS(inst, 2, 2) << 5);
-  return SEXT(imm, 12);
+static inline word_t c_imm_jump(uint16_t encoding) {
+  const uint32_t immediate =
+      (BITS(encoding, 12, 12) << 11) |
+      (BITS(encoding, 11, 11) << 4) |
+      (BITS(encoding, 10, 9) << 8) |
+      (BITS(encoding, 8, 8) << 10) |
+      (BITS(encoding, 7, 7) << 6) |
+      (BITS(encoding, 6, 6) << 7) |
+      (BITS(encoding, 5, 3) << 1) |
+      (BITS(encoding, 2, 2) << 5);
+  return SEXT(immediate, 12);
 }
 
-static inline word_t c_imm_addi16sp(uint16_t inst) {
-  uint32_t imm = (BITS(inst, 12, 12) << 9) |
-                 (BITS(inst, 6, 6) << 4) |
-                 (BITS(inst, 5, 5) << 6) |
-                 (BITS(inst, 4, 3) << 7) |
-                 (BITS(inst, 2, 2) << 5);
-  return SEXT(imm, 10);
+static inline word_t c_imm_addi16sp(uint16_t encoding) {
+  const uint32_t immediate =
+      (BITS(encoding, 12, 12) << 9) |
+      (BITS(encoding, 6, 6) << 4) |
+      (BITS(encoding, 5, 5) << 6) |
+      (BITS(encoding, 4, 3) << 7) |
+      (BITS(encoding, 2, 2) << 5);
+  return SEXT(immediate, 10);
 }
 
-static inline word_t c_imm_b(uint16_t inst) {
-  uint32_t imm = (BITS(inst, 12, 12) << 8) |
-                 (BITS(inst, 11, 10) << 3) |
-                 (BITS(inst, 6, 5) << 6) |
-                 (BITS(inst, 4, 3) << 1) |
-                 (BITS(inst, 2, 2) << 5);
-  return SEXT(imm, 9);
+static inline word_t c_imm_branch(uint16_t encoding) {
+  const uint32_t immediate =
+      (BITS(encoding, 12, 12) << 8) |
+      (BITS(encoding, 11, 10) << 3) |
+      (BITS(encoding, 6, 5) << 6) |
+      (BITS(encoding, 4, 3) << 1) |
+      (BITS(encoding, 2, 2) << 5);
+  return SEXT(immediate, 9);
 }
 
-static inline word_t c_imm_lwsp(uint16_t inst) {
-  return (BITS(inst, 12, 12) << 5) |
-         (BITS(inst, 6, 4) << 2) |
-         (BITS(inst, 3, 2) << 6);
+static inline word_t c_imm_lwsp(uint16_t encoding) {
+  return (BITS(encoding, 12, 12) << 5) |
+         (BITS(encoding, 6, 4) << 2) |
+         (BITS(encoding, 3, 2) << 6);
 }
 
-static inline word_t c_imm_ldsp(uint16_t inst) {
-  return (BITS(inst, 12, 12) << 5) |
-         (BITS(inst, 6, 5) << 3) |
-         (BITS(inst, 4, 2) << 6);
+static inline word_t c_imm_ldsp(uint16_t encoding) {
+  return (BITS(encoding, 12, 12) << 5) |
+         (BITS(encoding, 6, 5) << 3) |
+         (BITS(encoding, 4, 2) << 6);
 }
 
-static inline word_t c_imm_swsp(uint16_t inst) {
-  return (BITS(inst, 8, 7) << 6) |
-         (BITS(inst, 12, 9) << 2);
+static inline word_t c_imm_swsp(uint16_t encoding) {
+  return (BITS(encoding, 8, 7) << 6) |
+         (BITS(encoding, 12, 9) << 2);
 }
 
-static inline word_t c_imm_sdsp(uint16_t inst) {
-  return (BITS(inst, 9, 7) << 6) |
-         (BITS(inst, 12, 10) << 3);
+static inline word_t c_imm_sdsp(uint16_t encoding) {
+  return (BITS(encoding, 9, 7) << 6) |
+         (BITS(encoding, 12, 10) << 3);
 }
 
-static inline word_t c_shamt(uint16_t inst) {
-  return (BITS(inst, 12, 12) << 5) | BITS(inst, 6, 2);
+static inline word_t c_shift_amount(uint16_t encoding) {
+  return (BITS(encoding, 12, 12) << 5) | BITS(encoding, 6, 2);
 }
 
-static inline void profile_rvc_detail_inst(uint16_t inst) {
-  NemuProfileCounter counter = NEMU_PROFILE_CPU_RVC_OTHER;
-  uint32_t funct3 = C_FUNCT3(inst);
-  uint32_t rd = BITS(inst, 11, 7);
-  uint32_t rs2 = BITS(inst, 6, 2);
+static inline bool rv_decode_compressed_operation(
+    RvDecodedInstruction *instruction, RvOperation operation,
+    uint8_t rd, uint8_t rs1, uint8_t rs2, word_t immediate) {
+  instruction->operation = operation;
+  instruction->rd = rd;
+  instruction->rs1 = rs1;
+  instruction->rs2 = rs2;
+  instruction->immediate = immediate;
+  return true;
+}
 
-  switch (BITS(inst, 1, 0)) {
-    case 0x0:
-      switch (funct3) {
-        case 0x0: counter = NEMU_PROFILE_CPU_RVC_ADDI4SPN; break;
-        case 0x1: counter = NEMU_PROFILE_CPU_RVC_FLD; break;
-        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LW; break;
-        case 0x3: counter = NEMU_PROFILE_CPU_RVC_LD; break;
-        case 0x5: counter = NEMU_PROFILE_CPU_RVC_FSD; break;
-        case 0x6: counter = NEMU_PROFILE_CPU_RVC_SW; break;
-        case 0x7: counter = NEMU_PROFILE_CPU_RVC_SD; break;
-        default: break;
-      }
-      break;
+/* Quadrant 0: register-prime loads/stores and C.ADDI4SPN. */
+static inline bool rv_decode_compressed_quadrant_0(
+    uint16_t encoding, RvDecodedInstruction *instruction) {
+  const uint8_t rd_prime = C_RD_PRIME(encoding);
+  const uint8_t rs1_prime = C_RS1_PRIME(encoding);
+  const uint8_t rs2_prime = C_RS2_PRIME(encoding);
+
+  switch (C_FUNCT3(encoding)) {
+    case 0x0: {
+      const word_t immediate = c_imm_addi4spn(encoding);
+      if (immediate == 0) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_ADDI4SPN,
+          rd_prime, 2, 0, immediate);
+    }
     case 0x1:
-      switch (funct3) {
-        case 0x0: counter = NEMU_PROFILE_CPU_RVC_ADDI; break;
-        case 0x1: counter = NEMU_PROFILE_CPU_RVC_ADDIW; break;
-        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LI; break;
-        case 0x3:
-          counter = (rd == 2) ? NEMU_PROFILE_CPU_RVC_ADDI16SP
-                              : NEMU_PROFILE_CPU_RVC_LUI;
-          break;
-        case 0x4:
-          switch (BITS(inst, 11, 10)) {
-            case 0x0: counter = NEMU_PROFILE_CPU_RVC_SRLI; break;
-            case 0x1: counter = NEMU_PROFILE_CPU_RVC_SRAI; break;
-            case 0x2: counter = NEMU_PROFILE_CPU_RVC_ANDI; break;
-            case 0x3:
-              switch ((BITS(inst, 12, 12) << 2) | BITS(inst, 6, 5)) {
-                case 0x0: counter = NEMU_PROFILE_CPU_RVC_SUB; break;
-                case 0x1: counter = NEMU_PROFILE_CPU_RVC_XOR; break;
-                case 0x2: counter = NEMU_PROFILE_CPU_RVC_OR; break;
-                case 0x3: counter = NEMU_PROFILE_CPU_RVC_AND; break;
-                case 0x4: counter = NEMU_PROFILE_CPU_RVC_SUBW; break;
-                case 0x5: counter = NEMU_PROFILE_CPU_RVC_ADDW; break;
-                default: break;
-              }
-              break;
-            default: break;
-          }
-          break;
-        case 0x5: counter = NEMU_PROFILE_CPU_RVC_J; break;
-        case 0x6: counter = NEMU_PROFILE_CPU_RVC_BEQZ; break;
-        case 0x7: counter = NEMU_PROFILE_CPU_RVC_BNEZ; break;
-        default: break;
-      }
-      break;
+      if (!ISDEF(CONFIG_RISCV_EXT_D)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_FLD,
+          rd_prime, rs1_prime, 0, c_imm_ld_sd(encoding));
     case 0x2:
-      switch (funct3) {
-        case 0x0: counter = NEMU_PROFILE_CPU_RVC_SLLI; break;
-        case 0x1: counter = NEMU_PROFILE_CPU_RVC_FLDSP; break;
-        case 0x2: counter = NEMU_PROFILE_CPU_RVC_LWSP; break;
-        case 0x3: counter = NEMU_PROFILE_CPU_RVC_LDSP; break;
-        case 0x4:
-          if (BITS(inst, 12, 12) == 0) {
-            counter = (rs2 == 0) ? NEMU_PROFILE_CPU_RVC_JR
-                                 : (rd != 0 ? NEMU_PROFILE_CPU_RVC_MV
-                                            : NEMU_PROFILE_CPU_RVC_OTHER);
-          } else if (rs2 == 0) {
-            counter = (rd == 0) ? NEMU_PROFILE_CPU_RVC_EBREAK
-                                : NEMU_PROFILE_CPU_RVC_JALR;
-          } else {
-            counter = (rd != 0) ? NEMU_PROFILE_CPU_RVC_ADD
-                                : NEMU_PROFILE_CPU_RVC_OTHER;
-          }
-          break;
-        case 0x5: counter = NEMU_PROFILE_CPU_RVC_FSDSP; break;
-        case 0x6: counter = NEMU_PROFILE_CPU_RVC_SWSP; break;
-        case 0x7: counter = NEMU_PROFILE_CPU_RVC_SDSP; break;
-        default: break;
-      }
-      break;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LW,
+          rd_prime, rs1_prime, 0, c_imm_lw_sw(encoding));
+    case 0x3:
+      if (!ISDEF(CONFIG_ISA64)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LD,
+          rd_prime, rs1_prime, 0, c_imm_ld_sd(encoding));
+    case 0x5:
+      if (!ISDEF(CONFIG_RISCV_EXT_D)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_FSD,
+          0, rs1_prime, rs2_prime, c_imm_ld_sd(encoding));
+    case 0x6:
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_SW,
+          0, rs1_prime, rs2_prime, c_imm_lw_sw(encoding));
+    case 0x7:
+      if (!ISDEF(CONFIG_ISA64)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_SD,
+          0, rs1_prime, rs2_prime, c_imm_ld_sd(encoding));
     default:
-      break;
+      return false;
   }
-  nemu_profile_count(counter, 1);
 }
 
-static inline bool exec_rv64c(Decode *s, uint16_t inst) {
-  if (unlikely(nemu_profile_rvc_detail_enabled())) {
-    profile_rvc_detail_inst(inst);
-  }
-  uint32_t funct3 = C_FUNCT3(inst);
-  uint32_t rd = BITS(inst, 11, 7);
-  uint32_t rs2 = BITS(inst, 6, 2);
+/* Quadrant 1: immediate arithmetic and PC-relative control transfer. */
+static inline bool rv_decode_compressed_quadrant_1(
+    uint16_t encoding, RvDecodedInstruction *instruction) {
+  const uint8_t rd = BITS(encoding, 11, 7);
+  const uint8_t rs1_prime = C_RS1_PRIME(encoding);
+  const uint8_t rs2_prime = C_RS2_PRIME(encoding);
+  const word_t immediate_6 = c_imm_6(encoding);
 
-  switch (BITS(inst, 1, 0)) {
+  switch (C_FUNCT3(encoding)) {
     case 0x0:
-      switch (funct3) {
-        case 0x0: { // c.addi4spn
-          word_t imm = c_imm_addi4spn(inst);
-          if (imm == 0) BAD_DECODE();
-          R(C_RD(inst)) = R(2) + imm;
-          return true;
-        }
-        case 0x1: // c.fld
-          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
-              !exec_rvf_load(0x3, C_RD(inst), R(C_RS1(inst)) + c_imm_ld_sd(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x2: // c.lw
-          if (!exec_rv64i_load(0x2, C_RD(inst), R(C_RS1(inst)) + c_imm_lw_sw(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x3: // c.ld
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          if (!exec_rv64i_load(0x3, C_RD(inst), R(C_RS1(inst)) + c_imm_ld_sd(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x6: // c.sw
-          exec_rv64i_store(0x2, R(C_RS1(inst)) + c_imm_lw_sw(inst), R(C_RS2(inst)));
-          return true;
-        case 0x5: // c.fsd
-          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
-              !exec_rvf_store(0x3, R(C_RS1(inst)) + c_imm_ld_sd(inst), C_RS2(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x7: // c.sd
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          exec_rv64i_store(0x3, R(C_RS1(inst)) + c_imm_ld_sd(inst), R(C_RS2(inst)));
-          return true;
-        default:
-          BAD_DECODE();
+      if ((rd == 0 && immediate_6 != 0) ||
+          (rd != 0 && immediate_6 == 0)) {
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
       }
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_ADDI,
+          rd, rd, 0, immediate_6);
     case 0x1:
-      switch (funct3) {
-        case 0x0: // c.addi / c.nop
-          R(rd) = R(rd) + c_imm_6(inst);
-          return true;
+      if (!ISDEF(CONFIG_ISA64) || rd == 0) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_ADDIW,
+          rd, rd, 0, immediate_6);
+    case 0x2:
+      if (rd == 0) {
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
+      }
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LI,
+          rd, 0, 0, immediate_6);
+    case 0x3:
+      if (rd == 2) {
+        const word_t immediate = c_imm_addi16sp(encoding);
+        if (immediate == 0) return false;
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_ADDI16SP,
+            2, 2, 0, immediate);
+      }
+      if (immediate_6 == 0) return false;
+      if (rd == 0) {
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
+      }
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LUI,
+          rd, 0, 0, immediate_6 << 12);
+    case 0x4:
+      switch (BITS(encoding, 11, 10)) {
+        case 0x0:
+          if (!ISDEF(CONFIG_ISA64) && BITS(encoding, 12, 12)) return false;
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_SRLI,
+              rs1_prime, rs1_prime, 0, c_shift_amount(encoding));
         case 0x1:
-#ifdef CONFIG_ISA64
-          if (rd == 0) BAD_DECODE();
-          R(rd) = sext32((uint32_t)(R(rd) + c_imm_6(inst))); // c.addiw
-#else
-          R(1) = s->pc + 2;                                  // c.jal
-          s->dnpc = s->pc + c_imm_j(inst);
-          IFDEF(CONFIG_FTRACE, ftrace_log(1, s->pc, s->dnpc));
-#endif
-          return true;
-        case 0x2: // c.li
-          if (rd != 0) R(rd) = c_imm_6(inst);
-          return true;
+          if (!ISDEF(CONFIG_ISA64) && BITS(encoding, 12, 12)) return false;
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_SRAI,
+              rs1_prime, rs1_prime, 0, c_shift_amount(encoding));
+        case 0x2:
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_ANDI,
+              rs1_prime, rs1_prime, 0, immediate_6);
         case 0x3:
-          if (rd == 2) { // c.addi16sp
-            word_t imm = c_imm_addi16sp(inst);
-            if (imm == 0) BAD_DECODE();
-            R(2) = R(2) + imm;
-          } else { // c.lui
-            word_t imm = c_imm_6(inst);
-            if (imm == 0) BAD_DECODE();
-            // rd=x0,nzimm!=0 是标准 HINT，按 no-op 执行而不是抛非法指令。
-            if (rd != 0) R(rd) = imm << 12;
-          }
-          return true;
-        case 0x4: {
-          uint32_t rs1p = C_RS1(inst);
-          uint32_t rs2p = C_RS2(inst);
-          switch (BITS(inst, 11, 10)) {
-            case 0x0: // c.srli
-              if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
-              R(rs1p) = R(rs1p) >> c_shamt(inst);
-              return true;
-            case 0x1: // c.srai
-              if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
-              R(rs1p) = (sword_t)R(rs1p) >> c_shamt(inst);
-              return true;
-            case 0x2: // c.andi
-              R(rs1p) = R(rs1p) & c_imm_6(inst);
-              return true;
+          switch ((BITS(encoding, 12, 12) << 2) |
+                  BITS(encoding, 6, 5)) {
+            case 0x0:
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_SUB,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
+            case 0x1:
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_XOR,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
+            case 0x2:
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_OR,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
             case 0x3:
-              switch ((BITS(inst, 12, 12) << 2) | BITS(inst, 6, 5)) {
-                case 0x0: R(rs1p) = R(rs1p) - R(rs2p); return true; // c.sub
-                case 0x1: R(rs1p) = R(rs1p) ^ R(rs2p); return true; // c.xor
-                case 0x2: R(rs1p) = R(rs1p) | R(rs2p); return true; // c.or
-                case 0x3: R(rs1p) = R(rs1p) & R(rs2p); return true; // c.and
-                case 0x4:
-                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-                  R(rs1p) = sext32((uint32_t)R(rs1p) - (uint32_t)R(rs2p)); return true; // c.subw
-                case 0x5:
-                  if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-                  R(rs1p) = sext32((uint32_t)R(rs1p) + (uint32_t)R(rs2p)); return true; // c.addw
-                default: BAD_DECODE();
-              }
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_AND,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
+            case 0x4:
+              if (!ISDEF(CONFIG_ISA64)) return false;
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_SUBW,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
+            case 0x5:
+              if (!ISDEF(CONFIG_ISA64)) return false;
+              return rv_decode_compressed_operation(
+                  instruction, RV_OPERATION_C_ADDW,
+                  rs1_prime, rs1_prime, rs2_prime, 0);
             default:
-              BAD_DECODE();
+              return false;
           }
-        }
-        case 0x5: // c.j
-          s->dnpc = s->pc + c_imm_j(inst);
-          return true;
-        case 0x6: // c.beqz
-          if (R(C_RS1(inst)) == 0) s->dnpc = s->pc + c_imm_b(inst);
-          return true;
-        case 0x7: // c.bnez
-          if (R(C_RS1(inst)) != 0) s->dnpc = s->pc + c_imm_b(inst);
-          return true;
         default:
-          BAD_DECODE();
+          return false;
       }
-    case 0x2:
-      switch (funct3) {
-        case 0x0: // c.slli
-          if (!ISDEF(CONFIG_ISA64) && BITS(inst, 12, 12)) BAD_DECODE();
-          R(rd) = R(rd) << c_shamt(inst);
-          return true;
-        case 0x1: // c.fldsp
-          // rd 编码的是浮点寄存器；f0 是普通可写 FPR，不能套用 C.LDSP 的 x0 限制。
-          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
-              !exec_rvf_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x2: // c.lwsp
-          if (rd == 0) BAD_DECODE();
-          if (!exec_rv64i_load(0x2, rd, R(2) + c_imm_lwsp(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x3: // c.ldsp
-          if (!ISDEF(CONFIG_ISA64) || rd == 0) BAD_DECODE();
-          if (!exec_rv64i_load(0x3, rd, R(2) + c_imm_ldsp(inst))) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x4:
-          if (BITS(inst, 12, 12) == 0) {
-            if (rs2 == 0) { // c.jr
-              if (rd == 0) BAD_DECODE();
-              s->dnpc = R(rd) & ~(word_t)1;
-              IFDEF(CONFIG_FTRACE, if (rd == 1) ftrace_log(-1, s->pc, s->dnpc));
-            } else if (rd != 0) { // c.mv
-              R(rd) = R(rs2);
-            }
-          } else {
-            if (rs2 == 0) {
-              if (rd == 0) {
-                if (ebreak_should_raise_breakpoint_trap()) {
-                  s->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, s->pc);
-                } else {
-                  NEMUTRAP(s->pc, R(10)); // c.ebreak
-                }
-              } else { // c.jalr
-                word_t target = R(rd) & ~(word_t)1;
-                R(1) = s->pc + 2;
-                s->dnpc = target;
-                IFDEF(CONFIG_FTRACE, ftrace_log(1, s->pc, target));
-              }
-            } else if (rd != 0) { // c.add
-              R(rd) = R(rd) + R(rs2);
-            }
-          }
-          return true;
-        case 0x6: // c.swsp
-          exec_rv64i_store(0x2, R(2) + c_imm_swsp(inst), R(rs2));
-          return true;
-        case 0x5: // c.fsdsp
-          if (!ISDEF(CONFIG_RISCV_EXT_D) ||
-              !exec_rvf_store(0x3, R(2) + c_imm_sdsp(inst), rs2)) {
-            BAD_DECODE();
-          }
-          return true;
-        case 0x7: // c.sdsp
-          if (!ISDEF(CONFIG_ISA64)) BAD_DECODE();
-          exec_rv64i_store(0x3, R(2) + c_imm_sdsp(inst), R(rs2));
-          return true;
-        default:
-          BAD_DECODE();
-      }
+    case 0x5:
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_J,
+          0, 0, 0, c_imm_jump(encoding));
+    case 0x6:
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_BEQZ,
+          0, rs1_prime, 0, c_imm_branch(encoding));
+    case 0x7:
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_BNEZ,
+          0, rs1_prime, 0, c_imm_branch(encoding));
     default:
-      BAD_DECODE();
+      return false;
+  }
+}
+
+/* Quadrant 2: stack-relative memory operations and CR register forms. */
+static inline bool rv_decode_compressed_quadrant_2(
+    uint16_t encoding, RvDecodedInstruction *instruction) {
+  const uint8_t rd_rs1 = BITS(encoding, 11, 7);
+  const uint8_t rs2 = BITS(encoding, 6, 2);
+
+  switch (C_FUNCT3(encoding)) {
+    case 0x0: {
+      const word_t shamt = c_shift_amount(encoding);
+      if (!ISDEF(CONFIG_ISA64) && BITS(encoding, 12, 12)) return false;
+      if (rd_rs1 == 0 || shamt == 0) {
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
+      }
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_SLLI,
+          rd_rs1, rd_rs1, 0, shamt);
+    }
+    case 0x1:
+      if (!ISDEF(CONFIG_RISCV_EXT_D)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_FLDSP,
+          rd_rs1, 2, 0, c_imm_ldsp(encoding));
+    case 0x2:
+      if (rd_rs1 == 0) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LWSP,
+          rd_rs1, 2, 0, c_imm_lwsp(encoding));
+    case 0x3:
+      if (!ISDEF(CONFIG_ISA64) || rd_rs1 == 0) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_LDSP,
+          rd_rs1, 2, 0, c_imm_ldsp(encoding));
+    case 0x4:
+      if (BITS(encoding, 12, 12) == 0) {
+        if (rs2 == 0) {
+          if (rd_rs1 == 0) return false;
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_JR,
+              0, rd_rs1, 0, 0);
+        }
+        if (rd_rs1 == 0) {
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
+        }
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_MV,
+            rd_rs1, 0, rs2, 0);
+      }
+
+      if (rs2 == 0) {
+        if (rd_rs1 == 0) {
+          return rv_decode_compressed_operation(
+              instruction, RV_OPERATION_C_EBREAK,
+              0, 0, 0, 0);
+        }
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_JALR,
+            1, rd_rs1, 0, 0);
+      }
+      if (rd_rs1 == 0) {
+        return rv_decode_compressed_operation(
+            instruction, RV_OPERATION_C_HINT, 0, 0, 0, 0);
+      }
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_ADD,
+          rd_rs1, rd_rs1, rs2, 0);
+    case 0x5:
+      if (!ISDEF(CONFIG_RISCV_EXT_D)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_FSDSP,
+          0, 2, rs2, c_imm_sdsp(encoding));
+    case 0x6:
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_SWSP,
+          0, 2, rs2, c_imm_swsp(encoding));
+    case 0x7:
+      if (!ISDEF(CONFIG_ISA64)) return false;
+      return rv_decode_compressed_operation(
+          instruction, RV_OPERATION_C_SDSP,
+          0, 2, rs2, c_imm_sdsp(encoding));
+    default:
+      return false;
+  }
+}
+
+static inline bool rv_decode_compressed_instruction(
+    uint16_t encoding, RvDecodedInstruction *instruction) {
+  instruction->encoding = encoding;
+  instruction->instruction_class = RV_INSTRUCTION_CLASS_COMPRESSED;
+  instruction->operation = RV_OPERATION_ILLEGAL_INSTRUCTION;
+  instruction->length = 2;
+  instruction->rd = 0;
+  instruction->rs1 = 0;
+  instruction->rs2 = 0;
+  instruction->rs3 = 0;
+  instruction->funct3 = 0;
+  instruction->funct7 = 0;
+  instruction->immediate = 0;
+
+  switch (BITS(encoding, 1, 0)) {
+    case 0x0:
+      return rv_decode_compressed_quadrant_0(encoding, instruction);
+    case 0x1:
+      return rv_decode_compressed_quadrant_1(encoding, instruction);
+    case 0x2:
+      return rv_decode_compressed_quadrant_2(encoding, instruction);
+    default:
+      return false;
   }
 }
 #endif

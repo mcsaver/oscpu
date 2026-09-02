@@ -19,6 +19,7 @@ err()  { echo "[devmap] MISMATCH: $*" >&2; fail=1; }
 
 # 取某文件中某宏的 SoC 分支值(过滤掉 legacy 0xa... 家族)
 soc_val() { grep -oE "$2[[:space:]]+0x[0-9a-fA-F]+" "$1" | grep -oE '0x[0-9a-fA-F]+' | grep -viE '^0xa' | head -1; }
+legacy_val() { grep -oE "$2[[:space:]]+0x[0-9a-fA-F]+" "$1" | grep -oE '0x[0-9a-fA-F]+' | grep -iE '^0xa' | head -1; }
 # NPC define.v 里的 64'hxxxx_xxxx_xxxx_xxxx -> 0x...
 defv_val() { grep -E "define[[:space:]]+$2" "$1" | grep -oE "64'h[0-9a-fA-F_]+" | tr -d "_" | sed "s/64'h0*/0x/;s/0x$/0x0/" | head -1; }
 
@@ -28,17 +29,20 @@ norm() { printf '0x%x' "$1"; }  # 归一化十六进制
 declare -A EXP=(
   [serial]=0x10000000 [clint]=0x02000000 [plic]=0x0c000000
   [syscon]=0x00100000
-  [rtc]=0x12000048 [kbd]=0x12000060 [vgactl]=0x12000100 [fb]=0x13000000 [disk]=0x10001000
+  [rtc]=0x12000048 [kbd]=0x12000060 [vgactl]=0x12000100 [audio]=0x12000200
+  [fb]=0x13000000 [disk]=0x10001000
 )
 
 am_serial=$(soc_val "$AM" DEV_SERIAL_BASE); am_clint=$(soc_val "$AM" DEV_CLINT_BASE); am_plic=$(soc_val "$AM" DEV_PLIC_BASE)
 am_syscon=$(soc_val "$AM" DEV_SYSCON_BASE)
 am_rtc=$(soc_val "$AM" DEV_RTC_BASE); am_kbd=$(soc_val "$AM" DEV_KBD_BASE); am_vga=$(soc_val "$AM" DEV_VGACTL_BASE)
+am_audio=$(soc_val "$AM" DEV_AUDIO_BASE); am_audio_legacy=$(legacy_val "$AM" DEV_AUDIO_BASE)
 am_fb=$(soc_val "$AM" DEV_FB_BASE); am_disk=$(soc_val "$AM" DEV_DISK_BASE)
 
 ne_serial=$(soc_val "$NEMU" DEV_SERIAL_MMIO); ne_clint=$(soc_val "$NEMU" DEV_CLINT_MMIO); ne_plic=$(soc_val "$NEMU" DEV_PLIC_MMIO)
 ne_syscon=$(soc_val "$NEMU" DEV_SYSCON_RESET_MMIO)
 ne_rtc=$(soc_val "$NEMU" DEV_RTC_MMIO); ne_kbd=$(soc_val "$NEMU" DEV_KBD_MMIO); ne_vga=$(soc_val "$NEMU" DEV_VGA_CTL_MMIO)
+ne_audio=$(soc_val "$NEMU" DEV_AUDIO_CTL_MMIO); ne_audio_legacy=$(legacy_val "$NEMU" DEV_AUDIO_CTL_MMIO)
 ne_fb=$(soc_val "$NEMU" DEV_FB_ADDR); ne_disk=$(soc_val "$NEMU" DEV_DISK_MMIO)
 
 # NPC: UART/CLINT/PLIC 直接给, 简易设备 = NPC_DEVICE_BASE + 偏移
@@ -69,9 +73,14 @@ chk rtc    "${EXP[rtc]}"    "$am_rtc"    "$ne_rtc"    "$np_rtc"
 chk kbd    "${EXP[kbd]}"    "$am_kbd"    "$ne_kbd"    "$np_kbd"
 chk vgactl "${EXP[vgactl]}" "$am_vga"    "$ne_vga"    "$np_vga"
 chk fb     "${EXP[fb]}"     "$am_fb"     "$ne_fb"     "$np_fb"
-# disk 只在 AM/NEMU (NPC 侧 virtio 由 RTL/其它处理)
+# audio/disk 只在 AM/NEMU；NPC audio 为 present=false，virtio-blk 由其它路径处理。
+[ "$((am_audio))" = "$((${EXP[audio]}))" ] || err "audio: AM=$am_audio != ${EXP[audio]}"
+[ "$((ne_audio))" = "$((${EXP[audio]}))" ] || err "audio: NEMU=$ne_audio != ${EXP[audio]}"
+[ "$((am_audio_legacy))" = "$((0xa0000200))" ] || err "legacy audio: AM=$am_audio_legacy != 0xa0000200"
+[ "$((ne_audio_legacy))" = "$((0xa0000200))" ] || err "legacy audio: NEMU=$ne_audio_legacy != 0xa0000200"
 [ "$((am_disk))" = "$((${EXP[disk]}))" ] || err "disk: AM=$am_disk != ${EXP[disk]}"
 [ "$((ne_disk))" = "$((${EXP[disk]}))" ] || err "disk: NEMU=$ne_disk != ${EXP[disk]}"
+[ "$fail" = 0 ] && note "audio = ${EXP[audio]}, legacy audio = 0xa0000200 (AM/NEMU 一致)"
 
 # define.v 的 DPI 窗口基址必须等于 NPC_DEVICE_BASE
 [ "$((defv_legacy))" = "$((np_base))" ] || err "define.v LEGACY_MMIO_BASE=$defv_legacy != NPC_DEVICE_BASE=$np_base"

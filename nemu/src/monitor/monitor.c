@@ -173,8 +173,8 @@ static void machine_info_write_hex(FILE *out, const char *key, uint64_t value) {
 static void dump_machine_info(FILE *out) {
   fprintf(out, "nemu.machine_info.version=1\n");
   fprintf(out, "config.isa=%s\n", CONFIG_ISA);
-  fprintf(out, "config.engine=%s\n", CONFIG_ENGINE);
-  machine_info_write_bool(out, "config.mode_system", ISDEF(CONFIG_MODE_SYSTEM));
+  fprintf(out, "config.engine=%s\n", NEMU_ENGINE_NAME);
+  machine_info_write_bool(out, "config.mode_system", NEMU_SYSTEM_MODE != 0);
   machine_info_write_bool(out, "config.performance", ISDEF(CONFIG_PERFORMANCE));
   machine_info_write_bool(out, "config.trace", ISDEF(CONFIG_TRACE));
 
@@ -206,37 +206,31 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "config.interpreter_wide_ifetch", ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH));
   machine_info_write_bool(out, "config.interpreter_ifetch_page_cache",
       ISDEF(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE));
-  machine_info_write_bool(out, "config.interpreter_decode_cache", ISDEF(CONFIG_INTERPRETER_DECODE_CACHE));
-  machine_info_write_bool(out, "config.interpreter_decode_direct_dispatch",
-      ISDEF(CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH));
+  machine_info_write_bool(out, "policy.interpreter_decode_cache",
+      NEMU_RV64_DECODE_CACHE != 0);
   machine_info_write_bool(out, "runtime.interpreter_wide_ifetch.enabled",
       ISDEF(CONFIG_INTERPRETER_WIDE_IFETCH) && vaddr_ifetch_wide_runtime_enabled());
   fprintf(out, "runtime.interpreter_wide_ifetch.disable_env=NEMU_INTERPRETER_WIDE_IFETCH=0\n");
   machine_info_write_bool(out, "runtime.interpreter_ifetch_page_cache.enabled",
       ISDEF(CONFIG_INTERPRETER_IFETCH_PAGE_CACHE) &&
       vaddr_ifetch_wide_runtime_enabled() && vaddr_host_fast_runtime_enabled());
+#if NEMU_RV64_DECODE_CACHE
+  bool decode_cache_runtime_enabled = isa_riscv_decode_cache_runtime_enabled();
+#else
+  bool decode_cache_runtime_enabled = false;
+#endif
   machine_info_write_bool(out, "runtime.interpreter_decode_cache.enabled",
-      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled());
+      decode_cache_runtime_enabled);
   fprintf(out, "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0\n");
-  machine_info_write_bool(out, "runtime.interpreter_decode_cache.rvc_fast.enabled",
-      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled() &&
-      isa_riscv_decode_cache_rvc_fast_runtime_enabled());
-  fprintf(out,
-      "runtime.interpreter_decode_cache.rvc_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=0\n");
-  machine_info_write_bool(out, "runtime.interpreter_decode_cache.int_fast.enabled",
-      ISDEF(CONFIG_INTERPRETER_DECODE_CACHE) && isa_riscv_decode_cache_runtime_enabled() &&
-      isa_riscv_decode_cache_int_fast_runtime_enabled());
-  fprintf(out,
-      "runtime.interpreter_decode_cache.int_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0\n");
   machine_info_write_bool(out, "runtime.vaddr_host_fast.enabled", vaddr_host_fast_runtime_enabled());
   fprintf(out, "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0\n");
   vaddr_write_trace_dump_machine_info(out);
   paddr_write_trace_dump_machine_info(out);
-#ifdef CONFIG_INTERPRETER_DECODE_CACHE
-  fprintf(out, "config.interpreter_decode_cache_entries=%d\n",
-      CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES);
+#if NEMU_RV64_DECODE_CACHE
+  fprintf(out, "policy.interpreter_decode_cache_entries=%d\n",
+      NEMU_RV64_DECODE_CACHE_ENTRIES);
 #else
-  fprintf(out, "config.interpreter_decode_cache_entries=0\n");
+  fprintf(out, "policy.interpreter_decode_cache_entries=0\n");
 #endif
   machine_info_write_bool(out, "config.interpreter_intr_fast_flag", ISDEF(CONFIG_INTERPRETER_INTR_FAST_FLAG));
   fprintf(out, "config.device_update_check_interval=%d\n", CONFIG_DEVICE_UPDATE_CHECK_INTERVAL);

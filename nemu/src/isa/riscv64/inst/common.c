@@ -103,25 +103,23 @@ static inline bool rv_instruction_target_valid(word_t target) {
 #endif
 }
 
-#ifdef CONFIG_INTERPRETER_DECODE_CACHE
-bool isa_riscv64_decode_cache_is_enabled = true;
-bool isa_riscv64_decode_cache_rvc_fast_is_enabled = true;
-bool isa_riscv64_decode_cache_int_fast_is_enabled = true;
-#else
-bool isa_riscv64_decode_cache_is_enabled = false;
-bool isa_riscv64_decode_cache_rvc_fast_is_enabled = false;
-bool isa_riscv64_decode_cache_int_fast_is_enabled = false;
-#endif
+/*
+ * 按手册语义触发 Illegal Instruction 异常，并将出错指令写入 mtval。
+ * 非法编码与可选 decode cache 无关，因此异常入口必须位于共享指令层。
+ */
+static inline void raise_illegal_instruction_exception(Decode *s,
+                                                        uint32_t instruction) {
+  s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, instruction);
+  R(0) = 0;
+}
+
+bool isa_riscv64_decode_cache_is_enabled = NEMU_RV64_DECODE_CACHE != 0;
 
 __attribute__((constructor))
 static void rv_runtime_config_init(void) {
-#ifdef CONFIG_INTERPRETER_DECODE_CACHE
+#if NEMU_RV64_DECODE_CACHE
   isa_riscv64_decode_cache_is_enabled =
     rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");
-  isa_riscv64_decode_cache_rvc_fast_is_enabled =
-    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST");
-  isa_riscv64_decode_cache_int_fast_is_enabled =
-    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE_INT_FAST");
 #endif
 }
 
@@ -150,134 +148,6 @@ void isa_riscv64_lr_sc_invalidate(paddr_t paddr, int len) {
 }
 #endif
 
-#ifdef CONFIG_INTERPRETER_DECODE_CACHE
-#define RV_DECODE_CACHE_ENTRIES CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES
-
-#if (RV_DECODE_CACHE_ENTRIES & (RV_DECODE_CACHE_ENTRIES - 1)) != 0
-#error "CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES must be a power of two"
-#endif
-
-typedef enum {
-  RV_DC_NONE = 0,
-  RV_DC_RVC,
-  RV_DC_OP_IMM,
-  RV_DC_OP_IMM_32,
-  RV_DC_LOAD,
-  RV_DC_LOAD_FP,
-  RV_DC_STORE,
-  RV_DC_STORE_FP,
-  RV_DC_AMO,
-  RV_DC_OP,
-  RV_DC_OP_32,
-  RV_DC_BRANCH,
-  RV_DC_JALR,
-  RV_DC_JAL,
-  RV_DC_LUI,
-  RV_DC_AUIPC,
-  RV_DC_KIND_COUNT,
-} RvDecodeCacheKind;
-
-typedef enum {
-  RV_DC_RVC_FALLBACK = 0,
-  RV_DC_RVC_ADDI4SPN,
-  RV_DC_RVC_ADDI,
-  RV_DC_RVC_ADDIW,
-  RV_DC_RVC_ADDI16SP,
-  RV_DC_RVC_LI,
-  RV_DC_RVC_LUI,
-  RV_DC_RVC_SRLI,
-  RV_DC_RVC_SRAI,
-  RV_DC_RVC_ANDI,
-  RV_DC_RVC_SUB,
-  RV_DC_RVC_XOR,
-  RV_DC_RVC_OR,
-  RV_DC_RVC_AND,
-  RV_DC_RVC_SUBW,
-  RV_DC_RVC_ADDW,
-  RV_DC_RVC_J,
-  RV_DC_RVC_JR,
-  RV_DC_RVC_SLLI,
-  RV_DC_RVC_MV,
-  RV_DC_RVC_ADD,
-  RV_DC_RVC_BEQZ,
-  RV_DC_RVC_BNEZ,
-  RV_DC_RVC_LW,
-  RV_DC_RVC_LD,
-  RV_DC_RVC_LWSP,
-  RV_DC_RVC_LDSP,
-  RV_DC_RVC_SW,
-  RV_DC_RVC_SD,
-  RV_DC_RVC_SWSP,
-  RV_DC_RVC_SDSP,
-  RV_DC_RVC_OP_COUNT,
-} RvDecodeCacheRvcOp;
-
-typedef enum {
-  RV_DC_INT_FALLBACK = 0,
-  RV_DC_INT_ADDI,
-  RV_DC_INT_SLTI,
-  RV_DC_INT_SLTIU,
-  RV_DC_INT_XORI,
-  RV_DC_INT_ORI,
-  RV_DC_INT_ANDI,
-  RV_DC_INT_SLLI,
-  RV_DC_INT_SRLI,
-  RV_DC_INT_SRAI,
-  RV_DC_INT_ADDIW,
-  RV_DC_INT_SLLIW,
-  RV_DC_INT_SRLIW,
-  RV_DC_INT_SRAIW,
-  RV_DC_INT_ADD,
-  RV_DC_INT_SUB,
-  RV_DC_INT_SLL,
-  RV_DC_INT_SLT,
-  RV_DC_INT_SLTU,
-  RV_DC_INT_XOR,
-  RV_DC_INT_SRL,
-  RV_DC_INT_SRA,
-  RV_DC_INT_OR,
-  RV_DC_INT_AND,
-  RV_DC_INT_ADDW,
-  RV_DC_INT_SUBW,
-  RV_DC_INT_SLLW,
-  RV_DC_INT_SRLW,
-  RV_DC_INT_SRAW,
-} RvDecodeCacheIntOp;
-
-typedef struct {
-  vaddr_t pc;
-  uint32_t inst_key;
-  word_t imm;
-  uint8_t kind;
-  uint8_t rvc_op;
-  uint8_t int_op;
-  uint8_t rd;
-  uint8_t rs1;
-  uint8_t rs2;
-  uint8_t funct3;
-  uint8_t funct7;
-} RvDecodeCacheEntry;
-
-static RvDecodeCacheEntry rv_decode_cache[RV_DECODE_CACHE_ENTRIES];
-
-static inline uint32_t rv_decode_cache_index(vaddr_t pc) {
-  return (pc >> 1) & (RV_DECODE_CACHE_ENTRIES - 1);
-}
-
-static inline uint32_t rv_decode_cache_inst_key(uint32_t inst) {
-#ifdef CONFIG_RISCV_EXT_C
-  return (inst & 0x3u) == 0x3u ? inst : (inst & 0xffffu);
-#else
-  return inst;
-#endif
-}
-
-static inline void rv_decode_cache_flush(void) {
-  memset(rv_decode_cache, 0, sizeof(rv_decode_cache));
-}
-#else
-#define rv_decode_cache_flush() ((void)0)
-#endif
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \

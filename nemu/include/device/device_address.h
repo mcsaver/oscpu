@@ -24,6 +24,7 @@
 #  define DEV_VGA_CTL_MMIO   0xa0000100
 #  define DEV_FB_ADDR        0xa1000000
 #  define DEV_DISK_MMIO      0xa0000300
+#  define DEV_AUDIO_CTL_MMIO 0xa0000200
 #  define DEV_SB_ADDR        0xa1200000
 #else
 // ---- 默认 Linux/SoC 图 (全 ISA 共用) ----
@@ -34,6 +35,7 @@
 #  define DEV_RTC_MMIO       0x12000048   // 简易 RTC (AM timer, 两个 32bit)
 #  define DEV_KBD_MMIO       0x12000060   // 简易键盘
 #  define DEV_VGA_CTL_MMIO   0x12000100   // 简易 VGA 控制
+#  define DEV_AUDIO_CTL_MMIO 0x12000200   // 简易音频控制
 #  define DEV_FB_ADDR        0x13000000   // framebuffer (窗口 +0x1000000)
 #  define DEV_SB_ADDR        0x13200000   // 音频流缓冲 (窗口 +0x1200000)
 #endif

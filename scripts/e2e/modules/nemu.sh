@@ -137,10 +137,12 @@ e2e_nemu_ubuntu_static_gate_impl() {
     nemu/configs/riscv64-linux_defconfig \
     nemu/scripts/native.mk \
     nemu/src/cpu/cpu-exec.c \
-    nemu/src/cpu/Kconfig \
+    nemu/include/nemu-config.h \
     nemu/src/device/serial.c \
     nemu/src/device/uart16550.c \
     nemu/include/device/uart16550.h \
+    nemu/include/device/device_address.h \
+    nemu/include/device/virtio.h \
     nemu/src/device/device.c \
     nemu/src/device/io/mmio.c \
     nemu/src/device/io/port-io.c \
@@ -166,6 +168,11 @@ e2e_nemu_ubuntu_static_gate_impl() {
     nemu/src/isa/riscv64/inst.c \
     nemu/src/isa/riscv64/filelist.mk \
     nemu/src/isa/riscv64/inst/common.c \
+    nemu/src/isa/riscv64/local-include/instruction.h \
+    nemu/src/isa/riscv64/local-include/privileged.h \
+    nemu/include/isa/riscv/privileged.h \
+    nemu/include/isa/riscv/pmp-encoding.h \
+    nemu/include/isa/riscv/pmp.h \
     nemu/src/isa/riscv64/inst/csr.c \
     nemu/src/isa/riscv64/inst/rv64i.c \
     nemu/src/isa/riscv64/inst/fp.c \
@@ -174,8 +181,17 @@ e2e_nemu_ubuntu_static_gate_impl() {
     nemu/src/isa/riscv64/inst/bitmanip.c \
     nemu/src/isa/riscv64/inst/compressed.c \
     nemu/src/isa/riscv64/inst/decode_cache.c \
+    nemu/src/isa/riscv64/inst/execute.c \
     nemu/src/isa/riscv64/inst/decode.c \
     nemu/src/isa/riscv32/inst.c \
+    nemu/src/isa/riscv32/filelist.mk \
+    nemu/src/isa/riscv32/local-include/instruction.h \
+    nemu/src/isa/riscv32/inst/decode.c \
+    nemu/src/isa/riscv32/inst/muldiv.c \
+    nemu/src/isa/riscv32/inst/bitmanip.c \
+    nemu/src/isa/riscv32/inst/execute.c \
+    am-kernels/tests/cpu-tests/tests/bitmanip.c \
+    am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c \
     nemu/src/isa/riscv64/include/isa-platform.h \
     nemu/src/isa/riscv32/include/isa-platform.h \
     nemu/src/isa/riscv64/system/intr.c \
@@ -380,20 +396,15 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "runtime.interpreter_tb_amo_continue.disable_env=NEMU_INTERPRETER_TB_AMO_CONTINUE=0" \
     "config.interpreter_wide_ifetch=1" \
     "config.interpreter_ifetch_page_cache=1" \
-    "config.interpreter_decode_cache=1" \
-    "config.interpreter_decode_direct_dispatch=1" \
+    "policy.interpreter_decode_cache=1" \
+    "policy.interpreter_decode_cache_entries=32768" \
     "runtime.interpreter_wide_ifetch.enabled=1" \
     "runtime.interpreter_wide_ifetch.disable_env=NEMU_INTERPRETER_WIDE_IFETCH=0" \
     "runtime.interpreter_ifetch_page_cache.enabled=1" \
     "runtime.interpreter_decode_cache.enabled=1" \
     "runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0" \
-    "runtime.interpreter_decode_cache.rvc_fast.enabled=1" \
-    "runtime.interpreter_decode_cache.rvc_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=0" \
-    "runtime.interpreter_decode_cache.int_fast.enabled=1" \
-    "runtime.interpreter_decode_cache.int_fast.disable_env=NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0" \
     "runtime.vaddr_host_fast.enabled=1" \
     "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0" \
-    "config.interpreter_decode_cache_entries=32768" \
     "config.interpreter_intr_fast_flag=1" \
     "config.device_update_check_interval=512" \
     "platform.hart_count=1" \
@@ -649,14 +660,12 @@ e2e_nemu_ubuntu_static_gate_impl() {
       missing=1
     fi
   done
-
   echo
   echo "[nemu-ubuntu] interpreter fast-path disable diagnostic machine info contract"
   NEMU_INTERPRETER_BASIC_BLOCK=0 \
   NEMU_INTERPRETER_TB_AMO_CONTINUE=0 \
   NEMU_INTERPRETER_WIDE_IFETCH=0 \
   NEMU_INTERPRETER_DECODE_CACHE=0 \
-  NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=0 \
   NEMU_VADDR_HOST_FAST=0 \
     make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu nemu-machine-info
   for pattern in \
@@ -665,8 +674,6 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "runtime.interpreter_wide_ifetch.enabled=0" \
     "runtime.interpreter_ifetch_page_cache.enabled=0" \
     "runtime.interpreter_decode_cache.enabled=0" \
-    "runtime.interpreter_decode_cache.rvc_fast.enabled=0" \
-    "runtime.interpreter_decode_cache.int_fast.enabled=0" \
     "runtime.vaddr_host_fast.enabled=0"; do
     if grep -Fxq "$pattern" "$machine_info"; then
       printf 'PASS interpreter-fast-disable machine-info %s\n' "$pattern"
@@ -1104,16 +1111,6 @@ e2e_nemu_ubuntu_static_gate() {
         "$NEMU_INTERPRETER_DECODE_CACHE"
       unset NEMU_INTERPRETER_DECODE_CACHE
     fi
-    if [[ ${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST+x} ]]; then
-      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=%s\n' \
-        "$NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST"
-      unset NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST
-    fi
-    if [[ ${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST+x} ]]; then
-      printf '[nemu-ubuntu] default static contracts ignore outer NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=%s\n' \
-        "$NEMU_INTERPRETER_DECODE_CACHE_INT_FAST"
-      unset NEMU_INTERPRETER_DECODE_CACHE_INT_FAST
-    fi
     if [[ ${NEMU_VADDR_HOST_FAST+x} ]]; then
       printf '[nemu-ubuntu] default static contracts ignore outer NEMU_VADDR_HOST_FAST=%s\n' \
         "$NEMU_VADDR_HOST_FAST"
@@ -1142,8 +1139,6 @@ e2e_nemu_ubuntu_profile_gate() {
   NEMU_PROFILE_STOP_DETAIL="${AGENT_E2E_NEMU_PROFILE_STOP_DETAIL:-${NEMU_PROFILE_STOP_DETAIL:-0}}" \
   NEMU_PROFILE_DECODE_CACHE="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE:-${NEMU_PROFILE_DECODE_CACHE:-0}}" \
   NEMU_PROFILE_RVC_DETAIL="${AGENT_E2E_NEMU_PROFILE_RVC_DETAIL:-${NEMU_PROFILE_RVC_DETAIL:-0}}" \
-  NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE_RVC_FAST:-${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST:-1}}" \
-  NEMU_INTERPRETER_DECODE_CACHE_INT_FAST="${AGENT_E2E_NEMU_PROFILE_DECODE_CACHE_INT_FAST:-${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST:-1}}" \
   NEMU_PROFILE_HOST_PERF_RECORD="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_RECORD:-${NEMU_PROFILE_HOST_PERF_RECORD:-0}}" \
   NEMU_PROFILE_HOST_PERF_ANNOTATE="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE:-${NEMU_PROFILE_HOST_PERF_ANNOTATE:-0}}" \
   NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP="${AGENT_E2E_NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-${NEMU_PROFILE_HOST_PERF_ANNOTATE_TOP:-3}}" \
@@ -1347,6 +1342,7 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/device/rng.c \
     nemu/src/device/net.c \
     nemu/src/device/goldfish_rtc.c \
+    nemu/include/device/virtio.h \
     Linux/tools/nemu-systemd-icmp-probe.c \
     Linux/tools/nemu-systemd-dhcp-probe.c \
     Linux/tools/nemu-systemd-dns-probe.c \
@@ -1366,6 +1362,11 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/isa/riscv64/inst.c \
     nemu/src/isa/riscv64/filelist.mk \
     nemu/src/isa/riscv64/inst/common.c \
+    nemu/src/isa/riscv64/local-include/instruction.h \
+    nemu/src/isa/riscv64/local-include/privileged.h \
+    nemu/include/isa/riscv/privileged.h \
+    nemu/include/isa/riscv/pmp-encoding.h \
+    nemu/include/isa/riscv/pmp.h \
     nemu/src/isa/riscv64/inst/csr.c \
     nemu/src/isa/riscv64/inst/rv64i.c \
     nemu/src/isa/riscv64/inst/fp.c \
@@ -1374,7 +1375,17 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/isa/riscv64/inst/bitmanip.c \
     nemu/src/isa/riscv64/inst/compressed.c \
     nemu/src/isa/riscv64/inst/decode_cache.c \
+    nemu/src/isa/riscv64/inst/execute.c \
     nemu/src/isa/riscv64/inst/decode.c \
+    nemu/src/isa/riscv32/inst.c \
+    nemu/src/isa/riscv32/filelist.mk \
+    nemu/src/isa/riscv32/local-include/instruction.h \
+    nemu/src/isa/riscv32/inst/decode.c \
+    nemu/src/isa/riscv32/inst/muldiv.c \
+    nemu/src/isa/riscv32/inst/bitmanip.c \
+    nemu/src/isa/riscv32/inst/execute.c \
+    am-kernels/tests/cpu-tests/tests/bitmanip.c \
+    am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c \
     nemu/include/isa.h \
     nemu/src/monitor/monitor.c \
     nemu/src/monitor/qmp.c \
@@ -1411,6 +1422,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local tap_host_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-tap-host.sh"
   local python_int_check_script="$E2E_ROOT_DIR/Linux/scripts/check-nemu-python-int-preflight.sh"
   local linux_makefile="$E2E_ROOT_DIR/Linux/Makefile"
+  local nemu_makefile="$E2E_ROOT_DIR/nemu/Makefile"
   local build_ubuntu_rootfs_sh="$E2E_ROOT_DIR/Linux/scripts/build-ubuntu-rootfs.sh"
   local build_ubuntu_systemd_overlay_sh="$E2E_ROOT_DIR/Linux/scripts/build-ubuntu-systemd-overlay.sh"
   local gen_nemu_hostless_apt_assets_py="$E2E_ROOT_DIR/Linux/scripts/gen-nemu-hostless-apt-assets.py"
@@ -1439,6 +1451,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local rng_c="$E2E_ROOT_DIR/nemu/src/device/rng.c"
   local goldfish_rtc_c="$E2E_ROOT_DIR/nemu/src/device/goldfish_rtc.c"
   local disk_c="$E2E_ROOT_DIR/nemu/src/device/disk.c"
+  local virtio_h="$E2E_ROOT_DIR/nemu/include/device/virtio.h"
   local monitor_c="$E2E_ROOT_DIR/nemu/src/monitor/monitor.c"
   local qmp_c="$E2E_ROOT_DIR/nemu/src/monitor/qmp.c"
   local qmp_h="$E2E_ROOT_DIR/nemu/src/monitor/qmp.h"
@@ -1453,17 +1466,36 @@ e2e_nemu_ubuntu_slice_contract() {
   local serial_c="$E2E_ROOT_DIR/nemu/src/device/serial.c"
   local uart16550_c="$E2E_ROOT_DIR/nemu/src/device/uart16550.c"
   local uart16550_h="$E2E_ROOT_DIR/nemu/include/device/uart16550.h"
+  local device_address_h="$E2E_ROOT_DIR/nemu/include/device/device_address.h"
   local device_c="$E2E_ROOT_DIR/nemu/src/device/device.c"
   local cpu_exec_c="$E2E_ROOT_DIR/nemu/src/cpu/cpu-exec.c"
-  local cpu_kconfig="$E2E_ROOT_DIR/nemu/src/cpu/Kconfig"
+  local cpu_kconfig="$E2E_ROOT_DIR/nemu/Kconfig"
+  local nemu_policy_h="$E2E_ROOT_DIR/nemu/include/nemu-config.h"
   local linux_defconfig="$E2E_ROOT_DIR/nemu/configs/riscv64-linux_defconfig"
   local rv64_inst_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst.c"
   local rv64_inst_dir="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst"
+  local rv64_instruction_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/local-include/instruction.h"
+  local rv64_privileged_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/local-include/privileged.h"
+  local riscv_privileged_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/privileged.h"
+  local riscv_pmp_encoding_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/pmp-encoding.h"
+  local riscv_pmp_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/pmp.h"
   local rv64_fp_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/fp.c"
+  local rv64_compressed_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/compressed.c"
+  local rv64_decode_cache_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/decode_cache.c"
   local rv64_decode_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/decode.c"
+  local rv64_execute_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/execute.c"
   local rv64_inst_filelist="$E2E_ROOT_DIR/nemu/src/isa/riscv64/filelist.mk"
   local rv64_inst_files=("$rv64_inst_c" "$rv64_inst_dir"/*.c)
   local rv32_inst_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/inst.c"
+  local rv32_inst_dir="$E2E_ROOT_DIR/nemu/src/isa/riscv32/inst"
+  local rv32_inst_filelist="$E2E_ROOT_DIR/nemu/src/isa/riscv32/filelist.mk"
+  local rv32_instruction_h="$E2E_ROOT_DIR/nemu/src/isa/riscv32/local-include/instruction.h"
+  local rv32_decode_c="$rv32_inst_dir/decode.c"
+  local rv32_muldiv_c="$rv32_inst_dir/muldiv.c"
+  local rv32_bitmanip_c="$rv32_inst_dir/bitmanip.c"
+  local rv32_execute_c="$rv32_inst_dir/execute.c"
+  local rv32_inst_audit_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c"
+  local rv32_bitmanip_test_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/bitmanip.c"
   local rv64_platform_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/include/isa-platform.h"
   local rv32_platform_h="$E2E_ROOT_DIR/nemu/src/isa/riscv32/include/isa-platform.h"
   local rv64_isa_def_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/include/isa-def.h"
@@ -1480,14 +1512,12 @@ e2e_nemu_ubuntu_slice_contract() {
   local rv32_mmu_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/mmu.c"
   local isa_h="$E2E_ROOT_DIR/nemu/include/isa.h"
   local nemu_kconfig="$E2E_ROOT_DIR/nemu/Kconfig"
-  local rv64_kconfig="$E2E_ROOT_DIR/nemu/src/isa/riscv64/Kconfig"
-  local rv32_kconfig="$E2E_ROOT_DIR/nemu/src/isa/riscv32/Kconfig"
   local gen_dts="$E2E_ROOT_DIR/Linux/platform/gen_dts.py"
   local perf_config_sh="$E2E_ROOT_DIR/Linux/scripts/check-nemu-performance-config.sh"
   local kernel_config_sh="$E2E_ROOT_DIR/Linux/scripts/check-nemu-kernel-config.sh"
   local profile_h="$E2E_ROOT_DIR/nemu/include/utils/profile.h"
   local profile_c="$E2E_ROOT_DIR/nemu/src/utils/profile.c"
-  local kconfig="$E2E_ROOT_DIR/nemu/src/device/Kconfig"
+  local kconfig="$nemu_kconfig"
 
   echo
   echo "[nemu-ubuntu] profile topology and scenario boundaries"
@@ -1584,7 +1614,10 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     '+$(MAKE) -C '\''$(NEMU_HOME)'\'' NEMU_HOME='\''$(NEMU_HOME)'\'' -j'\''$(JOBS)'\''' \
     '+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest' \
-    '+$(MAKE) -C '\''$(TOOLS_DIR)'\'''; do
+    '+$(MAKE) -C '\''$(TOOLS_DIR)'\''' \
+    'check-sim: sim' \
+    'set -o pipefail;' \
+    'NEMU_POLICY_HEADER='\''$(NEMU_HOME)/include/nemu-config.h'\'''; do
     if grep -Fq -- "$pattern" "$linux_makefile"; then
       printf 'PASS Linux/Makefile %s\n' "$pattern"
     else
@@ -1592,6 +1625,12 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  if grep -Fq -- 'override ENGINE := interpreter' "$nemu_makefile"; then
+    printf 'PASS nemu/Makefile fixes ENGINE=interpreter artifact identity\n'
+  else
+    printf 'FAIL nemu/Makefile fixes ENGINE=interpreter artifact identity\n'
+    missing=1
+  fi
   for pattern in \
     'NEMU_YSYX_TRACE_MAKE' \
     '不应直接 include 根 Makefile' \
@@ -1756,8 +1795,26 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+
+  echo
+  echo "[nemu-ubuntu] shared Virtio manual primitives"
   for pattern in \
-    "VIRTIO_NET_DEVICE_ID" \
+    "VIRTIO_DEVICE_ID_NETWORK = 1" \
+    "VIRTQUEUE_DESCRIPTOR_F_INDIRECT = 1u << 2" \
+    "virtio_transport_accept_status" \
+    "virtio_transport_raise_interrupt" \
+    "virtio_transport_acknowledge_interrupt" \
+    "virtqueue_event_needed" \
+    "virtqueue_descriptor_has_flag"; do
+    if grep -Fq -- "$pattern" "$virtio_h"; then
+      printf 'PASS virtio.h %s\n' "$pattern"
+    else
+      printf 'FAIL virtio.h %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "VIRTIO_DEVICE_ID_NETWORK" \
     "VIRTIO_NET_F_MTU" \
     "VIRTIO_NET_MTU" \
     "VIRTIO_NET_F_SPEED_DUPLEX" \
@@ -1896,11 +1953,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "virtio_net_handle_tx_chain" \
     "virtio_net_process_tx_queue" \
     "virtio_net_try_deliver_rx_queue" \
-    "virtq_need_event" \
+    "virtqueue_event_needed" \
     "virtq_set_avail_event" \
     "virtq_validate_queue_layout" \
     "virtq_dma_range_valid" \
-    "CONFIG_VIRTIO_NET_MMIO"; do
+    "DEV_VIRTIO_NET_MMIO"; do
     if grep -Fq -- "$pattern" "$net_c"; then
       printf 'PASS net.c %s\n' "$pattern"
     else
@@ -3804,8 +3861,6 @@ e2e_nemu_ubuntu_slice_contract() {
     "RUNTIME_TB_AMO_CONTINUE=\${NEMU_INTERPRETER_TB_AMO_CONTINUE:-1}" \
     "RUNTIME_WIDE_IFETCH=\${NEMU_INTERPRETER_WIDE_IFETCH:-1}" \
     "RUNTIME_DECODE_CACHE=\${NEMU_INTERPRETER_DECODE_CACHE:-1}" \
-    "RUNTIME_DECODE_CACHE_RVC_FAST=\${NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST:-1}" \
-    "RUNTIME_DECODE_CACHE_INT_FAST=\${NEMU_INTERPRETER_DECODE_CACHE_INT_FAST:-1}" \
     "RUNTIME_VADDR_HOST_FAST=\${NEMU_VADDR_HOST_FAST:-1}" \
     "RUNTIME_MMU_TLB=\${NEMU_RISCV_MMU_TLB:-1}" \
     "RUNTIME_VIRTIO_BLK_SYNC=\${NEMU_VIRTIO_BLK_SYNC:-0}" \
@@ -3822,8 +3877,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "guest_counters=%s" \
     "runtime.wide_ifetch=%s" \
     "runtime.tb_amo_continue=%s" \
-    "runtime.decode_cache_rvc_fast=%s" \
-    "runtime.decode_cache_int_fast=%s" \
+    "runtime.decode_cache=%s" \
     "runtime.vaddr_host_fast=%s" \
     "runtime.mmu_tlb=%s" \
     "host_perf_record=%s" \
@@ -3850,8 +3904,6 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_PROFILE=\"\$GUEST_COUNTERS\"" \
     "NEMU_INTERPRETER_WIDE_IFETCH=\"\$RUNTIME_WIDE_IFETCH\"" \
     "NEMU_INTERPRETER_DECODE_CACHE=\"\$RUNTIME_DECODE_CACHE\"" \
-    "NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST=\"\$RUNTIME_DECODE_CACHE_RVC_FAST\"" \
-    "NEMU_INTERPRETER_DECODE_CACHE_INT_FAST=\"\$RUNTIME_DECODE_CACHE_INT_FAST\"" \
     "NEMU_VADDR_HOST_FAST=\"\$RUNTIME_VADDR_HOST_FAST\"" \
     "NEMU_RISCV_MMU_TLB=\"\$RUNTIME_MMU_TLB\"" \
     "NEMU_VIRTIO_BLK_SYNC=\"\$RUNTIME_VIRTIO_BLK_SYNC\"" \
@@ -3884,6 +3936,12 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  if grep -Eq 'NEMU_INTERPRETER_DECODE_CACHE_[[:alnum:]_]+' "$profile_nemu_ubuntu_sh"; then
+    printf 'FAIL profile-nemu-ubuntu.sh exposes decode-cache sub-path runtime switches\n'
+    missing=1
+  else
+    printf 'PASS profile-nemu-ubuntu.sh exposes only the decode-cache master switch\n'
+  fi
 
   for pattern in \
     "extern uint64_t nemu_profile_counters" \
@@ -3999,8 +4057,6 @@ e2e_nemu_ubuntu_slice_contract() {
   fi
   for pattern in \
     "extern bool isa_riscv64_decode_cache_is_enabled" \
-    "extern bool isa_riscv64_decode_cache_rvc_fast_is_enabled" \
-    "extern bool isa_riscv64_decode_cache_int_fast_is_enabled" \
     "static inline bool isa_riscv64_decode_cache_runtime_enabled"; do
     if grep -Fq -- "$pattern" "$rv64_platform_h"; then
       printf 'PASS isa-platform.h decode-cache inline flag %s\n' "$pattern"
@@ -4010,13 +4066,9 @@ e2e_nemu_ubuntu_slice_contract() {
     fi
   done
   for pattern in \
-    "bool isa_riscv64_decode_cache_is_enabled = true" \
-    "bool isa_riscv64_decode_cache_rvc_fast_is_enabled = true" \
-    "bool isa_riscv64_decode_cache_int_fast_is_enabled = true" \
+    "bool isa_riscv64_decode_cache_is_enabled = NEMU_RV64_DECODE_CACHE != 0" \
     "rv_runtime_config_init" \
-    "NEMU_INTERPRETER_DECODE_CACHE" \
-    "NEMU_INTERPRETER_DECODE_CACHE_RVC_FAST" \
-    "NEMU_INTERPRETER_DECODE_CACHE_INT_FAST"; do
+    "NEMU_INTERPRETER_DECODE_CACHE"; do
     if grep -Fq -- "$pattern" "$rv64_inst_dir/common.c"; then
       printf 'PASS riscv64/inst/common.c decode-cache runtime storage %s\n' "$pattern"
     else
@@ -4024,6 +4076,13 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  if grep -Eq 'decode_cache_[[:alnum:]_]+_fast|NEMU_INTERPRETER_DECODE_CACHE_[[:alnum:]_]+' \
+      "$rv64_platform_h" "$rv64_inst_dir/common.c"; then
+    printf 'FAIL RV64 runtime policy retains obsolete decode-cache sub-path switches\n'
+    missing=1
+  else
+    printf 'PASS RV64 runtime policy has one decode-cache master switch\n'
+  fi
   if ! grep -Fq "bool isa_riscv64_decode_cache_runtime_enabled(" "$rv64_inst_dir/common.c"; then
     printf 'PASS riscv64/inst/common.c avoids decode-cache hot function definition\n'
   else
@@ -4042,14 +4101,14 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
-  if grep -Fq -- "uint64_t vpn0 = (va >> 12) & 0x1ff;" "$mmu_c" &&
-     grep -Fq -- "uint64_t vpn1 = (va >> 21) & 0x1ff;" "$mmu_c" &&
-     grep -Fq -- "uint64_t vpn2 = (va >> 30) & 0x1ff;" "$mmu_c" &&
-     grep -Fq -- "vpn_at_level = level == 2 ? vpn2" "$mmu_c" &&
+  if grep -Fq -- "int levels = sv_levels_for_mode(satp_mode);" "$mmu_c" &&
+     grep -Fq -- "for (int level = levels - 1; level >= 0; level--)" "$mmu_c" &&
+     grep -Fq -- "vpn_at_level = (va >> (12 + 9 * level)) & 0x1ff" "$mmu_c" &&
+     grep -Fq -- "pa_ppn = (pte_ppn & ~low_mask) | ((va >> 12) & low_mask)" "$mmu_c" &&
      ! grep -Fq -- "uint64_t vpn[3]" "$mmu_c"; then
-    printf 'PASS riscv64/system/mmu.c sv39_translate avoids hot VPN local array\n'
+    printf 'PASS riscv64/system/mmu.c unified Sv39/Sv48/Sv57 walker uses scalar VPN\n'
   else
-    printf 'FAIL riscv64/system/mmu.c sv39_translate VPN scalar contract drifted\n'
+    printf 'FAIL riscv64/system/mmu.c unified VPN scalar walker contract drifted\n'
     missing=1
   fi
 
@@ -4106,7 +4165,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "virtq_collect_table" \
     "virtq_used_event_addr" \
     "virtq_avail_event_addr" \
-    "virtq_need_event" \
+    "virtqueue_event_needed" \
     "virtq_set_avail_event" \
     "virtq_validate_queue_layout" \
     "virtq_dma_range_valid" \
@@ -4125,12 +4184,17 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "host_realtime_ns" \
-    "goldfish_rtc_time_ns" \
+    "GoldfishRtcRegister" \
+    "GoldfishRtcState" \
+    "goldfish_rtc_current_time_ns" \
     "goldfish_rtc_arm_alarm" \
-    "alarm_running" \
-    "irq_enabled" \
-    "interrupt_pending && irq_enabled" \
-    "goldfish_rtc_update_alarm" \
+    "alarm_armed" \
+    "interrupt_enabled" \
+    "goldfish_rtc_interrupt_line_asserted" \
+    "goldfish_rtc_update_interrupt_line" \
+    "goldfish_rtc_signal_alarm" \
+    "goldfish_rtc_evaluate_alarm" \
+    "void goldfish_rtc_update()" \
     "goldfish_rtc_dump_machine_info" \
     "goldfish_rtc_qmp_query_rtc" \
     "host-realtime-epoch+clint-mtime" \
@@ -4192,7 +4256,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "VIRTIO_BLK_S_UNSUPP" \
     "disk_range_ok" \
     "guest_range_ok" \
-    "VIRTQ_DESC_F_INDIRECT" \
+    "VIRTQUEUE_DESCRIPTOR_F_INDIRECT" \
     "virtq_collect_table" \
     "virtq_collect_chain" \
     "seen\[idx\]" \
@@ -4651,21 +4715,21 @@ e2e_nemu_ubuntu_slice_contract() {
     fi
   done
   if grep -q "config INTERPRETER_BASIC_BLOCK" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_BASIC_BLOCK\n'
+    printf 'PASS nemu/Kconfig config INTERPRETER_BASIC_BLOCK\n'
   else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_BASIC_BLOCK\n'
+    printf 'FAIL nemu/Kconfig config INTERPRETER_BASIC_BLOCK\n'
     missing=1
   fi
   if grep -q "config INTERPRETER_TB_MAX_INST" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_TB_MAX_INST\n'
+    printf 'PASS nemu/Kconfig config INTERPRETER_TB_MAX_INST\n'
   else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_TB_MAX_INST\n'
+    printf 'FAIL nemu/Kconfig config INTERPRETER_TB_MAX_INST\n'
     missing=1
   fi
   if grep -q "config INTERPRETER_IFETCH_PAGE_CACHE" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_IFETCH_PAGE_CACHE\n'
+    printf 'PASS nemu/Kconfig config INTERPRETER_IFETCH_PAGE_CACHE\n'
   else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_IFETCH_PAGE_CACHE\n'
+    printf 'FAIL nemu/Kconfig config INTERPRETER_IFETCH_PAGE_CACHE\n'
     missing=1
   fi
   if grep -q "CONFIG_INTERPRETER_BASIC_BLOCK=y" "$linux_defconfig"; then
@@ -4698,23 +4762,12 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_IFETCH_PAGE_CACHE=y\n'
     missing=1
   fi
-  if grep -q "CONFIG_INTERPRETER_DECODE_CACHE=y" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE=y\n'
-  else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE=y\n'
+  if grep -Eq 'INTERPRETER_DECODE_(CACHE|DIRECT_DISPATCH)' \
+      "$linux_defconfig" "$cpu_kconfig"; then
+    printf 'FAIL decode-cache implementation policy leaked back into Kconfig/defconfig\n'
     missing=1
-  fi
-  if grep -q "CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH=y" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH=y\n'
   else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH=y\n'
-    missing=1
-  fi
-  if grep -q "CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768\n'
-  else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768\n'
-    missing=1
+    printf 'PASS Kconfig/defconfig omit fixed decode-cache implementation policy\n'
   fi
   if grep -q "CONFIG_INTERPRETER_INTR_FAST_FLAG=y" "$linux_defconfig"; then
     printf 'PASS riscv64-linux_defconfig CONFIG_INTERPRETER_INTR_FAST_FLAG=y\n'
@@ -4809,24 +4862,6 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_IFETCH_PAGE_CACHE\n'
     missing=1
   fi
-  if grep -q "require_config_enabled CONFIG_INTERPRETER_DECODE_CACHE" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE\n'
-  else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE\n'
-    missing=1
-  fi
-  if grep -q "require_config_enabled CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH\n'
-  else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH\n'
-    missing=1
-  fi
-  if grep -q "require_config_value CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES 32768" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768\n'
-  else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES=32768\n'
-    missing=1
-  fi
   if grep -q "require_config_enabled CONFIG_INTERPRETER_INTR_FAST_FLAG" "$perf_config_sh"; then
     printf 'PASS check-nemu-performance-config.sh CONFIG_INTERPRETER_INTR_FAST_FLAG\n'
   else
@@ -4857,52 +4892,85 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL check-nemu-performance-config.sh CONFIG_MSIZE=0x40000000\n'
     missing=1
   fi
+  for pattern in \
+    "NEMU_ENGINE_NAME '\"interpreter\"'" \
+    "NEMU_SYSTEM_MODE 1" \
+    "NEMU_RV64_DECODE_CACHE 1" \
+    "NEMU_RV64_DECODE_CACHE_ENTRIES 32768" \
+    "DEV_SERIAL_MMIO 0x10000000" \
+    "DEV_DISK_MMIO 0x10001000" \
+    "DEV_VIRTIO_RNG_MMIO 0x10002000" \
+    "DEV_GOLDFISH_RTC_MMIO 0x10003000" \
+    "DEV_VIRTIO_NET_MMIO 0x10004000" \
+    "DEV_SYSCON_RESET_MMIO 0x00100000" \
+    "__NEMU_FIXED_POLICY__:ok"; do
+    if grep -q "$pattern" "$perf_config_sh"; then
+      printf 'PASS performance gate uses fixed-policy truth source: %s\n' "$pattern"
+    else
+      printf 'FAIL performance gate fixed-policy truth source: %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for policy_definition in \
+    "NEMU_RV64_DECODE_CACHE 1" \
+    "NEMU_RV64_DECODE_CACHE_ENTRIES 32768"; do
+    if grep -Eq "^[[:space:]]*#[[:space:]]*define[[:space:]]+${policy_definition}([[:space:]]|$)" \
+        "$nemu_policy_h"; then
+      printf 'PASS nemu-config.h fixed decode-cache policy %s\n' "$policy_definition"
+    else
+      printf 'FAIL nemu-config.h fixed decode-cache policy %s\n' "$policy_definition"
+      missing=1
+    fi
+  done
+  if grep -Eq 'CONFIG_INTERPRETER_DECODE_(CACHE|DIRECT_DISPATCH)' "$perf_config_sh"; then
+    printf 'FAIL performance gate still reads obsolete decode-cache Kconfig values\n'
+    missing=1
+  else
+    printf 'PASS performance gate reads decode-cache policy from nemu-config.h\n'
+  fi
+  for pattern in \
+    "DEV_SERIAL_MMIO    0x10000000" \
+    "DEV_DISK_MMIO      0x10001000" \
+    "DEV_AUDIO_CTL_MMIO 0x12000200" \
+    "DEV_VIRTIO_RNG_MMIO    0x10002000" \
+    "DEV_GOLDFISH_RTC_MMIO  0x10003000" \
+    "DEV_VIRTIO_NET_MMIO    0x10004000" \
+    "DEV_SYSCON_RESET_MMIO  0x00100000"; do
+    if grep -Fq "$pattern" "$device_address_h"; then
+      printf 'PASS device_address.h %s\n' "$pattern"
+    else
+      printf 'FAIL device_address.h %s\n' "$pattern"
+      missing=1
+    fi
+  done
   if grep -q "config INTERPRETER_WIDE_IFETCH" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_WIDE_IFETCH\n'
+    printf 'PASS nemu/Kconfig config INTERPRETER_WIDE_IFETCH\n'
   else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_WIDE_IFETCH\n'
-    missing=1
-  fi
-  if grep -q "config INTERPRETER_DECODE_CACHE" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE\n'
-  else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_DECODE_CACHE\n'
-    missing=1
-  fi
-  if grep -q "config INTERPRETER_DECODE_DIRECT_DISPATCH" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_DECODE_DIRECT_DISPATCH\n'
-  else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_DECODE_DIRECT_DISPATCH\n'
-    missing=1
-  fi
-  if grep -q "config INTERPRETER_DECODE_CACHE_ENTRIES" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_DECODE_CACHE_ENTRIES\n'
-  else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_DECODE_CACHE_ENTRIES\n'
+    printf 'FAIL nemu/Kconfig config INTERPRETER_WIDE_IFETCH\n'
     missing=1
   fi
   if grep -q "config INTERPRETER_INTR_FAST_FLAG" "$cpu_kconfig"; then
-    printf 'PASS cpu/Kconfig config INTERPRETER_INTR_FAST_FLAG\n'
+    printf 'PASS nemu/Kconfig config INTERPRETER_INTR_FAST_FLAG\n'
   else
-    printf 'FAIL cpu/Kconfig config INTERPRETER_INTR_FAST_FLAG\n'
+    printf 'FAIL nemu/Kconfig config INTERPRETER_INTR_FAST_FLAG\n'
     missing=1
   fi
   if grep -q "config DEVICE_UPDATE_CHECK_INTERVAL" "$kconfig"; then
-    printf 'PASS device/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
+    printf 'PASS nemu/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
   else
-    printf 'FAIL device/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
+    printf 'FAIL nemu/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
     missing=1
   fi
   if grep -q "config SERIAL_INPUT_HOST_POLL_INTERVAL" "$kconfig"; then
-    printf 'PASS device/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL\n'
+    printf 'PASS nemu/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL\n'
   else
-    printf 'FAIL device/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL\n'
+    printf 'FAIL nemu/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL\n'
     missing=1
   fi
   if grep -q "config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" "$kconfig"; then
-    printf 'PASS device/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+    printf 'PASS nemu/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
   else
-    printf 'FAIL device/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+    printf 'FAIL nemu/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
     missing=1
   fi
   for pattern in \
@@ -4922,6 +4990,75 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64/system/intr.c isa_riscv64_intr_pending_fast\n'
     missing=1
   fi
+  if grep -Fq -- "#include <isa/riscv/privileged.h>" "$rv64_privileged_h"; then
+    printf 'PASS riscv64 privileged wrapper imports the shared manual primitives\n'
+  else
+    printf 'FAIL riscv64 privileged wrapper does not import the shared manual primitives\n'
+    missing=1
+  fi
+  for pattern in \
+    "riscv_tvec_warl_value" \
+    "riscv_tvec_trap_target" \
+    "riscv_cause_is_interrupt" \
+    "riscv_cause_code" \
+    "riscv_decode_csr_access_intent" \
+    "riscv_decode_csr_instruction" \
+    "riscv_csr_address_is_read_only" \
+    "riscv_interrupt_target_privilege" \
+    "riscv_select_trap_target" \
+    "riscv_select_interrupt"; do
+    if grep -Fq -- "$pattern" "$riscv_privileged_h"; then
+      printf 'PASS shared RISC-V privileged helper %s\n' "$pattern"
+    else
+      printf 'FAIL shared RISC-V privileged helper %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "csr_is_implemented" \
+    "riscv_csr_access_is_legal" \
+    "riscv_csr_capture_source" \
+    "riscv_csr_calculate_write" \
+    "riscv_execute_csr_instruction" \
+    "reads_csr" \
+    "writes_csr"; do
+    if grep -q "$pattern" "$rv64_inst_dir/csr.c"; then
+      printf 'PASS riscv64 CSR manual-semantic access %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64 CSR manual-semantic access %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "riscv_machine_interrupt_candidates" \
+    "riscv_supervisor_interrupt_candidates" \
+    "riscv_machine_interrupts_globally_enabled" \
+    "riscv_supervisor_interrupts_globally_enabled"; do
+    if grep -Fq -- "$pattern" "$riscv_privileged_h"; then
+      printf 'PASS shared RISC-V delegated interrupt selection %s\n' "$pattern"
+    else
+      printf 'FAIL shared RISC-V delegated interrupt selection %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -q "riscv_select_interrupt" "$rv64_intr_c"; then
+    printf 'PASS riscv64/system/intr.c shares the privileged interrupt selector\n'
+  else
+    printf 'FAIL riscv64/system/intr.c privileged interrupt selector integration\n'
+    missing=1
+  fi
+  for pattern in \
+    "riscv_enter_supervisor_trap" \
+    "riscv_enter_machine_trap" \
+    "RiscvTrapRequest" \
+    "riscv_select_trap_target"; do
+    if grep -q "$pattern" "$rv64_intr_c"; then
+      printf 'PASS riscv64 manual trap entry %s\n' "$pattern"
+    else
+      printf 'FAIL riscv64 manual trap entry %s\n' "$pattern"
+      missing=1
+    fi
+  done
   for pattern in \
     "CONFIG_RISCV_CLINT_HOST_TIME" \
     "clint_sync_host_time" \
@@ -4938,33 +5075,31 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
-  if grep -q 'source "src/isa/riscv64/Kconfig"' "$nemu_kconfig" &&
-     grep -q 'source "src/isa/riscv32/Kconfig"' "$nemu_kconfig"; then
-    printf 'PASS nemu/Kconfig width-specific riscv Kconfig sources\n'
+  if grep -q 'menu "RISC-V ISA Extensions"' "$nemu_kconfig" &&
+     ! grep -Eq '^[[:space:]]*source[[:space:]]+".*Kconfig"' "$nemu_kconfig"; then
+    printf 'PASS nemu/Kconfig is the single consolidated configuration entry\n'
   else
-    printf 'FAIL nemu/Kconfig width-specific riscv Kconfig sources\n'
+    printf 'FAIL nemu/Kconfig must not source configuration fragments\n'
     missing=1
   fi
-  if grep -q 'ISA-dependent Options for riscv64' "$rv64_kconfig" &&
-     grep -q 'ISA-dependent Options for riscv32' "$rv32_kconfig"; then
-    printf 'PASS riscv32/riscv64 Kconfig menu split\n'
+  if grep -q '^config RISCV_EXT_M$' "$nemu_kconfig" &&
+     grep -q '^config RISCV_EXT_C$' "$nemu_kconfig"; then
+    printf 'PASS common RISC-V extensions are defined once at top level\n'
   else
-    printf 'FAIL riscv32/riscv64 Kconfig menu split\n'
+    printf 'FAIL top-level RISC-V extension definitions\n'
     missing=1
   fi
-  if grep -q 'config RISCV_CLINT_HOST_TIME' "$rv64_kconfig" &&
-     ! grep -q 'config RISCV_CLINT_HOST_TIME' "$rv32_kconfig"; then
-    printf 'PASS riscv64-only Kconfig CONFIG_RISCV_CLINT_HOST_TIME\n'
+  if grep -A2 '^config RISCV_CLINT_HOST_TIME$' "$nemu_kconfig" | grep -q 'depends on RV64'; then
+    printf 'PASS CONFIG_RISCV_CLINT_HOST_TIME remains RV64-only\n'
   else
-    printf 'FAIL riscv64-only Kconfig CONFIG_RISCV_CLINT_HOST_TIME\n'
+    printf 'FAIL CONFIG_RISCV_CLINT_HOST_TIME RV64 dependency\n'
     missing=1
   fi
-  if grep -q 'config RVE' "$rv32_kconfig" &&
-     grep -q 'config SOC_SIM' "$rv32_kconfig" &&
-     ! grep -Eq 'config RVE|config SOC_SIM|RV32[MC]' "$rv64_kconfig"; then
-    printf 'PASS riscv32-only Kconfig options stay out of riscv64 Kconfig\n'
+  if grep -A2 '^config RVE$' "$nemu_kconfig" | grep -q 'depends on !RV64' &&
+     grep -A2 '^config SOC_SIM$' "$nemu_kconfig" | grep -q 'depends on !RV64'; then
+    printf 'PASS RVE and SOC_SIM remain RV32-only\n'
   else
-    printf 'FAIL riscv32-only Kconfig options stay out of riscv64 Kconfig\n'
+    printf 'FAIL RVE/SOC_SIM RV32 dependencies\n'
     missing=1
   fi
   for pattern in \
@@ -5003,7 +5138,7 @@ e2e_nemu_ubuntu_slice_contract() {
   fi
   if grep -Eq 'isa_riscv32_|exec_rv32|riscv32_|CONFIG_RVE' \
       "${rv64_inst_files[@]}" "$rv64_intr_c" "$rv64_plic_c" "$mmu_c" \
-      "$rv64_platform_h" "$rv64_isa_def_h" "$rv64_kconfig"; then
+      "$rv64_platform_h" "$rv64_isa_def_h"; then
     printf 'FAIL riscv64 ISA files contain stale RV32/RVE symbols\n'
     missing=1
   else
@@ -5166,64 +5301,193 @@ e2e_nemu_ubuntu_slice_contract() {
     missing=1
   fi
   for pattern in \
-    "rv_decode_cache" \
-    "rv_decode_cache_inst_key" \
-    "rv_decode_cache_exec" \
-    "rv_decode_cache_dispatch" \
-    "RvDecodeCacheRvcOp" \
-    "RvDecodeCacheIntOp" \
-    "entry->rvc_op" \
-    "entry->int_op" \
-    "RV_DC_RVC_OP_COUNT" \
-    "RV_DC_RVC_ADDI4SPN" \
-    "RV_DC_RVC_ADDI16SP" \
-    "RV_DC_RVC_ANDI" \
-    "RV_DC_RVC_J" \
-    "RV_DC_RVC_JR" \
-    "RV_DC_RVC_SLLI" \
-    "RV_DC_RVC_LW" \
-    "RV_DC_RVC_BEQZ" \
-    "RV_DC_RVC_LDSP" \
-    "RV_DC_RVC_SW" \
-    "RV_DC_RVC_SDSP" \
-    "RV_DC_INT_ADDI" \
-    "RV_DC_INT_ANDI" \
-    "RV_DC_INT_SRAI" \
-    "RV_DC_INT_ADDIW" \
-    "RV_DC_INT_ADD" \
-    "RV_DC_INT_SUBW" \
-    "rv_decode_cache_rvc_op_is_direct" \
-    "isa_riscv64_decode_cache_int_fast_runtime_enabled" \
-    "profile_rvc_detail_inst(inst & 0xffffu)" \
-    "RV_DECODE_CACHE_USE_DIRECT_DISPATCH" \
-    "CONFIG_INTERPRETER_DECODE_DIRECT_DISPATCH" \
-    "NEMU_PROFILE_CPU_DECODE_CACHE_LOOKUPS" \
-    "NEMU_PROFILE_CPU_DECODE_CACHE_HITS" \
-    "NEMU_PROFILE_CPU_DECODE_CACHE_MISSES" \
-    "NEMU_PROFILE_CPU_DECODE_CACHE_HIT_RVC" \
-    "profile_rvc_detail_inst" \
-    "NEMU_PROFILE_CPU_RVC_ADDI" \
-    "NEMU_PROFILE_CPU_RVC_LWSP" \
-    "NEMU_PROFILE_CPU_RVC_SDSP" \
-    "rv_decode_cache_fill" \
-    "rv_decode_cache_flush" \
-    "CONFIG_INTERPRETER_DECODE_CACHE_ENTRIES"; do
-    if grep -q "$pattern" "${rv64_inst_files[@]}"; then
-      printf 'PASS riscv64 inst files %s\n' "$pattern"
+    "RV_INSTRUCTION_CLASS_COMPRESSED" \
+    "RV_OPERATION_ADDI" \
+    "RV_OPERATION_MRET" \
+    "RV_OPERATION_C_JALR" \
+    "RvDecodedInstruction" \
+    "rv_decode_cache_lookup" \
+    "rv_decode_cache_insert" \
+    "rv_decode_cache_flush"; do
+    if grep -Fq -- "$pattern" "$rv64_instruction_h"; then
+      printf 'PASS instruction.h manual-shaped decode contract %s\n' "$pattern"
     else
-      printf 'FAIL riscv64 inst files %s\n' "$pattern"
+      printf 'FAIL instruction.h manual-shaped decode contract %s\n' "$pattern"
       missing=1
     fi
   done
-  local rvc_detail_gate_count
-  rvc_detail_gate_count=$(grep -c "nemu_profile_rvc_detail_enabled" "$rv64_inst_dir/decode_cache.c" || :)
-  if [ "$rvc_detail_gate_count" -eq 1 ] &&
-     grep -q "rv_decode_cache_rvc_op_is_direct(entry->rvc_op)" "$rv64_inst_dir/decode_cache.c"; then
-    printf 'PASS riscv64 decode-cache RVC detail profiling single direct gate count=%s\n' "$rvc_detail_gate_count"
+  for pattern in \
+    "RvDecodedInstruction instruction" \
+    "rv_decode_cache_lookup" \
+    "rv_decode_cache_insert" \
+    "rv_decode_cache_flush" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_LOOKUPS" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_HITS" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_MISSES" \
+    "NEMU_PROFILE_CPU_DECODE_CACHE_HIT_RVC"; do
+    if grep -Fq -- "$pattern" "$rv64_decode_cache_c"; then
+      printf 'PASS decode_cache.c metadata-only API %s\n' "$pattern"
+    else
+      printf 'FAIL decode_cache.c metadata-only API %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Eq '(^|[^[:alnum:]_])R[[:space:]]*\(|cpu[.]gpr|vaddr_(read|write|ifetch)|rv_execute_|exec_[[:alnum:]_]*[[:space:]]*\(|isa_raise_intr|raise_[[:alnum:]_]*trap|([.]|->)dnpc' \
+      "$rv64_decode_cache_c"; then
+    printf 'FAIL decode_cache.c contains architectural execution/state access\n'
+    missing=1
   else
-    printf 'FAIL riscv64 decode-cache RVC detail profiling gate count=%s\n' "$rvc_detail_gate_count"
+    printf 'PASS decode_cache.c cannot execute or mutate architectural state\n'
+  fi
+  for pattern in \
+    "rv_decode_compressed_instruction" \
+    "rv_decode_compressed_quadrant_0" \
+    "RV_OPERATION_C_ADDI4SPN" \
+    "RV_OPERATION_C_JALR"; do
+    if grep -Fq -- "$pattern" "$rv64_compressed_c"; then
+      printf 'PASS compressed.c pure manual decoder %s\n' "$pattern"
+    else
+      printf 'FAIL compressed.c pure manual decoder %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Eq 'exec_rv64c|rv_execute_|(^|[^[:alnum:]_])R[[:space:]]*\(|vaddr_(read|write|ifetch)|isa_raise_intr|([.]|->)dnpc' \
+      "$rv64_compressed_c"; then
+    printf 'FAIL compressed.c contains execution semantics\n'
+    missing=1
+  else
+    printf 'PASS compressed.c contains decode semantics only\n'
+  fi
+  for pattern in \
+    "rv_decode_cache_lookup(state->pc, state->isa.inst, &instruction)" \
+    "rv_decode_cache_insert(state->pc, &instruction)" \
+    "rv_execute_decoded_instruction(state, &instruction)"; do
+    if grep -Fq -- "$pattern" "$rv64_decode_c"; then
+      printf 'PASS decode.c cache hit/miss convergence %s\n' "$pattern"
+    else
+      printf 'FAIL decode.c cache hit/miss convergence %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq -- "rv_execute_decoded_instruction" "$rv64_execute_c" &&
+     grep -Fq -- "switch (instruction->instruction_class)" "$rv64_execute_c"; then
+    printf 'PASS execute.c is the shared decoded-instruction executor\n'
+  else
+    printf 'FAIL execute.c shared decoded-instruction executor contract\n'
     missing=1
   fi
+  if grep -Eq 'instruction->(encoding|funct3|funct7)|(^|[^[:alnum:]_])(OPCODE|FUNCT3|FUNCT7)[[:space:]]*\(' \
+      "$rv64_execute_c"; then
+    printf 'FAIL execute.c re-decodes raw opcode/funct fields\n'
+    missing=1
+  else
+    printf 'PASS execute.c consumes mnemonic and operands without raw re-decode\n'
+  fi
+
+  echo
+  echo "[nemu-ubuntu] RV32 manual-shaped decode and execution ownership"
+  for pattern in \
+    "Rv32DecodedInstruction" \
+    "RV32_INSTRUCTION_CLASS_MULTIPLY_DIVIDE" \
+    "RV32_INSTRUCTION_CLASS_BIT_MANIPULATION" \
+    "RV32_OPERATION_MULHSU" \
+    "RV32_OPERATION_REV8" \
+    "RV32_OPERATION_ZEXT_H"; do
+    if grep -Fq -- "$pattern" "$rv32_instruction_h"; then
+      printf 'PASS riscv32 instruction descriptor %s\n' "$pattern"
+    else
+      printf 'FAIL riscv32 instruction descriptor %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq '#include "inst/decode.c"' "$rv32_inst_c" &&
+     grep -Fq '#include "inst/muldiv.c"' "$rv32_inst_c" &&
+     grep -Fq '#include "inst/bitmanip.c"' "$rv32_inst_c" &&
+     grep -Fq '#include "inst/execute.c"' "$rv32_inst_c" &&
+     grep -Fq 'SRCS-BLACKLIST-y' "$rv32_inst_filelist" &&
+     grep -Fq 'src/isa/riscv32/inst' "$rv32_inst_filelist"; then
+    printf 'PASS riscv32 instruction fragments have one unity owner\n'
+  else
+    printf 'FAIL riscv32 instruction fragment ownership drifted\n'
+    missing=1
+  fi
+  if grep -Fq 'rv32_decode_instruction(s->isa.inst, &instruction)' "$rv32_inst_c" &&
+     grep -Fq 'rv32_execute_decoded_instruction(s, &instruction)' "$rv32_inst_c" &&
+     grep -Fq 'static inline void rv32_decode_instruction(' "$rv32_decode_c" &&
+     grep -Fq 'switch (instruction->instruction_class)' "$rv32_execute_c"; then
+    printf 'PASS riscv32 raw encoding converges on one decoder and one executor\n'
+  else
+    printf 'FAIL riscv32 decoder/executor convergence contract drifted\n'
+    missing=1
+  fi
+  if grep -Eq '(^|[^[:alnum:]_])R[[:space:]]*\(|cpu[.]|vaddr_|paddr_|isa_raise_intr|ftrace|etrace|rv32_execute_' \
+      "$rv32_decode_c"; then
+    printf 'FAIL riscv32 decode.c reads or mutates architectural state\n'
+    missing=1
+  else
+    printf 'PASS riscv32 decode.c is a pure raw-to-manual-descriptor mapping\n'
+  fi
+  if grep -Eq 'instruction->encoding|(^|[^[:alnum:]_])(OPCODE|FUNCT3|FUNCT7|BITS|IMM_[A-Z0-9_]*|OP_KEY)[[:space:]]*\(' \
+      "$rv32_execute_c" "$rv32_muldiv_c" "$rv32_bitmanip_c"; then
+    printf 'FAIL riscv32 executor or pure semantics re-decodes raw fields\n'
+    missing=1
+  else
+    printf 'PASS riscv32 executor and pure semantics consume mnemonic operands only\n'
+  fi
+  if grep -Eq '(^|[^[:alnum:]_])R[[:space:]]*\(|cpu[.]|vaddr_|paddr_|isa_raise_intr|([.]|->)dnpc|instruction->|encoding' \
+      "$rv32_muldiv_c" "$rv32_bitmanip_c"; then
+    printf 'FAIL riscv32 muldiv/bitmanip semantics access architectural state\n'
+    missing=1
+  else
+    printf 'PASS riscv32 muldiv/bitmanip files state only manual arithmetic semantics\n'
+  fi
+  for pattern in \
+    "encoding & 0xfe00707fu" \
+    "encoding & 0xfff0707fu" \
+    "0x69805013u" \
+    "0x08004033u" \
+    "RV32_X_OPERAND_RD | RV32_X_OPERAND_RS1"; do
+    if grep -Fq -- "$pattern" "$rv32_decode_c"; then
+      printf 'PASS riscv32 B decode boundary %s\n' "$pattern"
+    else
+      printf 'FAIL riscv32 B decode boundary %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Eq 'RV32_OPERATION_(M_EXTENSION|BITMANIP_(IMMEDIATE|REGISTER))_ADAPTER|exec_rvm_op|exec_zb_op|legacy_execute_(m_extension|bitmanip)' \
+      "$rv32_instruction_h" "$rv32_inst_c" "$rv32_decode_c" "$rv32_execute_c"; then
+    printf 'FAIL riscv32 migrated M/B families fell back to a raw adapter\n'
+    missing=1
+  else
+    printf 'PASS riscv32 migrated M/B families have no raw adapter path\n'
+  fi
+  for pattern in \
+    "cte_init(rv32_audit_trap_handler)" \
+    "csrr %0, mtval" \
+    "rv32_audit_trap_cause == EXC_ILLEGAL_INST" \
+    "rv32_audit_trap_tval == encoding" \
+    "0x6b855513u" \
+    "0x08154533u" \
+    "0x62355513u"; do
+    if grep -Fq -- "$pattern" "$rv32_inst_audit_c"; then
+      printf 'PASS AM RV32 raw decode audit %s\n' "$pattern"
+    else
+      printf 'FAIL AM RV32 raw decode audit %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    'CHECK1("clz", 0u, 32u)' \
+    'CHECK1("ctz", 0u, 32u)' \
+    'CHECK2("rol", 0x12345678u, 37u, 0x468acf02u)' \
+    'CHECK2("bset", 0x12345678u, 33u, 0x1234567au)'; do
+    if grep -Fq -- "$pattern" "$rv32_bitmanip_test_c"; then
+      printf 'PASS AM bitmanip semantic boundary %s\n' "$pattern"
+    else
+      printf 'FAIL AM bitmanip semantic boundary %s\n' "$pattern"
+      missing=1
+    fi
+  done
   for pattern in \
     "vaddr_set_fault" \
     "vaddr_ifetch_wide" \
@@ -5324,7 +5588,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "paddr_dma_notify_cpu" \
     "isa_riscv_lr_sc_invalidate" \
     "vaddr_ifetch_cache_invalidate_paddr" \
-    "memcpy(guest_to_host(addr), buf, len)"; do
+    "paddr_dma_coherent_copy_in" \
+    "dcache_coherent_write"; do
     if grep -Fq "$pattern" "$paddr_c"; then
       printf 'PASS paddr.c DMA coherence %s\n' "$pattern"
     else
@@ -5346,7 +5611,8 @@ e2e_nemu_ubuntu_slice_contract() {
       fi
     done
   done
-  if grep -Eq 'memcpy\(guest_to_host|paddr_write\(' "$disk_c" "$rng_c" "$net_c"; then
+  if grep -Eq '^[[:space:]]*[^/*[:space:]].*(guest_to_host|paddr_write)[[:space:]]*\(' \
+      "$disk_c" "$rng_c" "$net_c"; then
     printf 'FAIL virtio DMA devices bypass paddr DMA coherence API\n'
     missing=1
   else
@@ -5376,12 +5642,14 @@ e2e_nemu_ubuntu_slice_contract() {
     fi
   done
   for pattern in \
-    "amo_translate_paddr" \
+    "vaddr_atomic_load_reserved" \
+    "vaddr_atomic_store_conditional" \
     "lr_reservation_paddr" \
     "lr_reservation_len" \
-    "lr_sc_reservation_matches" \
+    "reservation_valid && trans.paddr == reservation_paddr" \
     "isa_riscv64_lr_sc_invalidate"; do
-    if grep -q "$pattern" "${rv64_inst_files[@]}" "$rv64_platform_h"; then
+    if grep -Fq -- "$pattern" "${rv64_inst_files[@]}" "$vaddr_c" "$vaddr_h" \
+        "$rv64_platform_h"; then
       printf 'PASS riscv64 LR/SC reservation %s\n' "$pattern"
     else
       printf 'FAIL riscv64 LR/SC reservation %s\n' "$pattern"
@@ -5402,15 +5670,39 @@ e2e_nemu_ubuntu_slice_contract() {
     "CSR_PMPCFG0" \
     "CSR_PMPCFG2" \
     "CSR_PMPADDR0" \
-    "CSR_PMPADDR15" \
-    "RISCV64_PMP_ENTRY_COUNT" \
-    "PMP_CFG_A_TOR" \
-    "PMP_CFG_A_NA4" \
-    "PMP_CFG_A_NAPOT"; do
-    if grep -q "$pattern" "$rv64_isa_def_h" "${rv64_inst_files[@]}" "$mmu_c"; then
-      printf 'PASS riscv64 PMP %s\n' "$pattern"
+    "CSR_PMPADDR15"; do
+    if grep -q "$pattern" "$rv64_isa_def_h" "${rv64_inst_files[@]}"; then
+      printf 'PASS riscv64 PMP CSR address %s\n' "$pattern"
     else
-      printf 'FAIL riscv64 PMP %s\n' "$pattern"
+      printf 'FAIL riscv64 PMP CSR address %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "RISCV_PMP_ENTRY_COUNT = 16" \
+    "RISCV_PMP_TOR" \
+    "RISCV_PMP_NA4" \
+    "RISCV_PMP_NAPOT" \
+    "RISCV_PMP_LOCKED"; do
+    if grep -Fq -- "$pattern" "$riscv_pmp_encoding_h"; then
+      printf 'PASS shared RISC-V PMP encoding %s\n' "$pattern"
+    else
+      printf 'FAIL shared RISC-V PMP encoding %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "riscv_pmp_sanitize_config" \
+    "riscv_pmp_decode_napot" \
+    "riscv_pmp_decode_range" \
+    "riscv_pmp_range_overlaps" \
+    "riscv_pmp_range_contains" \
+    "riscv_pmp_entry_allows_access" \
+    "riscv_pmp_access_allowed"; do
+    if grep -Fq -- "$pattern" "$riscv_pmp_h"; then
+      printf 'PASS shared RISC-V PMP manual primitive %s\n' "$pattern"
+    else
+      printf 'FAIL shared RISC-V PMP manual primitive %s\n' "$pattern"
       missing=1
     fi
   done
@@ -5421,7 +5713,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "csr_write_pmpaddr" \
     "csr_pmpaddr_write_locked" \
     "isa_riscv64_pmp_mark_dirty" \
-    "PMP_CFG_L" \
+    "RISCV_PMP_LOCKED" \
+    "RISCV_PMP_TOR" \
+    "riscv_pmp_address_matching" \
     "isa_riscv64_mmu_tlb_flush"; do
     if grep -q "$pattern" "${rv64_inst_files[@]}"; then
       printf 'PASS riscv64 PMP CSR %s\n' "$pattern"
@@ -5462,7 +5756,8 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_SUM" \
     "NEMU_PROFILE_CPU_CSR_SSTATUS_WRITE_DELTA_MXR" \
     "old_status = cpu.csr.mstatus & SSTATUS_MASK" \
-    "new_status = (value & SSTATUS_MASK) | MSTATUS_SXL_UXL"; do
+    "writable_mask = SSTATUS_WRITABLE_MASK" \
+    "new_status = (value & writable_mask) | MSTATUS_UXL"; do
     if grep -Fq -- "$pattern" "$rv64_inst_dir/csr.c"; then
       printf 'PASS riscv64 csr.c sstatus write delta %s\n' "$pattern"
     else
@@ -5479,9 +5774,11 @@ e2e_nemu_ubuntu_slice_contract() {
     "pmp_cache_valid" \
     "pmp_cache_refresh" \
     "isa_riscv64_pmp_mark_dirty" \
-    "pmp_decode_range" \
-    "pmp_decode_napot" \
-    "pmp_permission_ok" \
+    "riscv_pmp_decode_range" \
+    "riscv_pmp_saturating_end" \
+    "riscv_pmp_range_overlaps" \
+    "riscv_pmp_range_contains" \
+    "riscv_pmp_entry_allows_access" \
     "pmp_any_active" \
     "mmu_effective_priv(type)" \
     "pmp-page-table-read" \
@@ -5888,11 +6185,14 @@ e2e_nemu_ubuntu_slice_contract() {
     fi
   done
   for pattern in \
-    "isa_riscv64_mmu_tlb_flush_selective(R(rs1), rs1 != 0, R(rs2), rs2 != 0)" \
+    "selects_virtual_address = instruction->rs1 != 0" \
+    "selects_address_space = instruction->rs2 != 0" \
+    "virtual_address, selects_virtual_address" \
+    "address_space, selects_address_space" \
     "satp writes are not implicit fences" \
     "TLB entries are keyed by root_ppn" \
     "guest software uses sfence.vma"; do
-    if grep -q "$pattern" "${rv64_inst_files[@]}"; then
+    if grep -Fq -- "$pattern" "${rv64_inst_files[@]}"; then
       printf 'PASS riscv64 inst files %s\n' "$pattern"
     else
       printf 'FAIL riscv64 inst files %s\n' "$pattern"
