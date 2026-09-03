@@ -28,11 +28,15 @@ __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction)
   if (MUXDEF(CONFIG_SOC_SIM, soc_sim_memcpy(addr, buf, n, direction), false)) {
     return;
   }
-  Assert(in_pmem(addr) && in_pmem(addr + n - 1),
+  Assert((uint64_t)n == n && paddr_span_in_pmem(addr, (uint64_t)n),
       "difftest memcpy out of pmem: addr=" FMT_PADDR ", size=%zu", addr, n);
 
   if (direction == DIFFTEST_TO_REF) {
     memcpy(guest_to_host(addr), buf, n);
+#ifdef CONFIG_ISA_riscv
+    /* 外部写入按物理重叠范围使本 hart 的 reservation set 失效。 */
+    isa_riscv_lr_sc_invalidate(addr, (uint64_t)n);
+#endif
   } else {
     memcpy(buf, guest_to_host(addr), n);
   }
@@ -43,6 +47,10 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   if (direction == DIFFTEST_TO_REF) {
     memcpy(&cpu, dut, DIFFTEST_REG_SIZE);
     cpu.gpr[0] = 0;
+#ifdef CONFIG_ISA_riscv
+    /* difftest ABI 不传隐藏 reservation；同步新寄存器状态时保守清除。 */
+    isa_riscv_lr_sc_clear();
+#endif
   } else {
     memcpy(dut, &cpu, DIFFTEST_REG_SIZE);
   }

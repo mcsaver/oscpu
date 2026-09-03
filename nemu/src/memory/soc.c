@@ -8,94 +8,145 @@
 #include <memory/soc.h>
 #include <device/uart16550.h>
 #include <difftest-def.h>
+#include <platform/platform-map.h>
 
 #ifdef CONFIG_SOC_SIM
 #include <isa.h>
 #include <utils.h>
 
-#define SOC_SRAM_BASE   ((paddr_t)0x0f000000u)
-#define SOC_SRAM_SIZE   ((size_t)0x00002000u)
-#define SOC_UART_BASE   ((paddr_t)0x10000000u)
-#define SOC_UART_SIZE   ((size_t)0x00001000u)
-#define SOC_SPI_BASE    ((paddr_t)0x10001000u)
-#define SOC_SPI_SIZE    ((size_t)0x00001000u)
-#define SOC_GPIO_BASE   ((paddr_t)0x10002000u)
-#define SOC_GPIO_SIZE   ((size_t)0x00000010u)
-#define SOC_PS2_BASE    ((paddr_t)0x10011000u)
-#define SOC_PS2_SIZE    ((size_t)0x00000008u)
-#define SOC_MROM_BASE   ((paddr_t)0x20000000u)
-#define SOC_MROM_SIZE   ((size_t)0x00001000u)
-#define SOC_VGA_BASE    ((paddr_t)0x21000000u)
-#define SOC_VGA_SIZE    ((size_t)0x00200000u)
-#define SOC_FLASH_BASE  ((paddr_t)0x30000000u)
-#define SOC_FLASH_SIZE  ((size_t)0x10000000u)
-#define SOC_SDRAM_BASE  ((paddr_t)0xa0000000u)
-#define SOC_SDRAM_SIZE  ((size_t)0x02000000u)
+typedef enum {
+  SOC_REGION_BACKEND_BYTES,
+  SOC_REGION_BACKEND_PMEM,
+  SOC_REGION_BACKEND_UART16550,
+  SOC_REGION_BACKEND_EMPTY_FLASH,
+} SocRegionBackend;
 
 typedef struct {
-  const char *name;
-  paddr_t base;
-  size_t size;
+  SocSimRegionInfo info;
+  SocRegionBackend backend;
   uint8_t *data;
-  bool readonly;
-  bool skip_ref;
-} SocMemRegion;
-
-static uint8_t *soc_sram = NULL;
-static uint8_t *soc_spi = NULL;
-static uint8_t *soc_gpio = NULL;
-static uint8_t *soc_ps2 = NULL;
-static uint8_t *soc_mrom = NULL;
-static uint8_t *soc_vga = NULL;
-static uint8_t *soc_sdram = NULL;
+} SocRegion;
 
 static Uart16550 *soc_uart = NULL;
 static const Uart16550BusProfile soc_uart_bus_profile =
     UART16550_BUS_PROFILE_8BIT;
 
-static SocMemRegion soc_regions[] = {
-  { "sram",  SOC_SRAM_BASE,  SOC_SRAM_SIZE,  NULL, false, false },
-  { "spi",   SOC_SPI_BASE,   SOC_SPI_SIZE,   NULL, false, true  },
-  { "gpio",  SOC_GPIO_BASE,  SOC_GPIO_SIZE,  NULL, false, true  },
-  { "ps2",   SOC_PS2_BASE,   SOC_PS2_SIZE,   NULL, false, true  },
-  { "mrom",  SOC_MROM_BASE,  SOC_MROM_SIZE,  NULL, true,  false },
-  { "vga",   SOC_VGA_BASE,   SOC_VGA_SIZE,   NULL, false, true  },
-  { "sdram", SOC_SDRAM_BASE, SOC_SDRAM_SIZE, NULL, false, false },
+/*
+ * ysyxSoC physical address map.  This table is both the decoder's source and
+ * the enumerable machine-topology contract exposed through memory/soc.h.
+ */
+static SocRegion soc_regions[] = {
+  {
+    .info = { "sram", YSYXSOC_SRAM_BASE, YSYXSOC_SRAM_SIZE,
+      SOC_SIM_REGION_MEMORY, false, false },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "uart0", YSYXSOC_UART_BASE, YSYXSOC_UART_SIZE,
+      SOC_SIM_REGION_MMIO, false, true },
+    .backend = SOC_REGION_BACKEND_UART16550,
+  },
+  {
+    .info = { "spi0", YSYXSOC_SPI_BASE, YSYXSOC_SPI_SIZE,
+      SOC_SIM_REGION_MMIO, false, true },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "gpio0", YSYXSOC_GPIO_BASE, YSYXSOC_GPIO_SIZE,
+      SOC_SIM_REGION_MMIO, false, true },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "ps2", YSYXSOC_PS2_BASE, YSYXSOC_PS2_SIZE,
+      SOC_SIM_REGION_MMIO, false, true },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "mrom", YSYXSOC_MROM_BASE, YSYXSOC_MROM_SIZE,
+      SOC_SIM_REGION_MEMORY, true, false },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "vga", YSYXSOC_VGA_BASE, YSYXSOC_VGA_SIZE,
+      SOC_SIM_REGION_MMIO, false, true },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
+  {
+    .info = { "flash", YSYXSOC_FLASH_BASE, YSYXSOC_FLASH_SIZE,
+      SOC_SIM_REGION_XIP_FLASH, true, true },
+    .backend = SOC_REGION_BACKEND_EMPTY_FLASH,
+  },
+  {
+    /* NEMU 的 primary-memory allocation 就是 SoC 手册中的 PSRAM。 */
+    .info = { "psram", YSYXSOC_PSRAM_BASE, YSYXSOC_PSRAM_SIZE,
+      SOC_SIM_REGION_MEMORY, false, false },
+    .backend = SOC_REGION_BACKEND_PMEM,
+  },
+  {
+    .info = { "sdram", YSYXSOC_SDRAM_BASE, YSYXSOC_SDRAM_SIZE,
+      SOC_SIM_REGION_MEMORY, false, false },
+    .backend = SOC_REGION_BACKEND_BYTES,
+  },
 };
 
-static bool range_hit(paddr_t base, size_t size, paddr_t addr, int len) {
-  if (len <= 0) return false;
-  paddr_t end = addr + (paddr_t)len - 1;
-  if (end < addr) return false;
-  return addr >= base && end < base + size;
+static bool soc_region_table_validated = false;
+
+static bool range_end(paddr_t base, size_t size, paddr_t *end) {
+  if (size == 0) return false;
+
+  size_t offset = size - 1;
+  paddr_t address_offset = (paddr_t)offset;
+  if ((size_t)address_offset != offset) return false;
+  if (base > ~(paddr_t)0 - address_offset) return false;
+
+  *end = base + address_offset;
+  return true;
 }
 
-static uint8_t *ensure_space(uint8_t **slot, size_t size, const char *name) {
-  if (*slot == NULL) {
-    *slot = (uint8_t *)calloc(1, size);
-    Assert(*slot != NULL, "can not allocate ysyxSoC %s space, size=%zu", name, size);
-  }
-  return *slot;
+static bool region_contains(const SocSimRegionInfo *region,
+    paddr_t base, size_t size) {
+  paddr_t region_end = 0;
+  paddr_t span_end = 0;
+  return range_end(region->base, region->size, &region_end) &&
+      range_end(base, size, &span_end) &&
+      base >= region->base && span_end <= region_end;
 }
 
-static void bind_regions(void) {
-  soc_regions[0].data = ensure_space(&soc_sram, SOC_SRAM_SIZE, "sram");
-  soc_regions[1].data = ensure_space(&soc_spi, SOC_SPI_SIZE, "spi");
-  soc_regions[2].data = ensure_space(&soc_gpio, SOC_GPIO_SIZE, "gpio");
-  soc_regions[3].data = ensure_space(&soc_ps2, SOC_PS2_SIZE, "ps2");
-  soc_regions[4].data = ensure_space(&soc_mrom, SOC_MROM_SIZE, "mrom");
-  soc_regions[5].data = ensure_space(&soc_vga, SOC_VGA_SIZE, "vga");
-  soc_regions[6].data = ensure_space(&soc_sdram, SOC_SDRAM_SIZE, "sdram");
+static bool region_overlaps(const SocSimRegionInfo *region,
+    paddr_t base, size_t size) {
+  paddr_t region_end = 0;
+  paddr_t span_end = 0;
+  return range_end(region->base, region->size, &region_end) &&
+      range_end(base, size, &span_end) &&
+      base <= region_end && region->base <= span_end;
 }
 
-static SocMemRegion *find_region(paddr_t addr, int len) {
-  bind_regions();
+static SocRegion *find_region(paddr_t base, size_t size) {
   for (size_t i = 0; i < ARRLEN(soc_regions); i++) {
-    if (range_hit(soc_regions[i].base, soc_regions[i].size, addr, len)) {
+    if (region_contains(&soc_regions[i].info, base, size)) {
       return &soc_regions[i];
     }
   }
   return NULL;
+}
+
+static uint8_t *region_bytes(SocRegion *region) {
+  Assert(region->backend == SOC_REGION_BACKEND_BYTES,
+      "ysyxSoC %s has no byte-addressable host backing", region->info.name);
+  if (region->data == NULL) {
+    region->data = (uint8_t *)calloc(1, region->info.size);
+    Assert(region->data != NULL,
+        "can not allocate ysyxSoC %s space, size=%zu",
+        region->info.name, region->info.size);
+  }
+  return region->data;
+}
+
+/* Loader/DiffTest images may initialize memories, never device registers. */
+static bool region_is_byte_backed_memory(const SocRegion *region) {
+  return region != NULL &&
+      region->info.kind == SOC_SIM_REGION_MEMORY &&
+      region->backend == SOC_REGION_BACKEND_BYTES;
 }
 
 static word_t read_le(const uint8_t *base, int len) {
@@ -118,22 +169,18 @@ static void soc_uart_tx(void *opaque, uint8_t ch) {
   fflush(stderr);
 }
 
-static void soc_uart_irq(void *opaque, bool level) {
-  (void)opaque;
-#ifdef CONFIG_ISA_riscv
-  isa_riscv_plic_set_irq(1, level);
-#else
-  (void)level;
-#endif
-}
-
 static void soc_uart_init_once(void) {
   if (soc_uart != NULL) {
     return;
   }
   Uart16550Ops ops = {
     .tx = soc_uart_tx,
-    .irq = soc_uart_irq,
+    /*
+     * The external ysyxSoC APB wrapper keeps the UART interrupt signal inside
+     * the wrapper and does not route it to the CPU.  Preserve UART register/IIR
+     * state, but do not invent a UART -> PLIC -> CPU wire in the NEMU profile.
+     */
+    .irq = NULL,
   };
   Uart16550Config config = {
     .ops = &ops,
@@ -144,7 +191,7 @@ static void soc_uart_init_once(void) {
 
 static word_t uart_read(paddr_t addr, int len) {
   soc_uart_init_once();
-  uint32_t offset = (uint32_t)(addr - SOC_UART_BASE);
+  uint32_t offset = (uint32_t)(addr - YSYXSOC_UART_BASE);
   uart16550_service(soc_uart);
   return (word_t)uart16550_bus_read(soc_uart, &soc_uart_bus_profile,
       offset, len);
@@ -152,24 +199,77 @@ static word_t uart_read(paddr_t addr, int len) {
 
 static void uart_write(paddr_t addr, int len, word_t data) {
   soc_uart_init_once();
-  uint32_t offset = (uint32_t)(addr - SOC_UART_BASE);
+  uint32_t offset = (uint32_t)(addr - YSYXSOC_UART_BASE);
   uart16550_bus_write(soc_uart, &soc_uart_bus_profile, offset, len, data);
 }
 
-static bool flash_in_range(paddr_t addr, int len) {
-  return range_hit(SOC_FLASH_BASE, SOC_FLASH_SIZE, addr, len);
+size_t soc_sim_region_count(void) {
+  return sizeof(soc_regions) / sizeof(soc_regions[0]);
+}
+
+const SocSimRegionInfo *soc_sim_region_at(size_t index) {
+  return index < soc_sim_region_count() ? &soc_regions[index].info : NULL;
+}
+
+const SocSimRegionInfo *soc_sim_region_containing(paddr_t base, size_t size) {
+  SocRegion *region = find_region(base, size);
+  return region != NULL ? &region->info : NULL;
+}
+
+const SocSimRegionInfo *soc_sim_region_overlapping(paddr_t base, size_t size) {
+  for (size_t i = 0; i < soc_sim_region_count(); i++) {
+    if (region_overlaps(&soc_regions[i].info, base, size)) {
+      return &soc_regions[i].info;
+    }
+  }
+  return NULL;
+}
+
+const SocSimRegionInfo *soc_sim_pmem_backed_region(void) {
+  for (size_t i = 0; i < soc_sim_region_count(); i++) {
+    if (soc_regions[i].backend == SOC_REGION_BACKEND_PMEM) {
+      return &soc_regions[i].info;
+    }
+  }
+  return NULL;
+}
+
+bool soc_sim_transaction_valid(
+    paddr_t addr, int len, SocSimTransactionDirection direction) {
+  if (len != 1 && len != 2 && len != 4) return false;
+
+  SocRegion *region = find_region(addr, (size_t)len);
+  if (region == NULL) return false;
+
+  switch (direction) {
+    case SOC_SIM_TRANSACTION_IFETCH:
+      return len != 1 && region->info.kind != SOC_SIM_REGION_MMIO;
+    case SOC_SIM_TRANSACTION_READ:
+      return true;
+    case SOC_SIM_TRANSACTION_WRITE:
+      /*
+       * MROM is architecturally read-only and must raise a guest access fault.
+       * The empty XIP-flash model deliberately accepts stores as defined
+       * no-ops, matching soc_sim_write() without claiming mutable flash data.
+       */
+      return !region->info.readonly ||
+          region->backend == SOC_REGION_BACKEND_EMPTY_FLASH;
+    default:
+      return false;
+  }
 }
 
 __EXPORT bool soc_sim_in_range(paddr_t addr) {
-  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, 1)) return true;
-  if (flash_in_range(addr, 1)) return true;
-  return find_region(addr, 1) != NULL;
+  return soc_sim_span_in_range(addr, 1);
+}
+
+bool soc_sim_span_in_range(paddr_t addr, int len) {
+  if (len <= 0) return false;
+  return soc_sim_region_containing(addr, (size_t)len) != NULL;
 }
 
 bool soc_sim_should_skip_ref(paddr_t addr) {
-  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, 1)) return true;
-  if (flash_in_range(addr, 1)) return true;
-  SocMemRegion *region = find_region(addr, 1);
+  const SocSimRegionInfo *region = soc_sim_region_containing(addr, 1);
   return region != NULL && region->skip_ref;
 }
 
@@ -177,47 +277,91 @@ word_t soc_sim_read(paddr_t addr, int len) {
   Assert(len == 1 || len == 2 || len == 4,
       "unsupported ysyxSoC read length: addr=" FMT_PADDR ", len=%d", addr, len);
 
-  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, len)) {
-    return uart_read(addr, len);
-  }
-  if (flash_in_range(addr, len)) {
-    // 当前 ysyxSoC flash 仍是 SPI/XIP 外设占位；读 0 让空镜像表现为非法指令/空数据。
-    return 0;
-  }
+  SocRegion *region = find_region(addr, (size_t)len);
+  Assert(region != NULL,
+      "ysyxSoC read out of modeled range: addr=" FMT_PADDR ", len=%d",
+      addr, len);
 
-  SocMemRegion *region = find_region(addr, len);
-  Assert(region != NULL, "ysyxSoC read out of modeled range: addr=" FMT_PADDR ", len=%d", addr, len);
-  return read_le(region->data + (addr - region->base), len);
+  switch (region->backend) {
+    case SOC_REGION_BACKEND_UART16550:
+      return uart_read(addr, len);
+    case SOC_REGION_BACKEND_EMPTY_FLASH:
+      // 当前 ysyxSoC flash 仍是 SPI/XIP 外设占位；读 0 让空镜像表现为非法指令/空数据。
+      return 0;
+    case SOC_REGION_BACKEND_BYTES:
+      return read_le(region_bytes(region) + (addr - region->info.base), len);
+    case SOC_REGION_BACKEND_PMEM:
+      panic("ysyxSoC %s must be dispatched through NEMU PMEM", region->info.name);
+      return 0;
+    default:
+      panic("unknown ysyxSoC backend for %s", region->info.name);
+  }
 }
 
 void soc_sim_write(paddr_t addr, int len, word_t data) {
   Assert(len == 1 || len == 2 || len == 4,
       "unsupported ysyxSoC write length: addr=" FMT_PADDR ", len=%d", addr, len);
 
-  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, len)) {
-    uart_write(addr, len, data);
-    return;
-  }
-  if (flash_in_range(addr, len)) {
-    // XIP flash 对普通 CPU store 不产生可见架构状态；控制器寄存器仍由 SPI 窗口建模。
-    return;
-  }
+  SocRegion *region = find_region(addr, (size_t)len);
+  Assert(region != NULL,
+      "ysyxSoC write out of modeled range: addr=" FMT_PADDR ", len=%d",
+      addr, len);
 
-  SocMemRegion *region = find_region(addr, len);
-  Assert(region != NULL, "ysyxSoC write out of modeled range: addr=" FMT_PADDR ", len=%d", addr, len);
-  Assert(!region->readonly, "ysyxSoC %s is read-only: addr=" FMT_PADDR, region->name, addr);
-  write_le(region->data + (addr - region->base), len, data);
+  switch (region->backend) {
+    case SOC_REGION_BACKEND_UART16550:
+      uart_write(addr, len, data);
+      return;
+    case SOC_REGION_BACKEND_EMPTY_FLASH:
+      // XIP flash 对普通 CPU store 不产生可见架构状态；控制器寄存器仍由 SPI 窗口建模。
+      return;
+    case SOC_REGION_BACKEND_BYTES:
+      Assert(!region->info.readonly,
+          "ysyxSoC %s is read-only: addr=" FMT_PADDR,
+          region->info.name, addr);
+      write_le(region_bytes(region) + (addr - region->info.base), len, data);
+      return;
+    case SOC_REGION_BACKEND_PMEM:
+      panic("ysyxSoC %s must be dispatched through NEMU PMEM", region->info.name);
+      return;
+    default:
+      panic("unknown ysyxSoC backend for %s", region->info.name);
+  }
 }
 
 void soc_sim_reset(void) {
-  bind_regions();
-  memset(soc_sram, 0, SOC_SRAM_SIZE);
-  memset(soc_spi, 0, SOC_SPI_SIZE);
-  memset(soc_gpio, 0, SOC_GPIO_SIZE);
-  memset(soc_ps2, 0, SOC_PS2_SIZE);
-  memset(soc_mrom, 0, SOC_MROM_SIZE);
-  memset(soc_vga, 0, SOC_VGA_SIZE);
-  memset(soc_sdram, 0, SOC_SDRAM_SIZE);
+  if (!soc_region_table_validated) {
+    size_t pmem_backed_regions = 0;
+    for (size_t i = 0; i < soc_sim_region_count(); i++) {
+      paddr_t ignored_end = 0;
+      Assert(soc_regions[i].info.name != NULL &&
+             range_end(soc_regions[i].info.base,
+                 soc_regions[i].info.size, &ignored_end),
+          "invalid ysyxSoC region descriptor at index %zu", i);
+      for (size_t j = i + 1; j < soc_sim_region_count(); j++) {
+        Assert(!region_overlaps(&soc_regions[i].info,
+                soc_regions[j].info.base, soc_regions[j].info.size),
+            "ysyxSoC regions %s and %s overlap",
+            soc_regions[i].info.name, soc_regions[j].info.name);
+      }
+      if (soc_regions[i].backend == SOC_REGION_BACKEND_PMEM) {
+        pmem_backed_regions++;
+        Assert(soc_regions[i].info.kind == SOC_SIM_REGION_MEMORY &&
+               !soc_regions[i].info.readonly,
+            "ysyxSoC PMEM-backed region %s must be writable memory",
+            soc_regions[i].info.name);
+      }
+    }
+    Assert(pmem_backed_regions == 1,
+        "ysyxSoC platform must define exactly one PMEM-backed region");
+    soc_region_table_validated = true;
+  }
+
+  for (size_t i = 0; i < soc_sim_region_count(); i++) {
+    SocRegion *region = &soc_regions[i];
+    if (region->backend == SOC_REGION_BACKEND_BYTES) {
+      memset(region_bytes(region), 0, region->info.size);
+    }
+  }
   if (soc_uart == NULL) {
     soc_uart_init_once();
   } else {
@@ -225,21 +369,32 @@ void soc_sim_reset(void) {
   }
 }
 
+bool soc_sim_copy_to_guest(paddr_t addr, const void *buf, size_t n) {
+  if (n == 0) return false;
+  Assert(buf != NULL, "ysyxSoC loader buffer is NULL");
+  SocRegion *region = find_region(addr, n);
+  /*
+   * PMEM-backed PSRAM 交还标准 PMEM memcpy 路径，避免双份 backing；SPI、
+   * GPIO、PS/2、VGA 即使模型内部有寄存器 backing，也不是可装载内存。
+   */
+  if (!region_is_byte_backed_memory(region)) return false;
+
+  uint8_t *host = region_bytes(region) + (addr - region->info.base);
+  memcpy(host, buf, n);
+  return true;
+}
+
 bool soc_sim_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
   if (n == 0) return false;
   Assert(buf != NULL, "ysyxSoC difftest memcpy buffer is NULL");
-  if (n > (size_t)INT32_MAX) return false;
+  SocRegion *region = find_region(addr, n);
+  /* PMEM-backed PSRAM 交还 ref.c 的标准 PMEM memcpy 路径，避免双份 backing。 */
+  if (!region_is_byte_backed_memory(region)) return false;
 
-  if (range_hit(SOC_UART_BASE, SOC_UART_SIZE, addr, (int)n) || flash_in_range(addr, (int)n)) {
-    return false;
-  }
-  SocMemRegion *region = find_region(addr, (int)n);
-  if (region == NULL) return false;
-
-  uint8_t *host = region->data + (addr - region->base);
+  uint8_t *host = region_bytes(region) + (addr - region->info.base);
   if (direction == DIFFTEST_TO_REF) {
     // difftest_memcpy 是加载/同步入口；允许 host 初始化 MROM，运行期 CPU store 仍由 soc_sim_write() 拦住。
-    memcpy(host, buf, n);
+    return soc_sim_copy_to_guest(addr, buf, n);
   } else {
     memcpy(buf, host, n);
   }
@@ -248,8 +403,47 @@ bool soc_sim_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
 
 #else
 
+size_t soc_sim_region_count(void) {
+  return 0;
+}
+
+const SocSimRegionInfo *soc_sim_region_at(size_t index) {
+  (void)index;
+  return NULL;
+}
+
+const SocSimRegionInfo *soc_sim_region_containing(paddr_t base, size_t size) {
+  (void)base;
+  (void)size;
+  return NULL;
+}
+
+const SocSimRegionInfo *soc_sim_region_overlapping(paddr_t base, size_t size) {
+  (void)base;
+  (void)size;
+  return NULL;
+}
+
+const SocSimRegionInfo *soc_sim_pmem_backed_region(void) {
+  return NULL;
+}
+
+bool soc_sim_transaction_valid(
+    paddr_t addr, int len, SocSimTransactionDirection direction) {
+  (void)addr;
+  (void)len;
+  (void)direction;
+  return false;
+}
+
 __EXPORT bool soc_sim_in_range(paddr_t addr) {
   (void)addr;
+  return false;
+}
+
+bool soc_sim_span_in_range(paddr_t addr, int len) {
+  (void)addr;
+  (void)len;
   return false;
 }
 
@@ -271,6 +465,13 @@ void soc_sim_write(paddr_t addr, int len, word_t data) {
 }
 
 void soc_sim_reset(void) {}
+
+bool soc_sim_copy_to_guest(paddr_t addr, const void *buf, size_t n) {
+  (void)addr;
+  (void)buf;
+  (void)n;
+  return false;
+}
 
 bool soc_sim_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
   (void)addr;

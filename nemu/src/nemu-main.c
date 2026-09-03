@@ -29,12 +29,12 @@ int main(int argc, char *argv[]) {
   am_init_monitor();
 #else
 //否则，普通NEMU仿真，初始化NEMU的监视器（SDB调试器、命令行参数）
-  init_monitor(argc, argv);
+  init_monitor(argc, argv);//构建整台虚拟机器
 #endif
 
   /* Start engine. */
-  engine_start();
+  engine_start();//把执行权交给解释器
 
   //检查仿真是否以良好状态退出
-  return is_exit_status_bad();
+  return is_exit_status_bad();//根据NEMU最终状态决定宿主进程返回0还是1
 }

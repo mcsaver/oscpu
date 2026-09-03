@@ -40,18 +40,78 @@ uint8_t* new_space(int size) {
   return p;
 }
 
-static void check_bound(IOMap *map, paddr_t addr) {
-  if (map == NULL) {
-    Assert(map != NULL, "address (" FMT_PADDR ") is out of bound at pc = " FMT_WORD, addr, cpu.pc);
-  } else {
-    Assert(addr <= map->high && addr >= map->low,
-        "address (" FMT_PADDR ") is out of bound {%s} [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
-        addr, map->name, map->low, map->high, cpu.pc);
+static void invoke_callback(io_callback_t c, paddr_t offset, int len, bool is_write) {
+  if (c != NULL) { c(offset, len, is_write); }
+}
+
+static uint8_t io_width_mask(int len) {
+  switch (len) {
+    case 1: return IO_WIDTH_1;
+    case 2: return IO_WIDTH_2;
+    case 4: return IO_WIDTH_4;
+    case 8: return IO_WIDTH_8;
+    default: return 0;
   }
 }
 
-static void invoke_callback(io_callback_t c, paddr_t offset, int len, bool is_write) {
-  if (c != NULL) { c(offset, len, is_write); }
+IoTransactionStatus map_decode_transaction(
+    const IOMap *map, paddr_t addr, int len, bool is_write,
+    IoTransaction *transaction) {
+  uint8_t width_mask = io_width_mask(len);
+  if (width_mask == 0) return IO_TRANSACTION_INVALID_WIDTH;
+  if (!map_span_inside(map, addr, (uint64_t)len)) {
+    return IO_TRANSACTION_OUTSIDE_REGION;
+  }
+
+  IoTransaction decoded = {
+    .addr = addr,
+    .offset = (uint32_t)(addr - map->low),
+    .width = (uint8_t)len,
+    .direction = is_write ? IO_TRANSACTION_WRITE : IO_TRANSACTION_READ,
+  };
+  if (transaction != NULL) *transaction = decoded;
+  if (map->policy == NULL) return IO_TRANSACTION_ACCEPTED;
+
+  IoTransactionStatus rejected = IO_TRANSACTION_UNKNOWN_REGISTER;
+  for (const IoAccessPolicy *policy = map->policy;
+       policy != NULL; policy = policy->parent) {
+    for (uint32_t i = 0; i < policy->register_count; i++) {
+      const IoRegisterDescriptor *reg = &policy->registers[i];
+      if (decoded.offset < reg->first_offset ||
+          decoded.offset > reg->last_offset) {
+        continue;
+      }
+      if (reg->stride == 0 ||
+          (decoded.offset - reg->first_offset) % reg->stride != 0) {
+        rejected = reg->naturally_aligned &&
+            (((uint64_t)addr & ((uint64_t)len - 1u)) != 0)
+            ? IO_TRANSACTION_MISALIGNED
+            : IO_TRANSACTION_OUTSIDE_REGISTER;
+        continue;
+      }
+      uint64_t register_room =
+          (uint64_t)reg->last_offset - decoded.offset + 1u;
+      if ((uint64_t)len > register_room) {
+        rejected = IO_TRANSACTION_OUTSIDE_REGISTER;
+        continue;
+      }
+      if ((reg->width_mask & width_mask) == 0) {
+        rejected = IO_TRANSACTION_INVALID_WIDTH;
+        continue;
+      }
+      if (reg->naturally_aligned &&
+          ((uint64_t)addr & ((uint64_t)len - 1u)) != 0) {
+        rejected = IO_TRANSACTION_MISALIGNED;
+        continue;
+      }
+      if ((reg->direction_mask & decoded.direction) == 0) {
+        rejected = IO_TRANSACTION_DIRECTION_DENIED;
+        continue;
+      }
+      return IO_TRANSACTION_ACCEPTED;
+    }
+  }
+  return rejected;
 }
 
 void init_map() {
@@ -61,18 +121,26 @@ void init_map() {
 }
 
 word_t map_read(paddr_t addr, int len, IOMap *map) {
-  assert(len >= 1 && len <= 8);
-  check_bound(map, addr);
-  paddr_t offset = addr - map->low;
+  /* Guest-controlled invalid spans must not reach callback/backing storage. */
+  IoTransaction transaction;
+  if (map_decode_transaction(
+          map, addr, len, false, &transaction) != IO_TRANSACTION_ACCEPTED) {
+    return 0;
+  }
+  paddr_t offset = transaction.offset;
   invoke_callback(map->callback, offset, len, false); // prepare data to read
-  word_t ret = host_read(map->space + offset, len);
+  word_t ret = host_read((uint8_t *)map->space + offset, len);
   return ret;
 }
 
 void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
-  assert(len >= 1 && len <= 8);
-  check_bound(map, addr);
-  paddr_t offset = addr - map->low;
-  host_write(map->space + offset, len, data);
+  /* Reject cross-region/overflowing spans before touching device storage. */
+  IoTransaction transaction;
+  if (map_decode_transaction(
+          map, addr, len, true, &transaction) != IO_TRANSACTION_ACCEPTED) {
+    return;
+  }
+  paddr_t offset = transaction.offset;
+  host_write((uint8_t *)map->space + offset, len, data);
   invoke_callback(map->callback, offset, len, true);
 }

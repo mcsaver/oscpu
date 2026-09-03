@@ -219,6 +219,18 @@ bool isa_riscv64_pmp_check(paddr_t paddr, int len, int type) {
   return pmp_check_with_priv(paddr, len, type, mmu_effective_priv(type));
 }
 
+/*
+ * NEMU's fixed PMA designates only PMEM as idempotent page-table memory.
+ * Device apertures can be readable but must never be observed by an implicit
+ * PTE read or A/D-bit write.
+ */
+static bool sv_page_table_access_allowed(
+    paddr_t pte_address, int access_type) {
+  return paddr_span_in_pmem(pte_address, 8) &&
+         isa_riscv64_pmp_check_as_priv(
+             pte_address, 8, access_type, PRIV_S);
+}
+
 #ifndef CONFIG_TARGET_AM
 void isa_riscv64_pmp_dump_machine_info(FILE *out) {
   fprintf(out, "memory.pmp.mode=rv64-basic\n");
@@ -435,9 +447,9 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
   for (int level = levels - 1; level >= 0; level--) {
     uint64_t vpn_at_level = (va >> (12 + 9 * level)) & 0x1ff;
     paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
-    if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
+    if (!sv_page_table_access_allowed(pte_addr, MEM_TYPE_READ)) {
       return sv39_fail_with_cause(vaddr, type, level, pte_addr, 0,
-          "pmp-page-table-read", riscv_access_fault_cause(type));
+          "page-table-read-pma-or-pmp", riscv_access_fault_cause(type));
     }
     nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_READS, 1);
     // 经 dcache 一致视图读 PTE：guest 常用普通 store 运行时构建页表，PTE 会 dirty
@@ -467,9 +479,9 @@ static paddr_t sv39_translate(vaddr_t vaddr, int len, int type,
 
       word_t needed = (word_t)riscv_leaf_pte_required_ad_bits(type);
       if ((pte & needed) != needed) {
-        if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_WRITE, PRIV_S)) {
+        if (!sv_page_table_access_allowed(pte_addr, MEM_TYPE_WRITE)) {
           return sv39_fail_with_cause(vaddr, type, level, pte_addr, pte,
-              "pmp-page-table-write", riscv_access_fault_cause(type));
+              "page-table-write-pma-or-pmp", riscv_access_fault_cause(type));
         }
         nemu_profile_count_if(NEMU_PROFILE_MMU_PTE_UPDATES, 1);
         // A/D 位回写同样走一致视图：命中 dcache 就原地更新，避免与 CPU 侧 dcache 分叉。
@@ -539,7 +551,7 @@ bool isa_riscv64_mmu_debug_translate_user(vaddr_t vaddr, int len, int type,
   for (int level = levels - 1; level >= 0; level--) {
     uint64_t vpn_at_level = (va >> (12 + 9 * level)) & 0x1ff;
     paddr_t pte_addr = (paddr_t)(table + vpn_at_level * 8);
-    if (!isa_riscv64_pmp_check_as_priv(pte_addr, 8, MEM_TYPE_READ, PRIV_S)) {
+    if (!sv_page_table_access_allowed(pte_addr, MEM_TYPE_READ)) {
       return false;
     }
     // debug 翻译也需一致视图；peek 天然无 fill/evict 副作用，不扰动被测状态。

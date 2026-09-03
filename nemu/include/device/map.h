@@ -31,13 +31,9 @@
 //1.如果是PIO，就走port-io.c里面的pio_read或pio_write
 //2.如果是MMIO，就走mmio.c里面mmio_read或mmio_write
 //接着：
-//1.先通过find_mapid_by_addr找到命中的IOMap
-//2.再调用map_read或map_write
-//在map_read或map_write：
-//1.先做越界检查check_bound，见map.c
-//2.然后把CPU给出的绝对地址换算成设备内部offset
-//3.再通过host_read或host_write操作宿主机内存
-//4.最后配合callback完成设备语义
+//1.用完整 transaction span 找到唯一命中的 IOMap region
+//2.纯解码 width/alignment/register direction，拒绝非法设备事务
+//3.只有解码成功后，map_read/map_write 才访问 backing store 并提交 callback
 
 
 #include <cpu/difftest.h>
@@ -50,6 +46,56 @@
 //第二个参数是访问长度len
 //第三个参数是是否写操作is_write
 typedef void(*io_callback_t)(uint32_t, int, bool);
+
+typedef enum {
+  IO_TRANSACTION_READ = 1u << 0,
+  IO_TRANSACTION_WRITE = 1u << 1,
+} IoTransactionDirection;
+
+typedef enum {
+  IO_WIDTH_1 = 1u << 0,
+  IO_WIDTH_2 = 1u << 1,
+  IO_WIDTH_4 = 1u << 2,
+  IO_WIDTH_8 = 1u << 3,
+} IoTransactionWidth;
+
+typedef struct {
+  paddr_t addr;
+  uint32_t offset;
+  uint8_t width;
+  IoTransactionDirection direction;
+} IoTransaction;
+
+typedef enum {
+  IO_TRANSACTION_ACCEPTED,
+  IO_TRANSACTION_INVALID_WIDTH,
+  IO_TRANSACTION_MISALIGNED,
+  IO_TRANSACTION_OUTSIDE_REGION,
+  IO_TRANSACTION_OUTSIDE_REGISTER,
+  IO_TRANSACTION_DIRECTION_DENIED,
+  IO_TRANSACTION_UNKNOWN_REGISTER,
+} IoTransactionStatus;
+
+/*
+ * A register range describes byte coverage plus legal transaction starts.
+ * `stride == 1` models byte-addressable device config; fixed-width register
+ * arrays normally use a stride equal to their register width.
+ */
+typedef struct {
+  const char *name;
+  uint32_t first_offset;
+  uint32_t last_offset;
+  uint32_t stride;
+  uint8_t width_mask;
+  uint8_t direction_mask;
+  bool naturally_aligned;
+} IoRegisterDescriptor;
+
+typedef struct IoAccessPolicy {
+  const IoRegisterDescriptor *registers;
+  uint32_t register_count;
+  const struct IoAccessPolicy *parent;
+} IoAccessPolicy;
 
 //从一大片统一的io_space里切一段空间给某个设备用
 //切出来的大小会按页对齐
@@ -71,17 +117,30 @@ typedef struct {
   paddr_t high;
   void *space;
   io_callback_t callback;
+  const IoAccessPolicy *policy;
 } IOMap;
 
 //判断某个地址是否落在某个IOMap的low到high范围内
 //这是最基础的“地址命中判断”
-static inline bool map_inside(IOMap *map, paddr_t addr) {
+static inline bool map_inside(const IOMap *map, paddr_t addr) {
   return (addr >= map->low && addr <= map->high);
 }
 
-//在线性数组里顺序扫描，找到命中的映射项
-//找到后会立刻调用difftest_skip_ref
-//找不到就返回-1
+/*
+ * A bus access is valid only when its complete span belongs to one region.
+ * Keeping this helper pure makes MMIO preflight checks usable without the
+ * difftest side effect of find_mapid_by_addr().
+ */
+static inline bool map_span_inside(const IOMap *map, paddr_t addr, uint64_t len) {
+  if (map == NULL || len == 0 || addr < map->low || addr > map->high) {
+    return false;
+  }
+  uint64_t room = (uint64_t)map->high - (uint64_t)addr;
+  return len - 1 <= room;
+}
+
+//PIO 兼容路径按单地址查找映射项；MMIO transaction 不使用这个 helper，
+//而是在 mmio.c 中对完整 span/policy 做无副作用预检后再 skip reference。
 static inline int find_mapid_by_addr(IOMap *maps, int size, paddr_t addr) {
   int i;
   for (i = 0; i < size; i ++) {
@@ -105,6 +164,9 @@ void add_pio_map(const char *name, ioaddr_t addr,
         void *space, uint32_t len, io_callback_t callback);
 void add_mmio_map(const char *name, paddr_t addr,
         void *space, uint32_t len, io_callback_t callback);
+void add_mmio_map_with_policy(const char *name, paddr_t addr,
+        void *space, uint32_t len, io_callback_t callback,
+        const IoAccessPolicy *policy);
 
 #ifndef CONFIG_TARGET_AM
 // 机器清单只读导出当前已注册的设备区间，给 e2e/monitor 契约使用。
@@ -117,5 +179,8 @@ void dump_mmio_maps(FILE *out);
 //PIO和MMIO最后都会走到这里
 word_t map_read(paddr_t addr, int len, IOMap *map);
 void map_write(paddr_t addr, int len, word_t data, IOMap *map);
+IoTransactionStatus map_decode_transaction(
+    const IOMap *map, paddr_t addr, int len, bool is_write,
+    IoTransaction *transaction);
 
 #endif

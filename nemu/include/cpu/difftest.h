@@ -19,6 +19,10 @@
 #include <common.h>
 #include <difftest-def.h>
 
+/* Initialize the reference and synchronize already-loaded physical memory. */
+void init_difftest(char *ref_so_file, long img_size, int port);
+void difftest_sync_memory(paddr_t addr, size_t size);
+
 #ifdef CONFIG_DIFFTEST
 void difftest_skip_ref();
 void difftest_skip_dut(int nr_ref, int nr_dut);

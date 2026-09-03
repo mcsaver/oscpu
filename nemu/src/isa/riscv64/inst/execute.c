@@ -2,8 +2,8 @@
  * 已译码 RV64 指令的唯一体系结构执行入口。
  *
  * 每个 case 使用手册 mnemonic；opcode/funct 字段只属于 decode.c。读取源操作数、
- * 计算结果和提交目的寄存器按规范顺序显式书写。尚未迁移的扩展不会进入本文件，
- * 而是由 decode.c 的具名 legacy 边界执行。
+ * 计算结果和提交目的寄存器按规范顺序显式书写。包括 M 与
+ * Zba/Zbb/Zbc/Zbs 在内的扩展都只消费完整语义描述符。
  */
 
 #include <utils/profile.h>
@@ -152,6 +152,94 @@ static inline bool rv_execute_integer_register_word(
       return false;
   }
 }
+
+#ifdef CONFIG_RISCV_EXT_M
+static inline bool rv_execute_multiply_divide(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_multiply_divide_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          rv_read_x_register(instruction->rs2),
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+
+static inline bool rv_execute_multiply_divide_word(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_multiply_divide_word_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          rv_read_x_register(instruction->rs2),
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+#endif
+
+#ifdef CONFIG_RISCV_EXT_B
+static inline bool rv_execute_bitmanip_immediate(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_bitmanip_immediate_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          instruction->immediate,
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+
+static inline bool rv_execute_bitmanip_immediate_word(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_bitmanip_immediate_word_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          instruction->immediate,
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+
+static inline bool rv_execute_bitmanip_register(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_bitmanip_register_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          rv_read_x_register(instruction->rs2),
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+
+static inline bool rv_execute_bitmanip_register_word(
+    const RvDecodedInstruction *instruction) {
+  word_t result;
+  if (!rv_bitmanip_register_word_result(
+          instruction->operation,
+          rv_read_x_register(instruction->rs1),
+          rv_read_x_register(instruction->rs2),
+          &result)) {
+    return false;
+  }
+  rv_write_x_register(instruction->rd, result);
+  return true;
+}
+#endif
 
 typedef enum {
   RV_MEMORY_WIDTH_BYTE = 1,
@@ -415,74 +503,71 @@ static inline bool rv_execute_memory_ordering(
   }
 }
 
-static inline word_t riscv_environment_call_cause(void) {
-  switch (cpu.priv) {
-    case PRIV_M: return CAUSE_ECALL_M;
-    case PRIV_S: return CAUSE_ECALL_S;
-    default: return CAUSE_ECALL_U;
-  }
-}
-
 static inline bool rv_execute_environment_call(Decode *state) {
   syscall_debug_log_enter(state->pc);
-  state->dnpc = isa_raise_intr(riscv_environment_call_cause(), state->pc);
+  state->dnpc = isa_raise_intr(
+      riscv_environment_call_cause(cpu.priv), state->pc);
   return true;
 }
 
 static inline bool rv_execute_breakpoint(Decode *state) {
-  if (ebreak_should_raise_breakpoint_trap()) {
-    state->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, state->pc);
-  } else {
+  const bool trap_vector_configured =
+      cpu.csr.mtvec != 0 || cpu.csr.stvec != 0;
+  if (riscv_eei_ebreak_requests_halt(trap_vector_configured)) {
     NEMUTRAP(state->pc, rv_read_x_register(10));
+  } else {
+    state->dnpc = isa_raise_intr(CAUSE_BREAKPOINT, state->pc);
   }
   return true;
 }
 
 #ifdef CONFIG_RISCV_EXT_C
 static inline NemuProfileCounter rv_compressed_profile_counter(
-    RvOperation operation) {
+    RiscvCompressedOperation operation) {
   switch (operation) {
-    case RV_OPERATION_C_ADDI4SPN: return NEMU_PROFILE_CPU_RVC_ADDI4SPN;
-    case RV_OPERATION_C_FLD: return NEMU_PROFILE_CPU_RVC_FLD;
-    case RV_OPERATION_C_LW: return NEMU_PROFILE_CPU_RVC_LW;
-    case RV_OPERATION_C_LD: return NEMU_PROFILE_CPU_RVC_LD;
-    case RV_OPERATION_C_FSD: return NEMU_PROFILE_CPU_RVC_FSD;
-    case RV_OPERATION_C_SW: return NEMU_PROFILE_CPU_RVC_SW;
-    case RV_OPERATION_C_SD: return NEMU_PROFILE_CPU_RVC_SD;
-    case RV_OPERATION_C_ADDI: return NEMU_PROFILE_CPU_RVC_ADDI;
-    case RV_OPERATION_C_ADDIW: return NEMU_PROFILE_CPU_RVC_ADDIW;
-    case RV_OPERATION_C_LI: return NEMU_PROFILE_CPU_RVC_LI;
-    case RV_OPERATION_C_ADDI16SP: return NEMU_PROFILE_CPU_RVC_ADDI16SP;
-    case RV_OPERATION_C_LUI: return NEMU_PROFILE_CPU_RVC_LUI;
-    case RV_OPERATION_C_SRLI: return NEMU_PROFILE_CPU_RVC_SRLI;
-    case RV_OPERATION_C_SRAI: return NEMU_PROFILE_CPU_RVC_SRAI;
-    case RV_OPERATION_C_ANDI: return NEMU_PROFILE_CPU_RVC_ANDI;
-    case RV_OPERATION_C_SUB: return NEMU_PROFILE_CPU_RVC_SUB;
-    case RV_OPERATION_C_XOR: return NEMU_PROFILE_CPU_RVC_XOR;
-    case RV_OPERATION_C_OR: return NEMU_PROFILE_CPU_RVC_OR;
-    case RV_OPERATION_C_AND: return NEMU_PROFILE_CPU_RVC_AND;
-    case RV_OPERATION_C_SUBW: return NEMU_PROFILE_CPU_RVC_SUBW;
-    case RV_OPERATION_C_ADDW: return NEMU_PROFILE_CPU_RVC_ADDW;
-    case RV_OPERATION_C_J: return NEMU_PROFILE_CPU_RVC_J;
-    case RV_OPERATION_C_BEQZ: return NEMU_PROFILE_CPU_RVC_BEQZ;
-    case RV_OPERATION_C_BNEZ: return NEMU_PROFILE_CPU_RVC_BNEZ;
-    case RV_OPERATION_C_SLLI: return NEMU_PROFILE_CPU_RVC_SLLI;
-    case RV_OPERATION_C_FLDSP: return NEMU_PROFILE_CPU_RVC_FLDSP;
-    case RV_OPERATION_C_LWSP: return NEMU_PROFILE_CPU_RVC_LWSP;
-    case RV_OPERATION_C_LDSP: return NEMU_PROFILE_CPU_RVC_LDSP;
-    case RV_OPERATION_C_JR: return NEMU_PROFILE_CPU_RVC_JR;
-    case RV_OPERATION_C_MV: return NEMU_PROFILE_CPU_RVC_MV;
-    case RV_OPERATION_C_EBREAK: return NEMU_PROFILE_CPU_RVC_EBREAK;
-    case RV_OPERATION_C_JALR: return NEMU_PROFILE_CPU_RVC_JALR;
-    case RV_OPERATION_C_ADD: return NEMU_PROFILE_CPU_RVC_ADD;
-    case RV_OPERATION_C_FSDSP: return NEMU_PROFILE_CPU_RVC_FSDSP;
-    case RV_OPERATION_C_SWSP: return NEMU_PROFILE_CPU_RVC_SWSP;
-    case RV_OPERATION_C_SDSP: return NEMU_PROFILE_CPU_RVC_SDSP;
+    case RISCV_COMPRESSED_OPERATION_C_NOP: return NEMU_PROFILE_CPU_RVC_ADDI;
+    case RISCV_COMPRESSED_OPERATION_C_ADDI4SPN: return NEMU_PROFILE_CPU_RVC_ADDI4SPN;
+    case RISCV_COMPRESSED_OPERATION_C_FLD: return NEMU_PROFILE_CPU_RVC_FLD;
+    case RISCV_COMPRESSED_OPERATION_C_LW: return NEMU_PROFILE_CPU_RVC_LW;
+    case RISCV_COMPRESSED_OPERATION_C_LD: return NEMU_PROFILE_CPU_RVC_LD;
+    case RISCV_COMPRESSED_OPERATION_C_FSD: return NEMU_PROFILE_CPU_RVC_FSD;
+    case RISCV_COMPRESSED_OPERATION_C_SW: return NEMU_PROFILE_CPU_RVC_SW;
+    case RISCV_COMPRESSED_OPERATION_C_SD: return NEMU_PROFILE_CPU_RVC_SD;
+    case RISCV_COMPRESSED_OPERATION_C_ADDI: return NEMU_PROFILE_CPU_RVC_ADDI;
+    case RISCV_COMPRESSED_OPERATION_C_ADDIW: return NEMU_PROFILE_CPU_RVC_ADDIW;
+    case RISCV_COMPRESSED_OPERATION_C_LI: return NEMU_PROFILE_CPU_RVC_LI;
+    case RISCV_COMPRESSED_OPERATION_C_ADDI16SP: return NEMU_PROFILE_CPU_RVC_ADDI16SP;
+    case RISCV_COMPRESSED_OPERATION_C_LUI: return NEMU_PROFILE_CPU_RVC_LUI;
+    case RISCV_COMPRESSED_OPERATION_C_SRLI: return NEMU_PROFILE_CPU_RVC_SRLI;
+    case RISCV_COMPRESSED_OPERATION_C_SRAI: return NEMU_PROFILE_CPU_RVC_SRAI;
+    case RISCV_COMPRESSED_OPERATION_C_ANDI: return NEMU_PROFILE_CPU_RVC_ANDI;
+    case RISCV_COMPRESSED_OPERATION_C_SUB: return NEMU_PROFILE_CPU_RVC_SUB;
+    case RISCV_COMPRESSED_OPERATION_C_XOR: return NEMU_PROFILE_CPU_RVC_XOR;
+    case RISCV_COMPRESSED_OPERATION_C_OR: return NEMU_PROFILE_CPU_RVC_OR;
+    case RISCV_COMPRESSED_OPERATION_C_AND: return NEMU_PROFILE_CPU_RVC_AND;
+    case RISCV_COMPRESSED_OPERATION_C_SUBW: return NEMU_PROFILE_CPU_RVC_SUBW;
+    case RISCV_COMPRESSED_OPERATION_C_ADDW: return NEMU_PROFILE_CPU_RVC_ADDW;
+    case RISCV_COMPRESSED_OPERATION_C_J: return NEMU_PROFILE_CPU_RVC_J;
+    case RISCV_COMPRESSED_OPERATION_C_BEQZ: return NEMU_PROFILE_CPU_RVC_BEQZ;
+    case RISCV_COMPRESSED_OPERATION_C_BNEZ: return NEMU_PROFILE_CPU_RVC_BNEZ;
+    case RISCV_COMPRESSED_OPERATION_C_SLLI: return NEMU_PROFILE_CPU_RVC_SLLI;
+    case RISCV_COMPRESSED_OPERATION_C_FLDSP: return NEMU_PROFILE_CPU_RVC_FLDSP;
+    case RISCV_COMPRESSED_OPERATION_C_LWSP: return NEMU_PROFILE_CPU_RVC_LWSP;
+    case RISCV_COMPRESSED_OPERATION_C_LDSP: return NEMU_PROFILE_CPU_RVC_LDSP;
+    case RISCV_COMPRESSED_OPERATION_C_JR: return NEMU_PROFILE_CPU_RVC_JR;
+    case RISCV_COMPRESSED_OPERATION_C_MV: return NEMU_PROFILE_CPU_RVC_MV;
+    case RISCV_COMPRESSED_OPERATION_C_EBREAK: return NEMU_PROFILE_CPU_RVC_EBREAK;
+    case RISCV_COMPRESSED_OPERATION_C_JALR: return NEMU_PROFILE_CPU_RVC_JALR;
+    case RISCV_COMPRESSED_OPERATION_C_ADD: return NEMU_PROFILE_CPU_RVC_ADD;
+    case RISCV_COMPRESSED_OPERATION_C_FSDSP: return NEMU_PROFILE_CPU_RVC_FSDSP;
+    case RISCV_COMPRESSED_OPERATION_C_SWSP: return NEMU_PROFILE_CPU_RVC_SWSP;
+    case RISCV_COMPRESSED_OPERATION_C_SDSP: return NEMU_PROFILE_CPU_RVC_SDSP;
     default: return NEMU_PROFILE_CPU_RVC_OTHER;
   }
 }
 
-static inline void rv_profile_compressed_execution(RvOperation operation) {
+static inline void rv_profile_compressed_execution(
+    RiscvCompressedOperation operation) {
   if (unlikely(nemu_profile_rvc_detail_enabled())) {
     nemu_profile_count(rv_compressed_profile_counter(operation), 1);
   }
@@ -491,26 +576,28 @@ static inline void rv_profile_compressed_execution(RvOperation operation) {
 static inline bool rv_execute_compressed_control_transfer(
     Decode *state, const RvDecodedInstruction *instruction) {
   const word_t source = rv_read_x_register(instruction->rs1);
+  const RiscvCompressedOperation operation =
+      instruction->compressed.operation;
   vaddr_t target;
 
-  switch (instruction->operation) {
-    case RV_OPERATION_C_J:
+  switch (operation) {
+    case RISCV_COMPRESSED_OPERATION_C_J:
       target = state->pc + instruction->immediate;
       if (rv_instruction_target_valid(target)) state->dnpc = target;
       return true;
-    case RV_OPERATION_C_BEQZ:
+    case RISCV_COMPRESSED_OPERATION_C_BEQZ:
       if (source == 0) {
         target = state->pc + instruction->immediate;
         if (rv_instruction_target_valid(target)) state->dnpc = target;
       }
       return true;
-    case RV_OPERATION_C_BNEZ:
+    case RISCV_COMPRESSED_OPERATION_C_BNEZ:
       if (source != 0) {
         target = state->pc + instruction->immediate;
         if (rv_instruction_target_valid(target)) state->dnpc = target;
       }
       return true;
-    case RV_OPERATION_C_JR:
+    case RISCV_COMPRESSED_OPERATION_C_JR:
       target = source & ~(word_t)1;
       if (!rv_instruction_target_valid(target)) return true;
       state->dnpc = target;
@@ -520,7 +607,7 @@ static inline bool rv_execute_compressed_control_transfer(
         }
       })
       return true;
-    case RV_OPERATION_C_JALR:
+    case RISCV_COMPRESSED_OPERATION_C_JALR:
       /* Capture the target before writing x1; rs1 may itself be x1. */
       target = source & ~(word_t)1;
       if (!rv_instruction_target_valid(target)) return true;
@@ -535,133 +622,135 @@ static inline bool rv_execute_compressed_control_transfer(
 
 static inline bool rv_execute_compressed(
     Decode *state, const RvDecodedInstruction *instruction) {
-  rv_profile_compressed_execution(instruction->operation);
+  const RiscvCompressedOperation operation =
+      instruction->compressed.operation;
+  rv_profile_compressed_execution(operation);
 
-  switch (instruction->operation) {
-    case RV_OPERATION_C_HINT:
+  switch (operation) {
+    case RISCV_COMPRESSED_OPERATION_C_NOP:
+    case RISCV_COMPRESSED_OPERATION_HINT:
       return true;
 
-    case RV_OPERATION_C_ADDI4SPN:
-    case RV_OPERATION_C_ADDI:
-    case RV_OPERATION_C_ADDI16SP:
+    case RISCV_COMPRESSED_OPERATION_C_ADDI4SPN:
+    case RISCV_COMPRESSED_OPERATION_C_ADDI:
+    case RISCV_COMPRESSED_OPERATION_C_ADDI16SP:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) + instruction->immediate);
       return true;
-    case RV_OPERATION_C_ADDIW:
+    case RISCV_COMPRESSED_OPERATION_C_ADDIW:
       rv_write_x_register(
           instruction->rd,
           sext32((uint32_t)rv_read_x_register(instruction->rs1) +
                  (uint32_t)instruction->immediate));
       return true;
-    case RV_OPERATION_C_LI:
-    case RV_OPERATION_C_LUI:
+    case RISCV_COMPRESSED_OPERATION_C_LI:
+    case RISCV_COMPRESSED_OPERATION_C_LUI:
       rv_write_x_register(instruction->rd, instruction->immediate);
       return true;
-    case RV_OPERATION_C_SRLI:
+    case RISCV_COMPRESSED_OPERATION_C_SRLI:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) >> instruction->immediate);
       return true;
-    case RV_OPERATION_C_SRAI:
+    case RISCV_COMPRESSED_OPERATION_C_SRAI:
       rv_write_x_register(
           instruction->rd,
           (sword_t)rv_read_x_register(instruction->rs1) >>
               instruction->immediate);
       return true;
-    case RV_OPERATION_C_ANDI:
+    case RISCV_COMPRESSED_OPERATION_C_ANDI:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) & instruction->immediate);
       return true;
-    case RV_OPERATION_C_SUB:
+    case RISCV_COMPRESSED_OPERATION_C_SUB:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) -
               rv_read_x_register(instruction->rs2));
       return true;
-    case RV_OPERATION_C_XOR:
+    case RISCV_COMPRESSED_OPERATION_C_XOR:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) ^
               rv_read_x_register(instruction->rs2));
       return true;
-    case RV_OPERATION_C_OR:
+    case RISCV_COMPRESSED_OPERATION_C_OR:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) |
               rv_read_x_register(instruction->rs2));
       return true;
-    case RV_OPERATION_C_AND:
+    case RISCV_COMPRESSED_OPERATION_C_AND:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) &
               rv_read_x_register(instruction->rs2));
       return true;
-    case RV_OPERATION_C_SUBW:
+    case RISCV_COMPRESSED_OPERATION_C_SUBW:
       rv_write_x_register(
           instruction->rd,
           sext32((uint32_t)rv_read_x_register(instruction->rs1) -
                  (uint32_t)rv_read_x_register(instruction->rs2)));
       return true;
-    case RV_OPERATION_C_ADDW:
+    case RISCV_COMPRESSED_OPERATION_C_ADDW:
       rv_write_x_register(
           instruction->rd,
           sext32((uint32_t)rv_read_x_register(instruction->rs1) +
                  (uint32_t)rv_read_x_register(instruction->rs2)));
       return true;
-    case RV_OPERATION_C_SLLI:
+    case RISCV_COMPRESSED_OPERATION_C_SLLI:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) << instruction->immediate);
       return true;
-    case RV_OPERATION_C_MV:
+    case RISCV_COMPRESSED_OPERATION_C_MV:
       rv_write_x_register(
           instruction->rd, rv_read_x_register(instruction->rs2));
       return true;
-    case RV_OPERATION_C_ADD:
+    case RISCV_COMPRESSED_OPERATION_C_ADD:
       rv_write_x_register(
           instruction->rd,
           rv_read_x_register(instruction->rs1) +
               rv_read_x_register(instruction->rs2));
       return true;
 
-    case RV_OPERATION_C_LW:
-    case RV_OPERATION_C_LWSP:
+    case RISCV_COMPRESSED_OPERATION_C_LW:
+    case RISCV_COMPRESSED_OPERATION_C_LWSP:
       return rv_execute_load_with_semantics(
           instruction, RV_MEMORY_WIDTH_WORD, RV_LOAD_SIGN_EXTEND);
-    case RV_OPERATION_C_LD:
-    case RV_OPERATION_C_LDSP:
+    case RISCV_COMPRESSED_OPERATION_C_LD:
+    case RISCV_COMPRESSED_OPERATION_C_LDSP:
       return rv_execute_load_with_semantics(
           instruction, RV_MEMORY_WIDTH_DOUBLEWORD, RV_LOAD_ZERO_EXTEND);
-    case RV_OPERATION_C_SW:
-    case RV_OPERATION_C_SWSP:
+    case RISCV_COMPRESSED_OPERATION_C_SW:
+    case RISCV_COMPRESSED_OPERATION_C_SWSP:
       return rv_execute_store_with_width(
           instruction, RV_MEMORY_WIDTH_WORD);
-    case RV_OPERATION_C_SD:
-    case RV_OPERATION_C_SDSP:
+    case RISCV_COMPRESSED_OPERATION_C_SD:
+    case RISCV_COMPRESSED_OPERATION_C_SDSP:
       return rv_execute_store_with_width(
           instruction, RV_MEMORY_WIDTH_DOUBLEWORD);
 
-    case RV_OPERATION_C_FLD:
-    case RV_OPERATION_C_FLDSP:
-      return exec_rvf_load(
-          0x3, instruction->rd,
+    case RISCV_COMPRESSED_OPERATION_C_FLD:
+    case RISCV_COMPRESSED_OPERATION_C_FLDSP:
+      return exec_rvf_fld(
+          instruction->rd,
           rv_read_x_register(instruction->rs1) + instruction->immediate);
-    case RV_OPERATION_C_FSD:
-    case RV_OPERATION_C_FSDSP:
-      return exec_rvf_store(
-          0x3,
+    case RISCV_COMPRESSED_OPERATION_C_FSD:
+    case RISCV_COMPRESSED_OPERATION_C_FSDSP:
+      return exec_rvf_fsd(
           rv_read_x_register(instruction->rs1) + instruction->immediate,
           instruction->rs2);
 
-    case RV_OPERATION_C_J:
-    case RV_OPERATION_C_BEQZ:
-    case RV_OPERATION_C_BNEZ:
-    case RV_OPERATION_C_JR:
-    case RV_OPERATION_C_JALR:
+    case RISCV_COMPRESSED_OPERATION_C_J:
+    case RISCV_COMPRESSED_OPERATION_C_BEQZ:
+    case RISCV_COMPRESSED_OPERATION_C_BNEZ:
+    case RISCV_COMPRESSED_OPERATION_C_JR:
+    case RISCV_COMPRESSED_OPERATION_C_JALR:
       return rv_execute_compressed_control_transfer(state, instruction);
-    case RV_OPERATION_C_EBREAK:
+    case RISCV_COMPRESSED_OPERATION_C_EBREAK:
       return rv_execute_breakpoint(state);
     default:
       return false;
@@ -671,14 +760,14 @@ static inline bool rv_execute_compressed(
 
 static inline bool rv_execute_sfence_vma(
     const RvDecodedInstruction *instruction) {
-  /* SFENCE.VMA is defined only in S/M mode. TVM constrains S mode alone. */
-  if (cpu.priv < PRIV_S) return false;
-  if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TVM)) return false;
+  if (!riscv_sfence_vma_is_legal(cpu.priv, cpu.csr.mstatus)) return false;
 
-  const bool selects_virtual_address = instruction->rs1 != 0;
-  const bool selects_address_space = instruction->rs2 != 0;
-  const word_t virtual_address = rv_read_x_register(instruction->rs1);
-  const word_t address_space = rv_read_x_register(instruction->rs2);
+  const uint8_t rs1 = instruction->system.source_register_1;
+  const uint8_t rs2 = instruction->system.source_register_2;
+  const bool selects_virtual_address = rs1 != 0;
+  const bool selects_address_space = rs2 != 0;
+  const word_t virtual_address = rv_read_x_register(rs1);
+  const word_t address_space = rv_read_x_register(rs2);
   isa_riscv64_mmu_tlb_flush_selective(
       virtual_address, selects_virtual_address,
       address_space, selects_address_space);
@@ -687,29 +776,29 @@ static inline bool rv_execute_sfence_vma(
 
 static inline bool rv_execute_system(
     Decode *state, const RvDecodedInstruction *instruction) {
-  switch (instruction->operation) {
-    case RV_OPERATION_ECALL:
+  switch (instruction->system.operation) {
+    case RISCV_SYSTEM_OPERATION_ECALL:
       return rv_execute_environment_call(state);
-    case RV_OPERATION_EBREAK:
+    case RISCV_SYSTEM_OPERATION_EBREAK:
       return rv_execute_breakpoint(state);
-    case RV_OPERATION_SRET:
+    case RISCV_SYSTEM_OPERATION_SRET:
       return riscv_execute_supervisor_return(state);
-    case RV_OPERATION_MRET:
+    case RISCV_SYSTEM_OPERATION_MRET:
       return riscv_execute_machine_return(state);
-    case RV_OPERATION_WFI:
-      /* TW makes an S/U-mode WFI illegal; M-mode is never constrained. */
-      if (cpu.priv != PRIV_M && (cpu.csr.mstatus & MSTATUS_TW)) return false;
+    case RISCV_SYSTEM_OPERATION_WFI:
+      if (!riscv_wait_for_interrupt_is_legal(
+              cpu.priv, cpu.csr.mstatus)) return false;
       isa_riscv64_wfi();
       return true;
-    case RV_OPERATION_SFENCE_VMA:
+    case RISCV_SYSTEM_OPERATION_SFENCE_VMA:
       return rv_execute_sfence_vma(instruction);
-    case RV_OPERATION_CSRRW:
-    case RV_OPERATION_CSRRS:
-    case RV_OPERATION_CSRRC:
-    case RV_OPERATION_CSRRWI:
-    case RV_OPERATION_CSRRSI:
-    case RV_OPERATION_CSRRCI:
-      return riscv_execute_csr_instruction(&instruction->csr);
+    case RISCV_SYSTEM_OPERATION_CSRRW:
+    case RISCV_SYSTEM_OPERATION_CSRRS:
+    case RISCV_SYSTEM_OPERATION_CSRRC:
+    case RISCV_SYSTEM_OPERATION_CSRRWI:
+    case RISCV_SYSTEM_OPERATION_CSRRSI:
+    case RISCV_SYSTEM_OPERATION_CSRRCI:
+      return riscv_execute_csr_instruction(&instruction->system.csr);
     default:
       return false;
   }
@@ -734,6 +823,42 @@ static inline bool rv_execute_decoded_instruction(
       return rv_execute_integer_register(instruction);
     case RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD:
       return rv_execute_integer_register_word(instruction);
+    case RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE:
+#ifdef CONFIG_RISCV_EXT_M
+      return rv_execute_multiply_divide(instruction);
+#else
+      return false;
+#endif
+    case RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD:
+#ifdef CONFIG_RISCV_EXT_M
+      return rv_execute_multiply_divide_word(instruction);
+#else
+      return false;
+#endif
+    case RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE:
+#ifdef CONFIG_RISCV_EXT_B
+      return rv_execute_bitmanip_immediate(instruction);
+#else
+      return false;
+#endif
+    case RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE_WORD:
+#ifdef CONFIG_RISCV_EXT_B
+      return rv_execute_bitmanip_immediate_word(instruction);
+#else
+      return false;
+#endif
+    case RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER:
+#ifdef CONFIG_RISCV_EXT_B
+      return rv_execute_bitmanip_register(instruction);
+#else
+      return false;
+#endif
+    case RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER_WORD:
+#ifdef CONFIG_RISCV_EXT_B
+      return rv_execute_bitmanip_register_word(instruction);
+#else
+      return false;
+#endif
     case RV_INSTRUCTION_CLASS_LOAD:
       return rv_execute_load(instruction);
     case RV_INSTRUCTION_CLASS_STORE:
@@ -748,6 +873,10 @@ static inline bool rv_execute_decoded_instruction(
       return rv_execute_memory_ordering(instruction);
     case RV_INSTRUCTION_CLASS_SYSTEM:
       return rv_execute_system(state, instruction);
+    case RV_INSTRUCTION_CLASS_FLOATING_POINT:
+      return exec_rvf_decoded(&instruction->floating);
+    case RV_INSTRUCTION_CLASS_ATOMIC:
+      return rv64_execute_atomic(instruction);
     default:
       return false;
   }

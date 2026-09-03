@@ -617,6 +617,7 @@ check-nemu-performance-config: nemu-linux-defconfig
 	NEMU_AUTOCONF='$(NEMU_HOME)/include/generated/autoconf.h' \
 	NEMU_POLICY_HEADER='$(NEMU_HOME)/include/nemu-config.h' \
 	NEMU_DEVICE_ADDRESS_HEADER='$(NEMU_HOME)/include/device/device_address.h' \
+	NEMU_GENERIC_MAP_HEADER='$(NEMU_HOME)/include/platform/generic-map.h' \
 	  bash '$(SCRIPT_DIR)/check-nemu-performance-config.sh'
 
 nemu-machine-info: sim

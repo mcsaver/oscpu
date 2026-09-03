@@ -524,7 +524,86 @@ check_console_clean() {
   check_console_absent bad-trap 'HIT BAD TRAP' || failed=1
   check_console_absent ext4-error 'EXT4-fs error' || failed=1
   check_console_absent io-error 'I/O error' || failed=1
+  check_console_absent opensbi-trap 'sbi_trap_error|load fault handler failed' || failed=1
   return "$failed"
+}
+
+console_fixed_count() {
+  local marker=$1
+  grep -acF "$marker" "$CONSOLE_LOG" || true
+}
+
+console_first_fixed_line() {
+  local marker=$1
+  grep -anF "$marker" "$CONSOLE_LOG" | head -n 1 | cut -d: -f1
+}
+
+check_poweroff_chain() {
+  local begin_marker='__NEMU_SYSTEMD_POWEROFF_BEGIN__'
+  local kernel_marker='reboot: Power down'
+  local syscon_marker='syscon-reset: poweroff requested value=0x00005555'
+  local terminal_marker='HIT GOOD TRAP'
+  local begin_count kernel_count syscon_count terminal_count
+  local begin_line kernel_line syscon_line terminal_line
+  local syscon_pc terminal_pc
+
+  begin_count=$(console_fixed_count "$begin_marker")
+  kernel_count=$(console_fixed_count "$kernel_marker")
+  syscon_count=$(console_fixed_count "$syscon_marker")
+  terminal_count=$(console_fixed_count "$terminal_marker")
+
+  # A clean NEMU shutdown is one architectural chain, not merely process rc=0:
+  # systemd begins poweroff, Linux invokes SBI SRST, OpenSBI performs the syscon
+  # read-modify-write, and the terminal write ends NEMU at that same guest PC.
+  if [ "$begin_count" -ne 1 ] || [ "$kernel_count" -ne 1 ] ||
+     [ "$syscon_count" -ne 1 ] || [ "$terminal_count" -ne 1 ] ||
+     ! grep -qaF 'System Power Off' "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] FAIL poweroff-chain marker counts: " \
+      "begin=$begin_count kernel=$kernel_count syscon=$syscon_count " \
+      "terminal=$terminal_count" >&2
+    grep -aE '__NEMU_SYSTEMD_POWEROFF_BEGIN__|System Power Off|reboot: Power down|syscon-reset: poweroff requested|HIT GOOD TRAP' \
+      "$CONSOLE_LOG" | tail -30 >&2 || true
+    return 1
+  fi
+
+  begin_line=$(console_first_fixed_line "$begin_marker")
+  kernel_line=$(console_first_fixed_line "$kernel_marker")
+  syscon_line=$(console_first_fixed_line "$syscon_marker")
+  terminal_line=$(console_first_fixed_line "$terminal_marker")
+  if [ "$begin_line" -ge "$kernel_line" ] ||
+     [ "$kernel_line" -ge "$syscon_line" ] ||
+     [ "$syscon_line" -ge "$terminal_line" ]; then
+    echo "[nemu-systemd-check] FAIL poweroff-chain order: " \
+      "begin=L$begin_line kernel=L$kernel_line syscon=L$syscon_line " \
+      "terminal=L$terminal_line" >&2
+    return 1
+  fi
+
+  syscon_pc=$(
+    grep -aF "$syscon_marker" "$CONSOLE_LOG" |
+      sed -n 's/.*pc=\(0x[[:xdigit:]]\+\).*/\1/p' | tail -n 1
+  )
+  terminal_pc=$(
+    grep -aF "$terminal_marker" "$CONSOLE_LOG" |
+      sed -n 's/.*pc = \(0x[[:xdigit:]]\+\).*/\1/p' | tail -n 1
+  )
+  if [ -z "$syscon_pc" ] || [ "$syscon_pc" != "$terminal_pc" ]; then
+    echo "[nemu-systemd-check] FAIL poweroff-chain PC: " \
+      "syscon=${syscon_pc:-missing} terminal=${terminal_pc:-missing}" >&2
+    return 1
+  fi
+
+  if grep -qaE 'sbi_trap_error|load fault handler failed|__NEMU_SYSTEMD_POWEROFF_CMD_FAIL__' \
+      "$CONSOLE_LOG"; then
+    echo "[nemu-systemd-check] FAIL poweroff-chain firmware/command error" >&2
+    grep -aE 'sbi_trap_error|load fault handler failed|__NEMU_SYSTEMD_POWEROFF_CMD_FAIL__' \
+      "$CONSOLE_LOG" | tail -20 >&2 || true
+    return 1
+  fi
+
+  echo "[nemu-systemd-check] PASS poweroff-chain " \
+    "begin=L$begin_line kernel=L$kernel_line syscon=L$syscon_line " \
+    "terminal=L$terminal_line pc=$syscon_pc"
 }
 
 check_efi_boot_path_context() {
@@ -8396,6 +8475,7 @@ if [ "$guest_done_rc" = "0" ]; then
     else
       fail "NEMU exited with non-zero status during poweroff"
     fi
+    check_poweroff_chain || fail "incomplete systemd/Linux/OpenSBI/syscon poweroff chain"
   fi
   check_nemu_async_runtime
   check_nemu_net_runtime

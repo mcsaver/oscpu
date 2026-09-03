@@ -17,6 +17,7 @@
 #define __ISA_RISCV64_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
 #include <isa/riscv/pmp-encoding.h>
 
 #define PRIV_U 0u
@@ -201,6 +202,8 @@ typedef struct {
   uint64_t fpr[32];
   riscv64_CSR_state csr;
   uint8_t priv;
+  /* reservation 属于 hart 体系结构状态；restart 的 memset 必须使其失效。 */
+  RiscvLoadReservation load_reservation;
 } riscv64_CPU_state;
 
 // decode

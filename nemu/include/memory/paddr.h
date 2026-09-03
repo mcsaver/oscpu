@@ -18,11 +18,17 @@
 #define __MEMORY_PADDR_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
 
 //由CONFIT_*配置宏决定物理内存区域
 #define PMEM_LEFT  ((paddr_t)CONFIG_MBASE)
 #define PMEM_RIGHT ((paddr_t)CONFIG_MBASE + CONFIG_MSIZE - 1)
+#ifdef CONFIG_SOC_SIM
+#include <platform/ysyxsoc-map.h>
+#define RESET_VECTOR ((paddr_t)YSYXSOC_RESET_VECTOR)
+#else
 #define RESET_VECTOR (PMEM_LEFT + CONFIG_PC_RESET_OFFSET)
+#endif
 
 //把guest物理地址映射到NEMU的host虚拟地址
 /* convert the guest physical address in the guest program to host virtual address in NEMU */
@@ -36,13 +42,27 @@ static inline bool in_pmem(paddr_t addr) {
   return addr - CONFIG_MBASE < CONFIG_MSIZE;
 }
 
+static inline bool paddr_span_in_pmem(paddr_t addr, uint64_t len) {
+  if (len == 0 || !in_pmem(addr)) return false;
+  return len - 1 <= (uint64_t)PMEM_RIGHT - (uint64_t)addr;
+}
+
+typedef enum {
+  PADDR_TRANSACTION_IFETCH,
+  PADDR_TRANSACTION_READ,
+  PADDR_TRANSACTION_WRITE,
+} PaddrTransactionDirection;
+
 //物理层的读写入口（负责分发到pmem或mmio）
 word_t paddr_read(paddr_t addr, int len);
 void paddr_write(paddr_t addr, int len, word_t data);
-// 物理地址区间是否落在合法访问窗口内 (pmem/CLINT/PLIC/SoC/MMIO); 用于访存越界优雅抬 access-fault。
+// 纯 region/span 查询，不包含 MMIO 寄存的宽度和方向策略。
 bool paddr_is_accessible(paddr_t addr, int len);
-// 当前平台只把主存声明为完整 Zaamo/Zalrsc 区域；设备窗口采用 AMONone/RsrvNone。
-bool paddr_supports_atomic(paddr_t addr, int len);
+// 完整物理总线事务预检；vaddr 必须在任何设备 callback 前调用。
+bool paddr_transaction_valid(
+    paddr_t addr, int len, PaddrTransactionDirection direction);
+/* 查询完整物理范围的 AMO/Rsrv PMA；设备窗口固定为 AMONone/RsrvNone。 */
+RiscvAtomicPma paddr_atomic_pma(paddr_t addr, int len);
 bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len);
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data);
 // DMA 一致读: 经 dcache peek 视图读 guest 内存(dirty 未回写也拿到最新值)。

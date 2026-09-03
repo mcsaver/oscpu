@@ -304,56 +304,46 @@ static inline bool rv32_decode_memory_ordering(
   }
 }
 
-static inline uint8_t rv32_compressed_adapter_x_operands(uint16_t encoding) {
-  const uint32_t quadrant = BITS(encoding, 1, 0);
-  const uint32_t funct3 = BITS(encoding, 15, 13);
+static inline bool rv32_decode_system(
+    uint32_t encoding, Rv32DecodedInstruction *instruction) {
+  RiscvSystemInstruction system;
+  if (!riscv_decode_system_instruction(encoding, &system)) return false;
 
-  if (quadrant == 0x1) {
-    if (funct3 == 0x0 || funct3 == 0x2 || funct3 == 0x3) {
-      return RV32_X_OPERAND_RD;
+  uint8_t operands = RV32_X_OPERAND_NONE;
+  if (riscv_system_operation_is_csr(system.operation)) {
+    operands |= RV32_X_OPERAND_RD;
+    if (system.csr.source_kind == RISCV_CSR_SOURCE_REGISTER) {
+      operands |= RV32_X_OPERAND_RS1;
     }
-    return RV32_X_OPERAND_NONE;
+  } else if (system.operation == RISCV_SYSTEM_OPERATION_SFENCE_VMA) {
+    operands = RV32_X_OPERAND_RS1 | RV32_X_OPERAND_RS2;
   }
 
-  if (quadrant == 0x2) {
-    switch (funct3) {
-      case 0x0: return RV32_X_OPERAND_RD;
-      case 0x1: return RV32_X_OPERAND_RD;
-      case 0x2: return RV32_X_OPERAND_RD;
-      case 0x4: return RV32_X_OPERAND_RD | RV32_X_OPERAND_RS2;
-      case 0x5: return RV32_X_OPERAND_RS2;
-      case 0x6: return RV32_X_OPERAND_RS2;
-      default: return RV32_X_OPERAND_NONE;
-    }
-  }
-
-  return RV32_X_OPERAND_NONE;
-}
-
-static inline uint8_t rv32_system_adapter_x_operands(uint32_t encoding) {
-  switch (FUNCT3(encoding)) {
-    case 0x1:
-    case 0x2:
-    case 0x3:
-      return RV32_X_OPERAND_RD | RV32_X_OPERAND_RS1;
-    case 0x5:
-    case 0x6:
-    case 0x7:
-      return RV32_X_OPERAND_RD;
-    default:
-      if ((encoding & 0xfe007fffu) == 0x12000073u) {
-        return RV32_X_OPERAND_RS1 | RV32_X_OPERAND_RS2;
-      }
-      return RV32_X_OPERAND_NONE;
-  }
-}
-
-static inline void rv32_decode_extension_adapter(
-    Rv32DecodedInstruction *instruction, Rv32Operation operation,
-    uint8_t x_register_operands) {
+  instruction->system = system;
   rv32_assign_operation(
-      instruction, RV32_INSTRUCTION_CLASS_EXTENSION_ADAPTER, operation,
-      x_register_operands);
+      instruction, RV32_INSTRUCTION_CLASS_SYSTEM,
+      RV32_OPERATION_SYSTEM, operands);
+  return instruction->instruction_class == RV32_INSTRUCTION_CLASS_SYSTEM;
+}
+
+static inline bool rv32_decode_floating(
+    uint32_t encoding, Rv32DecodedInstruction *instruction) {
+  RiscvFloatingInstruction floating;
+  if (!riscv_decode_floating_instruction(
+          encoding, 32, ISDEF(CONFIG_RVE) ? 16 : 32,
+          ISDEF(CONFIG_RISCV_EXT_F), ISDEF(CONFIG_RISCV_EXT_D),
+          &floating)) {
+    return false;
+  }
+  instruction->floating = floating;
+  instruction->immediate = (word_t)floating.immediate;
+  instruction->rd = floating.rd;
+  instruction->rs1 = floating.rs1;
+  instruction->rs2 = floating.rs2;
+  rv32_assign_operation(
+      instruction, RV32_INSTRUCTION_CLASS_FLOATING_POINT,
+      RV32_OPERATION_FLOATING, RV32_X_OPERAND_NONE);
+  return true;
 }
 
 static inline void rv32_decode_instruction(
@@ -363,11 +353,22 @@ static inline void rv32_decode_instruction(
 #ifdef CONFIG_RISCV_EXT_C
   if ((encoding & 0x3u) != 0x3u) {
     instruction->length = 2;
-    instruction->rd = BITS(encoding, 11, 7);
-    instruction->rs2 = BITS(encoding, 6, 2);
-    rv32_decode_extension_adapter(
-        instruction, RV32_OPERATION_COMPRESSED_ADAPTER,
-        rv32_compressed_adapter_x_operands((uint16_t)encoding));
+    RiscvCompressedInstruction compressed;
+    if (!riscv_decode_compressed_instruction(
+            (uint16_t)encoding, 32,
+            ISDEF(CONFIG_RVE) ? 16 : 32,
+            ISDEF(CONFIG_RISCV_EXT_F), ISDEF(CONFIG_RISCV_EXT_D),
+            &compressed)) {
+      return;
+    }
+    instruction->compressed = compressed;
+    instruction->immediate = (word_t)compressed.immediate;
+    instruction->rd = compressed.rd;
+    instruction->rs1 = compressed.rs1;
+    instruction->rs2 = compressed.rs2;
+    rv32_assign_operation(
+        instruction, RV32_INSTRUCTION_CLASS_COMPRESSED,
+        RV32_OPERATION_COMPRESSED, RV32_X_OPERAND_NONE);
     return;
   }
 #endif
@@ -421,28 +422,29 @@ static inline void rv32_decode_instruction(
       (void)rv32_decode_memory_ordering(encoding, instruction);
       return;
     case OPC_LOAD_FP:
-      instruction->immediate = IMM_I(encoding);
-      rv32_decode_extension_adapter(
-          instruction, RV32_OPERATION_FLOATING_LOAD_ADAPTER,
-          RV32_X_OPERAND_RS1);
-      return;
     case OPC_STORE_FP:
-      instruction->immediate = IMM_S(encoding);
-      rv32_decode_extension_adapter(
-          instruction, RV32_OPERATION_FLOATING_STORE_ADAPTER,
-          RV32_X_OPERAND_RS1);
+    case OPC_MADD:
+    case OPC_MSUB:
+    case OPC_NMSUB:
+    case OPC_NMADD:
+    case OPC_OP_FP:
+      (void)rv32_decode_floating(encoding, instruction);
       return;
     case OPC_AMO: {
+#ifdef CONFIG_RISCV_EXT_A
+      if (!riscv_atomic_decode(encoding, 32, &instruction->atomic)) return;
       uint8_t operands = RV32_X_OPERAND_RD | RV32_X_OPERAND_RS1;
-      if (BITS(encoding, 31, 27) != 0x02) operands |= RV32_X_OPERAND_RS2;
-      rv32_decode_extension_adapter(
-          instruction, RV32_OPERATION_ATOMIC_ADAPTER, operands);
+      if (!riscv_atomic_is_load_reserved(&instruction->atomic)) {
+        operands |= RV32_X_OPERAND_RS2;
+      }
+      rv32_assign_operation(
+          instruction, RV32_INSTRUCTION_CLASS_ATOMIC,
+          RV32_OPERATION_ATOMIC, operands);
+#endif
       return;
     }
     case OPC_SYSTEM:
-      rv32_decode_extension_adapter(
-          instruction, RV32_OPERATION_SYSTEM_ADAPTER,
-          rv32_system_adapter_x_operands(encoding));
+      (void)rv32_decode_system(encoding, instruction);
       return;
     default:
       return;

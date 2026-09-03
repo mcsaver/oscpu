@@ -48,6 +48,37 @@ static uint32_t addr = 0;
 static bool write_cmd = 0;
 static bool read_ext_csd = false;
 
+#define SDCARD_REG32(reg_name, reg_index, access) \
+  { \
+    .name = (reg_name), \
+    .first_offset = (reg_index) * 4u, \
+    .last_offset = (reg_index) * 4u + 3u, \
+    .stride = 4u, \
+    .width_mask = IO_WIDTH_4, \
+    .direction_mask = (access), \
+    .naturally_aligned = true, \
+  }
+
+static const IoRegisterDescriptor sdcard_registers[] = {
+  SDCARD_REG32("SDCMD", SDCMD,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  SDCARD_REG32("SDARG", SDARG,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  SDCARD_REG32("SDRSP0", SDRSP0, IO_TRANSACTION_READ),
+  SDCARD_REG32("SDRSP1", SDRSP1, IO_TRANSACTION_READ),
+  SDCARD_REG32("SDRSP2", SDRSP2, IO_TRANSACTION_READ),
+  SDCARD_REG32("SDRSP3", SDRSP3, IO_TRANSACTION_READ),
+  SDCARD_REG32("SDDATA", SDDATA,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+};
+
+static const IoAccessPolicy sdcard_mmio_policy = {
+  .registers = sdcard_registers,
+  .register_count = ARRLEN(sdcard_registers),
+};
+
+#undef SDCARD_REG32
+
 static void prepare_rw(int is_write) {
   blk_addr = base[SDARG];
   addr = 0;
@@ -124,7 +155,8 @@ static void sdcard_io_handler(uint32_t offset, int len, bool is_write) {
 
 void init_sdcard() {
   base = (uint32_t *)new_space(0x80);
-  add_mmio_map("sdhci", CONFIG_SDCARD_CTL_MMIO, base, 0x80, sdcard_io_handler);
+  add_mmio_map_with_policy("sdhci", CONFIG_SDCARD_CTL_MMIO, base,
+      0x80, sdcard_io_handler, &sdcard_mmio_policy);
 
   Assert(C_SIZE < (1 << 12), "shoule be fit in 12 bits");
 

@@ -15,9 +15,17 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
+#include <memory/soc.h>
 
 // this is not consistent with uint8_t
 // but it is ok since we do not access the array directly
+#ifdef CONFIG_SOC_SIM
+/* ysyxSoC 从只读 MROM 复位；内建程序不能像 generic PMEM 测试那样自写数据。 */
+static const uint32_t img [] = {
+  0x00000513,  // addi a0, zero, 0
+  0x00100073,  // ebreak (used as nemu_trap)
+};
+#else
 static const uint32_t img [] = {
                // addi t1,
   0x00000297,  // auipc t0,0  t0 = pc +0
@@ -26,6 +34,7 @@ static const uint32_t img [] = {
   0x00100073,  // ebreak (used as nemu_trap)
   0xdeadbeef,  // some data
 };
+#endif
 
 void isa_riscv32_restart(void) {
   // reference so 可能被多轮 difftest 初始化复用；先清 ISA 状态，避免 CSR/CLINT 残留跨测试串味。
@@ -43,7 +52,12 @@ void isa_riscv32_restart(void) {
 
 void init_isa() {
   /* Load built-in image. */
+#ifdef CONFIG_SOC_SIM
+  Assert(soc_sim_copy_to_guest(RESET_VECTOR, img, sizeof(img)),
+      "built-in image does not fit ysyxSoC reset MROM");
+#else
   memcpy(guest_to_host(RESET_VECTOR), img, sizeof(img));
+#endif
 
   /* Initialize this virtual computer system. */
   isa_riscv32_restart();

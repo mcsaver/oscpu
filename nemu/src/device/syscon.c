@@ -10,8 +10,34 @@
 #include <utils.h>
 
 #define SYSCON_RESET_SIZE 0x1000u
+#define SYSCON_RESET_CONTROL_OFFSET 0x0u
 
 static uint32_t syscon_reset_reg;
+
+/*
+ * The parent "syscon" node is a register map, not a write-only test finisher.
+ * OpenSBI's syscon-poweroff/syscon-reboot binding executes regmap_update_bits:
+ * it reads this 32-bit control word, merges the binding's mask/value, and then
+ * writes the result back.  These two bus transactions are the observable
+ * register semantics; the terminal poweroff/reboot action is the write's side
+ * effect below.
+ */
+static const IoRegisterDescriptor syscon_reset_registers[] = {
+  {
+    .name = "reset-control-word",
+    .first_offset = SYSCON_RESET_CONTROL_OFFSET,
+    .last_offset = SYSCON_RESET_CONTROL_OFFSET + sizeof(uint32_t) - 1u,
+    .stride = sizeof(uint32_t),
+    .width_mask = IO_WIDTH_4,
+    .direction_mask = IO_TRANSACTION_READ | IO_TRANSACTION_WRITE,
+    .naturally_aligned = true,
+  },
+};
+
+static const IoAccessPolicy syscon_reset_mmio_policy = {
+  .registers = syscon_reset_registers,
+  .register_count = ARRLEN(syscon_reset_registers),
+};
 
 static void syscon_reset_io_handler(uint32_t offset, int len, bool is_write) {
   if (!is_write) return;
@@ -42,6 +68,7 @@ void init_syscon_reset() {
   // Linux/OpenSBI 都能识别 syscon-poweroff/syscon-reboot binding；
   // 这里提供对应 MMIO 终点，让 systemd poweroff 走官方关机链路自然退出 NEMU。
   syscon_reset_reg = 0;
-  add_mmio_map("syscon-reset", DEV_SYSCON_RESET_MMIO,
-      &syscon_reset_reg, SYSCON_RESET_SIZE, syscon_reset_io_handler);
+  add_mmio_map_with_policy("syscon-reset", DEV_SYSCON_RESET_MMIO,
+      &syscon_reset_reg, SYSCON_RESET_SIZE, syscon_reset_io_handler,
+      &syscon_reset_mmio_policy);
 }

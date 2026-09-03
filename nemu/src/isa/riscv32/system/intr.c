@@ -14,21 +14,14 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <isa/riscv/clint.h>
 #include <isa/riscv/privileged.h>
+#include <platform/platform-map.h>
 #include <etrace.h>
 
-#define CLINT_BASE 0x02000000u
-#define CLINT_SIZE 0x00010000u
-#define CLINT_MSIP_OFFSET      0x0000u
-#define CLINT_MTIMECMP_LO      0x4000u
-#define CLINT_MTIMECMP_HI      0x4004u
-#define CLINT_MTIME_LO         0xbff8u
-#define CLINT_MTIME_HI         0xbffcu
-#define CLINT_TIMEBASE_HZ      10000000ull
-
-static bool clint_msip = false;
-static uint64_t clint_mtimecmp = ~0ull;
-static uint64_t clint_mtime = 0;
+static RiscvClintState clint = {
+  .mtimecmp = RISCV_CLINT_NO_DEADLINE,
+};
 static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
 #ifdef CONFIG_RISCV_DEBUG_LOG
@@ -40,103 +33,68 @@ static inline word_t riscv_mepc_mask(void) {
 }
 
 static inline word_t clint_pending_bits(void) {
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
   word_t pending = 0;
-  if (clint_msip) pending |= MIP_MSIP;
-  if (clint_mtime >= clint_mtimecmp || host_timer_irq_pending) pending |= MIP_MTIP;
+  if (riscv_clint_software_interrupt_pending(&clint)) pending |= MIP_MSIP;
+  if (riscv_clint_timer_interrupt_pending(&clint) || host_timer_irq_pending) {
+    pending |= MIP_MTIP;
+  }
   return pending;
+#else
+  return 0;
+#endif
 }
 
-// 供 CSR time 和 machine-info 复用同一份 CLINT 时间事实，避免 DTB/实现漂移。
+/*
+ * time/timeh 读取同一份平台时间事实。generic profile 将它实现为 CLINT
+ * mtime；ysyxSoC profile 只保留 instruction-time counter，不因此凭空获得
+ * CLINT MMIO 或 MSIP/MTIP 输入。
+ */
 uint64_t isa_riscv32_clint_timebase_hz(void) {
-  return CLINT_TIMEBASE_HZ;
+  return RISCV_CLINT_TIMEBASE_HZ;
 }
 
 uint64_t isa_riscv32_mtime_value(void) {
-  return clint_mtime;
+  return clint.mtime;
 }
 
 const char *isa_riscv32_clint_time_source(void) {
   return "instruction";
 }
 
-static uint32_t clint_read_word(uint32_t offset) {
-  switch (offset) {
-    case CLINT_MSIP_OFFSET: return clint_msip ? 1u : 0u;
-    case CLINT_MTIMECMP_LO: return (uint32_t)clint_mtimecmp;
-    case CLINT_MTIMECMP_HI: return (uint32_t)(clint_mtimecmp >> 32);
-    case CLINT_MTIME_LO:    return (uint32_t)clint_mtime;
-    case CLINT_MTIME_HI:    return (uint32_t)(clint_mtime >> 32);
-    default: return 0;
-  }
-}
-
-static void clint_write_word(uint32_t offset, uint32_t value, uint32_t mask) {
-  switch (offset) {
-    case CLINT_MSIP_OFFSET:
-      // msip 只有 bit0 是软件中断源；byte strobe 没碰到 bit0 时保持原值，和 NPC AXI-Lite CLINT 对齐。
-      if (mask & 0x000000ffu) clint_msip = (value & 1u) != 0;
-      break;
-    case CLINT_MTIMECMP_LO: {
-      uint32_t old = (uint32_t)clint_mtimecmp;
-      uint32_t lo = (old & ~mask) | (value & mask);
-      clint_mtimecmp = (clint_mtimecmp & 0xffffffff00000000ull) | lo;
-      break;
-    }
-    case CLINT_MTIMECMP_HI: {
-      uint32_t old = (uint32_t)(clint_mtimecmp >> 32);
-      uint32_t hi = (old & ~mask) | (value & mask);
-      clint_mtimecmp = ((uint64_t)hi << 32) | (uint32_t)clint_mtimecmp;
-      break;
-    }
-    case CLINT_MTIME_LO: {
-      uint32_t old = (uint32_t)clint_mtime;
-      uint32_t lo = (old & ~mask) | (value & mask);
-      clint_mtime = (clint_mtime & 0xffffffff00000000ull) | lo;
-      break;
-    }
-    case CLINT_MTIME_HI: {
-      uint32_t old = (uint32_t)(clint_mtime >> 32);
-      uint32_t hi = (old & ~mask) | (value & mask);
-      clint_mtime = ((uint64_t)hi << 32) | (uint32_t)clint_mtime;
-      break;
-    }
-    default:
-      break;
-  }
-}
-
 bool isa_riscv32_clint_in_range(paddr_t addr) {
-  return addr >= CLINT_BASE && addr < CLINT_BASE + CLINT_SIZE;
+  return NEMU_PLATFORM_HAS_RISCV_CLINT &&
+      riscv_clint_address_in_aperture(addr);
+}
+
+bool isa_riscv32_clint_access_valid(paddr_t addr, int len) {
+  return NEMU_PLATFORM_HAS_RISCV_CLINT &&
+      riscv_clint_mmio_access_valid(addr, len, false);
 }
 
 word_t isa_riscv32_clint_read(paddr_t addr, int len) {
-  assert(len >= 1 && len <= 8);
-  if (len == 8) {
-    uint64_t value = (uint64_t)isa_riscv32_clint_read(addr, 4) |
-                     ((uint64_t)isa_riscv32_clint_read(addr + 4, 4) << 32);
-    return (word_t)value;
-  }
-  uint32_t offset = addr - CLINT_BASE;
-  uint32_t shift = (offset & 0x3u) * 8u;
-  uint32_t word = clint_read_word(offset & ~0x3u);
-  uint32_t mask = len == 4 ? 0xffffffffu : ((1u << (len * 8)) - 1u);
-  return (word >> shift) & mask;
+#if !NEMU_PLATFORM_HAS_RISCV_CLINT
+  (void)addr;
+  (void)len;
+  return 0;
+#else
+  RiscvClintAccessKind access = riscv_clint_decode_access(addr, len, false);
+  /* vaddr 预检负责给 guest 抬 access-fault；这里仍防御直接 paddr 调用。 */
+  if (access == RISCV_CLINT_ACCESS_INVALID) return 0;
+  return (word_t)riscv_clint_read_register(&clint, access);
+#endif
 }
 
 void isa_riscv32_clint_write(paddr_t addr, int len, word_t data) {
-  assert(len >= 1 && len <= 8);
-  if (len == 8) {
-    uint64_t value = data;
-    isa_riscv32_clint_write(addr, 4, (uint32_t)data);
-    isa_riscv32_clint_write(addr + 4, 4, (uint32_t)(value >> 32));
-    return;
-  }
-  uint32_t offset = addr - CLINT_BASE;
-  uint32_t shift = (offset & 0x3u) * 8u;
-  uint32_t mask = len == 4 ? 0xffffffffu : ((1u << (len * 8)) - 1u);
-  uint32_t word_mask = mask << shift;
-  uint32_t word_value = ((uint32_t)data << shift) & word_mask;
-  clint_write_word(offset & ~0x3u, word_value, word_mask);
+#if !NEMU_PLATFORM_HAS_RISCV_CLINT
+  (void)addr;
+  (void)len;
+  (void)data;
+#else
+  RiscvClintAccessKind access = riscv_clint_decode_access(addr, len, false);
+  if (access == RISCV_CLINT_ACCESS_INVALID) return;
+  riscv_clint_write_register(&clint, access, data);
+#endif
 }
 
 void isa_riscv32_post_exec(void) {
@@ -148,16 +106,43 @@ void isa_riscv32_post_exec(void) {
     cpu.csr.minstret++;
   }
   mcycle_written_this_inst = false;
-  clint_mtime++;
+  clint.mtime++;
 }
 
 void isa_riscv32_reset(void) {
-  clint_msip = false;
-  clint_mtimecmp = ~0ull;
-  clint_mtime = 0;
+  riscv_clint_reset(&clint);
   host_timer_irq_pending = false;
   mcycle_written_this_inst = false;
   isa_riscv32_plic_reset();
+}
+
+void isa_riscv32_wfi(void) {
+#if !NEMU_PLATFORM_HAS_RISCV_CLINT
+  /* No platform interrupt source can establish a CLINT deadline in this profile. */
+  return;
+#else
+  /*
+   * WFI 的恢复条件是 locally enabled interrupt pending，即 mip & mie；
+   * xstatus.xIE 只控制 trap 交付，不能阻止 WFI 因本地已使能中断而恢复。
+   */
+  if ((isa_riscv32_mip_value() & cpu.csr.mie & MIP_IRQ_MASK) != 0) return;
+  if (clint.mtimecmp == RISCV_CLINT_NO_DEADLINE ||
+      riscv_clint_timer_interrupt_pending(&clint)) return;
+
+  uint64_t delta = clint.mtimecmp - clint.mtime;
+  if (delta <= 1) return;
+
+  /*
+   * RV32 使用 instruction-time：把平台时间推进到 deadline 前一跳，随后
+   * 正常 post_exec 同时退休 WFI、推进最后一跳并派生 MTIP，宿主不会死锁。
+   */
+  uint64_t skipped_ticks = delta - 1;
+  clint.mtime = clint.mtimecmp - 1;
+  if (!mcycle_written_this_inst &&
+      (cpu.csr.mcountinhibit & MCOUNTINHIBIT_CY) == 0) {
+    cpu.csr.mcycle += skipped_ticks;
+  }
+#endif
 }
 
 word_t isa_riscv32_mip_value(void) {
@@ -200,7 +185,9 @@ void isa_riscv32_write_mcycle_hi(word_t value) {
 }
 
 void isa_riscv32_raise_timer_intr(void) {
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
   host_timer_irq_pending = true;
+#endif
 }
 
 static const char *riscv_trap_cause_name(word_t cause) {

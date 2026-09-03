@@ -2,10 +2,13 @@
 *
 !*/
 !*.mk
+!Makefile
 !*.[cSh]
 !*.cc
+!*.inc
 !.gitignore
 !README.md
 !Kconfig
 include/config
 include/generated
+/build/

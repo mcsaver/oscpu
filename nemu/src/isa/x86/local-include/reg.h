@@ -21,7 +21,7 @@
 enum { PRIV_IRET };
 
 static inline int check_reg_index(int index) {
-  IFDEF(CONFIG_RT_CHECK, assert(index >= 0 && index < 8));
+  IFDEF(NEMU_RUNTIME_CHECKS, assert(index >= 0 && index < 8));
   return index;
 }
 
@@ -33,7 +33,7 @@ static inline const char* reg_name(int index, int width) {
   extern const char* regsl[];
   extern const char* regsw[];
   extern const char* regsb[];
-  IFDEF(CONFIG_RT_CHECK, assert(index >= 0 && index < 8));
+  IFDEF(NEMU_RUNTIME_CHECKS, assert(index >= 0 && index < 8));
 
   switch (width) {
     case 4: return regsl[index];
@@ -45,7 +45,7 @@ static inline const char* reg_name(int index, int width) {
 
 static inline const char* sreg_name(int index) {
   const char *name[] = { "es", "cs", "ss", "ds", "fs", "gs" };
-  IFDEF(CONFIG_RT_CHECK, assert(index >= 0 && index < ARRLEN(name)));
+  IFDEF(NEMU_RUNTIME_CHECKS, assert(index >= 0 && index < ARRLEN(name)));
   return name[index];
 }
 

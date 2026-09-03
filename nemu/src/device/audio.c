@@ -30,6 +30,25 @@ enum {
 static uint8_t *sbuf = NULL;
 static uint32_t *audio_base = NULL;
 
+static const IoRegisterDescriptor audio_control_registers[]
+    __attribute__((unused)) = {
+  {
+    .name = "control",
+    .first_offset = 0,
+    .last_offset = sizeof(uint32_t) * nr_reg - 1u,
+    .stride = sizeof(uint32_t),
+    .width_mask = IO_WIDTH_4,
+    .direction_mask = IO_TRANSACTION_READ | IO_TRANSACTION_WRITE,
+    .naturally_aligned = true,
+  },
+};
+
+static const IoAccessPolicy audio_control_mmio_policy
+    __attribute__((unused)) = {
+  .registers = audio_control_registers,
+  .register_count = ARRLEN(audio_control_registers),
+};
+
 static void audio_io_handler(uint32_t offset, int len, bool is_write) {
 }
 
@@ -39,7 +58,8 @@ void init_audio() {
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map ("audio", CONFIG_AUDIO_CTL_PORT, audio_base, space_size, audio_io_handler);
 #else
-  add_mmio_map("audio", DEV_AUDIO_CTL_MMIO, audio_base, space_size, audio_io_handler);
+  add_mmio_map_with_policy("audio", DEV_AUDIO_CTL_MMIO, audio_base,
+      space_size, audio_io_handler, &audio_control_mmio_policy);
 #endif
 
   sbuf = (uint8_t *)new_space(CONFIG_SB_SIZE);

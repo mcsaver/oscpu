@@ -2,10 +2,14 @@
 #define __RISCV32_INSTRUCTION_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
+#include <isa/riscv/compressed.h>
+#include <isa/riscv/floating.h>
+#include <isa/riscv/privileged.h>
 
 /*
  * RV32 指令先被译成手册助记符，再进入唯一执行入口。
- * 原始编码只服务于非法指令 tval 和尚未迁移的扩展适配器。
+ * 原始编码只服务于非法指令 tval 和诊断；执行层不重新解释字段。
  */
 typedef enum {
   RV32_INSTRUCTION_CLASS_ILLEGAL = 0,
@@ -19,7 +23,10 @@ typedef enum {
   RV32_INSTRUCTION_CLASS_JUMP,
   RV32_INSTRUCTION_CLASS_UPPER_IMMEDIATE,
   RV32_INSTRUCTION_CLASS_MEMORY_ORDERING,
-  RV32_INSTRUCTION_CLASS_EXTENSION_ADAPTER,
+  RV32_INSTRUCTION_CLASS_SYSTEM,
+  RV32_INSTRUCTION_CLASS_ATOMIC,
+  RV32_INSTRUCTION_CLASS_COMPRESSED,
+  RV32_INSTRUCTION_CLASS_FLOATING_POINT,
 } Rv32InstructionClass;
 
 typedef enum {
@@ -117,11 +124,14 @@ typedef enum {
   RV32_OPERATION_FENCE,
   RV32_OPERATION_FENCE_I,
 
-  RV32_OPERATION_COMPRESSED_ADAPTER,
-  RV32_OPERATION_FLOATING_LOAD_ADAPTER,
-  RV32_OPERATION_FLOATING_STORE_ADAPTER,
-  RV32_OPERATION_ATOMIC_ADAPTER,
-  RV32_OPERATION_SYSTEM_ADAPTER,
+  /* 具体 LR/SC/AMO mnemonic、宽度与 aq/rl 保存在共享 atomic descriptor。 */
+  RV32_OPERATION_ATOMIC,
+
+  /* 具体 SYSTEM mnemonic 与 Zicsr intent 保存在共享 system descriptor。 */
+  RV32_OPERATION_SYSTEM,
+
+  RV32_OPERATION_COMPRESSED,
+  RV32_OPERATION_FLOATING,
 } Rv32Operation;
 
 typedef enum {
@@ -141,6 +151,10 @@ typedef struct {
   uint8_t rs1;
   uint8_t rs2;
   uint8_t x_register_operands;
+  RiscvAtomicInstruction atomic;
+  RiscvSystemInstruction system;
+  RiscvCompressedInstruction compressed;
+  RiscvFloatingInstruction floating;
 } Rv32DecodedInstruction;
 
 #endif

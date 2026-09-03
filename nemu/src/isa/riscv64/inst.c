@@ -34,7 +34,6 @@
  */
 #include "inst/common.c"
 #include "inst/csr.c"
-#include "inst/rv64i.c"
 #include "inst/fp.c"
 #include "inst/muldiv.c"
 #include "inst/amo.c"

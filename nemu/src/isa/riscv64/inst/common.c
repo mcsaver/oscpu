@@ -3,12 +3,15 @@
 /* 基础设施：寄存器/访存入口、字段提取和少量规范常量都放在文件开头。
  * 执行层只通过这些窄接口读写状态，后续扩指令不再到处散落位切片。 */
 #define R(i) gpr(i)
-#define F(i) (cpu.fpr[(i)])
-#define Mr vaddr_read
-#define Mw vaddr_write
+#define F(i) (cpu.fpr[(i)])//直接访问第i个浮点寄存器
+//Mr(addr,len)->vaddr_read(addr,len)
+#define Mr vaddr_read//通过虚拟地址系统读内存，包括地址翻译、权限检查和异常记录
+//Mw(addr,len,data)->vaddr_write(addr,len,data)
+#define Mw vaddr_write//同理
 
+//编译器常量
 #define XLEN_BITS ((uint32_t)(sizeof(word_t) * 8))
-#define WORD_SIGN_BIT ((word_t)1 << (XLEN_BITS - 1))
+#define WORD_SIGN_BIT ((word_t)1 << (XLEN_BITS - 1))//生成XLEN最高位的掩码，避免有符号位移位问题
 
 #define OPCODE(i) BITS(i, 6, 0)
 #define RD(i)     BITS(i, 11, 7)
@@ -27,33 +30,31 @@
 #define IMM_J(i) SEXT((BITS(i, 31, 31) << 20 | BITS(i, 19, 12) << 12 | \
                        BITS(i, 20, 20) << 11 | BITS(i, 30, 21) << 1), 21)
 
-#define OPC_LOAD   0x03
-#define OPC_LOAD_FP 0x07
-#define OPC_MISC_MEM 0x0f
-#define OPC_OP_IMM 0x13
-#define OPC_OP_IMM_32 0x1b
-#define OPC_AUIPC  0x17
-#define OPC_STORE  0x23
-#define OPC_STORE_FP 0x27
-#define OPC_AMO    0x2f
-#define OPC_OP     0x33
-#define OPC_OP_32  0x3b
-#define OPC_MADD   0x43
-#define OPC_MSUB   0x47
-#define OPC_NMSUB  0x4b
-#define OPC_NMADD  0x4f
-#define OPC_OP_FP  0x53
-#define OPC_LUI    0x37
-#define OPC_BRANCH 0x63
-#define OPC_JALR   0x67
-#define OPC_JAL    0x6f
-#define OPC_SYSTEM 0x73
 
-#define FFLAGS_NV 0x10u
-#define FFLAGS_DZ 0x08u
-#define FFLAGS_OF 0x04u
-#define FFLAGS_UF 0x02u
-#define FFLAGS_NX 0x01u
+//RISC-V 规定低两位不是 11 时可以属于 16-bit 压缩指令空间；
+//低两位为 11 表示指令长度超过 16 bit，而普通 32-bit 指令就在这一空间内继续编码。这样取指单元只检查很少的低位就能开始判断长度。
+//opcode最大的作用是用来处理数据格式
+#define OPC_LOAD   0x03//LB/LH/LW/LD/LBU/LHU/LWU
+#define OPC_LOAD_FP 0x07//FLW/FLD
+#define OPC_MISC_MEM 0x0f//FENCE/FENCE.I
+#define OPC_OP_IMM 0x13//ADDI/SLTI/移位立即数
+#define OPC_OP_IMM_32 0x1b//ADDIW/SLLIW/SRLIW/SRAIW
+#define OPC_AUIPC  0x17//AUIPC
+#define OPC_STORE  0x23//SB/SH/SW/SD
+#define OPC_STORE_FP 0x27//FSW/FSD
+#define OPC_AMO    0x2f//LR/SC/AMO
+#define OPC_OP     0x33//整数寄存器运算/m/b拓展
+#define OPC_OP_32  0x3b//ADDW/SUBW/MULW等
+#define OPC_MADD   0x43//FMADD
+#define OPC_MSUB   0x47//FMSUB
+#define OPC_NMSUB  0x4b//FNMADD
+#define OPC_NMADD  0x4f//FNMADD
+#define OPC_OP_FP  0x53//其他FP算术、转换、比较
+#define OPC_LUI    0x37//LUI
+#define OPC_BRANCH 0x63//条件分支
+#define OPC_JALR   0x67//JALR
+#define OPC_JAL    0x6f//JAL
+#define OPC_SYSTEM 0x73//ECALL、CSR、xRET、WFI等
 
 #define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
 #define SHAMT5(value) ((value) & 0x1f)
@@ -122,31 +123,6 @@ static void rv_runtime_config_init(void) {
     rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");
 #endif
 }
-
-#ifdef CONFIG_RISCV_EXT_A
-static bool lr_reservation_valid = false;
-static paddr_t lr_reservation_paddr = 0;
-static int lr_reservation_len = 0;
-
-static inline bool lr_sc_range_overlap(paddr_t lhs_start, int lhs_len,
-    paddr_t rhs_start, int rhs_len) {
-  paddr_t lhs_end = lhs_start + (paddr_t)lhs_len;
-  paddr_t rhs_end = rhs_start + (paddr_t)rhs_len;
-  return lhs_start < rhs_end && rhs_start < lhs_end;
-}
-
-void isa_riscv64_lr_sc_invalidate(paddr_t paddr, int len) {
-  if (!lr_reservation_valid) return;
-  if (lr_sc_range_overlap(lr_reservation_paddr, lr_reservation_len, paddr, len)) {
-    lr_reservation_valid = false;
-  }
-}
-#else
-void isa_riscv64_lr_sc_invalidate(paddr_t paddr, int len) {
-  (void)paddr;
-  (void)len;
-}
-#endif
 
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;

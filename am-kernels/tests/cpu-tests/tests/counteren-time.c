@@ -123,10 +123,15 @@ static void s_counter_payload(void) {
   uintptr_t cycle0 = read_cycle_csr();
   uintptr_t instret0 = read_instret_csr();
   uintptr_t mix = 0;
-  for (int i = 0; i < 16; i++) {
+  uintptr_t time1 = time0;
+  /*
+   * instruction-time 会逐指令增长，host-time 则按宿主微秒采样；不要假定固定
+   * 16 条指令必然跨过一个宿主 tick，只要求在有界轮询内观察到同源 TIME 前进。
+   */
+  for (int i = 0; i < 100000 && time1 == time0; i++) {
     mix += (uintptr_t)i + time0;
+    time1 = read_time_csr();
   }
-  uintptr_t time1 = read_time_csr();
   uintptr_t cycle1 = read_cycle_csr();
   uintptr_t instret1 = read_instret_csr();
 

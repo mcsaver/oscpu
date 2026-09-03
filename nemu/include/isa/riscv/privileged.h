@@ -38,6 +38,36 @@ typedef struct {
 } RiscvCsrInstruction;
 
 /*
+ * Chapter "Zicsr" and chapter "Supervisor-Level ISA" share opcode SYSTEM.
+ * This operation is the manual-level meaning of that opcode; execution code
+ * must not recover it from funct3/funct7 or from a full instruction word.
+ */
+typedef enum {
+  RISCV_SYSTEM_OPERATION_ILLEGAL = 0,
+  RISCV_SYSTEM_OPERATION_ECALL,
+  RISCV_SYSTEM_OPERATION_EBREAK,
+  RISCV_SYSTEM_OPERATION_SRET,
+  RISCV_SYSTEM_OPERATION_MRET,
+  RISCV_SYSTEM_OPERATION_WFI,
+  RISCV_SYSTEM_OPERATION_SFENCE_VMA,
+  RISCV_SYSTEM_OPERATION_CSRRW,
+  RISCV_SYSTEM_OPERATION_CSRRS,
+  RISCV_SYSTEM_OPERATION_CSRRC,
+  RISCV_SYSTEM_OPERATION_CSRRWI,
+  RISCV_SYSTEM_OPERATION_CSRRSI,
+  RISCV_SYSTEM_OPERATION_CSRRCI,
+} RiscvSystemOperation;
+
+/* XLEN-, CPU-state-, configuration- and vaddr-independent SYSTEM decode. */
+typedef struct {
+  RiscvSystemOperation operation;
+  uint8_t destination_register;
+  uint8_t source_register_1;
+  uint8_t source_register_2;
+  RiscvCsrInstruction csr;
+} RiscvSystemInstruction;
+
+/*
  * Zicsr defines CSR read and write intent from the encoded register field,
  * not from the register value observed while the instruction executes.
  */
@@ -86,6 +116,167 @@ static inline bool riscv_decode_csr_instruction(
     .access = access,
   };
   return true;
+}
+
+/*
+ * The sole architectural decoder for opcode SYSTEM.
+ *
+ * ECALL/EBREAK/xRET/WFI require every encoded register field to be zero.
+ * SFENCE.VMA admits both register selectors but fixes funct7, funct3 and rd.
+ * The six remaining accepted encodings are exactly the Zicsr instructions.
+ */
+static inline bool riscv_decode_system_instruction(
+    uint32_t encoding, RiscvSystemInstruction *instruction) {
+  const uint32_t opcode = encoding & 0x7fu;
+  const uint32_t rd = (encoding >> 7) & 0x1fu;
+  const uint32_t funct3 = (encoding >> 12) & 0x7u;
+  const uint32_t rs1 = (encoding >> 15) & 0x1fu;
+  const uint32_t rs2 = (encoding >> 20) & 0x1fu;
+
+  *instruction = (RiscvSystemInstruction) {
+    .operation = RISCV_SYSTEM_OPERATION_ILLEGAL,
+    .destination_register = rd,
+    .source_register_1 = rs1,
+    .source_register_2 = rs2,
+  };
+  if (opcode != 0x73u) return false;
+
+  switch (encoding) {
+    case 0x00000073u:
+      instruction->operation = RISCV_SYSTEM_OPERATION_ECALL;
+      return true;
+    case 0x00100073u:
+      instruction->operation = RISCV_SYSTEM_OPERATION_EBREAK;
+      return true;
+    case 0x10200073u:
+      instruction->operation = RISCV_SYSTEM_OPERATION_SRET;
+      return true;
+    case 0x30200073u:
+      instruction->operation = RISCV_SYSTEM_OPERATION_MRET;
+      return true;
+    case 0x10500073u:
+      instruction->operation = RISCV_SYSTEM_OPERATION_WFI;
+      return true;
+    default:
+      break;
+  }
+
+  if ((encoding & 0xfe007fffu) == 0x12000073u) {
+    instruction->operation = RISCV_SYSTEM_OPERATION_SFENCE_VMA;
+    return true;
+  }
+
+  switch (funct3) {
+    case 0x1: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRW; break;
+    case 0x2: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRS; break;
+    case 0x3: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRC; break;
+    case 0x5: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRWI; break;
+    case 0x6: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRSI; break;
+    case 0x7: instruction->operation = RISCV_SYSTEM_OPERATION_CSRRCI; break;
+    default: return false;
+  }
+
+  return riscv_decode_csr_instruction(
+      funct3, encoding >> 20, rd, rs1, &instruction->csr);
+}
+
+static inline bool riscv_system_operation_is_csr(
+    RiscvSystemOperation operation) {
+  return operation >= RISCV_SYSTEM_OPERATION_CSRRW &&
+         operation <= RISCV_SYSTEM_OPERATION_CSRRCI;
+}
+
+/* Named privilege checks shared by the RV32 and RV64 execution chapters. */
+static inline word_t riscv_environment_call_cause(uint8_t privilege) {
+  switch (privilege) {
+    case PRIV_M: return CAUSE_ECALL_M;
+    case PRIV_S: return CAUSE_ECALL_S;
+    default: return CAUSE_ECALL_U;
+  }
+}
+
+static inline bool riscv_machine_return_is_legal(uint8_t privilege) {
+  return privilege == PRIV_M;
+}
+
+static inline bool riscv_supervisor_return_is_legal(
+    uint8_t privilege, word_t mstatus) {
+  return privilege >= PRIV_S &&
+         !(privilege == PRIV_S && (mstatus & MSTATUS_TSR) != 0);
+}
+
+static inline bool riscv_wait_for_interrupt_is_legal(
+    uint8_t privilege, word_t mstatus) {
+  return privilege == PRIV_M || (mstatus & MSTATUS_TW) == 0;
+}
+
+static inline bool riscv_sfence_vma_is_legal(
+    uint8_t privilege, word_t mstatus) {
+  return privilege >= PRIV_S &&
+         !(privilege == PRIV_S && (mstatus & MSTATUS_TVM) != 0);
+}
+
+typedef struct {
+  word_t status;
+  uint8_t privilege;
+} RiscvXretTransition;
+
+static inline uint8_t riscv_mstatus_previous_privilege(word_t status) {
+  switch (status & MSTATUS_MPP_MASK) {
+    case MSTATUS_MPP_S: return PRIV_S;
+    case MSTATUS_MPP_M: return PRIV_M;
+    default: return PRIV_U;
+  }
+}
+
+/* mret: MIE<-MPIE, MPIE<-1, MPP<-U and clear MPRV below M-mode. */
+static inline RiscvXretTransition riscv_machine_return_transition(
+    word_t previous_status) {
+  RiscvXretTransition transition = {
+    .status = previous_status,
+    .privilege = riscv_mstatus_previous_privilege(previous_status),
+  };
+  if (previous_status & MSTATUS_MPIE) transition.status |= MSTATUS_MIE;
+  else transition.status &= ~MSTATUS_MIE;
+  transition.status |= MSTATUS_MPIE;
+  transition.status &= ~MSTATUS_MPP_MASK;
+  if (transition.privilege != PRIV_M) transition.status &= ~MSTATUS_MPRV;
+  transition.status |= MSTATUS_SXL_UXL;
+  return transition;
+}
+
+/* sret: SIE<-SPIE, SPIE<-1, SPP<-U and always clear MPRV. */
+static inline RiscvXretTransition riscv_supervisor_return_transition(
+    word_t previous_status) {
+  RiscvXretTransition transition = {
+    .status = previous_status,
+    .privilege =
+        (previous_status & MSTATUS_SPP) != 0 ? PRIV_S : PRIV_U,
+  };
+  if (previous_status & MSTATUS_SPIE) transition.status |= MSTATUS_SIE;
+  else transition.status &= ~MSTATUS_SIE;
+  transition.status |= MSTATUS_SPIE;
+  transition.status &= ~MSTATUS_SPP;
+  transition.status &= ~MSTATUS_MPRV;
+  transition.status |= MSTATUS_SXL_UXL;
+  return transition;
+}
+
+/*
+ * EBREAK is an architectural breakpoint once the guest has installed a trap
+ * vector.  Before that point, the AM and ysyxSoC startup environments use it
+ * as their EEI halt request (the built-in reset image relies on this rule).
+ * Keeping the environment rule in this named hook leaves the decoded EBREAK
+ * operation and every configured guest trap fully architectural.
+ */
+static inline bool riscv_eei_ebreak_requests_halt(
+    bool architectural_trap_vector_is_configured) {
+#if defined(CONFIG_TARGET_AM) || defined(CONFIG_SOC_SIM)
+  return !architectural_trap_vector_is_configured;
+#else
+  (void)architectural_trap_vector_is_configured;
+  return false;
+#endif
 }
 
 /* CSR address[11:10] == 3 denotes a read-only CSR. */

@@ -6,6 +6,7 @@
 
 #include <isa.h>
 #include <isa/riscv/plic.h>
+#include <platform/platform-map.h>
 
 static RiscvPlicState plic;
 
@@ -14,14 +15,24 @@ void isa_riscv32_plic_reset(void) {
 }
 
 void isa_riscv32_plic_set_irq(uint32_t irq, bool level) {
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
   riscv_plic_gateway_update_level(&plic, irq, level);
+#else
+  (void)irq;
+  (void)level;
+#endif
 }
 
 bool isa_riscv32_plic_maybe_pending(void) {
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
   return riscv_plic_any_context_notifies(&plic);
+#else
+  return false;
+#endif
 }
 
 word_t isa_riscv32_plic_pending_bits(void) {
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
   word_t pending = 0;
   if (riscv_plic_select_notification(&plic, RISCV_PLIC_MACHINE_CONTEXT) != 0) {
     pending |= MIP_MEIP;
@@ -30,14 +41,19 @@ word_t isa_riscv32_plic_pending_bits(void) {
     pending |= MIP_SEIP;
   }
   return pending;
+#else
+  return 0;
+#endif
 }
 
 bool isa_riscv32_plic_in_range(paddr_t addr) {
-  return riscv_plic_address_in_aperture(addr);
+  return NEMU_PLATFORM_HAS_RISCV_PLIC &&
+      riscv_plic_address_in_aperture(addr);
 }
 
 bool isa_riscv32_plic_access_valid(paddr_t addr, int len) {
-  return riscv_plic_mmio_access_valid(addr, len);
+  return NEMU_PLATFORM_HAS_RISCV_PLIC &&
+      riscv_plic_mmio_access_valid(addr, len);
 }
 
 word_t isa_riscv32_plic_read(paddr_t addr, int len) {

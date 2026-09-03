@@ -17,7 +17,9 @@
 
 #include <isa.h>
 #include <cpu/cpu.h>
+#include <cpu/difftest.h>
 #include <memory/paddr.h>
+#include <memory/soc.h>
 #include <utils.h>
 #include <difftest-def.h>
 
@@ -34,6 +36,33 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 
 static bool is_skip_ref = false;
 static int skip_dut_nr_inst = 0;
+
+/* Copy one already-loaded DUT physical-memory span into the reference model. */
+void difftest_sync_memory(paddr_t addr, size_t size) {
+  Assert(size > 0, "DiffTest memory span at " FMT_PADDR " is empty", addr);
+#ifdef CONFIG_SOC_SIM
+  if (paddr_span_in_pmem(addr, (uint64_t)size)) {
+    ref_difftest_memcpy(
+        addr, guest_to_host(addr), size, DIFFTEST_TO_REF);
+    return;
+  }
+
+  const SocSimRegionInfo *region = soc_sim_region_containing(addr, size);
+  Assert(region != NULL && region->kind == SOC_SIM_REGION_MEMORY,
+      "ysyxSoC DiffTest span is not loadable memory at " FMT_PADDR, addr);
+  uint8_t *image = (uint8_t *)malloc(size);
+  Assert(image != NULL, "can not allocate ysyxSoC DiffTest memory buffer");
+  Assert(soc_sim_memcpy(addr, image, size, DIFFTEST_TO_DUT),
+      "ysyxSoC DiffTest span is not loadable memory at " FMT_PADDR, addr);
+  ref_difftest_memcpy(addr, image, size, DIFFTEST_TO_REF);
+  free(image);
+#else
+  Assert(paddr_span_in_pmem(addr, (uint64_t)size),
+      "DiffTest span does not fit PMEM at " FMT_PADDR, addr);
+  ref_difftest_memcpy(
+      addr, guest_to_host(addr), size, DIFFTEST_TO_REF);
+#endif
+}
 
 // this is used to let ref skip instructions which
 // can not produce consistent behavior with NEMU
@@ -101,8 +130,10 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
 
   //调用ref_difftest_init初始化Ref
   ref_difftest_init(port);
-  //使用ref_difftest_memcpy将加载到NEMU内存中的程序镜像(img_size)同步到Ref的物理地址RESET_VECTOR处
-  ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
+  // 将主镜像同步到 Ref；SOC 的 RESET_VECTOR 位于 MROM，统一走物理 region 复制入口。
+  Assert(img_size > 0 && (uintmax_t)img_size <= (uintmax_t)SIZE_MAX,
+      "invalid DiffTest image size: %ld", img_size);
+  difftest_sync_memory(RESET_VECTOR, (size_t)img_size);
   //使用ref_difftest_regcpy将NEMU当前的寄存器状态(cpu结构体)同步给Ref，确保两者起点相同
   ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
 }
@@ -153,4 +184,8 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
 }
 #else
 void init_difftest(char *ref_so_file, long img_size, int port) { }
+void difftest_sync_memory(paddr_t addr, size_t size) {
+  (void)addr;
+  (void)size;
+}
 #endif

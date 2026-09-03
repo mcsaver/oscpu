@@ -23,6 +23,11 @@ void paddr_write(paddr_t addr, int len, word_t data) {
   assert(0);
 }
 
+void paddr_tohost_check_write(paddr_t addr, uint32_t len) {
+  (void)addr;
+  (void)len;
+}
+
 static word_t test_read(paddr_t addr, int len) {
   backend_reads++;
   word_t ret = 0;

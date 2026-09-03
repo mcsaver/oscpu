@@ -17,6 +17,7 @@
 #define __ISA_RISCV32_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
 #include <isa/riscv/pmp-encoding.h>
 
 #define PRIV_U 0u
@@ -102,9 +103,13 @@
 #define MSTATUS_TW         ((word_t)1 << 21)
 #define MSTATUS_TSR        ((word_t)1 << 22)
 #define MSTATUS_SXL_UXL    0
+#define MSTATUS_SD         ((word_t)1 << 31)
 #define SSTATUS_MASK       (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | \
                             MSTATUS_FS_MASK | MSTATUS_SUM | MSTATUS_MXR | \
                             MSTATUS_SXL_UXL)
+#define SSTATUS_WRITABLE_MASK \
+    (MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_SPP | MSTATUS_FS_MASK | \
+     MSTATUS_SUM | MSTATUS_MXR)
 #define MSTATUS_WRITABLE_MASK \
     (MSTATUS_SIE | MSTATUS_MIE | MSTATUS_SPIE | MSTATUS_MPIE | \
      MSTATUS_SPP | MSTATUS_FS_MASK | MSTATUS_MPP_MASK | MSTATUS_MPRV | \
@@ -120,6 +125,12 @@
 #define MIP_MACHINE_MASK    (MIP_MSIP | MIP_MTIP | MIP_MEIP)
 #define MIP_IRQ_MASK        (MIP_SUPERVISOR_MASK | MIP_MACHINE_MASK)
 #define SIP_WRITABLE_MASK   MIP_SSIP
+
+/* Implemented delegatable exceptions and supervisor interrupt causes. */
+#define MEDELEG_WRITABLE_MASK \
+    (((word_t)0x3ff) | ((word_t)1 << 12) | ((word_t)1 << 13) | \
+     ((word_t)1 << 15))
+#define MIDELEG_WRITABLE_MASK MIP_SUPERVISOR_MASK
 
 #define IRQ_CAUSE_SSI 1u
 #define IRQ_CAUSE_MSI 3u
@@ -163,6 +174,8 @@ typedef struct {
   vaddr_t pc;
   riscv32_CSR_state csr;
   uint8_t priv;
+  /* reservation 属于 hart 体系结构状态；restart 的 memset 必须使其失效。 */
+  RiscvLoadReservation load_reservation;
 } riscv32_CPU_state;
 
 // decode

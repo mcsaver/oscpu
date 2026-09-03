@@ -28,6 +28,43 @@ typedef enum {
   GOLDFISH_RTC_CLEAR_INTERRUPT = 0x1cu,
 } GoldfishRtcRegister;
 
+#define GOLDFISH_RTC_REG32(reg_name, reg_offset, access) \
+  { \
+    .name = (reg_name), \
+    .first_offset = (reg_offset), \
+    .last_offset = (reg_offset) + 3u, \
+    .stride = 4u, \
+    .width_mask = IO_WIDTH_4, \
+    .direction_mask = (access), \
+    .naturally_aligned = true, \
+  }
+
+static const IoRegisterDescriptor goldfish_rtc_registers[] = {
+  GOLDFISH_RTC_REG32("TIME_LOW", GOLDFISH_RTC_TIME_LOW,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("TIME_HIGH", GOLDFISH_RTC_TIME_HIGH,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("ALARM_LOW", GOLDFISH_RTC_ALARM_LOW,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("ALARM_HIGH", GOLDFISH_RTC_ALARM_HIGH,
+      IO_TRANSACTION_READ | IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("IRQ_ENABLED", GOLDFISH_RTC_IRQ_ENABLED,
+      IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("CLEAR_ALARM", GOLDFISH_RTC_CLEAR_ALARM,
+      IO_TRANSACTION_WRITE),
+  GOLDFISH_RTC_REG32("ALARM_STATUS", GOLDFISH_RTC_ALARM_STATUS,
+      IO_TRANSACTION_READ),
+  GOLDFISH_RTC_REG32("CLEAR_INTERRUPT", GOLDFISH_RTC_CLEAR_INTERRUPT,
+      IO_TRANSACTION_WRITE),
+};
+
+static const IoAccessPolicy goldfish_rtc_mmio_policy = {
+  .registers = goldfish_rtc_registers,
+  .register_count = ARRLEN(goldfish_rtc_registers),
+};
+
+#undef GOLDFISH_RTC_REG32
+
 typedef struct {
   uint8_t *mmio_space;
 
@@ -35,6 +72,8 @@ typedef struct {
   uint64_t epoch_base_ns;
   uint64_t epoch_base_host_us;
   uint64_t epoch_base_mtime;
+  uint64_t last_observed_time_ns;
+  uint64_t virtual_clock_rebases;
 
   /* Reading TIME_LOW snapshots TIME_HIGH for a coherent 64-bit read. */
   uint64_t time_read_latch_ns;
@@ -53,27 +92,83 @@ static uint64_t host_realtime_ns(void) {
   return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
-static uint64_t goldfish_rtc_virtual_elapsed_ns(
-    const GoldfishRtcState *rtc) {
-#ifdef CONFIG_ISA_riscv
-  uint64_t ticks = isa_riscv_mtime_value() - rtc->epoch_base_mtime;
-  uint64_t hz = isa_riscv_clint_timebase_hz();
-  if (hz != 0) {
-    return (ticks / hz) * 1000000000ull + (ticks % hz) * 1000000000ull / hz;
-  }
-#endif
-  uint64_t host_us = get_time();
-  return (host_us - rtc->epoch_base_host_us) * 1000ull;
+static uint64_t goldfish_rtc_saturating_add_ns(
+    uint64_t base_ns, uint64_t elapsed_ns) {
+  return elapsed_ns > UINT64_MAX - base_ns
+      ? UINT64_MAX : base_ns + elapsed_ns;
 }
 
-static uint64_t goldfish_rtc_current_time_ns(const GoldfishRtcState *rtc) {
-  return rtc->epoch_base_ns + goldfish_rtc_virtual_elapsed_ns(rtc);
+static uint64_t goldfish_rtc_ticks_to_ns(uint64_t ticks, uint64_t hz) {
+  if (hz == 0) return 0;
+  const uint64_t seconds = ticks / hz;
+  if (seconds > UINT64_MAX / 1000000000ull) return UINT64_MAX;
+  const uint64_t whole_ns = seconds * 1000000000ull;
+  const uint64_t remainder_ticks = ticks % hz;
+  /*
+   * remainder_ticks < hz，所以小数秒必然小于 1e9 ns。中间乘积仍可能
+   * 超过 64 位；用宿主的宽整数表达手册中的 floor(remainder * 1e9 / hz)，
+   * 避免先截断或用会再次溢出的等价式。
+   */
+  const uint64_t remainder_ns = (uint64_t)(
+      ((__uint128_t)remainder_ticks * 1000000000ull) / hz);
+  return goldfish_rtc_saturating_add_ns(whole_ns, remainder_ns);
+}
+
+static uint64_t goldfish_rtc_virtual_elapsed_ns(
+    GoldfishRtcState *rtc) {
+#ifdef CONFIG_ISA_riscv
+  const uint64_t now_mtime = isa_riscv_mtime_value();
+  const uint64_t hz = isa_riscv_clint_timebase_hz();
+  if (hz != 0) {
+    if (now_mtime < rtc->epoch_base_mtime) {
+      /*
+       * mtime 是可写寄存器；回拨不是 uint64 subtraction underflow。
+       * Goldfish wall clock 在最近一次可观察值上重新建立 epoch，随后继续走时。
+       */
+      rtc->epoch_base_ns = rtc->last_observed_time_ns;
+      rtc->epoch_base_mtime = now_mtime;
+      rtc->epoch_base_host_us = get_time();
+      rtc->virtual_clock_rebases++;
+      return 0;
+    }
+    return goldfish_rtc_ticks_to_ns(now_mtime - rtc->epoch_base_mtime, hz);
+  }
+#endif
+  const uint64_t host_us = get_time();
+  if (host_us < rtc->epoch_base_host_us) {
+    rtc->epoch_base_ns = rtc->last_observed_time_ns;
+    rtc->epoch_base_host_us = host_us;
+    rtc->virtual_clock_rebases++;
+    return 0;
+  }
+  const uint64_t elapsed_us = host_us - rtc->epoch_base_host_us;
+  return elapsed_us > UINT64_MAX / 1000ull
+      ? UINT64_MAX : elapsed_us * 1000ull;
+}
+
+static uint64_t goldfish_rtc_current_time_ns(GoldfishRtcState *rtc) {
+  uint64_t current = goldfish_rtc_saturating_add_ns(
+      rtc->epoch_base_ns, goldfish_rtc_virtual_elapsed_ns(rtc));
+  if (current < rtc->last_observed_time_ns) {
+    /* 覆盖仍高于 epoch_base、但低于最近观测点的 mtime 回拨。 */
+    current = rtc->last_observed_time_ns;
+    rtc->epoch_base_ns = current;
+    rtc->epoch_base_host_us = get_time();
+#ifdef CONFIG_ISA_riscv
+    rtc->epoch_base_mtime = isa_riscv_mtime_value();
+#endif
+    rtc->virtual_clock_rebases++;
+  }
+  rtc->last_observed_time_ns = current;
+  return current;
 }
 
 static void goldfish_rtc_set_current_time_ns(
     GoldfishRtcState *rtc, uint64_t value) {
   rtc->epoch_base_ns = value;
   rtc->epoch_base_host_us = get_time();
+  /* guest 显式写 TIME 寄存器可以重设墙钟，包括向后设置。 */
+  rtc->last_observed_time_ns = value;
 #ifdef CONFIG_ISA_riscv
   rtc->epoch_base_mtime = isa_riscv_mtime_value();
 #endif
@@ -181,39 +276,17 @@ static void goldfish_rtc_write_register(
 }
 
 static void goldfish_rtc_io_handler(uint32_t offset, int len, bool is_write) {
-  if (len <= 0 || offset >= GOLDFISH_RTC_SIZE) return;
+  assert(len == 4);
 
   if (is_write) {
-    if (len == 4) {
-      goldfish_rtc_write_register(&goldfish_rtc, (GoldfishRtcRegister)offset,
-          host_read(goldfish_rtc.mmio_space + offset, 4));
-    } else if (len == 8) {
-      /*
-       * Goldfish exposes two 32-bit registers for each 64-bit value.  The
-       * high word is staged first; writing ALARM_LOW is the architectural
-       * commit point which arms the alarm, exactly like the Linux driver.
-       */
-      goldfish_rtc_write_register(&goldfish_rtc,
-          (GoldfishRtcRegister)(offset + 4),
-          host_read(goldfish_rtc.mmio_space + offset + 4, 4));
-      goldfish_rtc_write_register(&goldfish_rtc, (GoldfishRtcRegister)offset,
-          host_read(goldfish_rtc.mmio_space + offset, 4));
-    }
+    goldfish_rtc_write_register(&goldfish_rtc, (GoldfishRtcRegister)offset,
+        host_read(goldfish_rtc.mmio_space + offset, 4));
     return;
   }
 
-  if (len == 8) {
-    host_write(goldfish_rtc.mmio_space + offset, 4,
-        goldfish_rtc_read_register(
-            &goldfish_rtc, (GoldfishRtcRegister)offset));
-    host_write(goldfish_rtc.mmio_space + offset + 4, 4,
-        goldfish_rtc_read_register(
-            &goldfish_rtc, (GoldfishRtcRegister)(offset + 4)));
-  } else {
-    host_write(goldfish_rtc.mmio_space + offset, len,
-        goldfish_rtc_read_register(
-            &goldfish_rtc, (GoldfishRtcRegister)offset));
-  }
+  host_write(goldfish_rtc.mmio_space + offset, 4,
+      goldfish_rtc_read_register(
+          &goldfish_rtc, (GoldfishRtcRegister)offset));
 }
 
 void goldfish_rtc_update() {
@@ -229,10 +302,12 @@ void init_goldfish_rtc() {
   goldfish_rtc.epoch_base_mtime = isa_riscv_mtime_value();
 #endif
   goldfish_rtc.time_read_latch_ns = goldfish_rtc.epoch_base_ns;
+  goldfish_rtc.last_observed_time_ns = goldfish_rtc.epoch_base_ns;
 
   goldfish_rtc.mmio_space = new_space(GOLDFISH_RTC_SIZE);
-  add_mmio_map("goldfish-rtc", DEV_GOLDFISH_RTC_MMIO,
-      goldfish_rtc.mmio_space, GOLDFISH_RTC_SIZE, goldfish_rtc_io_handler);
+  add_mmio_map_with_policy("goldfish-rtc", DEV_GOLDFISH_RTC_MMIO,
+      goldfish_rtc.mmio_space, GOLDFISH_RTC_SIZE,
+      goldfish_rtc_io_handler, &goldfish_rtc_mmio_policy);
 }
 
 void goldfish_rtc_dump_machine_info(FILE *out) {
@@ -242,6 +317,8 @@ void goldfish_rtc_dump_machine_info(FILE *out) {
   fprintf(out, "device.goldfish_rtc.time_unit=ns\n");
   fprintf(out, "device.goldfish_rtc.virtual_timebase_hz=%" PRIu64 "\n",
       MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_timebase_hz(), 0ull));
+  fprintf(out, "device.goldfish_rtc.virtual_clock_rebases=%" PRIu64 "\n",
+      goldfish_rtc.virtual_clock_rebases);
   fprintf(out, "device.goldfish_rtc.mmio_size=0x%08x\n", GOLDFISH_RTC_SIZE);
   fprintf(out, "device.goldfish_rtc.alarm_supported=1\n");
   fprintf(out, "device.goldfish_rtc.alarm_enabled=%d\n",

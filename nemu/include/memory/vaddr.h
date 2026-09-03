@@ -19,6 +19,7 @@
 #define __MEMORY_VADDR_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
 //指令抓取
 word_t vaddr_ifetch(vaddr_t addr, int len);
 // performance 模式下的 RVC 宽取指快路径；不能命中时返回 0 让 ISA 层走旧精确路径。
@@ -81,16 +82,28 @@ word_t vaddr_read(vaddr_t addr, int len);
 void vaddr_write(vaddr_t addr, int len, word_t data);
 
 /*
+ * 读取/写入一个与 XLEN 无关的 little-endian guest memory datum。
+ *
+ * `word_t` 只表示整数寄存器宽度，不能承载 RV32D 的 64-bit FLD/FSD。
+ * 这组接口用 uint64_t 表达手册中的 memory datum，并保证宽访问在任何
+ * 写入或 MMIO 副作用前完成整个 span 的翻译、PMP 与 PMA 检查。
+ * 返回 false 表示精确 fault 已写入 vaddr pending 通道。
+ */
+bool vaddr_read_bits(vaddr_t addr, int len, uint64_t *value);
+bool vaddr_write_bits(vaddr_t addr, int len, uint64_t value);
+
+/*
  * 原子访存必须在一次完整的 MMU/PMP/PMA 检查后使用同一翻译结果完成。
  * 调用方负责先检查自然对齐；返回 false 表示 fault 已进入 vaddr pending 通道。
  */
-typedef word_t (*vaddr_atomic_compute_t)(word_t old_value, const void *opaque);
-bool vaddr_atomic_load_reserved(vaddr_t addr, int len,
-    word_t *value, paddr_t *paddr);
-bool vaddr_atomic_store_conditional(vaddr_t addr, int len, word_t data,
-    bool reservation_valid, paddr_t reservation_paddr, bool *stored);
-bool vaddr_atomic_rmw(vaddr_t addr, int len, vaddr_atomic_compute_t compute,
-    const void *opaque, word_t *old_value);
+bool vaddr_atomic_load_reserved(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t *value, paddr_t *paddr);
+bool vaddr_atomic_store_conditional(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t data,
+    const RiscvLoadReservation *reservation, bool *stored);
+bool vaddr_atomic_rmw(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t source_value,
+    word_t *old_value);
 
 void vaddr_set_fault(word_t cause, vaddr_t tval);
 bool vaddr_take_fault(word_t *cause, vaddr_t *tval);

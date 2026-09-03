@@ -23,6 +23,9 @@
 #include <device/mmio.h>
 #include <cpu/cpu.h>
 #include <cpu/difftest.h>
+#include <isa/riscv/clint.h>
+#include <isa/riscv/plic.h>
+#include <platform/platform-map.h>
 #include <utils/profile.h>
 #include <isa.h>
 #include <errno.h>
@@ -383,9 +386,7 @@ static void pmem_write(paddr_t addr, int len, word_t data) {
 }
 
 static bool pmem_range_ok(paddr_t addr, uint32_t len) {
-  if (len == 0) return true;
-  paddr_t end = addr + (paddr_t)len - 1;
-  return end >= addr && in_pmem(addr) && in_pmem(end);
+  return len == 0 || paddr_span_in_pmem(addr, len);
 }
 
 void paddr_tohost_set_addr(paddr_t addr) {
@@ -440,7 +441,7 @@ void paddr_tohost_check_write(paddr_t addr, uint32_t len) {
 
 static void paddr_dma_notify_cpu(paddr_t addr, uint32_t len) {
   if (len == 0) return;
-  IFDEF(CONFIG_ISA_riscv, isa_riscv_lr_sc_invalidate(addr, (int)len));
+  IFDEF(CONFIG_ISA_riscv, isa_riscv_lr_sc_invalidate(addr, (uint64_t)len));
   /*
    * Device DMA is an external PMEM write. Keep the interpreter's private
    * instruction-side host-page cache coherent without flushing unrelated pages.
@@ -527,8 +528,50 @@ static void out_of_bound(paddr_t addr) {
       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
 }
 
+/*
+ * A physical-address range has exactly one owner in a machine profile.
+ * PMEM is configurable on the generic machine, whereas CLINT/PLIC apertures
+ * are architectural platform constants and bypass the IOMap registry.  Reject
+ * an ambiguous map before allocating memory or starting a CPU: decoder order
+ * is an implementation detail and must never decide the guest-visible device.
+ */
+static void validate_platform_memory_map(void) {
+  const uint64_t pmem_base = (uint64_t)CONFIG_MBASE;
+  const uint64_t pmem_size = (uint64_t)CONFIG_MSIZE;
+
+  Assert(pmem_size != 0 && pmem_size - 1 <= UINT64_MAX - pmem_base,
+      "%s PMEM range is empty or wraps around: base=0x%016" PRIx64
+      " size=0x%016" PRIx64,
+      NEMU_PLATFORM_NAME, pmem_base, pmem_size);
+
+  const uint64_t pmem_end = pmem_base + pmem_size - 1;
+  Assert(pmem_end <= (uint64_t)(paddr_t)-1,
+      "%s PMEM end 0x%016" PRIx64
+      " cannot be represented by the configured physical-address type",
+      NEMU_PLATFORM_NAME, pmem_end);
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
+  const uint64_t clint_end = RISCV_CLINT_BASE + RISCV_CLINT_SIZE - 1;
+  Assert(pmem_end < RISCV_CLINT_BASE || pmem_base > clint_end,
+      "%s PMEM [0x%016" PRIx64 ", 0x%016" PRIx64
+      "] overlaps the RISC-V CLINT aperture [0x%016" PRIx64
+      ", 0x%016" PRIx64 "]",
+      NEMU_PLATFORM_NAME, pmem_base, pmem_end,
+      (uint64_t)RISCV_CLINT_BASE, clint_end);
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
+  const uint64_t plic_end = RISCV_PLIC_BASE + RISCV_PLIC_SIZE - 1;
+  Assert(pmem_end < RISCV_PLIC_BASE || pmem_base > plic_end,
+      "%s PMEM [0x%016" PRIx64 ", 0x%016" PRIx64
+      "] overlaps the RISC-V PLIC aperture [0x%016" PRIx64
+      ", 0x%016" PRIx64 "]",
+      NEMU_PLATFORM_NAME, pmem_base, pmem_end,
+      (uint64_t)RISCV_PLIC_BASE, plic_end);
+#endif
+}
+
 //分配/初始化pmem（支持CONFIG_PMEM_MALLOC或静态数组），可按照CONFIG_MEM_RANDOM填充随机值并打印物理内存区间日志
 void init_mem() {
+  validate_platform_memory_map();
 #if   defined(CONFIG_PMEM_MALLOC)
   pmem = malloc(CONFIG_MSIZE);
   assert(pmem);
@@ -536,13 +579,22 @@ void init_mem() {
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
   // SoC 仿真窗口是 paddr 层直连模型，初始化时清空其平台状态，避免 reference so 多轮复用串味。
-  IFDEF(CONFIG_SOC_SIM, soc_sim_reset());
+#ifdef CONFIG_SOC_SIM
+  soc_sim_reset();
+  const SocSimRegionInfo *pmem_region = soc_sim_pmem_backed_region();
+  Assert(pmem_region != NULL &&
+         pmem_region->base == PMEM_LEFT &&
+         pmem_region->size == (size_t)CONFIG_MSIZE,
+      "NEMU PMEM [" FMT_PADDR ", " FMT_PADDR "] must exactly back "
+      "the ysyxSoC PSRAM region",
+      PMEM_LEFT, PMEM_RIGHT);
+#endif
   // cache 以 paddr 层作为后端，初始化只建立 tag/data 状态，不改变 PMEM/MMIO 的权威语义。
   IFDEF(CONFIG_CACHE, init_cache());
 }
 
-// 判断物理地址区间是否落在任何合法访问窗口 (pmem / CLINT / PLIC / SoC / 已注册 MMIO)。
-// 供 vaddr 层在 CPU 访存翻译后做可访问性预检: 命中则正常访存, 未命中则抬 guest access-fault,
+// 判断物理地址 span 是否落在任何已实现 region 内；不解码读写方向/寄存宽度。
+// CPU 访存必须走下方 paddr_transaction_valid，未命中则抬 guest access-fault,
 // 取代原先 paddr/mmio 层遇到 guest 可控越界地址就 host assert/panic 崩掉整个进程的行为
 // (这是 rv64dv 等随机程序压测把 NEMU 当 reference 时的可靠性前提: 一条非法访存不该干掉进程内 ref.so)。
 // 热路径 (pmem 命中) 只做一次 in_pmem 判断即返回, 不遍历设备表, 因此对正常访存零额外开销。
@@ -550,34 +602,96 @@ bool paddr_is_accessible(paddr_t addr, int len) {
   if (len <= 0) return false;
   paddr_t last = addr + (paddr_t)len - 1;
   if (last < addr) return false;  // 长度回绕/溢出视为不可访问
-  if (likely(in_pmem(addr) && in_pmem(last))) return true;
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) return true;
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
-    // PLIC 只接受自然对齐的 32-bit 寄存器事务；false 交给 vaddr 层抬 access-fault。
-    return MUXDEF(CONFIG_ISA_riscv,
-        isa_riscv_plic_access_valid(addr, len), false);
+  if (likely(paddr_span_in_pmem(addr, (uint64_t)len))) return true;
+#ifdef CONFIG_SOC_SIM
+  /* SOC_SIM 的 manifest 是所选机器的固定总线合同，不与 generic 控制器竞争优先级。 */
+  if (soc_sim_span_in_range(addr, len)) return true;
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
+  if (isa_riscv_clint_in_range(addr)) {
+    /* CLINT 只接受已实现寄存器上的自然对齐 32/64-bit 事务。 */
+    return isa_riscv_clint_access_valid(addr, len);
   }
-  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) return true;
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
+  if (isa_riscv_plic_in_range(addr)) {
+    // PLIC 只接受自然对齐的 32-bit 寄存器事务；false 交给 vaddr 层抬 access-fault。
+    return isa_riscv_plic_access_valid(addr, len);
+  }
+#endif
   if (MUXDEF(CONFIG_DEVICE, mmio_is_mapped(addr, len), false)) return true;
   return false;
 }
 
-bool paddr_supports_atomic(paddr_t addr, int len) {
+bool paddr_transaction_valid(
+    paddr_t addr, int len, PaddrTransactionDirection direction) {
   if (len <= 0) return false;
+  if (direction != PADDR_TRANSACTION_IFETCH &&
+      direction != PADDR_TRANSACTION_READ &&
+      direction != PADDR_TRANSACTION_WRITE) {
+    return false;
+  }
+  if (likely(paddr_span_in_pmem(addr, (uint64_t)len))) return true;
+#ifdef CONFIG_SOC_SIM
+  if (soc_sim_span_in_range(addr, len)) {
+    SocSimTransactionDirection soc_direction;
+    switch (direction) {
+      case PADDR_TRANSACTION_IFETCH:
+        soc_direction = SOC_SIM_TRANSACTION_IFETCH;
+        break;
+      case PADDR_TRANSACTION_READ:
+        soc_direction = SOC_SIM_TRANSACTION_READ;
+        break;
+      case PADDR_TRANSACTION_WRITE:
+        soc_direction = SOC_SIM_TRANSACTION_WRITE;
+        break;
+      default:
+        return false;
+    }
+    return soc_sim_transaction_valid(addr, len, soc_direction);
+  }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
+  if (isa_riscv_clint_in_range(addr)) {
+    return direction != PADDR_TRANSACTION_IFETCH &&
+        isa_riscv_clint_access_valid(addr, len);
+  }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
+  if (isa_riscv_plic_in_range(addr)) {
+    return direction != PADDR_TRANSACTION_IFETCH &&
+        isa_riscv_plic_access_valid(addr, len);
+  }
+#endif
+  if (direction == PADDR_TRANSACTION_IFETCH) return false;
+  return MUXDEF(CONFIG_DEVICE,
+      mmio_decode_transaction(addr, len,
+          direction == PADDR_TRANSACTION_WRITE) == IO_TRANSACTION_ACCEPTED,
+      false);
+}
+
+RiscvAtomicPma paddr_atomic_pma(paddr_t addr, int len) {
+  if (len != RISCV_ATOMIC_WIDTH_WORD &&
+      len != RISCV_ATOMIC_WIDTH_DOUBLEWORD) {
+    return riscv_atomic_pma_none();
+  }
   paddr_t last = addr + (paddr_t)len - 1;
-  if (last < addr) return false;
+  if (last < addr) return riscv_atomic_pma_none();
   /*
-   * NEMU 的 PMEM 由单一 CPU 执行线程顺序访问，可提供完整 AMOArithmetic 与
-   * RsrvEventual 基线；CLINT/PLIC/SoC/MMIO 暂未声明设备级原子事务能力，
-   * 必须抬 access-fault，不能用一次 read 加一次 write 冒充原子 MMIO。
+   * 固定平台 PMA：完整 PMEM 是 AMOArithmetic + RsrvEventual，且没有
+   * misaligned atomicity granule；所选平台的控制器/SoC MMIO 均保持
+   * AMONone + RsrvNone，不能用一次设备 read 加一次 write 冒充原子事务。
    */
-  return in_pmem(addr) && in_pmem(last);
+  if (paddr_span_in_pmem(addr, (uint64_t)len)) {
+    return riscv_atomic_pma_arithmetic_reservation_eventual();
+  }
+  return riscv_atomic_pma_none();
 }
 
 //对外的物理地址读写入口，若地址在pmem范围则走pmem_read/pmem_write，否则在启用CONFIG_DEVICE时调用mmio_read/mmio_write
 //否则触发out_of_bound(panic)
 word_t paddr_read(paddr_t addr, int len) {
-  if (likely(in_pmem(addr))) {
+  if (likely(len > 0 && paddr_span_in_pmem(addr, (uint64_t)len))) {
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_READS, 1);
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_READ_BYTES, (uint64_t)len);
     word_t ret = pmem_read(addr, len);
@@ -589,30 +703,37 @@ word_t paddr_read(paddr_t addr, int len) {
 #endif
   return ret;
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) {
-    // CLINT 是 RISC-V 平台固定 MMIO；在 paddr 层直连后，reference so 不需要走完整 device init。
-    difftest_skip_ref();
-    nemu_profile_count_if(NEMU_PROFILE_PADDR_CLINT_READS, 1);
-    return isa_riscv_clint_read(addr, len);
-  }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
-    difftest_skip_ref();
-    nemu_profile_count_if(NEMU_PROFILE_PADDR_PLIC_READS, 1);
-    return isa_riscv_plic_read(addr, len);
-  }
-  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
+#ifdef CONFIG_SOC_SIM
+  if (soc_sim_span_in_range(addr, len)) {
     // ysyxSoC 平台窗口不依赖 CONFIG_DEVICE；MROM/SRAM/SDRAM 是可比较内存，
     // 只有 UART/占位设备这类 MMIO 副作用需要跳过 reference 步进。
     if (soc_sim_should_skip_ref(addr)) difftest_skip_ref();
     return soc_sim_read(addr, len);
   }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
+  if (isa_riscv_clint_in_range(addr)) {
+    // generic RISC-V CLINT 在 paddr 层直连，reference so 不需要完整 device init。
+    if (!isa_riscv_clint_access_valid(addr, len)) return 0;
+    difftest_skip_ref();
+    nemu_profile_count_if(NEMU_PROFILE_PADDR_CLINT_READS, 1);
+    return isa_riscv_clint_read(addr, len);
+  }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
+  if (isa_riscv_plic_in_range(addr)) {
+    difftest_skip_ref();
+    nemu_profile_count_if(NEMU_PROFILE_PADDR_PLIC_READS, 1);
+    return isa_riscv_plic_read(addr, len);
+  }
+#endif
   IFDEF(CONFIG_DEVICE, nemu_profile_count_if(NEMU_PROFILE_PADDR_MMIO_READS, 1); return mmio_read(addr, len));
   out_of_bound(addr);
   return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
-  if (likely(in_pmem(addr))){
+  if (likely(len > 0 && paddr_span_in_pmem(addr, (uint64_t)len))){
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_WRITES, 1);
     nemu_profile_count_if(NEMU_PROFILE_PADDR_PMEM_WRITE_BYTES, (uint64_t)len);
     pmem_write(addr, len, data);
@@ -626,22 +747,8 @@ void paddr_write(paddr_t addr, int len, word_t data) {
 #endif
     return;
   }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_clint_in_range(addr), false)) {
-    // CLINT 写会改变软件/定时器中断源；这里和读路径一起对齐 NPC 的 0x0200_0000 地址窗口。
-    difftest_skip_ref();
-    nemu_profile_count_if(NEMU_PROFILE_PADDR_CLINT_WRITES, 1);
-    paddr_note_device_write();
-    isa_riscv_clint_write(addr, len, data);
-    return;
-  }
-  if (MUXDEF(CONFIG_ISA_riscv, isa_riscv_plic_in_range(addr), false)) {
-    difftest_skip_ref();
-    nemu_profile_count_if(NEMU_PROFILE_PADDR_PLIC_WRITES, 1);
-    paddr_note_device_write();
-    isa_riscv_plic_write(addr, len, data);
-    return;
-  }
-  if (MUXDEF(CONFIG_SOC_SIM, soc_sim_in_range(addr), false)) {
+#ifdef CONFIG_SOC_SIM
+  if (soc_sim_span_in_range(addr, len)) {
     // SoC 模型在 paddr 层完成副作用；片上存储保持指令级比较，MMIO 才跳过。
     if (soc_sim_should_skip_ref(addr)) {
       difftest_skip_ref();
@@ -650,6 +757,26 @@ void paddr_write(paddr_t addr, int len, word_t data) {
     soc_sim_write(addr, len, data);
     return;
   }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_CLINT
+  if (isa_riscv_clint_in_range(addr)) {
+    if (!isa_riscv_clint_access_valid(addr, len)) return;
+    difftest_skip_ref();
+    nemu_profile_count_if(NEMU_PROFILE_PADDR_CLINT_WRITES, 1);
+    paddr_note_device_write();
+    isa_riscv_clint_write(addr, len, data);
+    return;
+  }
+#endif
+#if NEMU_PLATFORM_HAS_RISCV_PLIC
+  if (isa_riscv_plic_in_range(addr)) {
+    difftest_skip_ref();
+    nemu_profile_count_if(NEMU_PROFILE_PADDR_PLIC_WRITES, 1);
+    paddr_note_device_write();
+    isa_riscv_plic_write(addr, len, data);
+    return;
+  }
+#endif
   IFDEF(CONFIG_DEVICE, nemu_profile_count_if(NEMU_PROFILE_PADDR_MMIO_WRITES, 1); paddr_note_device_write(); mmio_write(addr, len, data); return);
   out_of_bound(addr);
 }

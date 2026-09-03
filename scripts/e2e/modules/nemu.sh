@@ -118,8 +118,6 @@ e2e_nemu_ubuntu_static_gate_impl() {
     Linux/scripts/check-nemu-qmp-smoke.py \
     Linux/scripts/check-nemu-gdbstub-smoke.py \
     Linux/tools/Makefile \
-    Linux/tools/amo-misaligned-smoke.S \
-    Linux/tools/lrsc-reservation-smoke.S \
     Linux/tools/pmp-access-smoke.S \
     Linux/tools/pmp-pagewalk-smoke.S \
     Linux/tools/pmp-pagewalk-ad-smoke.S \
@@ -134,6 +132,9 @@ e2e_nemu_ubuntu_static_gate_impl() {
     Linux/platform/npc-rv64.yml \
     Linux/platform/nemu-rv64.yml \
     scripts/nemu-preserved-run.sh \
+    abstract-machine/scripts/isa/riscv-nemu-ext.mk \
+    abstract-machine/scripts/riscv32-nemu.mk \
+    abstract-machine/scripts/riscv64-nemu.mk \
     nemu/configs/riscv64-linux_defconfig \
     nemu/scripts/native.mk \
     nemu/src/cpu/cpu-exec.c \
@@ -171,6 +172,9 @@ e2e_nemu_ubuntu_static_gate_impl() {
     nemu/src/isa/riscv64/local-include/instruction.h \
     nemu/src/isa/riscv64/local-include/privileged.h \
     nemu/include/isa/riscv/privileged.h \
+    nemu/include/isa/riscv/atomic.h \
+    nemu/include/isa/riscv/clint.h \
+    nemu/include/isa/riscv/plic.h \
     nemu/include/isa/riscv/pmp-encoding.h \
     nemu/include/isa/riscv/pmp.h \
     nemu/src/isa/riscv64/inst/csr.c \
@@ -189,14 +193,23 @@ e2e_nemu_ubuntu_static_gate_impl() {
     nemu/src/isa/riscv32/inst/decode.c \
     nemu/src/isa/riscv32/inst/muldiv.c \
     nemu/src/isa/riscv32/inst/bitmanip.c \
+    nemu/src/isa/riscv32/inst/amo.c \
     nemu/src/isa/riscv32/inst/execute.c \
+    nemu/src/cpu/difftest/ref.c \
+    nemu/src/memory/paddr.c \
+    nemu/src/memory/vaddr.c \
     am-kernels/tests/cpu-tests/tests/bitmanip.c \
+    am-kernels/tests/cpu-tests/tests/clint-manual.c \
+    am-kernels/tests/cpu-tests/tests/plic-manual.c \
+    am-kernels/tests/cpu-tests/tests/rv32a-amo.c \
+    am-kernels/tests/cpu-tests/tests/rv64a-amo.c \
     am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c \
     nemu/src/isa/riscv64/include/isa-platform.h \
     nemu/src/isa/riscv32/include/isa-platform.h \
     nemu/src/isa/riscv64/system/intr.c \
     nemu/src/isa/riscv32/system/intr.c \
     nemu/src/isa/riscv64/system/plic.c \
+    nemu/src/isa/riscv32/system/plic.c \
     nemu/src/isa/riscv64/system/mmu.c \
     nemu/src/isa/riscv32/system/mmu.c \
     nemu/include/isa.h \
@@ -330,12 +343,10 @@ e2e_nemu_ubuntu_static_gate_impl() {
   make -C "$E2E_ROOT_DIR/Linux" ARCH=riscv64-nemu check-nemu-kernel-config
 
   echo
-  echo "[nemu-ubuntu] NEMU AMO/LR/SC misaligned smoke"
-  make -C "$E2E_ROOT_DIR/Linux/tools" smoke-nemu-amo-misaligned
-
-  echo
-  echo "[nemu-ubuntu] NEMU LR/SC reservation smoke"
-  make -C "$E2E_ROOT_DIR/Linux/tools" smoke-nemu-lrsc-reservation
+  echo "[nemu-ubuntu] AM RV64A manual transaction test"
+  env AM_HOME="$E2E_ROOT_DIR/abstract-machine" NEMU_HOME="$E2E_ROOT_DIR/nemu" \
+    make -C "$E2E_ROOT_DIR/am-kernels/tests/cpu-tests" \
+      ARCH=riscv64-nemu ALL=rv64a-amo c
 
   echo
   echo "[nemu-ubuntu] NEMU PMP access fault smoke"
@@ -406,7 +417,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "runtime.vaddr_host_fast.enabled=1" \
     "runtime.vaddr_host_fast.disable_env=NEMU_VADDR_HOST_FAST=0" \
     "config.interpreter_intr_fast_flag=1" \
-    "config.device_update_check_interval=512" \
+    "policy.device_update_check_interval=512" \
     "platform.hart_count=1" \
     "platform.smp=unsupported" \
     "platform.pci=unsupported" \
@@ -1348,8 +1359,6 @@ e2e_nemu_ubuntu_slice_contract() {
     Linux/tools/nemu-systemd-dns-probe.c \
     Linux/tools/nemu-systemd-tcp-probe.c \
     Linux/tools/nemu-python-int-preflight.py \
-    Linux/tools/amo-misaligned-smoke.S \
-    Linux/tools/lrsc-reservation-smoke.S \
     Linux/tools/pmp-access-smoke.S \
     Linux/tools/pmp-pagewalk-smoke.S \
     Linux/tools/pmp-pagewalk-ad-smoke.S \
@@ -1365,6 +1374,8 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/isa/riscv64/local-include/instruction.h \
     nemu/src/isa/riscv64/local-include/privileged.h \
     nemu/include/isa/riscv/privileged.h \
+    nemu/include/isa/riscv/clint.h \
+    nemu/include/isa/riscv/plic.h \
     nemu/include/isa/riscv/pmp-encoding.h \
     nemu/include/isa/riscv/pmp.h \
     nemu/src/isa/riscv64/inst/csr.c \
@@ -1385,7 +1396,13 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/isa/riscv32/inst/bitmanip.c \
     nemu/src/isa/riscv32/inst/execute.c \
     am-kernels/tests/cpu-tests/tests/bitmanip.c \
+    am-kernels/tests/cpu-tests/tests/clint-manual.c \
+    am-kernels/tests/cpu-tests/tests/plic-manual.c \
+    am-kernels/tests/cpu-tests/tests/rv32a-amo.c \
+    am-kernels/tests/cpu-tests/tests/rv64a-amo.c \
     am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c \
+    nemu/src/isa/riscv64/system/plic.c \
+    nemu/src/isa/riscv32/system/plic.c \
     nemu/include/isa.h \
     nemu/src/monitor/monitor.c \
     nemu/src/monitor/qmp.c \
@@ -1395,6 +1412,9 @@ e2e_nemu_ubuntu_slice_contract() {
     nemu/src/monitor/sdb/sdb.c \
     nemu/src/monitor/sdb/sdb.h \
     nemu/scripts/native.mk \
+    abstract-machine/scripts/isa/riscv-nemu-ext.mk \
+    abstract-machine/scripts/riscv32-nemu.mk \
+    abstract-machine/scripts/riscv64-nemu.mk \
     nemu/src/filelist.mk \
     Linux/scripts/build-ubuntu-rootfs.sh \
     Linux/scripts/build-ubuntu-systemd-overlay.sh \
@@ -1438,8 +1458,8 @@ e2e_nemu_ubuntu_slice_contract() {
   local python_int_probe_py="$E2E_ROOT_DIR/Linux/tools/nemu-python-int-preflight.py"
   local python_int_trace_correlate_py="$E2E_ROOT_DIR/Linux/tools/nemu-python-int-trace-correlate.py"
   local linux_tools_mk="$E2E_ROOT_DIR/Linux/tools/Makefile"
-  local amo_misaligned_smoke_s="$E2E_ROOT_DIR/Linux/tools/amo-misaligned-smoke.S"
-  local lrsc_reservation_smoke_s="$E2E_ROOT_DIR/Linux/tools/lrsc-reservation-smoke.S"
+  local rv32a_amo_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/rv32a-amo.c"
+  local rv64a_amo_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/rv64a-amo.c"
   local pmp_access_smoke_s="$E2E_ROOT_DIR/Linux/tools/pmp-access-smoke.S"
   local pmp_pagewalk_smoke_s="$E2E_ROOT_DIR/Linux/tools/pmp-pagewalk-smoke.S"
   local pmp_pagewalk_ad_smoke_s="$E2E_ROOT_DIR/Linux/tools/pmp-pagewalk-ad-smoke.S"
@@ -1460,6 +1480,9 @@ e2e_nemu_ubuntu_slice_contract() {
   local sdb_c="$E2E_ROOT_DIR/nemu/src/monitor/sdb/sdb.c"
   local sdb_h="$E2E_ROOT_DIR/nemu/src/monitor/sdb/sdb.h"
   local native_mk="$E2E_ROOT_DIR/nemu/scripts/native.mk"
+  local am_riscv_nemu_ext_mk="$E2E_ROOT_DIR/abstract-machine/scripts/isa/riscv-nemu-ext.mk"
+  local am_riscv32_nemu_mk="$E2E_ROOT_DIR/abstract-machine/scripts/riscv32-nemu.mk"
+  local am_riscv64_nemu_mk="$E2E_ROOT_DIR/abstract-machine/scripts/riscv64-nemu.mk"
   local nemu_filelist_mk="$E2E_ROOT_DIR/nemu/src/filelist.mk"
   local utils_h="$E2E_ROOT_DIR/nemu/include/utils.h"
   local net_c="$E2E_ROOT_DIR/nemu/src/device/net.c"
@@ -1477,6 +1500,9 @@ e2e_nemu_ubuntu_slice_contract() {
   local rv64_instruction_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/local-include/instruction.h"
   local rv64_privileged_h="$E2E_ROOT_DIR/nemu/src/isa/riscv64/local-include/privileged.h"
   local riscv_privileged_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/privileged.h"
+  local riscv_atomic_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/atomic.h"
+  local riscv_clint_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/clint.h"
+  local riscv_plic_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/plic.h"
   local riscv_pmp_encoding_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/pmp-encoding.h"
   local riscv_pmp_h="$E2E_ROOT_DIR/nemu/include/isa/riscv/pmp.h"
   local rv64_fp_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/inst/fp.c"
@@ -1493,6 +1519,7 @@ e2e_nemu_ubuntu_slice_contract() {
   local rv32_decode_c="$rv32_inst_dir/decode.c"
   local rv32_muldiv_c="$rv32_inst_dir/muldiv.c"
   local rv32_bitmanip_c="$rv32_inst_dir/bitmanip.c"
+  local rv32_amo_c="$rv32_inst_dir/amo.c"
   local rv32_execute_c="$rv32_inst_dir/execute.c"
   local rv32_inst_audit_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/rv32-inst-audit.c"
   local rv32_bitmanip_test_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/bitmanip.c"
@@ -1503,11 +1530,15 @@ e2e_nemu_ubuntu_slice_contract() {
   local rv64_intr_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/system/intr.c"
   local rv32_intr_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/intr.c"
   local rv64_plic_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/system/plic.c"
+  local rv32_plic_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/plic.c"
+  local clint_manual_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/clint-manual.c"
+  local plic_manual_c="$E2E_ROOT_DIR/am-kernels/tests/cpu-tests/tests/plic-manual.c"
   local vaddr_c="$E2E_ROOT_DIR/nemu/src/memory/vaddr.c"
   local host_h="$E2E_ROOT_DIR/nemu/include/memory/host.h"
   local paddr_h="$E2E_ROOT_DIR/nemu/include/memory/paddr.h"
   local paddr_c="$E2E_ROOT_DIR/nemu/src/memory/paddr.c"
   local vaddr_h="$E2E_ROOT_DIR/nemu/include/memory/vaddr.h"
+  local difftest_ref_c="$E2E_ROOT_DIR/nemu/src/cpu/difftest/ref.c"
   local mmu_c="$E2E_ROOT_DIR/nemu/src/isa/riscv64/system/mmu.c"
   local rv32_mmu_c="$E2E_ROOT_DIR/nemu/src/isa/riscv32/system/mmu.c"
   local isa_h="$E2E_ROOT_DIR/nemu/include/isa.h"
@@ -4234,7 +4265,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_VIRTIO_BLK_SYNC" \
     "disk_force_sync_backend" \
     "forced-synchronous" \
-    "CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" \
+    "NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" \
     "VirtioBlkAsyncReq" \
     "virtio_blk_worker_main" \
     "virtio_blk_submit_request" \
@@ -4584,7 +4615,7 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "device_update_after_inst" \
-    "CONFIG_DEVICE_UPDATE_CHECK_INTERVAL" \
+    "NEMU_DEVICE_UPDATE_CHECK_INTERVAL" \
     "skip += retired"; do
     if grep -q "$pattern" "$device_c"; then
       printf 'PASS device.c %s\n' "$pattern"
@@ -4775,10 +4806,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64-linux_defconfig CONFIG_INTERPRETER_INTR_FAST_FLAG=y\n'
     missing=1
   fi
-  if grep -q "CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512\n'
+  if ! grep -q "CONFIG_DEVICE_UPDATE_CHECK_INTERVAL" "$linux_defconfig"; then
+    printf 'PASS riscv64-linux_defconfig omits fixed device poll policy\n'
   else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512\n'
+    printf 'FAIL fixed device poll policy leaked into riscv64-linux_defconfig\n'
     missing=1
   fi
   if grep -q "CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4" "$linux_defconfig"; then
@@ -4787,10 +4818,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv64-linux_defconfig CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4\n'
     missing=1
   fi
-  if grep -q "CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG=y" "$linux_defconfig"; then
-    printf 'PASS riscv64-linux_defconfig CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG=y\n'
+  if ! grep -q "CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" "$linux_defconfig"; then
+    printf 'PASS riscv64-linux_defconfig omits fixed virtio-blk completion policy\n'
   else
-    printf 'FAIL riscv64-linux_defconfig CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG=y\n'
+    printf 'FAIL fixed virtio-blk completion policy leaked into riscv64-linux_defconfig\n'
     missing=1
   fi
   if grep -q "CONFIG_HAS_VIRTIO_NET=y" "$linux_defconfig"; then
@@ -4868,10 +4899,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL check-nemu-performance-config.sh CONFIG_INTERPRETER_INTR_FAST_FLAG\n'
     missing=1
   fi
-  if grep -q "require_config_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512\n'
+  if grep -q "NEMU_DEVICE_UPDATE_CHECK_INTERVAL 512u" "$perf_config_sh"; then
+    printf 'PASS performance gate reads fixed device poll policy\n'
   else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_DEVICE_UPDATE_CHECK_INTERVAL=512\n'
+    printf 'FAIL performance gate fixed device poll policy\n'
     missing=1
   fi
   if grep -q "require_config_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4" "$perf_config_sh"; then
@@ -4880,10 +4911,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL check-nemu-performance-config.sh CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4\n'
     missing=1
   fi
-  if grep -q "require_config_enabled CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" "$perf_config_sh"; then
-    printf 'PASS check-nemu-performance-config.sh CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+  if grep -q "NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG 1" "$perf_config_sh"; then
+    printf 'PASS performance gate reads fixed virtio-blk completion policy\n'
   else
-    printf 'FAIL check-nemu-performance-config.sh CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+    printf 'FAIL performance gate fixed virtio-blk completion policy\n'
     missing=1
   fi
   if grep -q "require_config_value CONFIG_MSIZE 0x40000000" "$perf_config_sh"; then
@@ -4897,6 +4928,9 @@ e2e_nemu_ubuntu_slice_contract() {
     "NEMU_SYSTEM_MODE 1" \
     "NEMU_RV64_DECODE_CACHE 1" \
     "NEMU_RV64_DECODE_CACHE_ENTRIES 32768" \
+    "NEMU_DEVICE_UPDATE_CHECK_INTERVAL 512u" \
+    "NEMU_HOST_TIMER_USES_MONOTONIC_CLOCK 1" \
+    "NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG 1" \
     "DEV_SERIAL_MMIO 0x10000000" \
     "DEV_DISK_MMIO 0x10001000" \
     "DEV_VIRTIO_RNG_MMIO 0x10002000" \
@@ -4913,7 +4947,10 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for policy_definition in \
     "NEMU_RV64_DECODE_CACHE 1" \
-    "NEMU_RV64_DECODE_CACHE_ENTRIES 32768"; do
+    "NEMU_RV64_DECODE_CACHE_ENTRIES 32768" \
+    "NEMU_DEVICE_UPDATE_CHECK_INTERVAL 512u" \
+    "NEMU_HOST_TIMER_USES_MONOTONIC_CLOCK 1" \
+    "NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG 1"; do
     if grep -Eq "^[[:space:]]*#[[:space:]]*define[[:space:]]+${policy_definition}([[:space:]]|$)" \
         "$nemu_policy_h"; then
       printf 'PASS nemu-config.h fixed decode-cache policy %s\n' "$policy_definition"
@@ -4955,10 +4992,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL nemu/Kconfig config INTERPRETER_INTR_FAST_FLAG\n'
     missing=1
   fi
-  if grep -q "config DEVICE_UPDATE_CHECK_INTERVAL" "$kconfig"; then
-    printf 'PASS nemu/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
+  if ! grep -q "config DEVICE_UPDATE_CHECK_INTERVAL" "$kconfig"; then
+    printf 'PASS nemu/Kconfig omits fixed device poll policy\n'
   else
-    printf 'FAIL nemu/Kconfig config DEVICE_UPDATE_CHECK_INTERVAL\n'
+    printf 'FAIL fixed device poll policy leaked into nemu/Kconfig\n'
     missing=1
   fi
   if grep -q "config SERIAL_INPUT_HOST_POLL_INTERVAL" "$kconfig"; then
@@ -4967,10 +5004,10 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL nemu/Kconfig config SERIAL_INPUT_HOST_POLL_INTERVAL\n'
     missing=1
   fi
-  if grep -q "config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" "$kconfig"; then
-    printf 'PASS nemu/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+  if ! grep -q "config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG" "$kconfig"; then
+    printf 'PASS nemu/Kconfig omits fixed virtio-blk completion policy\n'
   else
-    printf 'FAIL nemu/Kconfig config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG\n'
+    printf 'FAIL fixed virtio-blk completion policy leaked into nemu/Kconfig\n'
     missing=1
   fi
   for pattern in \
@@ -5089,6 +5126,33 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL top-level RISC-V extension definitions\n'
     missing=1
   fi
+  for pattern in \
+    '-include $(NEMU_HOME)/include/config/auto.conf' \
+    'AM_RISCV_XLEN ?= 32' \
+    'AM_RISCV_EXTENSION_M := $(if $(CONFIG_RISCV_EXT_M),m,)' \
+    'AM_RISCV_EXTENSION_A := $(if $(CONFIG_RISCV_EXT_A),a,)' \
+    'AM_RISCV_EXTENSION_F := $(if $(CONFIG_RISCV_EXT_F),f,)' \
+    'AM_RISCV_EXTENSION_D := $(if $(CONFIG_RISCV_EXT_D),d,)' \
+    'AM_RISCV_EXTENSION_C := $(if $(CONFIG_RISCV_EXT_C),c,)' \
+    'AM_RISCV_MULTI_EXTS := _zicsr_zifencei$(if $(CONFIG_RISCV_EXT_B),_zba_zbb_zbc_zbs,)' \
+    'AM_RISCV_MABI := $(AM_RISCV_INTEGER_ABI)$(AM_RISCV_FLOAT_ABI)'; do
+    if grep -Fq -- "$pattern" "$am_riscv_nemu_ext_mk"; then
+      printf 'PASS AM/NEMU ISA configuration bridge %s\n' "$pattern"
+    else
+      printf 'FAIL AM/NEMU ISA configuration bridge %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq 'AM_RISCV_XLEN := 64' "$am_riscv64_nemu_mk" &&
+     grep -Fq 'include $(AM_HOME)/scripts/isa/riscv-nemu-ext.mk' "$am_riscv64_nemu_mk" &&
+     grep -Fq 'include $(AM_HOME)/scripts/isa/riscv-nemu-ext.mk' "$am_riscv32_nemu_mk" &&
+     ! grep -Eq 'march=rv64g.*zba|ASFLAGS[[:space:]]*\+=[[:space:]]*-march=' \
+       "$am_riscv64_nemu_mk"; then
+    printf 'PASS RV32/RV64 AM guests derive ISA extensions from NEMU configuration\n'
+  else
+    printf 'FAIL RV32/RV64 AM/NEMU ISA extension configuration drifted\n'
+    missing=1
+  fi
   if grep -A2 '^config RISCV_CLINT_HOST_TIME$' "$nemu_kconfig" | grep -q 'depends on RV64'; then
     printf 'PASS CONFIG_RISCV_CLINT_HOST_TIME remains RV64-only\n'
   else
@@ -5102,28 +5166,154 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL RVE/SOC_SIM RV32 dependencies\n'
     missing=1
   fi
+  echo
+  echo "[nemu-ubuntu] shared CLINT manual state machine"
   for pattern in \
-    "CLINT_TIMEBASE_HZ      10000000ull" \
-    "isa_riscv64_clint_timebase_hz" \
-    "isa_riscv64_mtime_value" \
-    "isa_riscv64_clint_time_source" \
-    "isa_riscv64_clint_dump_machine_info" \
-    "isa_riscv64_clint_qmp_snapshot" \
-    "return \"instruction\""; do
-    if grep -q "$pattern" "$rv64_intr_c"; then
-      printf 'PASS riscv64/system/intr.c %s\n' "$pattern"
+    "RiscvClintState" \
+    "RISCV_CLINT_TIMEBASE_HZ" \
+    "riscv_clint_msip_warl" \
+    "riscv_clint_software_interrupt_pending" \
+    "riscv_clint_timer_interrupt_pending" \
+    "riscv_clint_replace_low_half" \
+    "riscv_clint_replace_high_half" \
+    "riscv_clint_decode_access" \
+    "riscv_clint_read_register" \
+    "riscv_clint_write_register" \
+    "riscv_clint_microseconds_to_ticks_at_rate" \
+    "riscv_clint_ticks_to_microseconds"; do
+    if grep -Fq -- "$pattern" "$riscv_clint_h"; then
+      printf 'PASS shared CLINT manual primitive %s\n' "$pattern"
     else
-      printf 'FAIL riscv64/system/intr.c %s\n' "$pattern"
+      printf 'FAIL shared CLINT manual primitive %s\n' "$pattern"
       missing=1
     fi
   done
+  if grep -Eq 'cpu[.]|(^|[^[:alnum:]_])R[[:space:]]*\(|vaddr_|paddr_|qmp|FILE|CONFIG_|isa_riscv(32|64)|get_time|usleep' \
+      "$riscv_clint_h"; then
+    printf 'FAIL shared CLINT core contains ISA/MMIO/host integration state\n'
+    missing=1
+  else
+    printf 'PASS shared CLINT core is XLEN-independent pure manual semantics\n'
+  fi
+  if grep -Fq '#include <isa/riscv/clint.h>' "$rv32_intr_c" &&
+     grep -Fq '#include <isa/riscv/clint.h>' "$rv64_intr_c" &&
+     grep -Fq 'riscv_clint_decode_access(addr, len, false)' "$rv32_intr_c" &&
+     grep -Fq 'riscv_clint_decode_access(addr, len, true)' "$rv64_intr_c" &&
+     grep -Fq 'riscv_clint_read_register' "$rv32_intr_c" &&
+     grep -Fq 'riscv_clint_read_register' "$rv64_intr_c"; then
+    printf 'PASS RV32/RV64 CLINT wrappers share one manual state machine\n'
+  else
+    printf 'FAIL RV32/RV64 CLINT wrapper integration drifted\n'
+    missing=1
+  fi
+  if grep -Eq '^[[:space:]]*#define[[:space:]]+CLINT_(BASE|SIZE|MSIP|MTIMECMP|MTIME|TIMEBASE_HZ)' \
+      "$rv32_intr_c" "$rv64_intr_c"; then
+    printf 'FAIL CLINT wrappers duplicate shared register/timebase definitions\n'
+    missing=1
+  else
+    printf 'PASS CLINT register map and timebase have one shared owner\n'
+  fi
+  if grep -Fq 'isa_riscv_clint_access_valid(addr, len)' "$paddr_c" &&
+     grep -Fq 'riscv_clint_mmio_access_valid(addr, len, false)' "$rv32_intr_c" &&
+     grep -Fq 'riscv_clint_mmio_access_valid(addr, len, true)' "$rv64_intr_c"; then
+    printf 'PASS CLINT transaction contract reaches guest fault precheck\n'
+  else
+    printf 'FAIL CLINT MMIO access validation is not integrated end-to-end\n'
+    missing=1
+  fi
+  if grep -Fq 'isa_riscv32_wfi();' "$rv32_inst_c" &&
+     grep -Fq 'if ((isa_riscv32_mip_value() & cpu.csr.mie & MIP_IRQ_MASK) != 0) return;' "$rv32_intr_c" &&
+     grep -Fq 'if ((isa_riscv64_mip_value() & cpu.csr.mie & MIP_IRQ_MASK) != 0) return;' "$rv64_intr_c"; then
+    printf 'PASS RV32/RV64 WFI uses locally-enabled pending semantics\n'
+  else
+    printf 'FAIL WFI wake condition drifted from privileged manual semantics\n'
+    missing=1
+  fi
   for pattern in \
-    "CLINT_TIMEBASE_HZ      10000000ull" \
-    "isa_riscv32_mtime_value"; do
-    if grep -q "$pattern" "$rv32_intr_c"; then
-      printf 'PASS riscv32/system/intr.c %s\n' "$pattern"
+    "msip[0] 是唯一 WARL 位" \
+    "write_mtimecmp" \
+    "read_time_csr" \
+    "MIP_MTIP" \
+    "write_csr_mie(MIP_MSIP)" \
+    "local_wakeup_after < local_wakeup_deadline" \
+    "asm volatile(\"wfi\"" \
+    "expect_load_byte_fault" \
+    "expect_store_word_fault" \
+    "expect_load_double_fault"; do
+    if grep -Fq -- "$pattern" "$clint_manual_c"; then
+      printf 'PASS AM CLINT manual transition audit %s\n' "$pattern"
     else
-      printf 'FAIL riscv32/system/intr.c %s\n' "$pattern"
+      printf 'FAIL AM CLINT manual transition audit %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  echo
+  echo "[nemu-ubuntu] shared PLIC manual state machine"
+  for pattern in \
+    "RiscvPlicState" \
+    "RiscvPlicContextState" \
+    "RISCV_PLIC_PRIORITY_MAX" \
+    "riscv_plic_gateway_update_level" \
+    "riscv_plic_select_notification" \
+    "riscv_plic_select_claim" \
+    "riscv_plic_claim" \
+    "riscv_plic_complete" \
+    "riscv_plic_read_register" \
+    "riscv_plic_write_register" \
+    "riscv_plic_mmio_access_valid"; do
+    if grep -Fq -- "$pattern" "$riscv_plic_h"; then
+      printf 'PASS shared PLIC manual primitive %s\n' "$pattern"
+    else
+      printf 'FAIL shared PLIC manual primitive %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Eq 'cpu[.]|(^|[^[:alnum:]_])R[[:space:]]*\(|vaddr_|paddr_|qmp|FILE|CONFIG_|isa_riscv(32|64)' \
+      "$riscv_plic_h"; then
+    printf 'FAIL shared PLIC core contains ISA/MMIO/host integration state\n'
+    missing=1
+  else
+    printf 'PASS shared PLIC core is XLEN-independent pure manual semantics\n'
+  fi
+  if grep -Fq '#include <isa/riscv/plic.h>' "$rv32_plic_c" &&
+     grep -Fq '#include <isa/riscv/plic.h>' "$rv64_plic_c" &&
+     grep -Fq 'riscv_plic_gateway_update_level' "$rv32_plic_c" &&
+     grep -Fq 'riscv_plic_gateway_update_level' "$rv64_plic_c" &&
+     grep -Fq 'riscv_plic_read_register' "$rv32_plic_c" &&
+     grep -Fq 'riscv_plic_read_register' "$rv64_plic_c"; then
+    printf 'PASS RV32/RV64 PLIC wrappers share one manual state machine\n'
+  else
+    printf 'FAIL RV32/RV64 PLIC wrapper integration drifted\n'
+    missing=1
+  fi
+  if grep -Eq 'static[[:space:]]+.*plic_(priority|pending|level|enable|threshold|in_service)[[:space:]]*\[' \
+      "$rv32_plic_c" "$rv64_plic_c"; then
+    printf 'FAIL PLIC wrappers duplicate shared architectural state\n'
+    missing=1
+  else
+    printf 'PASS PLIC architectural state has one shared representation\n'
+  fi
+  if grep -Fq 'isa_riscv_plic_access_valid(addr, len)' "$paddr_c" &&
+     grep -Fq 'riscv_plic_mmio_access_valid(addr, len)' "$rv32_plic_c" &&
+     grep -Fq 'riscv_plic_mmio_access_valid(addr, len)' "$rv64_plic_c"; then
+    printf 'PASS PLIC aligned 32-bit access contract reaches guest fault precheck\n'
+  else
+    printf 'FAIL PLIC MMIO access validation is not integrated end-to-end\n'
+    missing=1
+  fi
+  for pattern in \
+    "PLIC_PRIORITY0" \
+    "PLIC_PRIORITY31" \
+    "IP 只读" \
+    "priority == threshold" \
+    "S context 的错误 completion" \
+    "deassert 不能撤回" \
+    "expect_load_access_fault_byte" \
+    "expect_store_access_fault_word"; do
+    if grep -Fq -- "$pattern" "$plic_manual_c"; then
+      printf 'PASS AM PLIC manual transition audit %s\n' "$pattern"
+    else
+      printf 'FAIL AM PLIC manual transition audit %s\n' "$pattern"
       missing=1
     fi
   done
@@ -5625,31 +5815,31 @@ e2e_nemu_ubuntu_slice_contract() {
     missing=1
   fi
   for pattern in \
-    "amo_raise_misaligned" \
+    "atomic_raise_misaligned" \
     "CAUSE_LOAD_MISALIGNED" \
     "CAUSE_STORE_MISALIGNED"; do
-    if grep -q "$pattern" "${rv64_inst_files[@]}"; then
-      printf 'PASS riscv64 inst files %s\n' "$pattern"
+    if grep -q "$pattern" "$rv64_inst_dir/amo.c"; then
+      printf 'PASS riscv64 atomic executor %s\n' "$pattern"
     else
-      printf 'FAIL riscv64 inst files %s\n' "$pattern"
+      printf 'FAIL riscv64 atomic executor %s\n' "$pattern"
       missing=1
     fi
-    if grep -q "$pattern" "$rv32_inst_c"; then
-      printf 'PASS riscv32/inst.c %s\n' "$pattern"
+    if grep -q "$pattern" "$rv32_amo_c"; then
+      printf 'PASS riscv32 atomic executor %s\n' "$pattern"
     else
-      printf 'FAIL riscv32/inst.c %s\n' "$pattern"
+      printf 'FAIL riscv32 atomic executor %s\n' "$pattern"
       missing=1
     fi
   done
   for pattern in \
     "vaddr_atomic_load_reserved" \
     "vaddr_atomic_store_conditional" \
-    "lr_reservation_paddr" \
-    "lr_reservation_len" \
-    "reservation_valid && trans.paddr == reservation_paddr" \
-    "isa_riscv64_lr_sc_invalidate"; do
-    if grep -Fq -- "$pattern" "${rv64_inst_files[@]}" "$vaddr_c" "$vaddr_h" \
-        "$rv64_platform_h"; then
+    "riscv_load_reservation_matches" \
+    "RiscvLoadReservation load_reservation" \
+    "isa_riscv64_lr_sc_invalidate" \
+    "isa_riscv64_lr_sc_clear"; do
+    if grep -Fq -- "$pattern" "$rv64_inst_dir/amo.c" "$vaddr_c" "$vaddr_h" \
+        "$rv64_platform_h" "$rv64_isa_def_h"; then
       printf 'PASS riscv64 LR/SC reservation %s\n' "$pattern"
     else
       printf 'FAIL riscv64 LR/SC reservation %s\n' "$pattern"
@@ -5658,8 +5848,9 @@ e2e_nemu_ubuntu_slice_contract() {
   done
   for pattern in \
     "isa_riscv32_lr_sc_invalidate" \
-    "lr_reservation_len"; do
-    if grep -q "$pattern" "$rv32_inst_c" "$rv32_platform_h"; then
+    "isa_riscv32_lr_sc_clear" \
+    "RiscvLoadReservation load_reservation"; do
+    if grep -q "$pattern" "$rv32_amo_c" "$rv32_platform_h" "$rv32_isa_def_h"; then
       printf 'PASS riscv32 LR/SC reservation %s\n' "$pattern"
     else
       printf 'FAIL riscv32 LR/SC reservation %s\n' "$pattern"
@@ -5817,17 +6008,13 @@ e2e_nemu_ubuntu_slice_contract() {
     printf 'FAIL riscv32 PMP/MMU neutral stub\n'
     missing=1
   fi
-  for pattern in \
-    "smoke-nemu-amo-misaligned" \
-    "amo-misaligned-smoke.S" \
-    "HIT GOOD TRAP"; do
-    if grep -q "$pattern" "$linux_tools_mk"; then
-      printf 'PASS Linux/tools/Makefile %s\n' "$pattern"
-    else
-      printf 'FAIL Linux/tools/Makefile %s\n' "$pattern"
-      missing=1
-    fi
-  done
+  if ! grep -Eq 'amo-misaligned-smoke|lrsc-reservation-smoke|smoke-nemu-(amo-misaligned|lrsc-reservation)' \
+      "$linux_tools_mk"; then
+    printf 'PASS A-extension tests are no longer duplicated in Linux/tools\n'
+  else
+    printf 'FAIL duplicate A-extension payloads remain in Linux/tools\n'
+    missing=1
+  fi
   for pattern in \
     "smoke-nemu-pmp-access" \
     "pmp-access-smoke.S" \
@@ -5859,19 +6046,6 @@ e2e_nemu_ubuntu_slice_contract() {
     "pmp-pagewalk-ad-smoke.S" \
     "PMP_PAGEWALK_AD_BIN" \
     "NEMU_PMP_PAGEWALK_AD_LOG" \
-    "HIT GOOD TRAP"; do
-    if grep -q "$pattern" "$linux_tools_mk"; then
-      printf 'PASS Linux/tools/Makefile %s\n' "$pattern"
-    else
-      printf 'FAIL Linux/tools/Makefile %s\n' "$pattern"
-      missing=1
-    fi
-  done
-  for pattern in \
-    "smoke-nemu-lrsc-reservation" \
-    "lrsc-reservation-smoke.S" \
-    "LRSC_RESERVATION_BIN" \
-    "NEMU_LRSC_RESERVATION_LOG" \
     "HIT GOOD TRAP"; do
     if grep -q "$pattern" "$linux_tools_mk"; then
       printf 'PASS Linux/tools/Makefile %s\n' "$pattern"
@@ -5986,36 +6160,131 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+
+  echo
+  echo "[nemu-ubuntu] shared A-extension manual contract"
   for pattern in \
-    "lr.w" \
-    "sc.w" \
-    "amoadd.w" \
-    "lr.d" \
-    "sc.d" \
-    "amoadd.d" \
-    "csrr t0, mcause" \
-    "csrr t0, mtval" \
-    "SYSCON_POWEROFF_VALUE"; do
-    if grep -q "$pattern" "$amo_misaligned_smoke_s"; then
-      printf 'PASS amo-misaligned-smoke.S %s\n' "$pattern"
+    "RiscvAtomicInstruction" \
+    "RiscvLoadReservation" \
+    "RiscvAtomicPma" \
+    "riscv_atomic_decode" \
+    "riscv_atomic_compute_new_value" \
+    "riscv_atomic_old_value_to_xlen" \
+    "riscv_load_reservation_matches" \
+    "riscv_load_reservation_invalidate_if_overlap" \
+    "riscv_atomic_pma_allows"; do
+    if grep -Fq -- "$pattern" "$riscv_atomic_h"; then
+      printf 'PASS shared atomic primitive %s\n' "$pattern"
     else
-      printf 'FAIL amo-misaligned-smoke.S %s\n' "$pattern"
+      printf 'FAIL shared atomic primitive %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for forbidden in \
+    "#include <common.h>" \
+    "CONFIG_" \
+    "cpu." \
+    "vaddr_" \
+    "paddr_"; do
+    if grep -Fq -- "$forbidden" "$riscv_atomic_h"; then
+      printf 'FAIL shared atomic primitive must remain pure: %s\n' "$forbidden"
+      missing=1
+    else
+      printf 'PASS shared atomic primitive excludes %s\n' "$forbidden"
+    fi
+  done
+  if grep -Fq -- "RiscvAtomicInstruction atomic" "$rv32_instruction_h" &&
+     grep -Fq -- "RiscvAtomicInstruction atomic" "$rv64_instruction_h" &&
+     grep -Fq -- "RiscvLoadReservation load_reservation" "$rv32_isa_def_h" &&
+     grep -Fq -- "RiscvLoadReservation load_reservation" "$rv64_isa_def_h"; then
+    printf 'PASS RV32/RV64 descriptors and hart state own manual atomic values\n'
+  else
+    printf 'FAIL RV32/RV64 descriptors and hart state must own manual atomic values\n'
+    missing=1
+  fi
+  if grep -Fq -- "riscv_atomic_decode(encoding, 32" "$rv32_decode_c" &&
+     grep -Fq -- "riscv_atomic_decode(encoding, 64" "$rv64_decode_c" &&
+     grep -Fq -- "rv32_execute_atomic(instruction)" "$rv32_execute_c" &&
+     grep -Fq -- "rv64_execute_atomic(instruction)" "$rv64_execute_c"; then
+    printf 'PASS RV32/RV64 A paths share one decode and one descriptor executor\n'
+  else
+    printf 'FAIL RV32/RV64 A paths must share one decode and one descriptor executor\n'
+    missing=1
+  fi
+  if grep -Eq 'ATOMIC_ADAPTER|exec_rva_amo' \
+      "$rv32_inst_c" "$rv32_instruction_h" "$rv32_decode_c" \
+      "$rv32_execute_c" "$rv64_instruction_h" "$rv64_decode_c" \
+      "$rv64_execute_c" "$rv64_inst_dir/amo.c"; then
+    printf 'FAIL A path must not retain raw legacy adapters\n'
+    missing=1
+  else
+    printf 'PASS A path has no raw legacy adapter\n'
+  fi
+  if grep -Eq 'BITS\(|FUNCT3|FUNCT5|->encoding' \
+      "$rv32_amo_c" "$rv64_inst_dir/amo.c"; then
+    printf 'FAIL A executors must not decode raw instruction fields\n'
+    missing=1
+  else
+    printf 'PASS A executors consume only decoded manual fields\n'
+  fi
+  for pattern in \
+    "RiscvAtomicPma paddr_atomic_pma" \
+    "riscv_atomic_pma_arithmetic_reservation_eventual" \
+    "riscv_atomic_pma_none"; do
+    if grep -Fq -- "$pattern" "$paddr_c"; then
+      printf 'PASS physical atomic PMA %s\n' "$pattern"
+    else
+      printf 'FAIL physical atomic PMA %s\n' "$pattern"
       missing=1
     fi
   done
   for pattern in \
-    "lr.w" \
-    "sc.w" \
-    "lr.d" \
-    "sc.d" \
-    "sw t0, 0(s0)" \
-    "sb t0, 1(s0)" \
-    "sw zero, 4(s1)" \
-    "SYSCON_POWEROFF_VALUE"; do
-    if grep -q "$pattern" "$lrsc_reservation_smoke_s"; then
-      printf 'PASS lrsc-reservation-smoke.S %s\n' "$pattern"
+    "vaddr_atomic_load_reserved" \
+    "vaddr_atomic_store_conditional" \
+    "vaddr_atomic_rmw" \
+    "riscv_atomic_pma_allows" \
+    "riscv_load_reservation_matches"; do
+    if grep -Fq -- "$pattern" "$vaddr_c"; then
+      printf 'PASS virtual atomic transaction %s\n' "$pattern"
     else
-      printf 'FAIL lrsc-reservation-smoke.S %s\n' "$pattern"
+      printf 'FAIL virtual atomic transaction %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  if grep -Fq -- "isa_riscv_lr_sc_invalidate(addr, (uint64_t)n)" "$difftest_ref_c" &&
+     grep -Fq -- "isa_riscv_lr_sc_clear()" "$difftest_ref_c"; then
+    printf 'PASS difftest TO_REF invalidates external reservation state\n'
+  else
+    printf 'FAIL difftest TO_REF must invalidate external reservation state\n'
+    missing=1
+  fi
+  for pattern in \
+    "rv32a_invalid_lr_rs2" \
+    "check_word_amos" \
+    "check_lr_sc" \
+    "check_sv32_physical_reservation" \
+    "rv32a_sv32_sc_status == 1" \
+    "check_atomic_faults" \
+    "EXC_STORE_ACCESS_FAULT"; do
+    if grep -Fq -- "$pattern" "$rv32a_amo_c"; then
+      printf 'PASS AM RV32A manual test %s\n' "$pattern"
+    else
+      printf 'FAIL AM RV32A manual test %s\n' "$pattern"
+      missing=1
+    fi
+  done
+  for pattern in \
+    "rv64a_invalid_lr_rs2" \
+    "check_word_amos" \
+    "check_double_amos" \
+    "check_lr_sc" \
+    "faulting SC" \
+    "misaligned_double" \
+    "amoadd.d"; do
+    if grep -Fq -- "$pattern" "$rv64a_amo_c"; then
+      printf 'PASS AM RV64A manual test %s\n' "$pattern"
+    else
+      printf 'FAIL AM RV64A manual test %s\n' "$pattern"
       missing=1
     fi
   done

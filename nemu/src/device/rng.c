@@ -27,8 +27,11 @@ static uint8_t *rng_base;
 static VirtioMmioTransportState transport;
 static VirtqueueState queue0;
 static int rng_fd = -1;
-static uint64_t rng_fallback_state = 0x797379782d726e67ull;
-static bool rng_fallback_logged;
+static bool rng_backend_failure_logged;
+
+static const IoAccessPolicy virtio_rng_mmio_policy __attribute__((unused)) = {
+  .parent = &virtio_mmio_transport_policy,
+};
 
 static uint32_t virtio_rng_device_features(uint32_t sel) {
   if (sel == 0) {
@@ -42,14 +45,13 @@ static uint32_t virtio_rng_device_features(uint32_t sel) {
 }
 
 static bool virtio_rng_driver_features_supported(void) {
+  if (!virtio_driver_feature_enabled(&transport, VIRTIO_F_VERSION_1)) {
+    return false;
+  }
   for (uint32_t sel = 0; sel < 2; sel++) {
     uint32_t unsupported =
         transport.driver_features[sel] & ~virtio_rng_device_features(sel);
-    if (unsupported != 0) {
-      Log("virtio-rng: unsupported driver features sel=%u bits=0x%08x",
-          sel, unsupported);
-      return false;
-    }
+    if (unsupported != 0) return false;
   }
   return true;
 }
@@ -63,11 +65,11 @@ static bool virtio_rng_event_idx_enabled(void) {
 }
 
 static bool virtio_rng_indirect_desc_enabled(void) {
-  return virtio_rng_driver_feature_enabled(VIRTIO_RING_F_INDIRECT_DESC);
+  return virtio_feature_negotiated(&transport, VIRTIO_RING_F_INDIRECT_DESC);
 }
 
 static const char *virtio_rng_backend_name(void) {
-  return rng_fd >= 0 ? "host-urandom" : "deterministic-fallback";
+  return rng_fd >= 0 ? "host-urandom" : "unavailable";
 }
 
 static const char *json_bool(bool value) {
@@ -79,38 +81,50 @@ static void virtio_rng_raise_irq(void) {
       isa_riscv_plic_set_irq(VIRTIO_RNG_IRQ, transport.interrupt_status != 0));
 }
 
-static uint16_t guest_read16(paddr_t addr) {
-  return (uint16_t)paddr_dma_read_value(addr, 2);
+static uint16_t guest_read16(GuestDmaAddr addr) {
+  paddr_t resolved;
+  return virtio_dma_resolve_span(addr, 2, &resolved) ?
+      (uint16_t)paddr_dma_read_value(resolved, 2) : 0;
 }
 
-static uint32_t guest_read32(paddr_t addr) {
-  return (uint32_t)paddr_dma_read_value(addr, 4);
+static uint32_t guest_read32(GuestDmaAddr addr) {
+  paddr_t resolved;
+  return virtio_dma_resolve_span(addr, 4, &resolved) ?
+      (uint32_t)paddr_dma_read_value(resolved, 4) : 0;
 }
 
-static uint64_t guest_read64(paddr_t addr) {
-  return (uint64_t)paddr_dma_read_value(addr, 8);
+static uint64_t guest_read64(GuestDmaAddr addr) {
+  paddr_t resolved;
+  return virtio_dma_resolve_span(addr, 8, &resolved) ?
+      paddr_dma_read_value(resolved, 8) : 0;
 }
 
-static void guest_write16(paddr_t addr, uint16_t value) {
-  paddr_dma_write_value(addr, 2, value);
+static void guest_write16(GuestDmaAddr addr, uint16_t value) {
+  paddr_t resolved;
+  if (virtio_dma_resolve_span(addr, 2, &resolved)) {
+    paddr_dma_write_value(resolved, 2, value);
+  }
 }
 
-static void guest_write32(paddr_t addr, uint32_t value) {
-  paddr_dma_write_value(addr, 4, value);
+static void guest_write32(GuestDmaAddr addr, uint32_t value) {
+  paddr_t resolved;
+  if (virtio_dma_resolve_span(addr, 4, &resolved)) {
+    paddr_dma_write_value(resolved, 4, value);
+  }
 }
 
-static bool guest_range_ok(paddr_t addr, uint32_t len) {
+static bool guest_range_ok(GuestDmaAddr addr, uint32_t len) {
   if (len == 0) return true;
-  paddr_t end = addr + (paddr_t)len - 1;
-  return end >= addr && in_pmem(addr) && in_pmem(end);
+  paddr_t resolved;
+  return virtio_dma_resolve_span(addr, len, &resolved);
 }
 
-static paddr_t virtq_used_event_addr(void) {
-  return queue0.driver + 4 + (paddr_t)queue0.num * 2;
+static GuestDmaAddr virtq_used_event_addr(void) {
+  return queue0.driver + 4 + (GuestDmaAddr)queue0.num * 2;
 }
 
-static paddr_t virtq_avail_event_addr(void) {
-  return queue0.device + 4 + (paddr_t)queue0.num * 8;
+static GuestDmaAddr virtq_avail_event_addr(void) {
+  return queue0.device + 4 + (GuestDmaAddr)queue0.num * 8;
 }
 
 static void virtq_set_avail_event(uint16_t avail_idx) {
@@ -122,11 +136,11 @@ static void virtq_set_avail_event(uint16_t avail_idx) {
   }
 }
 
-static bool virtq_aligned(paddr_t addr, uint32_t align) {
-  return (addr & (paddr_t)(align - 1)) == 0;
+static bool virtq_aligned(GuestDmaAddr addr, uint32_t align) {
+  return (addr & (GuestDmaAddr)(align - 1)) == 0;
 }
 
-static bool virtq_dma_range_valid(const char *name, paddr_t addr,
+static bool virtq_dma_range_valid(const char *name, GuestDmaAddr addr,
     uint32_t len, uint32_t align) {
   if (addr != 0 && virtq_aligned(addr, align) && guest_range_ok(addr, len)) {
     return true;
@@ -137,33 +151,32 @@ static bool virtq_dma_range_valid(const char *name, paddr_t addr,
 }
 
 static bool virtq_validate_queue_layout(void) {
-  if (queue0.num == 0 || queue0.num > VIRTIO_RNG_QUEUE_SIZE) {
+  VirtioSplitRingSpan span;
+  if (!virtio_split_ring_span(queue0.num, VIRTIO_RNG_QUEUE_SIZE,
+      virtio_rng_event_idx_enabled(), &span)) {
     Log("virtio-rng: invalid QueueNum=%u max=%u",
         queue0.num, VIRTIO_RNG_QUEUE_SIZE);
     return false;
   }
 
-  uint32_t desc_bytes = (uint32_t)queue0.num * 16u;
-  uint32_t event_tail = virtio_rng_event_idx_enabled() ? 2u : 0u;
-  uint32_t driver_bytes = 4u + (uint32_t)queue0.num * 2u + event_tail;
-  uint32_t device_bytes = 4u + (uint32_t)queue0.num * 8u + event_tail;
-
   // QueueReady 是 hwrng 真正收发前的边界；提前拒绝坏 vring，避免异步熵请求卡死。
-  return virtq_dma_range_valid("desc", queue0.desc, desc_bytes, 16) &&
-         virtq_dma_range_valid("driver", queue0.driver, driver_bytes, 2) &&
-         virtq_dma_range_valid("device", queue0.device, device_bytes, 4);
+  return virtq_dma_range_valid("desc", queue0.desc, span.descriptor_bytes, 16) &&
+         virtq_dma_range_valid("driver", queue0.driver, span.driver_bytes, 2) &&
+         virtq_dma_range_valid("device", queue0.device, span.device_bytes, 4);
 }
 
-static bool guest_copy_to(paddr_t addr, const void *buf, uint32_t len) {
+static bool guest_copy_to(GuestDmaAddr addr, const void *buf, uint32_t len) {
   if (len == 0) return true;
-  if (!guest_range_ok(addr, len)) return false;
-  return paddr_dma_write(addr, buf, len);
+  paddr_t resolved;
+  if (!virtio_dma_resolve_span(addr, len, &resolved)) return false;
+  return paddr_dma_write(resolved, buf, len);
 }
 
-static bool virtq_read_desc_from(paddr_t table, uint16_t table_num,
+static bool virtq_read_desc_from(GuestDmaAddr table, uint16_t table_num,
     uint16_t idx, VirtqueueDescriptor *desc) {
   if (idx >= table_num) return false;
-  paddr_t base = table + (paddr_t)idx * 16;
+  GuestDmaAddr base;
+  if (!virtio_guest_dma_add(table, (uint64_t)idx * 16, &base)) return false;
   if (!guest_range_ok(base, 16)) return false;
   desc->addr = guest_read64(base);
   desc->len = guest_read32(base + 8);
@@ -172,7 +185,7 @@ static bool virtq_read_desc_from(paddr_t table, uint16_t table_num,
   return true;
 }
 
-static bool virtq_collect_table(paddr_t table, uint16_t table_num, uint16_t head,
+static bool virtq_collect_table(GuestDmaAddr table, uint16_t table_num, uint16_t head,
     VirtqueueDescriptor *out, int *out_count) {
   if (table_num == 0 || table_num > VIRTIO_RNG_MAX_CHAIN) return false;
 
@@ -218,22 +231,38 @@ static bool virtq_collect_chain(uint16_t head, VirtqueueDescriptor *out, int *ou
   return virtq_collect_table(queue0.desc, queue0.num, head, out, out_count);
 }
 
-static void rng_fallback_fill(uint8_t *buf, uint32_t len) {
-  if (!rng_fallback_logged) {
-    Log("virtio-rng: /dev/urandom unavailable, using deterministic fallback");
-    rng_fallback_logged = true;
-  }
-  for (uint32_t i = 0; i < len; i++) {
-    rng_fallback_state ^= rng_fallback_state << 13;
-    rng_fallback_state ^= rng_fallback_state >> 7;
-    rng_fallback_state ^= rng_fallback_state << 17;
-    buf[i] = (uint8_t)(rng_fallback_state >> 56);
+static void virtio_rng_try_open_backend(void) {
+  if (rng_fd >= 0) return;
+  rng_fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+  if (rng_fd >= 0) {
+    rng_backend_failure_logged = false;
+  } else if (!rng_backend_failure_logged) {
+    Log("virtio-rng: cannot open /dev/urandom: %s", strerror(errno));
+    rng_backend_failure_logged = true;
   }
 }
 
-static void rng_fill(uint8_t *buf, uint32_t len) {
+static void virtio_rng_backend_failed(const char *reason) {
+  if (rng_fd >= 0) {
+    close(rng_fd);
+    rng_fd = -1;
+  }
+  if (!rng_backend_failure_logged) {
+    Log("virtio-rng: entropy backend failed closed: %s", reason);
+    rng_backend_failure_logged = true;
+  }
+  if (virtio_transport_set_needs_reset(&transport)) {
+    virtio_rng_raise_irq();
+  }
+}
+
+static bool rng_fill(uint8_t *buf, uint32_t len) {
+  if (rng_fd < 0) {
+    virtio_rng_backend_failed("/dev/urandom unavailable");
+    return false;
+  }
   uint32_t done = 0;
-  while (done < len && rng_fd >= 0) {
+  while (done < len) {
     ssize_t n = read(rng_fd, buf + done, len - done);
     if (n > 0) {
       done += (uint32_t)n;
@@ -242,13 +271,16 @@ static void rng_fill(uint8_t *buf, uint32_t len) {
     if (n < 0 && errno == EINTR) {
       continue;
     }
-    close(rng_fd);
-    rng_fd = -1;
-    break;
+    char reason[96];
+    if (n == 0) {
+      snprintf(reason, sizeof(reason), "/dev/urandom returned EOF");
+    } else {
+      snprintf(reason, sizeof(reason), "/dev/urandom read: %s", strerror(errno));
+    }
+    virtio_rng_backend_failed(reason);
+    return false;
   }
-  if (done < len) {
-    rng_fallback_fill(buf + done, len - done);
-  }
+  return true;
 }
 
 static uint32_t virtio_rng_handle_chain(uint16_t head) {
@@ -262,11 +294,11 @@ static uint32_t virtio_rng_handle_chain(uint16_t head) {
     if ((descs[i].flags & VIRTQUEUE_DESCRIPTOR_F_WRITE) == 0) {
       return 0;
     }
-    paddr_t addr = descs[i].addr;
+    GuestDmaAddr addr = descs[i].addr;
     uint32_t left = descs[i].len;
     while (left > 0) {
       uint32_t chunk = left < sizeof(buf) ? left : sizeof(buf);
-      rng_fill(buf, chunk);
+      if (!rng_fill(buf, chunk)) return used_len;
       if (!guest_copy_to(addr, buf, chunk)) return used_len;
       addr += chunk;
       used_len += chunk;
@@ -277,26 +309,43 @@ static uint32_t virtio_rng_handle_chain(uint16_t head) {
 }
 
 static void virtio_rng_process_queue(void) {
-  if (!queue0.ready || queue0.num == 0 || queue0.desc == 0 ||
+  if (!virtio_queue_notify_allowed(&transport, &queue0) ||
+      queue0.num == 0 || queue0.desc == 0 ||
       queue0.driver == 0 || queue0.device == 0) {
+    return;
+  }
+  if (rng_fd < 0) {
+    virtio_rng_backend_failed("/dev/urandom unavailable");
     return;
   }
 
   bool used_any = false;
   uint16_t avail_flags = guest_read16(queue0.driver);
   uint16_t avail_idx = guest_read16(queue0.driver + 2);
+  uint16_t pending_count = 0;
+  if (!virtqueue_pending_count(queue0.last_avail_idx, avail_idx,
+          queue0.num, &pending_count)) {
+    Log("virtio-rng: invalid split-ring avail delta last=%u avail=%u num=%u",
+        queue0.last_avail_idx, avail_idx, queue0.num);
+    if (virtio_transport_set_needs_reset(&transport)) virtio_rng_raise_irq();
+    return;
+  }
   uint16_t old_used_idx = guest_read16(queue0.device + 2);
   uint16_t used_idx = old_used_idx;
-  while (queue0.last_avail_idx != avail_idx) {
+  while (pending_count != 0) {
     uint16_t ring_off = queue0.last_avail_idx % queue0.num;
     uint16_t head = guest_read16(queue0.driver + 4 + ring_off * 2);
     uint32_t used_len = virtio_rng_handle_chain(head);
+    if ((transport.device_status & VIRTIO_STATUS_DEVICE_NEEDS_RESET) != 0) {
+      break;
+    }
     uint16_t used_off = used_idx % queue0.num;
     guest_write32(queue0.device + 4 + used_off * 8, head);
     guest_write32(queue0.device + 4 + used_off * 8 + 4, used_len);
     used_idx++;
     guest_write16(queue0.device + 2, used_idx);
     queue0.last_avail_idx++;
+    pending_count--;
     used_any = true;
   }
   virtq_set_avail_event(queue0.last_avail_idx);
@@ -324,6 +373,7 @@ static void virtio_rng_reset(void) {
   /* Status=0 performs the transport reset required by Virtio 1.x. */
   virtio_transport_reset(&transport);
   memset(&queue0, 0, sizeof(queue0));
+  virtio_rng_try_open_backend();
   virtio_rng_raise_irq();
 }
 
@@ -353,7 +403,7 @@ static uint32_t virtio_rng_read_reg(uint32_t offset) {
     case VIRTIO_MMIO_QUEUE_DEVICE_LOW: return (uint32_t)queue0.device;
     case VIRTIO_MMIO_QUEUE_DEVICE_HIGH:
       return (uint32_t)((uint64_t)queue0.device >> 32);
-    case VIRTIO_MMIO_CONFIG_GENERATION: return 0;
+    case VIRTIO_MMIO_CONFIG_GENERATION: return transport.config_generation;
     default: return 0;
   }
 }
@@ -364,7 +414,10 @@ static void virtio_rng_write_reg(uint32_t offset, uint32_t value) {
       transport.device_features_select = value;
       break;
     case VIRTIO_MMIO_DRIVER_FEATURES:
-      if (transport.driver_features_select < 2) transport.driver_features[transport.driver_features_select] = value;
+      if (transport.driver_features_select < 2 &&
+          virtio_transport_driver_features_write_allowed(&transport)) {
+        transport.driver_features[transport.driver_features_select] = value;
+      }
       break;
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
       transport.driver_features_select = value;
@@ -374,34 +427,43 @@ static void virtio_rng_write_reg(uint32_t offset, uint32_t value) {
       break;
     case VIRTIO_MMIO_QUEUE_NUM:
       if (transport.queue_select == 0) {
-        if (value <= VIRTIO_RNG_QUEUE_SIZE) {
+        if (!virtio_queue_config_write_allowed(&queue0)) {
+          Log("virtio-rng: reject QueueNum write while QueueReady=1");
+        } else if (virtio_split_queue_size_valid(value, VIRTIO_RNG_QUEUE_SIZE)) {
           queue0.num = value;
         } else {
           // 不能静默 clamp QueueNum；坏驱动必须在配置阶段暴露，而不是假装队列可用。
           Log("virtio-rng: reject unsupported QueueNum=%u max=%u",
               value, VIRTIO_RNG_QUEUE_SIZE);
-          queue0.num = 0;
-          queue0.ready = false;
         }
       }
       break;
     case VIRTIO_MMIO_QUEUE_READY:
       if (transport.queue_select == 0) {
-        if ((value & 1u) == 0) {
+        bool validate_layout = value == 1 && !queue0.ready;
+        VirtioQueueReadyWriteResult result = virtio_queue_ready_decode(
+            &queue0, value, !validate_layout || virtq_validate_queue_layout());
+        if (result == VIRTIO_QUEUE_READY_DISABLED) {
           queue0.ready = false;
           queue0.last_avail_idx = 0;
-        } else if (virtq_validate_queue_layout()) {
+        } else if (result == VIRTIO_QUEUE_READY_ENABLED) {
           queue0.ready = true;
           queue0.last_avail_idx = guest_read16(queue0.driver + 2);
           virtq_set_avail_event(queue0.last_avail_idx);
-        } else {
+        } else if (result == VIRTIO_QUEUE_READY_INVALID_LAYOUT) {
           queue0.ready = false;
           queue0.last_avail_idx = 0;
+        } else if (result == VIRTIO_QUEUE_READY_INVALID_VALUE) {
+          Log("virtio-rng: reject invalid QueueReady value=%u", value);
         }
       }
       break;
     case VIRTIO_MMIO_QUEUE_NOTIFY:
-      if (value == 0) virtio_rng_process_queue();
+      if (value == 0 && virtio_queue_notify_allowed(&transport, &queue0)) {
+        virtio_rng_process_queue();
+      } else if (value == 0) {
+        Log("virtio-rng: reject QueueNotify before DRIVER_OK or QueueReady");
+      }
       break;
     case VIRTIO_MMIO_INTERRUPT_ACK:
       virtio_transport_acknowledge_interrupt(&transport, value);
@@ -411,32 +473,41 @@ static void virtio_rng_write_reg(uint32_t offset, uint32_t value) {
       if (value == 0) {
         virtio_rng_reset();
       } else {
-        virtio_transport_accept_status(&transport, value,
-            virtio_rng_driver_features_supported());
+        VirtioStatusWriteResult result = virtio_transport_accept_status(
+            &transport, value, virtio_rng_driver_features_supported());
+        if (result == VIRTIO_STATUS_FEATURES_REJECTED) {
+          Log("virtio-rng: reject unsupported negotiated features");
+        } else if (result == VIRTIO_STATUS_INVALID_TRANSITION) {
+          Log("virtio-rng: reject invalid Status progression value=0x%08x", value);
+        }
+        if (result == VIRTIO_STATUS_ACCEPTED && rng_fd < 0 &&
+            (transport.device_status & VIRTIO_STATUS_DRIVER_OK) != 0) {
+          virtio_rng_backend_failed("/dev/urandom unavailable");
+        }
       }
       break;
     case VIRTIO_MMIO_QUEUE_DESC_LOW:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_low(&queue0.desc, value);
       break;
     case VIRTIO_MMIO_QUEUE_DESC_HIGH:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_high(&queue0.desc, value);
       break;
     case VIRTIO_MMIO_QUEUE_DRIVER_LOW:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_low(&queue0.driver, value);
       break;
     case VIRTIO_MMIO_QUEUE_DRIVER_HIGH:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_high(&queue0.driver, value);
       break;
     case VIRTIO_MMIO_QUEUE_DEVICE_LOW:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_low(&queue0.device, value);
       break;
     case VIRTIO_MMIO_QUEUE_DEVICE_HIGH:
-      if (transport.queue_select == 0)
+      if (transport.queue_select == 0 && virtio_queue_config_write_allowed(&queue0))
         virtqueue_write_address_high(&queue0.device, value);
       break;
     default:
@@ -466,17 +537,13 @@ static void virtio_rng_io_handler(uint32_t offset, int len, bool is_write) {
 
 void init_virtio_rng() {
   rng_base = new_space(0x1000);
-  rng_fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
-  if (rng_fd < 0) {
-    Log("virtio-rng: cannot open /dev/urandom: %s", strerror(errno));
-  }
   virtio_rng_reset();
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map("virtio-rng", DEV_VIRTIO_RNG_MMIO, rng_base, 0x1000,
       virtio_rng_io_handler);
 #else
-  add_mmio_map("virtio-rng", DEV_VIRTIO_RNG_MMIO, rng_base, 0x1000,
-      virtio_rng_io_handler);
+  add_mmio_map_with_policy("virtio-rng", DEV_VIRTIO_RNG_MMIO, rng_base,
+      0x1000, virtio_rng_io_handler, &virtio_rng_mmio_policy);
 #endif
 }
 
@@ -485,7 +552,7 @@ void virtio_rng_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_rng.model=virtio-rng-mmio\n");
   fprintf(out, "device.virtio_rng.backend=%s\n", virtio_rng_backend_name());
   fprintf(out, "device.virtio_rng.backend_source=%s\n",
-      rng_fd >= 0 ? "/dev/urandom" : "fallback-prng");
+      rng_fd >= 0 ? "/dev/urandom" : "unavailable");
   fprintf(out, "device.virtio_rng.mmio_version=%u\n", VIRTIO_MMIO_VERSION_MODERN);
   fprintf(out, "device.virtio_rng.device_id=%u\n", VIRTIO_DEVICE_ID_ENTROPY);
   fprintf(out, "device.virtio_rng.vendor_id=0x%08x\n", VIRTIO_VENDOR_YSYX);
@@ -504,6 +571,8 @@ void virtio_rng_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_rng.status=0x%08x\n", transport.device_status);
   fprintf(out, "device.virtio_rng.interrupt_status=0x%08x\n",
       transport.interrupt_status);
+  fprintf(out, "device.virtio_rng.config_generation=%u\n",
+      transport.config_generation);
 }
 
 void virtio_rng_qmp_query_rng(char *out, size_t out_size) {
@@ -518,7 +587,7 @@ void virtio_rng_qmp_query_rng(char *out, size_t out_size) {
       "\"driver-features\":{\"version-1\":%s,\"indirect-desc\":%s,\"event-idx\":%s},"
       "\"last-avail-idx\":%u}}]}",
       virtio_rng_backend_name(),
-      rng_fd >= 0 ? "/dev/urandom" : "fallback-prng",
+      rng_fd >= 0 ? "/dev/urandom" : "unavailable",
       DEV_VIRTIO_RNG_MMIO, VIRTIO_RNG_IRQ,
       VIRTIO_DEVICE_ID_ENTROPY, VIRTIO_VENDOR_YSYX, VIRTIO_MMIO_VERSION_MODERN,
       VIRTIO_RNG_QUEUE_SIZE, json_bool(queue0.ready),

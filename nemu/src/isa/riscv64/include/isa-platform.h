@@ -23,6 +23,7 @@
 
 // RV64 平台钩子只声明 RV64 宽度符号；通用层通过 isa_riscv_* 别名访问当前实现。
 bool isa_riscv64_clint_in_range(paddr_t addr);
+bool isa_riscv64_clint_access_valid(paddr_t addr, int len);
 word_t isa_riscv64_clint_read(paddr_t addr, int len);
 void isa_riscv64_clint_write(paddr_t addr, int len, word_t data);
 uint64_t isa_riscv64_clint_timebase_hz(void);
@@ -68,7 +69,8 @@ bool isa_mmu_translate_host(vaddr_t vaddr, int len, int type,
     paddr_t *paddr, uint8_t **host_addr);
 bool isa_riscv64_mmu_debug_translate_user(vaddr_t vaddr, int len, int type,
     paddr_t *paddr);
-void isa_riscv64_lr_sc_invalidate(paddr_t paddr, int len);
+void isa_riscv64_lr_sc_invalidate(paddr_t paddr, uint64_t len);
+void isa_riscv64_lr_sc_clear(void);
 void isa_riscv64_wfi(void);
 
 word_t isa_riscv64_mip_value(void);
@@ -86,6 +88,7 @@ bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
     word_t *new_status, word_t *delta);
 
 #define isa_riscv_clint_in_range isa_riscv64_clint_in_range
+#define isa_riscv_clint_access_valid isa_riscv64_clint_access_valid
 #define isa_riscv_clint_read isa_riscv64_clint_read
 #define isa_riscv_clint_write isa_riscv64_clint_write
 #define isa_riscv_clint_timebase_hz isa_riscv64_clint_timebase_hz
@@ -120,6 +123,7 @@ bool isa_riscv64_last_sstatus_write_delta(word_t *old_status,
 #define isa_riscv_pmp_dump_machine_info isa_riscv64_pmp_dump_machine_info
 #endif
 #define isa_riscv_lr_sc_invalidate isa_riscv64_lr_sc_invalidate
+#define isa_riscv_lr_sc_clear isa_riscv64_lr_sc_clear
 #define isa_riscv_wfi isa_riscv64_wfi
 #define isa_riscv_mip_value isa_riscv64_mip_value
 #define isa_riscv_intr_pending_fast isa_riscv64_intr_pending_fast

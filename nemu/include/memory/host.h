@@ -43,7 +43,7 @@ static inline word_t host_read(void *addr, int len) {
       memcpy(&ret, addr, sizeof(ret));
       return ret;
     });
-    default: MUXDEF(CONFIG_RT_CHECK, assert(0), return 0);
+    default: MUXDEF(NEMU_RUNTIME_CHECKS, assert(0), return 0);
   }
 }
 
@@ -70,7 +70,7 @@ static inline void host_write(void *addr, int len, word_t data) {
       memcpy(addr, &value, sizeof(value));
       return;
     });
-    IFDEF(CONFIG_RT_CHECK, default: assert(0));
+    IFDEF(NEMU_RUNTIME_CHECKS, default: assert(0));
   }
 }
 

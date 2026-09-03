@@ -86,6 +86,24 @@ static uint32_t key_dequeue() {
 
 static uint32_t *i8042_data_port_base = NULL;
 
+static const IoRegisterDescriptor keyboard_registers[]
+    __attribute__((unused)) = {
+  {
+    .name = "key-event",
+    .first_offset = 0,
+    .last_offset = 3,
+    .stride = 4,
+    .width_mask = IO_WIDTH_4,
+    .direction_mask = IO_TRANSACTION_READ,
+    .naturally_aligned = true,
+  },
+};
+
+static const IoAccessPolicy keyboard_mmio_policy __attribute__((unused)) = {
+  .registers = keyboard_registers,
+  .register_count = ARRLEN(keyboard_registers),
+};
+
 static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
   assert(!is_write);
   assert(offset == 0);
@@ -101,7 +119,8 @@ void init_i8042() {
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map ("keyboard", CONFIG_I8042_DATA_PORT, i8042_data_port_base, 4, i8042_data_io_handler);
 #else
-  add_mmio_map("keyboard", DEV_KBD_MMIO, i8042_data_port_base, 4, i8042_data_io_handler);
+  add_mmio_map_with_policy("keyboard", DEV_KBD_MMIO, i8042_data_port_base,
+      4, i8042_data_io_handler, &keyboard_mmio_policy);
 #endif
   IFNDEF(CONFIG_TARGET_AM, init_keymap());
 }

@@ -311,24 +311,6 @@ static inline bool rv32_execute_memory_ordering(
   }
 }
 
-static inline bool rv32_execute_extension_adapter(
-    Decode *state, const Rv32DecodedInstruction *instruction) {
-  switch (instruction->operation) {
-    case RV32_OPERATION_COMPRESSED_ADAPTER:
-      return legacy_execute_compressed_adapter(state, instruction);
-    case RV32_OPERATION_FLOATING_LOAD_ADAPTER:
-      return legacy_execute_floating_load_adapter(instruction);
-    case RV32_OPERATION_FLOATING_STORE_ADAPTER:
-      return legacy_execute_floating_store_adapter(instruction);
-    case RV32_OPERATION_ATOMIC_ADAPTER:
-      return legacy_execute_atomic_adapter(instruction);
-    case RV32_OPERATION_SYSTEM_ADAPTER:
-      return legacy_execute_system_adapter(state, instruction);
-    default:
-      return false;
-  }
-}
-
 static inline bool rv32_execute_decoded_instruction(
     Decode *state, const Rv32DecodedInstruction *instruction) {
   state->dnpc = state->snpc;
@@ -354,8 +336,14 @@ static inline bool rv32_execute_decoded_instruction(
       return rv32_execute_upper_immediate(state, instruction);
     case RV32_INSTRUCTION_CLASS_MEMORY_ORDERING:
       return rv32_execute_memory_ordering(instruction);
-    case RV32_INSTRUCTION_CLASS_EXTENSION_ADAPTER:
-      return rv32_execute_extension_adapter(state, instruction);
+    case RV32_INSTRUCTION_CLASS_SYSTEM:
+      return riscv32_execute_system(state, &instruction->system);
+    case RV32_INSTRUCTION_CLASS_ATOMIC:
+      return rv32_execute_atomic(instruction);
+    case RV32_INSTRUCTION_CLASS_COMPRESSED:
+      return rv32_execute_compressed(state, &instruction->compressed);
+    case RV32_INSTRUCTION_CLASS_FLOATING_POINT:
+      return exec_rvf_decoded(&instruction->floating);
     default:
       return false;
   }

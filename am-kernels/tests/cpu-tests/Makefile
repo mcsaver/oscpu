@@ -1,5 +1,13 @@
 .PHONY: all run gdb clean latest c prepare-result check-results $(ALL)
 
+# Keep the local workbench layout self-contained: invoking this Makefile must
+# not depend on AM_HOME/NEMU_HOME having been exported by a login shell.
+CPU_TESTS_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+WORKBENCH_HOME ?= $(abspath $(CPU_TESTS_HOME)/../../..)
+AM_HOME ?= $(WORKBENCH_HOME)/abstract-machine
+NEMU_HOME ?= $(WORKBENCH_HOME)/nemu
+export AM_HOME NEMU_HOME
+
 ##结果文件：由 prepare-result 在实际运行测试前初始化
 RESULT = .result
 # 可选的逐项原始仿真日志目录。默认留空以保持交互行为；F0-G1 同版本
@@ -34,10 +42,10 @@ Makefile.%: tests/%.c latest | prepare-result
 		raw_log="$(RAW_LOG_DIR)/$*.log"; \
 	fi; \
 	if [ -n "$$raw_log" ]; then \
-		make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS) >"$$raw_log" 2>&1; \
+		$(MAKE) -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS) >"$$raw_log" 2>&1; \
 		rc=$$?; \
 	else \
-		make -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS); \
+		$(MAKE) -s -f $@ ARCH=$(ARCH) $(MAKECMDGOALS); \
 		rc=$$?; \
 	fi; \
 	if [ "$$rc" -eq 0 ]; then \

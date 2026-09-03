@@ -17,8 +17,15 @@
 ##如下的命令等价为，根据config的配置，若CONFIG_DEVICE为y，那么SRCS-y +=..后面的文件会被加到文件列表中进行编译
 DIRS-y += src/device/io
 SRCS-$(CONFIG_DEVICE) += src/device/device.c src/device/alarm.c src/device/intr.c
+
+ifeq ($(CONFIG_SOC_SIM),y)
+# ysyxSoC owns its UART/SPI/GPIO/PS2/VGA address windows.  Compile only the
+# shared 16550 core required by the SoC adapter; generic IOMap providers belong
+# exclusively to the generic NEMU platform below.
+SRCS-y += src/device/uart16550.c
+else
 SRCS-$(CONFIG_HAS_SERIAL) += src/device/serial.c
-ifneq ($(filter y,$(CONFIG_HAS_SERIAL) $(CONFIG_SOC_SIM)),)
+ifeq ($(CONFIG_HAS_SERIAL),y)
 SRCS-y += src/device/uart16550.c
 endif
 SRCS-$(CONFIG_HAS_TIMER) += src/device/timer.c
@@ -35,8 +42,12 @@ endif
 SRCS-$(CONFIG_HAS_VIRTIO_RNG) += src/device/rng.c
 SRCS-$(CONFIG_HAS_VIRTIO_NET) += src/device/net.c
 SRCS-$(CONFIG_HAS_GOLDFISH_RTC) += src/device/goldfish_rtc.c
-SRCS-$(CONFIG_HAS_SYSCON_RESET) += src/device/syscon.c
 SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c
+endif
+
+# syscon has no interrupt dependency and remains an explicit, non-overlapping
+# NEMU service extension when selected for either platform profile.
+SRCS-$(CONFIG_HAS_SYSCON_RESET) += src/device/syscon.c
 
 SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c
 
@@ -48,6 +59,8 @@ SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c
 ##把这些参数追加到LIBS中，确保编译时能正常链接SDL2库(用于图形、音频等设备模拟)
 ifdef CONFIG_DEVICE
 ifndef CONFIG_TARGET_AM
+ifneq ($(filter y,$(CONFIG_HAS_KEYBOARD) $(CONFIG_HAS_VGA) $(CONFIG_HAS_AUDIO)),)
 LIBS += $(shell sdl2-config --libs)
+endif
 endif
 endif

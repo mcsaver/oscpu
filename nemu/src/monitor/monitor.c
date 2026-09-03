@@ -16,8 +16,11 @@
 #include <isa.h>
 #include <cpu/cpu.h>
 #include <cpu/bpu.h>
+#include <cpu/difftest.h>
 #include <memory/paddr.h>
+#include <memory/soc.h>
 #include <memory/vaddr.h>
+#include <platform/platform-map.h>
 #include <device/map.h>
 #include <ftrace.h>
 #include <utils.h>
@@ -25,11 +28,10 @@
 void init_rand();
 void init_log(const char *log_file);
 void init_mem();
-void init_difftest(char *ref_so_file, long img_size, int port);
 void init_device();
+#ifdef CONFIG_HAS_DISK
 void disk_set_image(const char *path);
 void disk_set_overlay(const char *path);
-#ifdef CONFIG_HAS_DISK
 void virtio_blk_dump_machine_info(FILE *out);
 #endif
 #ifdef CONFIG_HAS_SERIAL
@@ -61,6 +63,7 @@ static void welcome() {
 }
 
 #ifndef CONFIG_TARGET_AM
+#include <errno.h>
 #include <getopt.h>
 #include "sdb/sdb.h"
 #include "qmp.h"
@@ -69,8 +72,10 @@ static void welcome() {
 static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
+#ifdef CONFIG_HAS_DISK
 static char *block_file = NULL;
 static char *block_overlay_file = NULL;
+#endif
 static char *machine_info_file = NULL;
 static char *elf_file = NULL; //添加ELF文件参数和ftrace初始化
 static int difftest_port = 1234;
@@ -84,6 +89,7 @@ static word_t boot_dtb = 0;
 typedef struct {
   paddr_t addr;
   const char *path;
+  size_t size;
 } LoadImageSpec;
 
 static LoadImageSpec load_images[NEMU_MAX_LOAD_IMAGES];
@@ -114,50 +120,90 @@ static void parse_load_image(const char *arg) {
   addr_buf[addr_len] = '\0';
 
   char *end = NULL;
+  errno = 0;
   uint64_t addr = strtoull(addr_buf, &end, 0);
-  Assert(end != addr_buf && *end == '\0', "invalid --load address: %s", addr_buf);
+  Assert(addr_buf[0] >= '0' && addr_buf[0] <= '9' &&
+         errno == 0 && end != addr_buf && *end == '\0',
+      "invalid --load address: %s", addr_buf);
+  Assert((uint64_t)(paddr_t)addr == addr,
+      "--load address does not fit the guest physical address width: %s",
+      addr_buf);
 
   load_images[load_image_count++] = (LoadImageSpec){
     .addr = (paddr_t)addr,
     .path = sep + 1,
+    .size = 0,
   };
 }
 
-static long load_file_to_pmem(const char *path, paddr_t addr) {
+static long load_file_to_guest(const char *path, paddr_t addr) {
   FILE *fp = fopen(path, "rb");
   Assert(fp, "Can not open '%s'", path);
 
-  fseek(fp, 0, SEEK_END);
+  Assert(fseek(fp, 0, SEEK_END) == 0,
+      "Can not seek to the end of image '%s'", path);
   long size = ftell(fp);
-  rewind(fp);
+  Assert(size > 0, "Image '%s' is empty or has no measurable size", path);
+  Assert((uintmax_t)size <= (uintmax_t)SIZE_MAX,
+      "Image '%s' is too large for this host", path);
+  Assert(fseek(fp, 0, SEEK_SET) == 0,
+      "Can not rewind image '%s'", path);
+  const size_t image_size = (size_t)size;
 
-  Assert(addr >= PMEM_LEFT && (uint64_t)addr + (uint64_t)size - 1 <= PMEM_RIGHT,
+#ifdef CONFIG_SOC_SIM
+  const SocSimRegionInfo *region =
+      soc_sim_region_containing(addr, image_size);
+  Assert(region != NULL && region->kind == SOC_SIM_REGION_MEMORY,
+      "image '%s' does not fit a loadable ysyxSoC memory region at " FMT_PADDR,
+      path, addr);
+  if (paddr_span_in_pmem(addr, (uint64_t)image_size)) {
+    size_t nread = fread(guest_to_host(addr), 1, image_size, fp);
+    Assert(nread == image_size, "Can not read complete image '%s'", path);
+  } else {
+    uint8_t *image = (uint8_t *)malloc(image_size);
+    Assert(image != NULL, "Can not allocate image buffer for '%s'", path);
+    size_t nread = fread(image, 1, image_size, fp);
+    Assert(nread == image_size, "Can not read complete image '%s'", path);
+    Assert(soc_sim_copy_to_guest(addr, image, image_size),
+        "image '%s' does not fit a loadable ysyxSoC memory region at " FMT_PADDR,
+        path, addr);
+    free(image);
+  }
+#else
+  Assert(paddr_span_in_pmem(addr, (uint64_t)image_size),
       "image '%s' range [" FMT_PADDR ", " FMT_PADDR "] is out of pmem ["
       FMT_PADDR ", " FMT_PADDR "]",
-      path, addr, (paddr_t)((uint64_t)addr + (uint64_t)size - 1),
+      path, addr, addr + (paddr_t)image_size - 1,
       PMEM_LEFT, PMEM_RIGHT);
 
-  int ret = fread(guest_to_host(addr), size, 1, fp);
-  assert(ret == 1);
+  size_t nread = fread(guest_to_host(addr), 1, image_size, fp);
+  Assert(nread == image_size, "Can not read complete image '%s'", path);
+#endif
   fclose(fp);
 
   Log("Load image %s at " FMT_PADDR ", size = %ld", path, addr, size);
   return size;
 }
 
+//-i IMAGE装到RESET_VECTOR，覆盖内建镜像
+//--load=ADDR:FILE装到指定物理地址
+//镜像加载只改变内存，不改变pc
+//没有主镜像的时候，继续执行内建测试镜像
 static long load_img() {
   if (img_file == NULL) {
     Log("No image is given. Use the default build-in image.");
     for (int i = 0; i < load_image_count; i++) {
-      load_file_to_pmem(load_images[i].path, load_images[i].addr);
+      load_images[i].size = (size_t)load_file_to_guest(
+          load_images[i].path, load_images[i].addr);
     }
     return 4096; // built-in image size
   }
 
   // 主镜像保持旧语义装载到 RESET_VECTOR；额外 Linux/OpenSBI 产物用 --load 指定地址。
-  long size = load_file_to_pmem(img_file, RESET_VECTOR);
+  long size = load_file_to_guest(img_file, RESET_VECTOR);
   for (int i = 0; i < load_image_count; i++) {
-    load_file_to_pmem(load_images[i].path, load_images[i].addr);
+    load_images[i].size = (size_t)load_file_to_guest(
+        load_images[i].path, load_images[i].addr);
   }
   return size;
 }
@@ -168,6 +214,49 @@ static void machine_info_write_bool(FILE *out, const char *key, bool value) {
 
 static void machine_info_write_hex(FILE *out, const char *key, uint64_t value) {
   fprintf(out, "%s=0x%08" PRIx64 "\n", key, value);
+}
+
+static const char *soc_region_kind_name(SocSimRegionKind kind) {
+  switch (kind) {
+    case SOC_SIM_REGION_MEMORY: return "memory";
+    case SOC_SIM_REGION_MMIO: return "mmio";
+    case SOC_SIM_REGION_XIP_FLASH: return "xip-flash";
+    default: return "unknown";
+  }
+}
+
+#ifdef CONFIG_SOC_SIM
+static const SocSimRegionInfo *machine_info_find_soc_region(const char *name) {
+  for (size_t i = 0; i < soc_sim_region_count(); i++) {
+    const SocSimRegionInfo *region = soc_sim_region_at(i);
+    Assert(region != NULL, "missing ysyxSoC region descriptor %zu", i);
+    if (strcmp(region->name, name) == 0) return region;
+  }
+  return NULL;
+}
+#endif
+
+static void dump_soc_platform_info(FILE *out) {
+  const size_t region_count = soc_sim_region_count();
+  fprintf(out, "platform.soc.region_count=%zu\n", region_count);
+  for (size_t i = 0; i < region_count; i++) {
+    const SocSimRegionInfo *region = soc_sim_region_at(i);
+    Assert(region != NULL && region->name != NULL && region->size != 0,
+        "invalid ysyxSoC region descriptor %zu", i);
+    const paddr_t end = region->base + (paddr_t)region->size - 1;
+    fprintf(out, "platform.soc.region.%s=" FMT_PADDR ".." FMT_PADDR "\n",
+        region->name, region->base, end);
+    fprintf(out, "platform.soc.region.%s.kind=%s\n",
+        region->name, soc_region_kind_name(region->kind));
+    fprintf(out, "platform.soc.region.%s.readonly=%d\n",
+        region->name, region->readonly ? 1 : 0);
+    fprintf(out, "platform.soc.region.%s.difftest_skip=%d\n",
+        region->name, region->skip_ref ? 1 : 0);
+  }
+  const SocSimRegionInfo *pmem_region = soc_sim_pmem_backed_region();
+  if (pmem_region != NULL) {
+    fprintf(out, "platform.soc.pmem_region=%s\n", pmem_region->name);
+  }
 }
 
 static void dump_machine_info(FILE *out) {
@@ -233,14 +322,28 @@ static void dump_machine_info(FILE *out) {
   fprintf(out, "policy.interpreter_decode_cache_entries=0\n");
 #endif
   machine_info_write_bool(out, "config.interpreter_intr_fast_flag", ISDEF(CONFIG_INTERPRETER_INTR_FAST_FLAG));
-  fprintf(out, "config.device_update_check_interval=%d\n", CONFIG_DEVICE_UPDATE_CHECK_INTERVAL);
+  fprintf(out, "policy.device_update_check_interval=%u\n",
+      NEMU_DEVICE_UPDATE_CHECK_INTERVAL);
 
   // 能力边界清单把 QEMU-like 缺口变成可执行 gate，避免以后把单个切片误判为完整 VM。
+  fprintf(out, "platform.profile=%s\n", NEMU_PLATFORM_NAME);
+  machine_info_write_hex(out, "platform.reset_vector", RESET_VECTOR);
   fprintf(out, "platform.hart_count=1\n");
   fprintf(out, "platform.smp=unsupported\n");
   fprintf(out, "platform.pci=unsupported\n");
-  fprintf(out, "platform.virtio_transport=mmio\n");
-  fprintf(out, "platform.virtio_mmio_slots=3\n");
+#ifdef CONFIG_SOC_SIM
+  fprintf(out, "platform.virtio_transport=none\n");
+  fprintf(out, "platform.virtio_mmio_slots=0\n");
+#else
+  const unsigned virtio_mmio_slots =
+      (ISDEF(CONFIG_HAS_DISK) ? 1u : 0u) +
+      (ISDEF(CONFIG_HAS_VIRTIO_RNG) ? 1u : 0u) +
+      (ISDEF(CONFIG_HAS_VIRTIO_NET) ? 1u : 0u);
+  fprintf(out, "platform.virtio_transport=%s\n",
+      virtio_mmio_slots != 0 ? "mmio" : "none");
+  fprintf(out, "platform.virtio_mmio_slots=%u\n", virtio_mmio_slots);
+#endif
+  dump_soc_platform_info(out);
   fprintf(out, "monitor.machine_info=enabled\n");
   fprintf(out, "monitor.oneshot_cmd=enabled\n");
   fprintf(out, "monitor.qmp=%s\n", qmp_capability());
@@ -248,20 +351,56 @@ static void dump_machine_info(FILE *out) {
   fprintf(out, "debug.gdbstub=%s\n", gdbstub_capability());
   fprintf(out, "debug.gdbstub.mode=startup-rw-regmem-step-cont-swbreak-hbreak-watch-vcont-async-stop-target-xml-memory-map-noack\n");
   fprintf(out, "snapshot.vm_state=unsupported\n");
+#ifdef CONFIG_SOC_SIM
+  fprintf(out, "snapshot.block=unsupported\n");
+  fprintf(out, "block.format=none\n");
+#else
   fprintf(out, "snapshot.block=raw-sparse-overlay\n");
   fprintf(out, "block.format=raw\n");
+#endif
 
 #ifdef CONFIG_ISA_riscv
-  // 开机前暴露 guest time CSR 的真实来源，便于 e2e 发现 timebase 漂移。
+  /*
+   * A time CSR source and a memory-mapped interrupt controller are distinct
+   * platform facts.  ysyxSoC keeps NEMU's instruction-time CSR counter but
+   * must not advertise the generic CLINT/PLIC apertures or interrupt wires.
+   */
+  machine_info_write_bool(out, "platform.riscv.clint_mmio",
+      NEMU_PLATFORM_HAS_RISCV_CLINT != 0);
+  machine_info_write_bool(out, "platform.riscv.plic_mmio",
+      NEMU_PLATFORM_HAS_RISCV_PLIC != 0);
+  machine_info_write_bool(out, "interrupt.cpu_external_connected",
+      NEMU_PLATFORM_CPU_EXTERNAL_IRQ_CONNECTED != 0);
+  machine_info_write_bool(out, "time.counter.enabled",
+      NEMU_PLATFORM_HAS_RISCV_TIME_COUNTER != 0);
+  fprintf(out, "time.counter.timebase_hz=%" PRIu64 "\n",
+      isa_riscv_clint_timebase_hz());
+  fprintf(out, "time.counter.source=%s\n", isa_riscv_clint_time_source());
+#ifdef CONFIG_SOC_SIM
+  fprintf(out, "time.clint.enabled=0\n");
+  fprintf(out, "time.csr_time_source=platform-counter\n");
+  fprintf(out, "interrupt.controller=none\n");
+  fprintf(out, "interrupt.clint.enabled=0\n");
+  fprintf(out, "interrupt.plic.enabled=0\n");
+  fprintf(out, "interrupt.cpu_external_line=tied-low\n");
+#else
+  // generic profile 的 time CSR 直接读取同一 CLINT mtime 状态。
   fprintf(out, "time.clint.enabled=1\n");
-  fprintf(out, "time.clint.timebase_hz=%" PRIu64 "\n", isa_riscv_clint_timebase_hz());
+  fprintf(out, "time.clint.timebase_hz=%" PRIu64 "\n",
+      isa_riscv_clint_timebase_hz());
   fprintf(out, "time.clint.source=%s\n", isa_riscv_clint_time_source());
   fprintf(out, "time.csr_time_source=clint_mtime\n");
-#ifdef CONFIG_ISA64
   fprintf(out, "interrupt.controller=riscv-clint+plic\n");
+  fprintf(out, "interrupt.cpu_external_line=connected\n");
+#ifndef CONFIG_ISA64
+  fprintf(out, "interrupt.clint.enabled=1\n");
+  fprintf(out, "interrupt.plic.enabled=1\n");
+#endif
+#ifdef CONFIG_ISA64
   isa_riscv_clint_dump_machine_info(out);
   isa_riscv_plic_dump_machine_info(out);
   isa_riscv_pmp_dump_machine_info(out);
+#endif
 #endif
 #endif
 
@@ -273,36 +412,81 @@ static void dump_machine_info(FILE *out) {
   machine_info_write_bool(out, "boot.dtb.valid", boot_dtb_valid);
   machine_info_write_hex(out, "boot.dtb", boot_dtb);
 
+/* A selected platform owns the provider as well as the address. */
+#ifdef CONFIG_SOC_SIM
+  const SocSimRegionInfo *soc_uart = machine_info_find_soc_region("uart0");
+  Assert(soc_uart != NULL && soc_uart->kind == SOC_SIM_REGION_MMIO,
+      "SOC_SIM platform manifest has no MMIO uart0 region");
+  machine_info_write_bool(out, "device.serial.enabled", true);
+  machine_info_write_hex(out, "device.serial.mmio", soc_uart->base);
+  fprintf(out, "device.serial.irq=none\n");
+  machine_info_write_bool(out, "device.serial.irq_connected", false);
+  fprintf(out, "device.serial.provider=soc-direct\n");
+#else
   machine_info_write_bool(out, "device.serial.enabled", ISDEF(CONFIG_HAS_SERIAL));
 #ifdef CONFIG_HAS_SERIAL
   machine_info_write_hex(out, "device.serial.mmio", DEV_SERIAL_MMIO);
   fprintf(out, "device.serial.irq=1\n");
+  machine_info_write_bool(out, "device.serial.irq_connected", true);
+  fprintf(out, "device.serial.provider=iomap\n");
   serial_dump_machine_info(out);
+#else
+  fprintf(out, "device.serial.provider=none\n");
 #endif
+#endif
+
+#ifdef CONFIG_SOC_SIM
+  machine_info_write_bool(out, "device.virtio_blk.enabled", false);
+  fprintf(out, "device.virtio_blk.provider=none\n");
+#else
   machine_info_write_bool(out, "device.virtio_blk.enabled", ISDEF(CONFIG_HAS_DISK));
 #ifdef CONFIG_HAS_DISK
   machine_info_write_hex(out, "device.virtio_blk.mmio", DEV_DISK_MMIO);
   fprintf(out, "device.virtio_blk.irq=2\n");
+  fprintf(out, "device.virtio_blk.provider=iomap\n");
   virtio_blk_dump_machine_info(out);
+#else
+  fprintf(out, "device.virtio_blk.provider=none\n");
 #endif
+#endif
+
+#ifdef CONFIG_SOC_SIM
+  machine_info_write_bool(out, "device.virtio_rng.enabled", false);
+  fprintf(out, "device.virtio_rng.provider=none\n");
+#else
   machine_info_write_bool(out, "device.virtio_rng.enabled", ISDEF(CONFIG_HAS_VIRTIO_RNG));
 #ifdef CONFIG_HAS_VIRTIO_RNG
   machine_info_write_hex(out, "device.virtio_rng.mmio", DEV_VIRTIO_RNG_MMIO);
   fprintf(out, "device.virtio_rng.irq=3\n");
+  fprintf(out, "device.virtio_rng.provider=iomap\n");
   virtio_rng_dump_machine_info(out);
+#else
+  fprintf(out, "device.virtio_rng.provider=none\n");
 #endif
+#endif
+
   machine_info_write_bool(out, "device.goldfish_rtc.enabled", ISDEF(CONFIG_HAS_GOLDFISH_RTC));
 #ifdef CONFIG_HAS_GOLDFISH_RTC
   machine_info_write_hex(out, "device.goldfish_rtc.mmio", DEV_GOLDFISH_RTC_MMIO);
   fprintf(out, "device.goldfish_rtc.irq=4\n");
   goldfish_rtc_dump_machine_info(out);
 #endif
+
+#ifdef CONFIG_SOC_SIM
+  machine_info_write_bool(out, "device.virtio_net.enabled", false);
+  fprintf(out, "device.virtio_net.provider=none\n");
+#else
   machine_info_write_bool(out, "device.virtio_net.enabled", ISDEF(CONFIG_HAS_VIRTIO_NET));
 #ifdef CONFIG_HAS_VIRTIO_NET
   machine_info_write_hex(out, "device.virtio_net.mmio", DEV_VIRTIO_NET_MMIO);
   fprintf(out, "device.virtio_net.irq=5\n");
+  fprintf(out, "device.virtio_net.provider=iomap\n");
   virtio_net_dump_machine_info(out);
+#else
+  fprintf(out, "device.virtio_net.provider=none\n");
 #endif
+#endif
+
   machine_info_write_bool(out, "device.syscon_reset.enabled", ISDEF(CONFIG_HAS_SYSCON_RESET));
 #ifdef CONFIG_HAS_SYSCON_RESET
   machine_info_write_hex(out, "device.syscon_reset.mmio", DEV_SYSCON_RESET_MMIO);
@@ -407,8 +591,22 @@ static int parse_args(int argc, char *argv[]) {
       case OPT_LOAD: parse_load_image(optarg); break;
       case OPT_MAX: sdb_set_batch_limit(strtoull(optarg, NULL, 0)); break;
       case OPT_BLOCK:
-      case OPT_DISK: block_file = optarg; break;
-      case OPT_BLOCK_OVERLAY: block_overlay_file = optarg; break;
+      case OPT_DISK:
+#ifdef CONFIG_HAS_DISK
+        block_file = optarg;
+#else
+        printf("--block/--disk requires CONFIG_HAS_DISK\n");
+        exit(1);
+#endif
+        break;
+      case OPT_BLOCK_OVERLAY:
+#ifdef CONFIG_HAS_DISK
+        block_overlay_file = optarg;
+#else
+        printf("--block-overlay requires CONFIG_HAS_DISK\n");
+        exit(1);
+#endif
+        break;
       case OPT_BOOT_HARTID:
         boot_hartid = strtoull(optarg, NULL, 0);
         boot_hartid_valid = true;
@@ -469,7 +667,7 @@ void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization. */
 
   /* Parse arguments. */
-  parse_args(argc, argv);
+  parse_args(argc, argv);//解析主镜像、磁盘、DTB、hartid、日志、difftest、QMP、GDB等参数
 
   /* Set random seed. */
   //初始化随机数种子
@@ -478,6 +676,9 @@ void init_monitor(int argc, char *argv[]) {
   //打开日志文件
   /* Open the log file. */
   init_log(log_file);
+
+  //设置磁盘backing/overlay路径，必须发生在init_device()前，否则磁盘设备不知道应该打开哪个文件
+#ifdef CONFIG_HAS_DISK
   if (block_file != NULL) {
     disk_set_image(block_file);
     Log("Block image requested: %s", block_file);
@@ -486,6 +687,7 @@ void init_monitor(int argc, char *argv[]) {
     disk_set_overlay(block_overlay_file);
     Log("Block overlay requested: %s", block_overlay_file);
   }
+#endif
 
   //初始化物理内存
   /* Initialize memory. */
@@ -497,7 +699,11 @@ void init_monitor(int argc, char *argv[]) {
   IFDEF(CONFIG_DEVICE, init_device());
 
   /* Perform ISA dependent initialization. */
-  init_isa();
+  init_isa();//先在RESET_VECTOR放一个内建测试镜像，再清空cpu/csr
+  //将cpu.pc = RESET_VECTOR,cpu.priv=m-mode,x0=0
+  //然后设置启动ABI
+  //a0/x10=boot hart id
+  //a1/x11 = dtb地址
   if (boot_hartid_valid) {
     cpu.gpr[10] = boot_hartid;
     Log("Boot argument a0/hartid = " FMT_WORD, boot_hartid);
@@ -506,6 +712,7 @@ void init_monitor(int argc, char *argv[]) {
     cpu.gpr[11] = boot_dtb;
     Log("Boot argument a1/dtb = " FMT_WORD, boot_dtb);
   }
+
   dump_machine_info_and_exit();
 
   /* Load the image to memory. This will overwrite the built-in image. */
@@ -513,6 +720,10 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize differential testing. */
   init_difftest(diff_so_file, img_size, difftest_port);
+  /* --load segments are part of the initial machine state, not DUT-only data. */
+  for (int i = 0; i < load_image_count; i++) {
+    difftest_sync_memory(load_images[i].addr, load_images[i].size);
+  }
 
   //调试器初始化
   /* Initialize the simple debugger. */
@@ -523,14 +734,16 @@ void init_monitor(int argc, char *argv[]) {
   //ELF_log调用
   IFDEF(CONFIG_FTRACE, init_ftrace(elf_file));
 
+  //初始化qmp
   if (qmp_wait_for_client_if_enabled()) {
     exit(0);
   }
+  //初始化gdb
   gdbstub_wait_for_client_if_enabled();
   run_monitor_cmds_and_exit();
 
   /* Display welcome message. */
-  welcome();
+  welcome();//初始化完成
 }
 #else // CONFIG_TARGET_AM
 static long load_img() {

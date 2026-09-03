@@ -17,7 +17,7 @@
 #include <utils.h>
 #include <utils/profile.h>
 #include <device/alarm.h>
-#ifndef CONFIG_TARGET_AM
+#ifdef NEMU_HAS_SDL
 #include <SDL2/SDL.h>
 #endif
 
@@ -43,8 +43,8 @@ void send_key(uint8_t, bool);
 void vga_update_screen();
 
 // 先按 guest 指令数做粗粒度节流，避免每条指令都查询一次宿主时间。
-// Ubuntu performance 配置会把该间隔调大；真正的可见刷新仍由下面的 60Hz host time gate 控制。
-#define DEVICE_UPDATE_CHECK_INTERVAL ((uint64_t)CONFIG_DEVICE_UPDATE_CHECK_INTERVAL)
+// policy header 会在 performance 构建中增大该间隔；真正的可见刷新仍由
+// 下面的 60Hz host time gate 控制。
 
 void device_update_after_inst(uint64_t retired) {
   static uint64_t skip = 0;
@@ -62,7 +62,7 @@ void device_update_after_inst(uint64_t retired) {
   // TB 批执行时一次可能退休多条指令，这里按 guest 指令数累计，
   // 让设备刷新频率保持原语义，同时避免 CPU 热路径每条指令都调用本函数。
   skip += retired;
-  if (skip < DEVICE_UPDATE_CHECK_INTERVAL) {
+  if (skip < (uint64_t)NEMU_DEVICE_UPDATE_CHECK_INTERVAL) {
     if (profile_on) {
       nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_SKIPS, 1);
     }
@@ -102,7 +102,7 @@ void device_update_after_inst(uint64_t retired) {
   IFDEF(CONFIG_HAS_GOLDFISH_RTC, goldfish_rtc_update());
   IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
-#ifndef CONFIG_TARGET_AM
+#ifdef NEMU_HAS_SDL
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
@@ -136,12 +136,13 @@ void device_update() {
 }
 
 void sdl_clear_event_queue() {
-#ifndef CONFIG_TARGET_AM
+#ifdef NEMU_HAS_SDL
   SDL_Event event;
   while (SDL_PollEvent(&event));
 #endif
 }
 
+//设备初始化
 void init_device() {
   IFDEF(CONFIG_TARGET_AM, ioe_init());
   init_map();

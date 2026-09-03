@@ -59,11 +59,14 @@ config RISCV_EXT_A
     实现自旋锁和原子变量，因此 Linux 平台配置需要显式打开。
 
 config RISCV_EXT_F
+  depends on !TARGET_AM
   bool "Enable F extension (single-precision floating point)"
   default n
   help
     控制 NEMU 是否接受浮点寄存器相关基础指令。Linux/Ubuntu 的
     rv64gc 用户态启动会通过内核 fstate 路径使用 F/D 寄存器搬运。
+    Abstract-Machine target 是 NEMU 自身的宿主构建目标，没有可用的
+    target-ABI SoftFloat 库；该目标保持整数解释器，不能选择 F/D。
 
 config RISCV_EXT_D
   depends on RISCV_EXT_F
@@ -89,13 +92,21 @@ config RISCV_EXT_C
     AM guest 编译参数同步追加 c。
 
 config SOC_SIM
-  depends on !RV64
-  bool "Enable ysyxSoC platform simulation map"
+  depends on ISA_riscv && !RV64 && !TARGET_AM
+  bool "Use the ysyxSoC platform profile"
   default n
   help
-    打开后，NEMU 在 paddr 层直接模拟当前 NPC/ysyxSoC 使用的 SoC 地址图
-    和最小设备窗口。该模型不依赖 CONFIG_DEVICE，可用于构建 NPC
-    difftest reference；默认关闭以免覆盖普通 AM/NEMU legacy 地址图。
+    选择 NEMU 内镜像的 ysyxSoC 物理地址图和设备组成。SOC UART、
+    SPI、GPIO、PS/2、MROM、VGA、flash 和 SDRAM 由该平台直接拥有，
+    不再实例化同地址的 generic IOMap 设备。该平台核心不依赖
+    CONFIG_DEVICE；CONFIG_DEVICE 在此模式下只用于显式选择不重叠的
+    NEMU service extension。外部 ysyxSoC 不含 CLINT/PLIC，UART 中断也未
+    接入 CPU，因此该 profile 不暴露这些 generic RISC-V 控制器；内部
+    instruction-time counter 只服务 time/timeh CSR。NEMU 主 PMEM 必须
+    精确承载 0x80000000
+    起始的 4 MiB PSRAM，而不是额外添加一块泛化内存。关闭时使用
+    generic NEMU 平台。该 profile 用于 native simulator 或 DiffTest
+    reference；NEMU 自身作为 Abstract-Machine 应用时不提供这套宿主模型。
 
 config RISCV_CLINT_HOST_TIME
   depends on RV64
@@ -347,7 +358,7 @@ config RISCV_PROGRESS_DEBUG_INTERVAL
     1e8 量级，既能观察卡点，又不会刷屏拖慢解释器。
 
 config RISCV_IRQ_DEBUG_LOG
-  depends on ISA_riscv && TARGET_NATIVE_ELF && TRACE && !PERFORMANCE
+  depends on ISA_riscv && TARGET_NATIVE_ELF && TRACE && !PERFORMANCE && !SOC_SIM
   bool "Enable RISC-V PLIC/IRQ debug logs"
   default n
   help
@@ -455,18 +466,31 @@ endmenu
 menu "Memory Configuration"
 
 config MBASE
-  hex "Memory base address"
+  hex "Memory base address" if !SOC_SIM
   default 0x0 if ISA_x86
+  default 0x80000000 if SOC_SIM
   default 0x80000000
+  help
+    generic profile 的主内存基址可配置；SOC_SIM 下该值固定为
+    ysyxSoC PSRAM 基址 0x80000000。generic RISC-V 的最终 PMEM 区间
+    不得与固定 CLINT/PLIC aperture 重叠；启动时会验证该机器地图。
 
 config MSIZE
-  hex "Memory size"
+  hex "Memory size" if !SOC_SIM
+  default 0x00400000 if SOC_SIM
   default 0x8000000
+  help
+    generic profile 的主内存容量可配置；SOC_SIM 下该值固定为
+    ysyxSoC PSRAM 容量 4 MiB。容量必须非零、不得导致物理地址回绕，
+    并与 MBASE 一起满足所选平台的固定地址所有权约束。
 
 config PC_RESET_OFFSET
-  hex "Offset of reset vector from the base of memory"
+  hex "Offset of reset vector from the base of memory" if !SOC_SIM
   default 0x100000 if ISA_x86
   default 0
+  help
+    generic profile 的复位向量相对主内存基址计算；SOC_SIM 的复位向量
+    固定为 ysyxSoC MROM 0x20000000，本选项在该 profile 下不参与语义。
 
 choice
   prompt "Physical memory definition"
@@ -521,27 +545,23 @@ menuconfig DEVICE
   bool "Devices"
   default n
   help
-    Provide device support for NEMU.
-
-config DEVICE_UPDATE_CHECK_INTERVAL
-  int "Guest instructions between host device polls"
-  range 1 4096
-  default 512 if PERFORMANCE
-  default 64
-  help
-    device_update_after_inst() 先按 retired 指令数节流，再按宿主时间维持约
-    60Hz 的串口/RTC/VGA/SDL 刷新语义。
+    Provide host-backed devices for NEMU.  In the ysyxSoC platform profile,
+    only explicitly selected, non-overlapping service extensions are exposed;
+    the SoC-owned devices are initialized by the platform itself.
 
 if DEVICE
 
 config DEVICE_MAP_LEGACY
+  depends on !SOC_SIM
   bool "Use legacy AM device map (0xa0000000 family)"
   default n
   help
-    默认使用 include/device/device_address.h 的统一 Linux/SoC 地址图；
-    仅封存的 RV32 旧目标需要切回 legacy AM 图。
+    generic profile 默认使用 platform/generic-map.h 中的现代 IOMap 地址图；
+    仅封存的 RV32 旧目标需要切回 legacy AM 图。SOC_SIM 使用独立的
+    platform/ysyxsoc-map.h，因此不会出现此选项。
 
 menuconfig HAS_SERIAL
+  depends on !SOC_SIM
   bool "Enable serial"
   default y
 
@@ -573,6 +593,7 @@ config SERIAL_INPUT_HOST_POLL_INTERVAL
 endif
 
 menuconfig HAS_TIMER
+  depends on !SOC_SIM
   bool "Enable timer"
   default n if ISA64 && !TARGET_AM
   default y
@@ -585,6 +606,7 @@ config RTC_PORT
 endif
 
 menuconfig HAS_KEYBOARD
+  depends on !SOC_SIM
   bool "Enable keyboard"
   default n if ISA64 && !TARGET_AM
   default y
@@ -597,6 +619,7 @@ config I8042_DATA_PORT
 endif
 
 menuconfig HAS_VGA
+  depends on !SOC_SIM
   bool "Enable VGA"
   default n if ISA64 && !TARGET_AM
   default y
@@ -623,6 +646,7 @@ endif
 
 if !TARGET_AM
 menuconfig HAS_AUDIO
+  depends on !SOC_SIM
   bool "Enable audio"
   default n if ISA64
   default y
@@ -639,6 +663,7 @@ config AUDIO_CTL_PORT
 endif
 
 menuconfig HAS_DISK
+  depends on !SOC_SIM
   bool "Enable disk"
   default y
 
@@ -651,27 +676,25 @@ config DISK_CTL_PORT
 config DISK_IMG_PATH
   string "The path of disk image"
   default ""
-
-config VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
-  bool "Skip empty virtio-blk async completion polls"
-  default y if PERFORMANCE
-  default n
-  help
-    空闲时用原子 pending flag 跳过 completion mutex；有完成项时仍由主线程
-    写回 guest PMEM/used ring 并触发 PLIC IRQ。
 endif
 
 menuconfig HAS_VIRTIO_RNG
+  depends on !SOC_SIM
   bool "Enable virtio-mmio random number generator"
   default n
 
 menuconfig HAS_VIRTIO_NET
+  depends on !SOC_SIM
   bool "Enable virtio-mmio network device"
   default n
 
 menuconfig HAS_GOLDFISH_RTC
+  depends on !SOC_SIM
   bool "Enable goldfish RTC"
   default n
+  help
+    Goldfish RTC 的 alarm 通过 generic RISC-V PLIC 投递。ysyxSoC profile
+    没有 PLIC，因此不会把这个设备作为无效的“可配置但不可投递”能力暴露。
 
 menuconfig HAS_SYSCON_RESET
   bool "Enable syscon reset/poweroff"
@@ -688,6 +711,7 @@ config SYSCON_REBOOT_VALUE
 endif
 
 menuconfig HAS_SDCARD
+  depends on !SOC_SIM
   bool "Enable sdcard"
   default n
 
@@ -703,22 +727,3 @@ endif
 endif
 
 endif
-
-
-menu "Miscellaneous"
-choice
-  depends on !TARGET_AM
-  prompt "Host timer"
-  default TIMER_GETTIMEOFDAY
-config TIMER_GETTIMEOFDAY
-  bool "gettimeofday"
-config TIMER_CLOCK_GETTIME
-  bool "clock_gettime"
-endchoice
-
-config RT_CHECK
-  depends on !PERFORMANCE
-  bool "Enable runtime checking"
-  default y
-
-endmenu

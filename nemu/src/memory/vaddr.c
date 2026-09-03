@@ -432,7 +432,11 @@ static inline bool vaddr_pmp_check_or_fault(VaddrTranslateResult *trans,
    * guest 可控的越界访存 (未支持分页模式导致 VA 当 PA、随机压测程序等) 只应产生精确异常，
    * 交给 guest 的 trap handler；这是把 NEMU 当 reference 跑不可信/随机程序 (rv64dv) 的可靠性前提。
    */
-  if (unlikely(!paddr_is_accessible(trans->paddr, len))) {
+  PaddrTransactionDirection direction = type == MEM_TYPE_IFETCH
+      ? PADDR_TRANSACTION_IFETCH
+      : (type == MEM_TYPE_WRITE
+          ? PADDR_TRANSACTION_WRITE : PADDR_TRANSACTION_READ);
+  if (unlikely(!paddr_transaction_valid(trans->paddr, len, direction))) {
     trans->host_addr = NULL;
     vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
     return false;
@@ -647,6 +651,9 @@ static inline void vaddr_notify_write_committed(VaddrTranslateResult trans, int 
 #endif
 }
 
+static bool vaddr_plan_precise_pmem_access(vaddr_t addr, int len, int type,
+    VaddrTranslateResult translations[8]);
+
 static inline word_t vaddr_read_one_translated(vaddr_t addr, int len, int type,
     VaddrTranslateResult trans) {
   vaddr_last_read_trace_record(addr, len, trans.paddr);
@@ -673,26 +680,31 @@ static inline void vaddr_write_one_translated(vaddr_t addr, int len, word_t data
   vaddr_write_trace_after_write(addr, len, data, trans, host_fast);
 }
 
-static bool vaddr_atomic_translate_checked(vaddr_t addr, int len, int type,
+static bool vaddr_atomic_translate_checked(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, int type,
     VaddrTranslateResult *trans) {
+  const int len = riscv_atomic_width_bytes(instruction);
   *trans = vaddr_translate_checked(addr, len, type);
   if (vaddr_fault_pending) return false;
   /*
-   * 原子能力属于物理区域属性。NEMU 当前只为 PMEM 声明完整 A 扩展，
-   * 对设备窗口 fail closed，避免 MMIO read/write 副作用被错误拼成 AMO。
+   * AMO/Rsrv 能力属于物理区域属性。普通访问合法不代表支持原子事务；
+   * 对设备窗口必须在任何 read/write 副作用前 fail closed。
    */
-  if (!paddr_supports_atomic(trans->paddr, len)) {
+  const RiscvAtomicPma pma = paddr_atomic_pma(trans->paddr, len);
+  if (!riscv_atomic_pma_allows(pma, instruction)) {
     vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
     return false;
   }
   return true;
 }
 
-bool vaddr_atomic_load_reserved(vaddr_t addr, int len,
-    word_t *value, paddr_t *paddr) {
+bool vaddr_atomic_load_reserved(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t *value, paddr_t *paddr) {
   vaddr_last_read_trace_clear();
   VaddrTranslateResult trans;
-  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_READ, &trans)) {
+  const int len = riscv_atomic_width_bytes(instruction);
+  if (!vaddr_atomic_translate_checked(
+          addr, instruction, MEM_TYPE_READ, &trans)) {
     return false;
   }
   *value = vaddr_read_one_translated(addr, len, MEM_TYPE_READ, trans);
@@ -700,17 +712,21 @@ bool vaddr_atomic_load_reserved(vaddr_t addr, int len,
   return true;
 }
 
-bool vaddr_atomic_store_conditional(vaddr_t addr, int len, word_t data,
-    bool reservation_valid, paddr_t reservation_paddr, bool *stored) {
+bool vaddr_atomic_store_conditional(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t data,
+    const RiscvLoadReservation *reservation, bool *stored) {
   VaddrTranslateResult trans;
+  const int len = riscv_atomic_width_bytes(instruction);
   /*
    * 即使 reservation 已失效，SC 退休前仍必须完成 store/AMO 权限检查；
    * 只有翻译和 PMA 均成功后，reservation 才决定是否真正提交写入。
    */
-  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_WRITE, &trans)) {
+  if (!vaddr_atomic_translate_checked(
+          addr, instruction, MEM_TYPE_WRITE, &trans)) {
     return false;
   }
-  *stored = reservation_valid && trans.paddr == reservation_paddr;
+  *stored = riscv_load_reservation_matches(
+      reservation, (uint64_t)trans.paddr, (uint8_t)len);
   if (*stored) {
     vaddr_write_one_translated(addr, len, data, trans);
     vaddr_gdbstub_watchpoint_after_access(addr, len, true);
@@ -718,15 +734,18 @@ bool vaddr_atomic_store_conditional(vaddr_t addr, int len, word_t data,
   return true;
 }
 
-bool vaddr_atomic_rmw(vaddr_t addr, int len, vaddr_atomic_compute_t compute,
-    const void *opaque, word_t *old_value) {
+bool vaddr_atomic_rmw(vaddr_t addr,
+    const RiscvAtomicInstruction *instruction, word_t source_value,
+    word_t *old_value) {
   vaddr_last_read_trace_clear();
   VaddrTranslateResult trans;
+  const int len = riscv_atomic_width_bytes(instruction);
   /*
    * AMO 的显式访问统一按 store/AMO 分类。一次写类型翻译同时验证页表写权限，
    * 再补读侧 PMP 权限；任何失败都报告 store/AMO fault，而不是 load fault。
    */
-  if (!vaddr_atomic_translate_checked(addr, len, MEM_TYPE_WRITE, &trans)) {
+  if (!vaddr_atomic_translate_checked(
+          addr, instruction, MEM_TYPE_WRITE, &trans)) {
     return false;
   }
 #ifdef CONFIG_ISA_riscv
@@ -738,7 +757,8 @@ bool vaddr_atomic_rmw(vaddr_t addr, int len, vaddr_atomic_compute_t compute,
 
   word_t old = vaddr_read_one_translated(addr, len, MEM_TYPE_WRITE, trans);
   vaddr_gdbstub_watchpoint_after_access(addr, len, false);
-  word_t data = compute(old, opaque);
+  word_t data = (word_t)riscv_atomic_compute_new_value(
+      instruction, (uint64_t)old, (uint64_t)source_value);
   vaddr_write_one_translated(addr, len, data, trans);
   vaddr_gdbstub_watchpoint_after_access(addr, len, true);
   *old_value = old;
@@ -749,9 +769,21 @@ static word_t vaddr_read_translated(vaddr_t addr, int len, int type) {
   vaddr_last_read_trace_clear();
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
     nemu_profile_count_if(NEMU_PROFILE_VADDR_CROSS_PAGE_READS, 1);
+    VaddrTranslateResult translations[8];
+    assert(len <= (int)ARRLEN(translations));
+    /*
+     * Crossing a virtual-page boundary requires a decomposed physical access.
+     * NEMU's fixed PMA grants that capability only to PMEM; no device region
+     * advertises a misaligned atomicity/decomposition contract.  Build the
+     * complete PMEM plan before the first byte is observed, so one scalar load
+     * can never become callbacks to two adjacent devices.
+     */
+    if (!vaddr_plan_precise_pmem_access(
+            addr, len, type, translations)) return 0;
     word_t ret = 0;
     for (int i = 0; i < len; i++) {
-      ret |= vaddr_read_translated(addr + i, 1, type) << (i * 8);
+      ret |= vaddr_read_one_translated(
+          addr + i, 1, type, translations[i]) << (i * 8);
     }
     return ret;
   }
@@ -823,17 +855,98 @@ word_t vaddr_read(vaddr_t addr, int len) {
   return vaddr_read_translated(addr, len, MEM_TYPE_READ);
 }
 
+/*
+ * 先按虚拟页片段验证整个 access，再展开为 byte-sized commit plan。
+ * 同页的 8-byte access 因此只接受一个覆盖全部 byte 的 PMP entry；跨页时
+ * 每个由 MMU 拆分的物理 access 也必须完整通过 PMP/PMA。
+ */
+static bool vaddr_plan_precise_pmem_access(vaddr_t addr, int len, int type,
+    VaddrTranslateResult translations[8]) {
+  assert(len > 0 && len <= 8);
+  const vaddr_t last = addr + (vaddr_t)len - 1;
+  if (last < addr) {
+    vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
+    return false;
+  }
+
+  int planned = 0;
+  while (planned < len) {
+    const vaddr_t fragment_addr = addr + planned;
+    int fragment_len = PAGE_SIZE - (int)(fragment_addr & PAGE_MASK);
+    if (fragment_len > len - planned) fragment_len = len - planned;
+
+    VaddrTranslateResult fragment = vaddr_translate_checked(
+        fragment_addr, fragment_len, type);
+    if (vaddr_fault_pending) return false;
+    const paddr_t fragment_last =
+        fragment.paddr + (paddr_t)fragment_len - 1;
+    if (fragment_last < fragment.paddr ||
+        !in_pmem(fragment.paddr) || !in_pmem(fragment_last)) {
+      vaddr_set_fault(vaddr_access_fault_cause_for_type(type), addr);
+      return false;
+    }
+
+    for (int i = 0; i < fragment_len; i++) {
+      translations[planned + i].paddr = fragment.paddr + (paddr_t)i;
+      translations[planned + i].host_addr = fragment.host_addr == NULL
+          ? NULL : fragment.host_addr + i;
+    }
+    planned += fragment_len;
+  }
+  return true;
+}
+
+/*
+ * RV32 的 XLEN-sized memory API 无法承载 D 扩展的 64-bit datum。对于这个
+ * 唯一更宽的情形，先得到完整翻译计划并明确要求 PMEM，再读取同一计划。
+ * 这样 page/PMP/PMA fault 发生在任何设备 read side effect 之前；uint64_t
+ * 上的移位也不会触发宿主 C 的 shift-width UB。
+ */
+static bool vaddr_read_wider_than_xlen(
+    vaddr_t addr, int len, uint64_t *value) {
+  assert(value != NULL);
+  assert(len == 8 && len > (int)sizeof(word_t));
+
+  VaddrTranslateResult translations[8];
+  vaddr_last_read_trace_clear();
+  /* 当前设备 PMA 没有声明 RV32 8-byte transaction；不能拆成伪 MMIO。 */
+  if (!vaddr_plan_precise_pmem_access(
+          addr, len, MEM_TYPE_READ, translations)) return false;
+
+  uint64_t result = 0;
+  for (int i = 0; i < len; i++) {
+    const uint64_t byte = (uint64_t)vaddr_read_one_translated(
+        addr + i, 1, MEM_TYPE_READ, translations[i]);
+    result |= byte << (i * 8);
+  }
+  *value = result;
+  return true;
+}
+
+bool vaddr_read_bits(vaddr_t addr, int len, uint64_t *value) {
+  assert(value != NULL);
+  assert(len == 1 || len == 2 || len == 4 || len == 8);
+  if (len <= (int)sizeof(word_t)) {
+    const word_t result = vaddr_read(addr, len);
+    if (vaddr_fault_pending) return false;
+    *value = (uint64_t)result;
+    return true;
+  }
+  return vaddr_read_wider_than_xlen(addr, len, value);
+}
+
 void vaddr_write(vaddr_t addr, int len, word_t data) {
   if (((addr & PAGE_MASK) + len) > PAGE_SIZE) {
     nemu_profile_count_if(NEMU_PROFILE_VADDR_CROSS_PAGE_WRITES, 1);
     VaddrTranslateResult translations[8];
     assert(len <= (int)ARRLEN(translations));
-    /* 跨页 store 必须先完成全部翻译，再真正写内存；否则后半截 page fault
-     * 会留下前半截写入，破坏 Linux demand paging 依赖的精确异常语义。 */
-    for (int i = 0; i < len; i++) {
-      translations[i] = vaddr_translate_checked(addr + i, 1, MEM_TYPE_WRITE);
-      if (vaddr_fault_pending) return;
-    }
+    /*
+     * Store 与 load 使用同一 PMA 原语：跨页分解只属于 PMEM，并且所有
+     * page/PMP/PMA 检查必须先完成，随后才提交第一个 byte。这样后半截
+     * fault 不会留下部分写入，也不会把一次 store 分发给两个设备。
+     */
+    if (!vaddr_plan_precise_pmem_access(
+            addr, len, MEM_TYPE_WRITE, translations)) return;
     for (int i = 0; i < len; i++) {
       vaddr_write_one_translated(addr + i, 1, data >> (i * 8), translations[i]);
     }
@@ -844,4 +957,30 @@ void vaddr_write(vaddr_t addr, int len, word_t data) {
   if (vaddr_fault_pending) return;
   vaddr_write_one_translated(addr, len, data, trans);
   vaddr_gdbstub_watchpoint_after_access(addr, len, true);
+}
+
+/* 与 read 对称：先验证完整 8-byte span，再做任何 byte write，保证精确异常。 */
+static bool vaddr_write_wider_than_xlen(
+    vaddr_t addr, int len, uint64_t value) {
+  assert(len == 8 && len > (int)sizeof(word_t));
+
+  VaddrTranslateResult translations[8];
+  if (!vaddr_plan_precise_pmem_access(
+          addr, len, MEM_TYPE_WRITE, translations)) return false;
+
+  for (int i = 0; i < len; i++) {
+    const word_t byte = (word_t)((value >> (i * 8)) & UINT64_C(0xff));
+    vaddr_write_one_translated(addr + i, 1, byte, translations[i]);
+  }
+  vaddr_gdbstub_watchpoint_after_access(addr, len, true);
+  return true;
+}
+
+bool vaddr_write_bits(vaddr_t addr, int len, uint64_t value) {
+  assert(len == 1 || len == 2 || len == 4 || len == 8);
+  if (len <= (int)sizeof(word_t)) {
+    vaddr_write(addr, len, (word_t)value);
+    return !vaddr_fault_pending;
+  }
+  return vaddr_write_wider_than_xlen(addr, len, value);
 }

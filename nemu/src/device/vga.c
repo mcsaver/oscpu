@@ -40,6 +40,34 @@ static uint32_t screen_size() {
 static void *vmem = NULL;
 static uint32_t *vgactl_port_base = NULL;
 
+static const IoRegisterDescriptor vga_control_registers[]
+    __attribute__((unused)) = {
+  {
+    .name = "geometry",
+    .first_offset = 0,
+    .last_offset = 3,
+    .stride = 4,
+    .width_mask = IO_WIDTH_4,
+    .direction_mask = IO_TRANSACTION_READ,
+    .naturally_aligned = true,
+  },
+  {
+    .name = "sync",
+    .first_offset = 4,
+    .last_offset = 7,
+    .stride = 4,
+    .width_mask = IO_WIDTH_4,
+    .direction_mask = IO_TRANSACTION_WRITE,
+    .naturally_aligned = true,
+  },
+};
+
+static const IoAccessPolicy vga_control_mmio_policy
+    __attribute__((unused)) = {
+  .registers = vga_control_registers,
+  .register_count = ARRLEN(vga_control_registers),
+};
+
 #ifdef CONFIG_VGA_SHOW_SCREEN
 #ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
@@ -99,7 +127,8 @@ void init_vga() {
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map ("vgactl", CONFIG_VGA_CTL_PORT, vgactl_port_base, 8, NULL);
 #else
-  add_mmio_map("vgactl", DEV_VGA_CTL_MMIO, vgactl_port_base, 8, NULL);
+  add_mmio_map_with_policy("vgactl", DEV_VGA_CTL_MMIO,
+      vgactl_port_base, 8, NULL, &vga_control_mmio_policy);
 #endif
 
   //分配一整块vmem，并映射到FB地址

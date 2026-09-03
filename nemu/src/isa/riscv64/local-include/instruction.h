@@ -2,6 +2,9 @@
 #define __RISCV64_INSTRUCTION_H__
 
 #include <common.h>
+#include <isa/riscv/atomic.h>
+#include <isa/riscv/compressed.h>
+#include <isa/riscv/floating.h>
 #include "privileged.h"
 
 /*
@@ -9,7 +12,8 @@
  *
  * RvInstructionClass 对应非特权规范中的指令大类，只用于选择执行章节；
  * RvOperation 对应手册中的具体 mnemonic。execute 层不得重新解释 opcode、
- * funct3 或 funct7。原始编码只保留给异常 tval、日志以及尚未迁移的扩展适配器。
+ * funct3 或 funct7。原始编码只保留为 decode-cache key 与非法指令 tval；
+ * 包括 M 与 Zba/Zbb/Zbc/Zbs 在内的所有实现均缓存完整语义描述符。
  */
 typedef enum {
   RV_INSTRUCTION_CLASS_ILLEGAL = 0,
@@ -18,6 +22,12 @@ typedef enum {
   RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD,
   RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
   RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+  RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+  RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+  RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+  RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE_WORD,
+  RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER,
+  RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER_WORD,
   RV_INSTRUCTION_CLASS_LOAD,
   RV_INSTRUCTION_CLASS_STORE,
   RV_INSTRUCTION_CLASS_BRANCH,
@@ -27,7 +37,6 @@ typedef enum {
   RV_INSTRUCTION_CLASS_SYSTEM,
   RV_INSTRUCTION_CLASS_FLOATING_POINT,
   RV_INSTRUCTION_CLASS_ATOMIC,
-  RV_INSTRUCTION_CLASS_EXTENSION_ADAPTER,
   RV_INSTRUCTION_CLASS_COUNT,
 } RvInstructionClass;
 
@@ -63,6 +72,68 @@ typedef enum {
   RV_OPERATION_SLLW,
   RV_OPERATION_SRLW,
   RV_OPERATION_SRAW,
+
+  /* RV64M multiplication and division instructions. */
+  RV_OPERATION_MUL,
+  RV_OPERATION_MULH,
+  RV_OPERATION_MULHSU,
+  RV_OPERATION_MULHU,
+  RV_OPERATION_DIV,
+  RV_OPERATION_DIVU,
+  RV_OPERATION_REM,
+  RV_OPERATION_REMU,
+  RV_OPERATION_MULW,
+  RV_OPERATION_DIVW,
+  RV_OPERATION_DIVUW,
+  RV_OPERATION_REMW,
+  RV_OPERATION_REMUW,
+
+  /* Zba/Zbb/Zbc/Zbs immediate instructions. */
+  RV_OPERATION_BSETI,
+  RV_OPERATION_BCLRI,
+  RV_OPERATION_BINVI,
+  RV_OPERATION_CLZ,
+  RV_OPERATION_CTZ,
+  RV_OPERATION_CPOP,
+  RV_OPERATION_SEXT_B,
+  RV_OPERATION_SEXT_H,
+  RV_OPERATION_RORI,
+  RV_OPERATION_BEXTI,
+  RV_OPERATION_ORC_B,
+  RV_OPERATION_REV8,
+  RV_OPERATION_SLLI_UW,
+  RV_OPERATION_CLZW,
+  RV_OPERATION_CTZW,
+  RV_OPERATION_CPOPW,
+  RV_OPERATION_RORIW,
+
+  /* Zba/Zbb/Zbc/Zbs register-register instructions. */
+  RV_OPERATION_SH1ADD,
+  RV_OPERATION_SH2ADD,
+  RV_OPERATION_SH3ADD,
+  RV_OPERATION_ANDN,
+  RV_OPERATION_ORN,
+  RV_OPERATION_XNOR,
+  RV_OPERATION_ROL,
+  RV_OPERATION_ROR,
+  RV_OPERATION_MIN,
+  RV_OPERATION_MINU,
+  RV_OPERATION_MAX,
+  RV_OPERATION_MAXU,
+  RV_OPERATION_CLMUL,
+  RV_OPERATION_CLMULR,
+  RV_OPERATION_CLMULH,
+  RV_OPERATION_BSET,
+  RV_OPERATION_BCLR,
+  RV_OPERATION_BEXT,
+  RV_OPERATION_BINV,
+  RV_OPERATION_ADD_UW,
+  RV_OPERATION_SH1ADD_UW,
+  RV_OPERATION_SH2ADD_UW,
+  RV_OPERATION_SH3ADD_UW,
+  RV_OPERATION_ZEXT_H,
+  RV_OPERATION_ROLW,
+  RV_OPERATION_RORW,
 
   /* RV64I loads and stores. */
   RV_OPERATION_LB,
@@ -105,65 +176,14 @@ typedef enum {
   RV_OPERATION_CSRRSI,
   RV_OPERATION_CSRRCI,
 
-  /* RV64C compressed instructions, named exactly as in the ISA manual. */
-  RV_OPERATION_C_ADDI4SPN,
-  RV_OPERATION_C_FLD,
-  RV_OPERATION_C_LW,
-  RV_OPERATION_C_LD,
-  RV_OPERATION_C_FSD,
-  RV_OPERATION_C_SW,
-  RV_OPERATION_C_SD,
-  RV_OPERATION_C_ADDI,
-  RV_OPERATION_C_ADDIW,
-  RV_OPERATION_C_LI,
-  RV_OPERATION_C_ADDI16SP,
-  RV_OPERATION_C_LUI,
-  RV_OPERATION_C_SRLI,
-  RV_OPERATION_C_SRAI,
-  RV_OPERATION_C_ANDI,
-  RV_OPERATION_C_SUB,
-  RV_OPERATION_C_XOR,
-  RV_OPERATION_C_OR,
-  RV_OPERATION_C_AND,
-  RV_OPERATION_C_SUBW,
-  RV_OPERATION_C_ADDW,
-  RV_OPERATION_C_J,
-  RV_OPERATION_C_BEQZ,
-  RV_OPERATION_C_BNEZ,
-  RV_OPERATION_C_SLLI,
-  RV_OPERATION_C_FLDSP,
-  RV_OPERATION_C_LWSP,
-  RV_OPERATION_C_LDSP,
-  RV_OPERATION_C_JR,
-  RV_OPERATION_C_MV,
-  RV_OPERATION_C_EBREAK,
-  RV_OPERATION_C_JALR,
-  RV_OPERATION_C_ADD,
-  RV_OPERATION_C_FSDSP,
-  RV_OPERATION_C_SWSP,
-  RV_OPERATION_C_SDSP,
-  RV_OPERATION_C_HINT,
+  /* 具体 C mnemonic 与寄存器文件保存在共享 compressed descriptor。 */
+  RV_OPERATION_COMPRESSED,
 
-  /*
-   * These adapters mark extensions whose internal decoder has not yet been
-   * split from its executor. They are explicit migration boundaries, not a
-   * second top-level interpreter and never live in decode_cache.c.
-   */
-  RV_OPERATION_BITMANIP_IMMEDIATE_ADAPTER,
-  RV_OPERATION_BITMANIP_IMMEDIATE_WORD_ADAPTER,
-  RV_OPERATION_M_EXTENSION_ADAPTER,
-  RV_OPERATION_M_EXTENSION_WORD_ADAPTER,
-  RV_OPERATION_BITMANIP_REGISTER_ADAPTER,
-  RV_OPERATION_BITMANIP_REGISTER_WORD_ADAPTER,
-  RV_OPERATION_FLOATING_LOAD_ADAPTER,
-  RV_OPERATION_FLOATING_STORE_ADAPTER,
-  RV_OPERATION_FMADD_ADAPTER,
-  RV_OPERATION_FMSUB_ADAPTER,
-  RV_OPERATION_FNMSUB_ADAPTER,
-  RV_OPERATION_FNMADD_ADAPTER,
-  RV_OPERATION_FLOATING_OPERATION_ADAPTER,
-  RV_OPERATION_ATOMIC_ADAPTER,
+  /* 具体 F/D mnemonic、寄存器文件与舍入字段保存在共享 floating descriptor。 */
+  RV_OPERATION_FLOATING,
 
+  /* 具体 LR/SC/AMO mnemonic、宽度与 aq/rl 保存在共享 atomic descriptor。 */
+  RV_OPERATION_ATOMIC,
   RV_OPERATION_COUNT,
 } RvOperation;
 
@@ -172,14 +192,15 @@ typedef struct {
   word_t immediate;
   RvInstructionClass instruction_class;
   RvOperation operation;
-  RiscvCsrInstruction csr;
+  RiscvSystemInstruction system;
   uint8_t length;
   uint8_t rd;
   uint8_t rs1;
   uint8_t rs2;
   uint8_t rs3;
-  uint8_t funct3;
-  uint8_t funct7;
+  RiscvAtomicInstruction atomic;
+  RiscvCompressedInstruction compressed;
+  RiscvFloatingInstruction floating;
 } RvDecodedInstruction;
 
 static inline bool rv_decode_cache_lookup(vaddr_t pc, uint32_t encoding,

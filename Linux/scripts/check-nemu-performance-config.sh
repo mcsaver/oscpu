@@ -6,6 +6,7 @@ config_path="${NEMU_CONFIG:-}"
 autoconf_path="${NEMU_AUTOCONF:-}"
 policy_header_path="${NEMU_POLICY_HEADER:-}"
 device_address_path="${NEMU_DEVICE_ADDRESS_HEADER:-}"
+generic_map_path="${NEMU_GENERIC_MAP_HEADER:-}"
 
 if [[ -z "$policy_header_path" ]]; then
   policy_header_path="$(dirname "$config_path")/include/nemu-config.h"
@@ -20,6 +21,14 @@ if [[ -z "$device_address_path" ]]; then
 fi
 if [[ ! -f "$device_address_path" ]]; then
   echo "missing NEMU device-address header: $device_address_path" >&2
+  exit 1
+fi
+
+if [[ -z "$generic_map_path" ]]; then
+  generic_map_path="$(dirname "$config_path")/include/platform/generic-map.h"
+fi
+if [[ ! -f "$generic_map_path" ]]; then
+  echo "missing NEMU generic platform map: $generic_map_path" >&2
   exit 1
 fi
 
@@ -40,12 +49,22 @@ require_header_value "$policy_header_path" NEMU_ENGINE_NAME '"interpreter"'
 require_header_value "$policy_header_path" NEMU_SYSTEM_MODE 1
 require_header_value "$policy_header_path" NEMU_RV64_DECODE_CACHE 1
 require_header_value "$policy_header_path" NEMU_RV64_DECODE_CACHE_ENTRIES 32768
-require_header_value "$device_address_path" DEV_SERIAL_MMIO 0x10000000
-require_header_value "$device_address_path" DEV_DISK_MMIO 0x10001000
-require_header_value "$device_address_path" DEV_VIRTIO_RNG_MMIO 0x10002000
-require_header_value "$device_address_path" DEV_GOLDFISH_RTC_MMIO 0x10003000
-require_header_value "$device_address_path" DEV_VIRTIO_NET_MMIO 0x10004000
-require_header_value "$device_address_path" DEV_SYSCON_RESET_MMIO 0x00100000
+require_header_value "$policy_header_path" NEMU_DEVICE_UPDATE_CHECK_INTERVAL 512u
+require_header_value "$policy_header_path" NEMU_HOST_TIMER_USES_MONOTONIC_CLOCK 1
+require_header_value "$policy_header_path" NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG 1
+# generic-map.h 是数值 ABI 真源；device_address.h 只允许保留兼容别名。
+require_header_value "$generic_map_path" NEMU_GENERIC_UART_BASE 0x10000000u
+require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_BLK_BASE 0x10001000u
+require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_RNG_BASE 0x10002000u
+require_header_value "$generic_map_path" NEMU_GENERIC_GOLDFISH_RTC_BASE 0x10003000u
+require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_NET_BASE 0x10004000u
+require_header_value "$generic_map_path" NEMU_GENERIC_SYSCON_RESET_BASE 0x00100000u
+require_header_value "$device_address_path" DEV_SERIAL_MMIO NEMU_GENERIC_UART_BASE
+require_header_value "$device_address_path" DEV_DISK_MMIO NEMU_GENERIC_VIRTIO_BLK_BASE
+require_header_value "$device_address_path" DEV_VIRTIO_RNG_MMIO NEMU_GENERIC_VIRTIO_RNG_BASE
+require_header_value "$device_address_path" DEV_GOLDFISH_RTC_MMIO NEMU_GENERIC_GOLDFISH_RTC_BASE
+require_header_value "$device_address_path" DEV_VIRTIO_NET_MMIO NEMU_GENERIC_VIRTIO_NET_BASE
+require_header_value "$device_address_path" DEV_SYSCON_RESET_MMIO NEMU_GENERIC_SYSCON_RESET_BASE
 echo "__NEMU_FIXED_POLICY__:ok"
 
 if [[ "$require_perf" != "1" ]]; then
@@ -127,16 +146,12 @@ require_config_enabled CONFIG_INTERPRETER_IFETCH_PAGE_CACHE
 require_autoconf_define CONFIG_INTERPRETER_IFETCH_PAGE_CACHE
 require_config_enabled CONFIG_INTERPRETER_INTR_FAST_FLAG
 require_autoconf_define CONFIG_INTERPRETER_INTR_FAST_FLAG
-require_config_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
-require_autoconf_value CONFIG_DEVICE_UPDATE_CHECK_INTERVAL 512
 require_config_enabled CONFIG_HAS_SERIAL
 require_autoconf_define CONFIG_HAS_SERIAL
 require_config_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
 require_autoconf_value CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL 4
 require_config_enabled CONFIG_HAS_DISK
 require_autoconf_define CONFIG_HAS_DISK
-require_config_enabled CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
-require_autoconf_define CONFIG_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
 require_config_enabled CONFIG_HAS_VIRTIO_RNG
 require_autoconf_define CONFIG_HAS_VIRTIO_RNG
 require_config_enabled CONFIG_HAS_GOLDFISH_RTC
@@ -160,7 +175,6 @@ debug_opts=(
   CONFIG_BPU
   CONFIG_STATISTIC
   CONFIG_CACHE_STATISTIC
-  CONFIG_RT_CHECK
   CONFIG_CC_ASAN
   CONFIG_MEM_RANDOM
   CONFIG_RISCV_DEBUG_LOG

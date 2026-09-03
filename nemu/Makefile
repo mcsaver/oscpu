@@ -13,6 +13,13 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
+# Capture the top-level Makefile location now.  A recursive `?=` expression
+# would re-evaluate `lastword(MAKEFILE_LIST)` after filelist.mk inclusions and
+# could silently turn NEMU_HOME into a source subdirectory.
+ifeq ($(origin NEMU_HOME), undefined)
+NEMU_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+endif
+
 ##作用：检查$(NEMU_HOME)/src/nemu-main.c是否存在，如果不存在，报错并终止构建，防止在错误目录下进行操作
 ##wildcard :是GNU Make的一个内置函数，用于通配符匹配文件名，即在Makefile中查找符合某种模式的文件，并且返回他们的列表
 ##wildcard会检查$(NEMU_HOME)/src/nemu-main.c是否存在
@@ -100,16 +107,38 @@ LDFLAGS += $(CFLAGS_BUILD)
 # Include rules for menuconfig
 include $(NEMU_HOME)/scripts/config.mk
 
+.PHONY: unit-tests
+unit-tests:
+	$(MAKE) -C $(NEMU_HOME)/tests check
+
 ifdef CONFIG_TARGET_AM
 include $(AM_HOME)/Makefile
 LINKAGE += $(ARCHIVES)
 else
 # Include rules to build NEMU
-# Berkeley SoftFloat (RISC-V specialization) — NEMU RV64 FP 金标准, 从工作区级 tool/ 链接(独立于子工程)
-ifeq ($(GUEST_ISA),riscv64)
+# Berkeley SoftFloat is the executable F/D semantics for both RV32 and RV64.
+# Its upstream build directory is also used by other projects and all
+# specializations share the same object names.  Build the RISC-V specialization
+# in a NEMU-private directory so an 8086 archive can never be mistaken for the
+# architecture semantics selected here.
+ifeq ($(CONFIG_RISCV_EXT_F),y)
 SOFTFLOAT_HOME := $(YSYX_HOME)/tool/softfloat
+SOFTFLOAT_BUILD_TEMPLATE := $(SOFTFLOAT_HOME)/build/Linux-x86_64-GCC
+SOFTFLOAT_NEMU_BUILD_DIR := $(NEMU_HOME)/build/softfloat-RISCV
+SOFTFLOAT_LIB := $(SOFTFLOAT_NEMU_BUILD_DIR)/softfloat.a
+SOFTFLOAT_INPUTS := $(shell find $(SOFTFLOAT_HOME)/source -type f) \
+  $(SOFTFLOAT_BUILD_TEMPLATE)/Makefile \
+  $(SOFTFLOAT_BUILD_TEMPLATE)/platform.h
 INC_PATH += $(SOFTFLOAT_HOME)/source/include
-LIBS += $(SOFTFLOAT_HOME)/build/Linux-x86_64-GCC/softfloat.a
+ARCHIVES += $(SOFTFLOAT_LIB)
+
+$(SOFTFLOAT_LIB): $(SOFTFLOAT_INPUTS)
+	@mkdir -p $(SOFTFLOAT_NEMU_BUILD_DIR)
+	@cp $(SOFTFLOAT_BUILD_TEMPLATE)/platform.h \
+	  $(SOFTFLOAT_NEMU_BUILD_DIR)/platform.h
+	$(MAKE) -C $(SOFTFLOAT_NEMU_BUILD_DIR) \
+	  -f $(SOFTFLOAT_BUILD_TEMPLATE)/Makefile \
+	  SOURCE_DIR=$(SOFTFLOAT_HOME)/source SPECIALIZE_TYPE=RISCV
 endif
 include $(NEMU_HOME)/scripts/native.mk
 endif

@@ -1,76 +1,100 @@
-/* RV64M 乘除扩展。 */
+/* RV64M result semantics after opcode/funct fields have been decoded once. */
 
 #ifdef CONFIG_RISCV_EXT_M
-/* RVM 扩展：乘除相关编码集中在一个入口。关闭 Kconfig 后整组编码自然非法。 */
-static inline bool exec_rvm_op(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  if (funct7 != 0x01) return false;
-
-  switch (funct3) {
-    case 0x0: { // mul
-      R(rd) = (word_t)((unsigned __int128)src1 * (unsigned __int128)src2);
+static inline bool rv_multiply_divide_result(
+    RvOperation operation, word_t dividend, word_t divisor,
+    word_t *result) {
+  switch (operation) {
+    case RV_OPERATION_MUL:
+      *result = (word_t)((unsigned __int128)dividend * divisor);
+      return true;
+    case RV_OPERATION_MULH: {
+      const __int128 product =
+          (__int128)(sword_t)dividend * (__int128)(sword_t)divisor;
+      *result = (word_t)((unsigned __int128)product >> XLEN_BITS);
       return true;
     }
-    case 0x1: { // mulh
-      __int128 prod = (__int128)(sword_t)src1 * (__int128)(sword_t)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
+    case RV_OPERATION_MULHSU: {
+      const __int128 product =
+          (__int128)(sword_t)dividend * (__int128)divisor;
+      *result = (word_t)((unsigned __int128)product >> XLEN_BITS);
       return true;
     }
-    case 0x2: { // mulhsu
-      __int128 prod = (__int128)(sword_t)src1 * (__int128)(unsigned __int128)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
+    case RV_OPERATION_MULHU: {
+      const unsigned __int128 product =
+          (unsigned __int128)dividend * (unsigned __int128)divisor;
+      *result = (word_t)(product >> XLEN_BITS);
       return true;
     }
-    case 0x3: { // mulhu
-      unsigned __int128 prod = (unsigned __int128)src1 * (unsigned __int128)src2;
-      R(rd) = (word_t)(prod >> XLEN_BITS);
+    case RV_OPERATION_DIV:
+      if (divisor == 0) {
+        *result = (word_t)-1;
+      } else if (dividend == WORD_SIGN_BIT && divisor == (word_t)-1) {
+        *result = WORD_SIGN_BIT;
+      } else {
+        *result = (word_t)((sword_t)dividend / (sword_t)divisor);
+      }
       return true;
-    }
-    case 0x4: // div
-      if (src2 == 0) R(rd) = (word_t)-1;
-      else if (src1 == WORD_SIGN_BIT && src2 == (word_t)-1) R(rd) = WORD_SIGN_BIT;
-      else R(rd) = (sword_t)src1 / (sword_t)src2;
+    case RV_OPERATION_DIVU:
+      *result = divisor == 0 ? (word_t)-1 : dividend / divisor;
       return true;
-    case 0x5: // divu
-      R(rd) = (src2 == 0) ? (word_t)-1 : src1 / src2;
+    case RV_OPERATION_REM:
+      if (divisor == 0) {
+        *result = dividend;
+      } else if (dividend == WORD_SIGN_BIT && divisor == (word_t)-1) {
+        *result = 0;
+      } else {
+        *result = (word_t)((sword_t)dividend % (sword_t)divisor);
+      }
       return true;
-    case 0x6: // rem
-      if (src2 == 0) R(rd) = src1;
-      else if (src1 == WORD_SIGN_BIT && src2 == (word_t)-1) R(rd) = 0;
-      else R(rd) = (sword_t)src1 % (sword_t)src2;
-      return true;
-    case 0x7: // remu
-      R(rd) = (src2 == 0) ? src1 : src1 % src2;
+    case RV_OPERATION_REMU:
+      *result = divisor == 0 ? dividend : dividend % divisor;
       return true;
     default:
       return false;
   }
 }
 
-static inline bool exec_rvm_op_32(uint32_t funct3, uint32_t funct7, int rd, word_t src1, word_t src2) {
-  if (!ISDEF(CONFIG_ISA64) || funct7 != 0x01) return false;
+static inline bool rv_multiply_divide_word_result(
+    RvOperation operation, word_t dividend, word_t divisor,
+    word_t *result) {
+  const uint32_t dividend_u32 = (uint32_t)dividend;
+  const uint32_t divisor_u32 = (uint32_t)divisor;
+  const int32_t dividend_i32 = (int32_t)dividend_u32;
+  const int32_t divisor_i32 = (int32_t)divisor_u32;
 
-  uint32_t a = src1;
-  uint32_t b = src2;
-  int32_t sa = (int32_t)a;
-  int32_t sb = (int32_t)b;
-
-  switch (funct3) {
-    case 0x0: R(rd) = sext32((uint32_t)((int64_t)sa * (int64_t)sb)); return true; // mulw
-    case 0x4: // divw
-      if (b == 0) R(rd) = (word_t)-1;
-      else if (a == 0x80000000u && b == 0xffffffffu) R(rd) = sext32(0x80000000u);
-      else R(rd) = sext32((uint32_t)(sa / sb));
+  switch (operation) {
+    case RV_OPERATION_MULW:
+      *result = sext32((uint32_t)(
+          (int64_t)dividend_i32 * (int64_t)divisor_i32));
       return true;
-    case 0x5: // divuw
-      R(rd) = (b == 0) ? (word_t)-1 : sext32(a / b);
+    case RV_OPERATION_DIVW:
+      if (divisor_u32 == 0) {
+        *result = sext32(UINT32_MAX);
+      } else if (dividend_u32 == UINT32_C(0x80000000) &&
+                 divisor_u32 == UINT32_MAX) {
+        *result = sext32(UINT32_C(0x80000000));
+      } else {
+        *result = sext32((uint32_t)(dividend_i32 / divisor_i32));
+      }
       return true;
-    case 0x6: // remw
-      if (b == 0) R(rd) = sext32(a);
-      else if (a == 0x80000000u && b == 0xffffffffu) R(rd) = 0;
-      else R(rd) = sext32((uint32_t)(sa % sb));
+    case RV_OPERATION_DIVUW:
+      *result = sext32(
+          divisor_u32 == 0 ? UINT32_MAX : dividend_u32 / divisor_u32);
       return true;
-    case 0x7: // remuw
-      R(rd) = (b == 0) ? sext32(a) : sext32(a % b);
+    case RV_OPERATION_REMW:
+      if (divisor_u32 == 0) {
+        *result = sext32(dividend_u32);
+      } else if (dividend_u32 == UINT32_C(0x80000000) &&
+                 divisor_u32 == UINT32_MAX) {
+        *result = 0;
+      } else {
+        *result = sext32((uint32_t)(dividend_i32 % divisor_i32));
+      }
+      return true;
+    case RV_OPERATION_REMUW:
+      *result = sext32(
+          divisor_u32 == 0 ? dividend_u32 : dividend_u32 % divisor_u32);
       return true;
     default:
       return false;

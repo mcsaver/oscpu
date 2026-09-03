@@ -970,6 +970,13 @@ static uint64_t execute_one_or_block(uint64_t n) {
   return 1;
 }
 
+//cpu外层循环
+//QMP pause point
+//GDB Ctrl-c/执行断电
+//查询并投递异步中断
+//执行一条指令或一个TB
+//扣减退休额度
+//推进设备
 static void execute(uint64_t n) {
   while (n > 0 && nemu_state.state == NEMU_RUNNING) {
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
@@ -982,6 +989,9 @@ static void execute(uint64_t n) {
     if (debug_breakpoint_stop()) break;
 
     word_t intr = INTR_EMPTY;
+
+    //若此时存在中断，isa_query_intr找到中断原因，isa_query_intr更新mepc/mcause/mstatus/priv等状态
+    //并将cpu.pc改为trap vector，随后同一轮开始执行异常处理程序的第一条指令
 #ifdef CONFIG_INTERPRETER_INTR_FAST_FLAG
     if (isa_riscv_intr_pending_fast()) {
       intr = isa_query_intr();
@@ -1034,6 +1044,21 @@ void assert_fail_msg() {
 }
 
 /* Simulate how the CPU works. */
+//核心入口
+//状态变化：
+//STOP-cpu_exec-->RUNNING
+//RUNNING--额度耗尽-->STOP
+//RUNNING--断点/监视点-->STOP
+//RUNNING--正常结束-->END
+//RUNNING--内部错误/Difftest失败-->ABORT
+//任意非中止状态--q/QMP/SDL-->QUIT
+//cpu_exec(n)工作流：
+//1.拒绝执行已经end/abort/quit的机器
+//2.将状态设为RUNNING
+//3.调用execute(n)
+//4.统计宿主耗时和guest指令数
+//5.如果只是执行满了N条，把状态改回STOP
+//6.根据END/ABORT输出good trap、bad trap或错误信息
 void cpu_exec(uint64_t n) {
   //判断n是否小于MAX_INST_TO_PRINT，如果是开启g_print_step，这会让后续执行的时候打印每条指令的汇编消息
   //用于si单步调试

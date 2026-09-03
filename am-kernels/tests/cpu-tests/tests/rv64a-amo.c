@@ -126,7 +126,7 @@ static void check_lr_sc(void) {
   check(status != 0);
   check(lrsc_words[0] == 0x8877665544332211ul);
 
-  // reservation 范围内的普通 store 会使随后 SC 失败。
+  // NEMU 固定策略：同 hart 普通 store 与 reservation 重叠时主动失效。
   value = 0xa5a5a5a5a5a5a5a5ul;
   asm volatile(
       "lr.d %0, (%2)\n"
@@ -137,6 +137,30 @@ static void check_lr_sc(void) {
       : "memory");
   check(status != 0);
   check(lrsc_words[0] == value);
+
+  // word reservation 内任意一个 byte 的普通写也属于物理范围重叠。
+  lrsc_words[0] = 0x11223344ul;
+  asm volatile(
+      "lr.w %0, (%2)\n"
+      "sb %3, 1(%2)\n"
+      "sc.w %1, %4, (%2)"
+      : "=&r"(old), "=&r"(status)
+      : "r"(&lrsc_words[0]), "r"(0xaaul), "r"(0x55667788ul)
+      : "memory");
+  check(status != 0);
+  check(lrsc_words[0] == 0x1122aa44ul);
+
+  // doubleword reservation 内的 word store 同样按重叠范围失效。
+  lrsc_words[0] = 0x1122334455667788ul;
+  asm volatile(
+      "lr.d %0, (%2)\n"
+      "sw %3, 0(%2)\n"
+      "sc.d %1, %4, (%2)"
+      : "=&r"(old), "=&r"(status)
+      : "r"(&lrsc_words[0]), "r"(0xaabbccddul), "r"(0x5aul)
+      : "memory");
+  check(status != 0);
+  check(lrsc_words[0] == 0x11223344aabbccddul);
 
   // LR.W 的旧值必须符号扩展；不同宽度的 SC 不匹配同一 reservation。
   lrsc_words[0] = 0x0000000080000001ul;
@@ -198,7 +222,22 @@ static void check_atomic_faults(void) {
       : "=r"(ignored) : "r"(misaligned_word) : "t0", "t1", "memory");
   check_trap(EXC_LOAD_MISALIGNED, misaligned_word);
 
-  // 即使 SC 因地址异常没有退休，也不能让 trap 前的 reservation 泄漏出去。
+  clear_trap_record();
+  asm volatile("sc.w %0, zero, (%1)"
+      : "=r"(status) : "r"(misaligned_word) : "t0", "t1", "memory");
+  check_trap(EXC_STORE_MISALIGNED, misaligned_word);
+
+  clear_trap_record();
+  asm volatile("amoadd.w %0, zero, (%1)"
+      : "=r"(ignored) : "r"(misaligned_word) : "t0", "t1", "memory");
+  check_trap(EXC_STORE_MISALIGNED, misaligned_word);
+
+  clear_trap_record();
+  asm volatile("lr.d %0, (%1)"
+      : "=r"(ignored) : "r"(misaligned_double) : "t0", "t1", "memory");
+  check_trap(EXC_LOAD_MISALIGNED, misaligned_double);
+
+  // faulting SC 清 reservation 是当前 NEMU 的固定实现策略，不是通用 ISA 强制。
   amo_double = 0x1234;
   asm volatile("lr.d %0, (%1)"
       : "=r"(ignored) : "r"(&amo_double) : "memory");
@@ -210,6 +249,11 @@ static void check_atomic_faults(void) {
       : "=r"(status) : "r"(&amo_double) : "memory");
   check(status != 0);
   check(amo_double == 0x1234);
+
+  clear_trap_record();
+  asm volatile("amoadd.d %0, zero, (%1)"
+      : "=r"(ignored) : "r"(misaligned_double) : "t0", "t1", "memory");
+  check_trap(EXC_STORE_MISALIGNED, misaligned_double);
 
   /*
    * 当前 NEMU PMA 明确把设备窗口声明为 AMONone/RsrvNone。尤其是无 reservation
@@ -253,7 +297,7 @@ static void check_atomic_faults(void) {
   check_trap(EXC_STORE_ACCESS_FAULT, pmp_target);
   check(amo_pmp_readonly == 0x5566778899aabbccul);
 
-  // 上一条 faulting SC 也必须清 reservation，不能回到原地址后意外成功。
+  // 按上述 NEMU policy，faulting SC 后回原地址也不得意外成功。
   asm volatile("sc.d %0, zero, (%1)"
       : "=r"(status) : "r"(&amo_double) : "memory");
   check(status != 0);

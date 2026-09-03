@@ -1,5 +1,13 @@
 /* 顶层取指、体系结构译码编排、异常收口和 isa_exec_once。 */
 
+//取值：
+//1.查询decode cache
+//2.miss的时候把原始编码译成RvDecodedInstruction
+//3.rv_execute_decoded_instruction()
+//访存/异常收口
+//得到dnpc
+
+
 static inline RvDecodedInstruction rv_decoded_instruction(uint32_t encoding) {
   return (RvDecodedInstruction) {
     .encoding = encoding,
@@ -11,49 +19,291 @@ static inline RvDecodedInstruction rv_decoded_instruction(uint32_t encoding) {
     .rs1 = RS1(encoding),
     .rs2 = RS2(encoding),
     .rs3 = RS3(encoding),
-    .funct3 = FUNCT3(encoding),
-    .funct7 = FUNCT7(encoding),
   };
 }
+
+static inline bool rv_decode_operation(
+    RvDecodedInstruction *instruction,
+    RvInstructionClass instruction_class,
+    RvOperation operation) {
+  instruction->instruction_class = instruction_class;
+  instruction->operation = operation;
+  return true;
+}
+
+#ifdef CONFIG_RISCV_EXT_M
+static inline bool rv_decode_multiply_divide(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  if (FUNCT7(encoding) != 0x01) return false;
+
+  switch (FUNCT3(encoding)) {
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_MUL);
+    case 0x1: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_MULH);
+    case 0x2: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_MULHSU);
+    case 0x3: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_MULHU);
+    case 0x4: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_DIV);
+    case 0x5: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_DIVU);
+    case 0x6: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_REM);
+    case 0x7: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
+        RV_OPERATION_REMU);
+    default: return false;
+  }
+}
+
+static inline bool rv_decode_multiply_divide_word(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  if (FUNCT7(encoding) != 0x01) return false;
+
+  switch (FUNCT3(encoding)) {
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+        RV_OPERATION_MULW);
+    case 0x4: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+        RV_OPERATION_DIVW);
+    case 0x5: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+        RV_OPERATION_DIVUW);
+    case 0x6: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+        RV_OPERATION_REMW);
+    case 0x7: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE_WORD,
+        RV_OPERATION_REMUW);
+    default: return false;
+  }
+}
+#endif
+
+#ifdef CONFIG_RISCV_EXT_B
+static inline bool rv_decode_bitmanip_immediate(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  const uint32_t funct3 = FUNCT3(encoding);
+  const uint32_t funct6 = BITS(encoding, 31, 26);
+  const uint32_t funct7 = FUNCT7(encoding);
+  const uint32_t immediate_5 = BITS(encoding, 24, 20);
+  const word_t shamt = BITS(encoding, 25, 20);
+  RvOperation operation = RV_OPERATION_ILLEGAL_INSTRUCTION;
+
+  if (funct3 == 0x1) {
+    switch (funct6) {
+      case 0x0a: operation = RV_OPERATION_BSETI; break;
+      case 0x12: operation = RV_OPERATION_BCLRI; break;
+      case 0x1a: operation = RV_OPERATION_BINVI; break;
+      default: break;
+    }
+    if (operation != RV_OPERATION_ILLEGAL_INSTRUCTION) {
+      instruction->immediate = shamt;
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+          operation);
+    }
+
+    if (funct7 == 0x30) {
+      switch (immediate_5) {
+        case 0x00: operation = RV_OPERATION_CLZ; break;
+        case 0x01: operation = RV_OPERATION_CTZ; break;
+        case 0x02: operation = RV_OPERATION_CPOP; break;
+        case 0x04: operation = RV_OPERATION_SEXT_B; break;
+        case 0x05: operation = RV_OPERATION_SEXT_H; break;
+        default: return false;
+      }
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+          operation);
+    }
+    return false;
+  }
+
+  if (funct3 != 0x5) return false;
+  switch (funct6) {
+    case 0x18:
+      instruction->immediate = shamt;
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+          RV_OPERATION_RORI);
+    case 0x12:
+      instruction->immediate = shamt;
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+          RV_OPERATION_BEXTI);
+    default:
+      break;
+  }
+
+  if (funct7 == 0x14 && immediate_5 == 0x07) {
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+        RV_OPERATION_ORC_B);
+  }
+  /* REV8 is the RV64 encoding imm[11:0]=0x6b8, not RV32's 0x698. */
+  if (funct7 == 0x35 && immediate_5 == 0x18) {
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE,
+        RV_OPERATION_REV8);
+  }
+  return false;
+}
+
+static inline bool rv_decode_bitmanip_immediate_word(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  const uint32_t funct3 = FUNCT3(encoding);
+  const uint32_t funct6 = BITS(encoding, 31, 26);
+  const uint32_t funct7 = FUNCT7(encoding);
+  const uint32_t immediate_5 = BITS(encoding, 24, 20);
+
+  if (funct3 == 0x1 && funct6 == 0x02) {
+    /* SLLI.UW is RV64-only and carries a full six-bit shift amount. */
+    instruction->immediate = BITS(encoding, 25, 20);
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE_WORD,
+        RV_OPERATION_SLLI_UW);
+  }
+  if (funct3 == 0x1 && funct7 == 0x30) {
+    RvOperation operation;
+    switch (immediate_5) {
+      case 0x00: operation = RV_OPERATION_CLZW; break;
+      case 0x01: operation = RV_OPERATION_CTZW; break;
+      case 0x02: operation = RV_OPERATION_CPOPW; break;
+      default: return false;
+    }
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE_WORD,
+        operation);
+  }
+  if (funct3 == 0x5 && funct7 == 0x30) {
+    instruction->immediate = immediate_5;
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_IMMEDIATE_WORD,
+        RV_OPERATION_RORIW);
+  }
+  return false;
+}
+
+static inline bool rv_decode_bitmanip_register(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  RvOperation operation;
+  switch (OP_KEY(FUNCT3(encoding), FUNCT7(encoding))) {
+    case OP_KEY(0x2, 0x10): operation = RV_OPERATION_SH1ADD; break;
+    case OP_KEY(0x4, 0x10): operation = RV_OPERATION_SH2ADD; break;
+    case OP_KEY(0x6, 0x10): operation = RV_OPERATION_SH3ADD; break;
+    case OP_KEY(0x7, 0x20): operation = RV_OPERATION_ANDN; break;
+    case OP_KEY(0x6, 0x20): operation = RV_OPERATION_ORN; break;
+    case OP_KEY(0x4, 0x20): operation = RV_OPERATION_XNOR; break;
+    case OP_KEY(0x1, 0x30): operation = RV_OPERATION_ROL; break;
+    case OP_KEY(0x5, 0x30): operation = RV_OPERATION_ROR; break;
+    case OP_KEY(0x4, 0x05): operation = RV_OPERATION_MIN; break;
+    case OP_KEY(0x5, 0x05): operation = RV_OPERATION_MINU; break;
+    case OP_KEY(0x6, 0x05): operation = RV_OPERATION_MAX; break;
+    case OP_KEY(0x7, 0x05): operation = RV_OPERATION_MAXU; break;
+    case OP_KEY(0x1, 0x05): operation = RV_OPERATION_CLMUL; break;
+    case OP_KEY(0x2, 0x05): operation = RV_OPERATION_CLMULR; break;
+    case OP_KEY(0x3, 0x05): operation = RV_OPERATION_CLMULH; break;
+    case OP_KEY(0x1, 0x14): operation = RV_OPERATION_BSET; break;
+    case OP_KEY(0x1, 0x24): operation = RV_OPERATION_BCLR; break;
+    case OP_KEY(0x5, 0x24): operation = RV_OPERATION_BEXT; break;
+    case OP_KEY(0x1, 0x34): operation = RV_OPERATION_BINV; break;
+    default: return false;
+  }
+  return rv_decode_operation(
+      instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER,
+      operation);
+}
+
+static inline bool rv_decode_bitmanip_register_word(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  RvOperation operation;
+  switch (OP_KEY(FUNCT3(encoding), FUNCT7(encoding))) {
+    case OP_KEY(0x0, 0x04): operation = RV_OPERATION_ADD_UW; break;
+    case OP_KEY(0x2, 0x10): operation = RV_OPERATION_SH1ADD_UW; break;
+    case OP_KEY(0x4, 0x10): operation = RV_OPERATION_SH2ADD_UW; break;
+    case OP_KEY(0x6, 0x10): operation = RV_OPERATION_SH3ADD_UW; break;
+    case OP_KEY(0x4, 0x04):
+      /* RV64 ZEXT.H is OP-32 with rs2=x0. */
+      if (RS2(encoding) != 0) return false;
+      operation = RV_OPERATION_ZEXT_H;
+      break;
+    case OP_KEY(0x1, 0x30): operation = RV_OPERATION_ROLW; break;
+    case OP_KEY(0x5, 0x30): operation = RV_OPERATION_RORW; break;
+    default: return false;
+  }
+  return rv_decode_operation(
+      instruction, RV_INSTRUCTION_CLASS_BIT_MANIPULATION_REGISTER_WORD,
+      operation);
+}
+#endif
 
 static inline bool rv_decode_integer_immediate(
     uint32_t encoding, RvDecodedInstruction *instruction) {
   const uint32_t funct3 = FUNCT3(encoding);
   const uint32_t funct6 = BITS(encoding, 31, 26);
 
-  instruction->instruction_class =
-      RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE;
   instruction->immediate = IMM_I(encoding);
 
   switch (funct3) {
-    case 0x0: instruction->operation = RV_OPERATION_ADDI; return true;
-    case 0x2: instruction->operation = RV_OPERATION_SLTI; return true;
-    case 0x3: instruction->operation = RV_OPERATION_SLTIU; return true;
-    case 0x4: instruction->operation = RV_OPERATION_XORI; return true;
-    case 0x6: instruction->operation = RV_OPERATION_ORI; return true;
-    case 0x7: instruction->operation = RV_OPERATION_ANDI; return true;
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_ADDI);
+    case 0x2: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_SLTI);
+    case 0x3: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_SLTIU);
+    case 0x4: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_XORI);
+    case 0x6: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_ORI);
+    case 0x7: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+        RV_OPERATION_ANDI);
     case 0x1:
       if (funct6 == 0x00) {
-        instruction->operation = RV_OPERATION_SLLI;
         instruction->immediate = BITS(encoding, 25, 20);
-        return true;
+        return rv_decode_operation(
+            instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+            RV_OPERATION_SLLI);
       }
-      return false;
+      break;
     case 0x5:
       if (funct6 == 0x00) {
-        instruction->operation = RV_OPERATION_SRLI;
         instruction->immediate = BITS(encoding, 25, 20);
-        return true;
+        return rv_decode_operation(
+            instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+            RV_OPERATION_SRLI);
       }
       if (funct6 == 0x10) {
-        instruction->operation = RV_OPERATION_SRAI;
         instruction->immediate = BITS(encoding, 25, 20);
-        return true;
+        return rv_decode_operation(
+            instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE,
+            RV_OPERATION_SRAI);
       }
-      return false;
+      break;
     default:
-      return false;
+      break;
   }
+#ifdef CONFIG_RISCV_EXT_B
+  return rv_decode_bitmanip_immediate(encoding, instruction);
+#else
+  return false;
+#endif
 }
 
 static inline bool rv_decode_integer_immediate_word(
@@ -61,128 +311,183 @@ static inline bool rv_decode_integer_immediate_word(
   const uint32_t funct3 = FUNCT3(encoding);
   const uint32_t funct7 = FUNCT7(encoding);
 
-  instruction->instruction_class =
-      RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD;
-
   if (funct3 == 0x0) {
-    instruction->operation = RV_OPERATION_ADDIW;
     instruction->immediate = IMM_I(encoding);
-    return true;
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD,
+        RV_OPERATION_ADDIW);
   }
   if (funct3 == 0x1 && funct7 == 0x00) {
-    instruction->operation = RV_OPERATION_SLLIW;
     instruction->immediate = BITS(encoding, 24, 20);
-    return true;
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD,
+        RV_OPERATION_SLLIW);
   }
   if (funct3 == 0x5 && funct7 == 0x00) {
-    instruction->operation = RV_OPERATION_SRLIW;
     instruction->immediate = BITS(encoding, 24, 20);
-    return true;
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD,
+        RV_OPERATION_SRLIW);
   }
   if (funct3 == 0x5 && funct7 == 0x20) {
-    instruction->operation = RV_OPERATION_SRAIW;
     instruction->immediate = BITS(encoding, 24, 20);
-    return true;
+    return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_IMMEDIATE_WORD,
+        RV_OPERATION_SRAIW);
   }
+#ifdef CONFIG_RISCV_EXT_B
+  return rv_decode_bitmanip_immediate_word(encoding, instruction);
+#else
   return false;
+#endif
 }
 
 static inline bool rv_decode_integer_register(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class =
-      RV_INSTRUCTION_CLASS_INTEGER_REGISTER;
-
   switch (OP_KEY(FUNCT3(encoding), FUNCT7(encoding))) {
-    case OP_KEY(0x0, 0x00): instruction->operation = RV_OPERATION_ADD; return true;
-    case OP_KEY(0x0, 0x20): instruction->operation = RV_OPERATION_SUB; return true;
-    case OP_KEY(0x1, 0x00): instruction->operation = RV_OPERATION_SLL; return true;
-    case OP_KEY(0x2, 0x00): instruction->operation = RV_OPERATION_SLT; return true;
-    case OP_KEY(0x3, 0x00): instruction->operation = RV_OPERATION_SLTU; return true;
-    case OP_KEY(0x4, 0x00): instruction->operation = RV_OPERATION_XOR; return true;
-    case OP_KEY(0x5, 0x00): instruction->operation = RV_OPERATION_SRL; return true;
-    case OP_KEY(0x5, 0x20): instruction->operation = RV_OPERATION_SRA; return true;
-    case OP_KEY(0x6, 0x00): instruction->operation = RV_OPERATION_OR; return true;
-    case OP_KEY(0x7, 0x00): instruction->operation = RV_OPERATION_AND; return true;
-    default: return false;
+    case OP_KEY(0x0, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_ADD);
+    case OP_KEY(0x0, 0x20): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SUB);
+    case OP_KEY(0x1, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SLL);
+    case OP_KEY(0x2, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SLT);
+    case OP_KEY(0x3, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SLTU);
+    case OP_KEY(0x4, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_XOR);
+    case OP_KEY(0x5, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SRL);
+    case OP_KEY(0x5, 0x20): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_SRA);
+    case OP_KEY(0x6, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_OR);
+    case OP_KEY(0x7, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER,
+        RV_OPERATION_AND);
+    default: break;
   }
+#ifdef CONFIG_RISCV_EXT_M
+  if (rv_decode_multiply_divide(encoding, instruction)) return true;
+#endif
+#ifdef CONFIG_RISCV_EXT_B
+  if (rv_decode_bitmanip_register(encoding, instruction)) return true;
+#endif
+  return false;
 }
 
 static inline bool rv_decode_integer_register_word(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class =
-      RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD;
-
   switch (OP_KEY(FUNCT3(encoding), FUNCT7(encoding))) {
-    case OP_KEY(0x0, 0x00): instruction->operation = RV_OPERATION_ADDW; return true;
-    case OP_KEY(0x0, 0x20): instruction->operation = RV_OPERATION_SUBW; return true;
-    case OP_KEY(0x1, 0x00): instruction->operation = RV_OPERATION_SLLW; return true;
-    case OP_KEY(0x5, 0x00): instruction->operation = RV_OPERATION_SRLW; return true;
-    case OP_KEY(0x5, 0x20): instruction->operation = RV_OPERATION_SRAW; return true;
-    default: return false;
+    case OP_KEY(0x0, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+        RV_OPERATION_ADDW);
+    case OP_KEY(0x0, 0x20): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+        RV_OPERATION_SUBW);
+    case OP_KEY(0x1, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+        RV_OPERATION_SLLW);
+    case OP_KEY(0x5, 0x00): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+        RV_OPERATION_SRLW);
+    case OP_KEY(0x5, 0x20): return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_INTEGER_REGISTER_WORD,
+        RV_OPERATION_SRAW);
+    default: break;
   }
+#ifdef CONFIG_RISCV_EXT_B
+  if (rv_decode_bitmanip_register_word(encoding, instruction)) return true;
+#endif
+#ifdef CONFIG_RISCV_EXT_M
+  if (rv_decode_multiply_divide_word(encoding, instruction)) return true;
+#endif
+  return false;
 }
 
 static inline bool rv_decode_load(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class = RV_INSTRUCTION_CLASS_LOAD;
   instruction->immediate = IMM_I(encoding);
 
   switch (FUNCT3(encoding)) {
-    case 0x0: instruction->operation = RV_OPERATION_LB; return true;
-    case 0x1: instruction->operation = RV_OPERATION_LH; return true;
-    case 0x2: instruction->operation = RV_OPERATION_LW; return true;
-    case 0x3: instruction->operation = RV_OPERATION_LD; return true;
-    case 0x4: instruction->operation = RV_OPERATION_LBU; return true;
-    case 0x5: instruction->operation = RV_OPERATION_LHU; return true;
-    case 0x6: instruction->operation = RV_OPERATION_LWU; return true;
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LB);
+    case 0x1: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LH);
+    case 0x2: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LW);
+    case 0x3: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LD);
+    case 0x4: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LBU);
+    case 0x5: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LHU);
+    case 0x6: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_LOAD, RV_OPERATION_LWU);
     default: return false;
   }
 }
 
 static inline bool rv_decode_store(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class = RV_INSTRUCTION_CLASS_STORE;
   instruction->immediate = IMM_S(encoding);
 
   switch (FUNCT3(encoding)) {
-    case 0x0: instruction->operation = RV_OPERATION_SB; return true;
-    case 0x1: instruction->operation = RV_OPERATION_SH; return true;
-    case 0x2: instruction->operation = RV_OPERATION_SW; return true;
-    case 0x3: instruction->operation = RV_OPERATION_SD; return true;
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_STORE, RV_OPERATION_SB);
+    case 0x1: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_STORE, RV_OPERATION_SH);
+    case 0x2: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_STORE, RV_OPERATION_SW);
+    case 0x3: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_STORE, RV_OPERATION_SD);
     default: return false;
   }
 }
 
 static inline bool rv_decode_branch(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class = RV_INSTRUCTION_CLASS_BRANCH;
   instruction->immediate = IMM_B(encoding);
 
   switch (FUNCT3(encoding)) {
-    case 0x0: instruction->operation = RV_OPERATION_BEQ; return true;
-    case 0x1: instruction->operation = RV_OPERATION_BNE; return true;
-    case 0x4: instruction->operation = RV_OPERATION_BLT; return true;
-    case 0x5: instruction->operation = RV_OPERATION_BGE; return true;
-    case 0x6: instruction->operation = RV_OPERATION_BLTU; return true;
-    case 0x7: instruction->operation = RV_OPERATION_BGEU; return true;
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BEQ);
+    case 0x1: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BNE);
+    case 0x4: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BLT);
+    case 0x5: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BGE);
+    case 0x6: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BLTU);
+    case 0x7: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_BRANCH, RV_OPERATION_BGEU);
     default: return false;
   }
 }
 
 static inline bool rv_decode_jump(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class = RV_INSTRUCTION_CLASS_JUMP;
-
   switch (OPCODE(encoding)) {
     case OPC_JAL:
-      instruction->operation = RV_OPERATION_JAL;
       instruction->immediate = IMM_J(encoding);
-      return true;
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_JUMP, RV_OPERATION_JAL);
     case OPC_JALR:
       if (FUNCT3(encoding) != 0x0) return false;
-      instruction->operation = RV_OPERATION_JALR;
       instruction->immediate = IMM_I(encoding);
-      return true;
+      return rv_decode_operation(
+          instruction, RV_INSTRUCTION_CLASS_JUMP, RV_OPERATION_JALR);
     default:
       return false;
   }
@@ -190,15 +495,13 @@ static inline bool rv_decode_jump(
 
 static inline bool rv_decode_memory_ordering(
     uint32_t encoding, RvDecodedInstruction *instruction) {
-  instruction->instruction_class = RV_INSTRUCTION_CLASS_MEMORY_ORDERING;
-
   switch (FUNCT3(encoding)) {
-    case 0x0:
-      instruction->operation = RV_OPERATION_FENCE;
-      return true;
-    case 0x1:
-      instruction->operation = RV_OPERATION_FENCE_I;
-      return true;
+    case 0x0: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MEMORY_ORDERING,
+        RV_OPERATION_FENCE);
+    case 0x1: return rv_decode_operation(
+        instruction, RV_INSTRUCTION_CLASS_MEMORY_ORDERING,
+        RV_OPERATION_FENCE_I);
     default:
       return false;
   }
@@ -206,221 +509,166 @@ static inline bool rv_decode_memory_ordering(
 
 static inline bool rv_decode_system(
     uint32_t encoding, RvDecodedInstruction *instruction) {
+  RiscvSystemInstruction system;
+  if (!riscv_decode_system_instruction(encoding, &system)) return false;
+
   instruction->instruction_class = RV_INSTRUCTION_CLASS_SYSTEM;
-
-  /* Privileged instructions with architecturally fixed register fields. */
-  switch (encoding) {
-    case 0x00000073u: instruction->operation = RV_OPERATION_ECALL; return true;
-    case 0x00100073u: instruction->operation = RV_OPERATION_EBREAK; return true;
-    case 0x10200073u: instruction->operation = RV_OPERATION_SRET; return true;
-    case 0x30200073u: instruction->operation = RV_OPERATION_MRET; return true;
-    case 0x10500073u: instruction->operation = RV_OPERATION_WFI; return true;
-    default:
-      break;
-  }
-
-  /* SFENCE.VMA leaves rs1 and rs2 as the decoded address/ASID selectors. */
-  if ((encoding & 0xfe007fffu) == 0x12000073u) {
-    instruction->operation = RV_OPERATION_SFENCE_VMA;
-    return true;
-  }
-
-  switch (FUNCT3(encoding)) {
-    case 0x1: instruction->operation = RV_OPERATION_CSRRW; break;
-    case 0x2: instruction->operation = RV_OPERATION_CSRRS; break;
-    case 0x3: instruction->operation = RV_OPERATION_CSRRC; break;
-    case 0x5: instruction->operation = RV_OPERATION_CSRRWI; break;
-    case 0x6: instruction->operation = RV_OPERATION_CSRRSI; break;
-    case 0x7: instruction->operation = RV_OPERATION_CSRRCI; break;
+  instruction->system = system;
+  switch (system.operation) {
+    case RISCV_SYSTEM_OPERATION_ECALL:
+      instruction->operation = RV_OPERATION_ECALL; break;
+    case RISCV_SYSTEM_OPERATION_EBREAK:
+      instruction->operation = RV_OPERATION_EBREAK; break;
+    case RISCV_SYSTEM_OPERATION_SRET:
+      instruction->operation = RV_OPERATION_SRET; break;
+    case RISCV_SYSTEM_OPERATION_MRET:
+      instruction->operation = RV_OPERATION_MRET; break;
+    case RISCV_SYSTEM_OPERATION_WFI:
+      instruction->operation = RV_OPERATION_WFI; break;
+    case RISCV_SYSTEM_OPERATION_SFENCE_VMA:
+      instruction->operation = RV_OPERATION_SFENCE_VMA; break;
+    case RISCV_SYSTEM_OPERATION_CSRRW:
+      instruction->operation = RV_OPERATION_CSRRW; break;
+    case RISCV_SYSTEM_OPERATION_CSRRS:
+      instruction->operation = RV_OPERATION_CSRRS; break;
+    case RISCV_SYSTEM_OPERATION_CSRRC:
+      instruction->operation = RV_OPERATION_CSRRC; break;
+    case RISCV_SYSTEM_OPERATION_CSRRWI:
+      instruction->operation = RV_OPERATION_CSRRWI; break;
+    case RISCV_SYSTEM_OPERATION_CSRRSI:
+      instruction->operation = RV_OPERATION_CSRRSI; break;
+    case RISCV_SYSTEM_OPERATION_CSRRCI:
+      instruction->operation = RV_OPERATION_CSRRCI; break;
     default: return false;
   }
+  return true;
+}
 
-  return riscv_decode_csr_instruction(
-      FUNCT3(encoding), BITS(encoding, 31, 20), instruction->rd,
-      instruction->rs1, &instruction->csr);
+static inline bool rv_decode_floating(
+    uint32_t encoding, RvDecodedInstruction *instruction) {
+  RiscvFloatingInstruction floating;
+  if (!riscv_decode_floating_instruction(
+          encoding, 64, 32,
+          ISDEF(CONFIG_RISCV_EXT_F), ISDEF(CONFIG_RISCV_EXT_D),
+          &floating)) {
+    return false;
+  }
+  instruction->instruction_class = RV_INSTRUCTION_CLASS_FLOATING_POINT;
+  instruction->operation = RV_OPERATION_FLOATING;
+  instruction->floating = floating;
+  instruction->immediate = (word_t)floating.immediate;
+  instruction->rd = floating.rd;
+  instruction->rs1 = floating.rs1;
+  instruction->rs2 = floating.rs2;
+  instruction->rs3 = floating.rs3;
+  return true;
 }
 
 /*
- * 已迁移的 RV64 指令：raw encoding 在这里变成手册 mnemonic，
- * 执行层不再读取 opcode/funct 字段。返回 false 表示该编码仍由
- * 明确的 legacy 扩展边界处理。
+ * RV64 raw encoding 在这里唯一一次变成手册 mnemonic descriptor。
+ * 每个 16/32-bit 编码都由本函数完整认领；保留或未实现的编码保持
+ * ILLEGAL descriptor，由统一执行入口产生 Illegal Instruction。
  */
-static inline bool rv_decode_migrated_instruction(
+static inline void rv_decode_instruction(
     uint32_t encoding, RvDecodedInstruction *instruction) {
 #ifdef CONFIG_RISCV_EXT_C
   if ((encoding & 0x3u) != 0x3u) {
     *instruction = rv_decoded_instruction(encoding & 0xffffu);
-    return rv_decode_compressed_instruction(
+    instruction->length = 2;
+    (void)rv_decode_compressed_instruction(
         encoding & 0xffffu, instruction);
+    /*
+     * C owns the complete 16-bit encoding space.  Reserved, custom and
+     * unimplemented code points stay as an ILLEGAL descriptor and trap through
+     * the same path; they must never be interpreted as a 32-bit instruction.
+     */
+    return;
   }
 #endif
 
   *instruction = rv_decoded_instruction(encoding);
   switch (OPCODE(encoding)) {
     case OPC_OP_IMM:
-      return rv_decode_integer_immediate(encoding, instruction);
+      (void)rv_decode_integer_immediate(encoding, instruction);
+      return;
     case OPC_OP_IMM_32:
-      return rv_decode_integer_immediate_word(encoding, instruction);
+      (void)rv_decode_integer_immediate_word(encoding, instruction);
+      return;
     case OPC_OP:
-      return rv_decode_integer_register(encoding, instruction);
+      (void)rv_decode_integer_register(encoding, instruction);
+      return;
     case OPC_OP_32:
-      return rv_decode_integer_register_word(encoding, instruction);
+      (void)rv_decode_integer_register_word(encoding, instruction);
+      return;
     case OPC_LOAD:
-      return rv_decode_load(encoding, instruction);
+      (void)rv_decode_load(encoding, instruction);
+      return;
     case OPC_STORE:
-      return rv_decode_store(encoding, instruction);
+      (void)rv_decode_store(encoding, instruction);
+      return;
     case OPC_BRANCH:
-      return rv_decode_branch(encoding, instruction);
+      (void)rv_decode_branch(encoding, instruction);
+      return;
     case OPC_JAL:
     case OPC_JALR:
-      return rv_decode_jump(encoding, instruction);
+      (void)rv_decode_jump(encoding, instruction);
+      return;
     case OPC_MISC_MEM:
-      return rv_decode_memory_ordering(encoding, instruction);
+      (void)rv_decode_memory_ordering(encoding, instruction);
+      return;
+    case OPC_LOAD_FP:
+    case OPC_STORE_FP:
+    case OPC_MADD:
+    case OPC_MSUB:
+    case OPC_NMSUB:
+    case OPC_NMADD:
+    case OPC_OP_FP:
+      /* F/D opcodes are wholly owned by the shared manual decoder. */
+      (void)rv_decode_floating(encoding, instruction);
+      return;
     case OPC_SYSTEM:
-      return rv_decode_system(encoding, instruction);
+      /* SYSTEM is wholly owned by the shared decoder, including illegal encodings. */
+      (void)rv_decode_system(encoding, instruction);
+      return;
+    case OPC_AMO:
+#ifdef CONFIG_RISCV_EXT_A
+      if (riscv_atomic_decode(encoding, 64, &instruction->atomic)) {
+        instruction->instruction_class = RV_INSTRUCTION_CLASS_ATOMIC;
+        instruction->operation = RV_OPERATION_ATOMIC;
+      }
+#endif
+      /* AMO opcode 已由共享手册译码器完整认领。 */
+      return;
     case OPC_LUI:
       instruction->instruction_class =
           RV_INSTRUCTION_CLASS_UPPER_IMMEDIATE;
       instruction->operation = RV_OPERATION_LUI;
       instruction->immediate = IMM_U(encoding);
-      return true;
+      return;
     case OPC_AUIPC:
       instruction->instruction_class =
           RV_INSTRUCTION_CLASS_UPPER_IMMEDIATE;
       instruction->operation = RV_OPERATION_AUIPC;
       instruction->immediate = IMM_U(encoding);
-      return true;
+      return;
     default:
-      return false;
+      return;
   }
 }
 
-static int legacy_decode_and_execute(Decode *s) {
-  s->dnpc = s->snpc;
-  uint32_t inst = s->isa.inst;
-
-  uint32_t opcode = OPCODE(inst);
-  uint32_t funct3 = FUNCT3(inst);
-  int rd = RD(inst);
-  int rs1 = RS1(inst);
-  int rs2 = RS2(inst);
-
-  switch (opcode) {
-    case OPC_OP_IMM: {
-      word_t src1 = R(rs1);
-      if (!exec_rv64i_op_imm(inst, rd, src1)) {
-#ifdef CONFIG_RISCV_EXT_B
-        if (!exec_zb_op_imm(inst, rd, src1)) goto invalid;
-#else
-        goto invalid;
-#endif
-      }
-      break;
-    }
-    case OPC_OP_IMM_32: {
-      word_t src1 = R(rs1);
-      if (!exec_rv64i_op_imm_32(inst, rd, src1)) {
-#ifdef CONFIG_RISCV_EXT_B
-        if (!exec_zb_op_imm_32(inst, rd, src1)) goto invalid;
-#else
-        goto invalid;
-#endif
-      }
-      break;
-    }
-    case OPC_LOAD_FP: {
-      word_t addr = R(rs1) + IMM_I(inst);
-      if (!exec_rvf_load(funct3, rd, addr)) goto invalid;
-      break;
-    }
-    case OPC_STORE_FP: {
-      word_t addr = R(rs1) + IMM_S(inst);
-      if (!exec_rvf_store(funct3, addr, rs2)) goto invalid;
-      break;
-    }
-    case OPC_MADD:
-    case OPC_MSUB:
-    case OPC_NMSUB:
-    case OPC_NMADD:
-      if (!exec_rvf_fused_madd(opcode, inst, rd, rs1, rs2)) goto invalid;
-      break;
-    case OPC_OP_FP:
-      if (!exec_rvf_op(inst, rd, rs1, rs2)) goto invalid;
-      break;
-    case OPC_AMO:
-#ifdef CONFIG_RISCV_EXT_A
-      if (!exec_rva_amo(inst, rd, rs1, rs2)) goto invalid;
-      break;
-#else
-      goto invalid;
-#endif
-    case OPC_OP: {
-      uint32_t funct7 = FUNCT7(inst);
-      word_t src1 = R(rs1);
-      word_t src2 = R(rs2);
-      if (exec_rv64i_op(funct3, funct7, rd, src1, src2)) break;
-#ifdef CONFIG_RISCV_EXT_M
-      if (exec_rvm_op(funct3, funct7, rd, src1, src2)) break;
-#endif
-#ifdef CONFIG_RISCV_EXT_B
-      if (exec_zb_op(funct3, funct7, rd, rs2, src1, src2)) break;
-#endif
-      goto invalid;
-    }
-    case OPC_OP_32: {
-      uint32_t funct7 = FUNCT7(inst);
-      word_t src1 = R(rs1);
-      word_t src2 = R(rs2);
-#ifdef CONFIG_RISCV_EXT_B
-      if (exec_zb_op_32(funct3, funct7, rd, rs2, src1, src2)) break;
-#endif
-      if (exec_rv64i_op_32(funct3, funct7, rd, src1, src2)) break;
-#ifdef CONFIG_RISCV_EXT_M
-      if (exec_rvm_op_32(funct3, funct7, rd, src1, src2)) break;
-#endif
-      goto invalid;
-    }
-    case OPC_LUI:
-      R(rd) = IMM_U(inst);
-      break;
-    case OPC_AUIPC:
-      R(rd) = s->pc + IMM_U(inst);
-      break;
-    default:
-      goto invalid;
-  }
-
-  R(0) = 0;
-  return 0;
-
-invalid:
-  raise_illegal_instruction_exception(s, inst);
-  return 0;
-}
-
-static inline bool execute_migrated_instruction(Decode *state) {
+static inline int execute_current_instruction(Decode *state) {
   RvDecodedInstruction instruction;
   if (!rv_decode_cache_lookup(state->pc, state->isa.inst, &instruction)) {
-    if (!rv_decode_migrated_instruction(state->isa.inst, &instruction)) {
-      return false;
-    }
+    rv_decode_instruction(state->isa.inst, &instruction);
     rv_decode_cache_insert(state->pc, &instruction);
   }
 
   if (!rv_execute_decoded_instruction(state, &instruction)) {
     raise_illegal_instruction_exception(state, state->isa.inst);
   }
-  return true;
-}
-
-static inline int execute_current_instruction(Decode *state) {
-  if (execute_migrated_instruction(state)) {
-    /* Legacy extension helpers still use R() as an lvalue; keep this assertion
-     * boundary until all instruction families use rv_write_x_register(). */
-    R(0) = 0;
-    return 0;
-  }
-  return legacy_decode_and_execute(state);
+  /* Architectural x0 is hard-wired even across shared extension helpers. */
+  R(0) = 0;
+  return 0;
 }
 
 static bool __attribute__((noinline, cold)) take_vaddr_fault_slow(Decode *s) {

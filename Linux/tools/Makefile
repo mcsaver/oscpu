@@ -21,8 +21,6 @@ NEMU := $(abspath $(NEMU_HOME)/build/riscv64-nemu-interpreter)
 NEMU_PRESERVED_RUN ?= ../../scripts/nemu-preserved-run.sh
 # NEMU system-mode smoke 会临时切 defconfig；这些路径必须在运行后恢复到用户原状态。
 NEMU_CONFIG_PATHS := .config .config.old include/config include/generated
-NEMU_AMO_MISALIGNED_LOG ?= $(BUILD_DIR)/amo-misaligned-nemu.log
-NEMU_LRSC_RESERVATION_LOG ?= $(BUILD_DIR)/lrsc-reservation-nemu.log
 NEMU_PMP_ACCESS_LOG ?= $(BUILD_DIR)/pmp-access-nemu.log
 NEMU_PMP_PAGEWALK_LOG ?= $(BUILD_DIR)/pmp-pagewalk-nemu.log
 NEMU_PMP_PAGEWALK_AD_LOG ?= $(BUILD_DIR)/pmp-pagewalk-ad-nemu.log
@@ -92,10 +90,6 @@ SRET_RESTORE_THREAD ?= 0x80000c00
 SRET_RESTORE_UVA ?= 0x0000003fb6410002
 RAS_TRAP_TEXT ?= 0x80000000
 RAS_TRAP_STACK ?= 0x87ef5000
-AMO_MISALIGNED_TEXT ?= 0x80000000
-AMO_MISALIGNED_STACK ?= 0x87eef000
-LRSC_RESERVATION_TEXT ?= 0x80000000
-LRSC_RESERVATION_STACK ?= 0x87eed000
 PMP_ACCESS_TEXT ?= 0x80000000
 PMP_ACCESS_STACK ?= 0x87eec000
 PMP_PAGEWALK_TEXT ?= 0x80000000
@@ -149,10 +143,6 @@ SRET_RESTORE_ELF := $(BUILD_DIR)/sret-restore-smoke.elf
 SRET_RESTORE_BIN := $(BUILD_DIR)/sret-restore-smoke.bin
 RAS_TRAP_ELF := $(BUILD_DIR)/ras-trap-boundary-smoke.elf
 RAS_TRAP_BIN := $(BUILD_DIR)/ras-trap-boundary-smoke.bin
-AMO_MISALIGNED_ELF := $(BUILD_DIR)/amo-misaligned-smoke.elf
-AMO_MISALIGNED_BIN := $(BUILD_DIR)/amo-misaligned-smoke.bin
-LRSC_RESERVATION_ELF := $(BUILD_DIR)/lrsc-reservation-smoke.elf
-LRSC_RESERVATION_BIN := $(BUILD_DIR)/lrsc-reservation-smoke.bin
 PMP_ACCESS_ELF := $(BUILD_DIR)/pmp-access-smoke.elf
 PMP_ACCESS_BIN := $(BUILD_DIR)/pmp-access-smoke.bin
 PMP_PAGEWALK_ELF := $(BUILD_DIR)/pmp-pagewalk-smoke.elf
@@ -195,7 +185,7 @@ FP_SQRT_NEMU_BIN := $(BUILD_DIR)/fp-sqrt-smoke-nemu.bin
 SMOKE_BINS := \
   $(JAL_LINK_BIN) $(BRANCH_RAW_BIN) $(MULDIV_SMOKE_BIN) \
   $(SRET_USER_BIN) $(SRET_USER_PF_BIN) $(SRET_USER_SV39_BIN) $(SRET_USER_SV39_HALF_BIN) \
-  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(AMO_MISALIGNED_BIN) $(LRSC_RESERVATION_BIN) $(PMP_ACCESS_BIN) $(PMP_PAGEWALK_BIN) $(PMP_PAGEWALK_AD_BIN) $(SV39_SFENCE_ASID_BIN) \
+  $(SRET_RESTORE_BIN) $(RAS_TRAP_BIN) $(PMP_ACCESS_BIN) $(PMP_PAGEWALK_BIN) $(PMP_PAGEWALK_AD_BIN) $(SV39_SFENCE_ASID_BIN) \
   $(FP_SMOKE_BIN) $(FP_FCSR_BIN) $(FP_FMV_FCLASS_BIN) $(FP_CONVERT_BIN) $(FP_COMPARE_SGNJ_BIN) \
   $(FP_MINMAX_BIN) $(FP_ADDSUB_BIN) $(FP_MUL_BIN) $(FP_FMA_BIN) $(FP_DIV_BIN) $(FP_SQRT_BIN) $(FP_DYNRM_BIN) $(FP_CORNER_BIN)
 
@@ -205,7 +195,7 @@ BOOT_TOOL_BINS := $(TRAMPOLINE_BIN) $(DTB_SMOKE_BIN) $(MINI_LINUX_BIN) $(OPENSBI
 	smoke-dtb smoke-opensbi smoke-opensbi-sbi smoke-virtio-blk smoke-nemu-virtio-blk-error smoke-nemu-virtio-net-ctrl smoke-nemu-config-preserve \
 	smoke-jal-link smoke-branch-raw smoke-muldiv smoke-sret-user smoke-sret-user-pagefault \
 	smoke-sret-user-sv39 smoke-sret-user-sv39-halfword smoke-sret-restore smoke-ras-trap-boundary \
-	smoke-nemu-amo-misaligned smoke-nemu-lrsc-reservation smoke-nemu-pmp-access smoke-nemu-pmp-pagewalk smoke-nemu-pmp-pagewalk-ad smoke-nemu-sv39-sfence-asid \
+	smoke-nemu-pmp-access smoke-nemu-pmp-pagewalk smoke-nemu-pmp-pagewalk-ad smoke-nemu-sv39-sfence-asid \
 	smoke-nemu-fp-convert smoke-nemu-fp-compare-sgnj \
 	smoke-fp-loadstore smoke-fp-fcsr smoke-fp-fmv-fclass smoke-fp-convert \
 	smoke-fp-compare-sgnj smoke-fp-minmax smoke-fp-addsub smoke-fp-mul smoke-fp-fma \
@@ -462,22 +452,6 @@ $(RAS_TRAP_ELF): ras-trap-boundary-smoke.S Makefile
 	  -DRAS_TRAP_STACK=$(RAS_TRAP_STACK) \
 	  $< -o $@
 
-$(AMO_MISALIGNED_ELF): amo-misaligned-smoke.S Makefile
-	mkdir -p $(BUILD_DIR)
-	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
-	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(AMO_MISALIGNED_TEXT) \
-	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
-	  -DAMO_MISALIGNED_STACK=$(AMO_MISALIGNED_STACK) \
-	  $< -o $@
-
-$(LRSC_RESERVATION_ELF): lrsc-reservation-smoke.S Makefile
-	mkdir -p $(BUILD_DIR)
-	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
-	  -march=rv64ima_zicsr_zifencei -mabi=lp64 -Wl,-Ttext=$(LRSC_RESERVATION_TEXT) \
-	  -static -no-pie -Wl,--no-relax -Wl,--build-id=none \
-	  -DLRSC_RESERVATION_STACK=$(LRSC_RESERVATION_STACK) \
-	  $< -o $@
-
 $(PMP_ACCESS_ELF): pmp-access-smoke.S Makefile
 	mkdir -p $(BUILD_DIR)
 	$(CC) -x assembler-with-cpp -nostdlib -nostartfiles \
@@ -659,18 +633,6 @@ smoke-sret-restore: $(SRET_RESTORE_BIN)
 
 smoke-ras-trap-boundary: $(RAS_TRAP_BIN)
 	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(RAS_TRAP_BIN)
-
-smoke-nemu-amo-misaligned: $(AMO_MISALIGNED_BIN)
-	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
-	  -b --max-insts=200000 -i $(AMO_MISALIGNED_BIN) > $(NEMU_AMO_MISALIGNED_LOG) 2>&1
-	cat $(NEMU_AMO_MISALIGNED_LOG)
-	grep -q 'HIT GOOD TRAP' $(NEMU_AMO_MISALIGNED_LOG)
-
-smoke-nemu-lrsc-reservation: $(LRSC_RESERVATION_BIN)
-	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
-	  -b --max-insts=200000 -i $(LRSC_RESERVATION_BIN) > $(NEMU_LRSC_RESERVATION_LOG) 2>&1
-	cat $(NEMU_LRSC_RESERVATION_LOG)
-	grep -q 'HIT GOOD TRAP' $(NEMU_LRSC_RESERVATION_LOG)
 
 smoke-nemu-pmp-access: $(PMP_ACCESS_BIN)
 	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \

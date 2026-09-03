@@ -525,24 +525,6 @@ static inline bool csr_write_masked(uint32_t csr, word_t value, word_t write_mas
   return csr_write(csr, value);
 }
 
-static inline uint8_t riscv_mstatus_previous_privilege(word_t status) {
-  switch (status & MSTATUS_MPP_MASK) {
-    case MSTATUS_MPP_S: return PRIV_S;
-    case MSTATUS_MPP_M: return PRIV_M;
-    default: return PRIV_U;
-  }
-}
-
-static inline bool ebreak_should_raise_breakpoint_trap(void) {
-#ifndef CONFIG_TARGET_AM
-  // Linux/system 模式按官方 ISA 把 ebreak 当 breakpoint trap(ACT4/semihost 等依赖);
-  // AM 系统测试统一用设备树 syscon 退出, 不依赖 ebreak 停机。
-  return true;
-#else
-  return cpu.csr.mtvec != 0 || cpu.csr.stvec != 0;
-#endif
-}
-
 static inline void csr_reset_sstatus_write_observer(void) {
   csr_last_sstatus_write_valid = false;
   csr_last_sstatus_write_changed = true;
@@ -656,52 +638,26 @@ static inline bool riscv_execute_csr_instruction(
 
 /* MRET legality and the full xRET state transition deliberately live together. */
 static inline bool riscv_execute_machine_return(Decode *state) {
-  if (cpu.priv != PRIV_M) return false;
+  if (!riscv_machine_return_is_legal(cpu.priv)) return false;
 
-  const word_t previous_status = cpu.csr.mstatus;
-  const uint8_t return_privilege =
-      riscv_mstatus_previous_privilege(previous_status);
-  word_t returned_status = previous_status;
-
-  /* MIE <- MPIE; MPIE <- 1; MPP <- least-supported privilege (U). */
-  if (previous_status & MSTATUS_MPIE) returned_status |= MSTATUS_MIE;
-  else returned_status &= ~MSTATUS_MIE;
-  returned_status |= MSTATUS_MPIE;
-  returned_status &= ~MSTATUS_MPP_MASK;
-
-  /* Leaving M-mode also clears MPRV. SXL/UXL are fixed WARL fields here. */
-  if (return_privilege != PRIV_M) returned_status &= ~MSTATUS_MPRV;
-  returned_status |= MSTATUS_SXL_UXL;
-
-  cpu.csr.mstatus = returned_status;
-  cpu.priv = return_privilege;
+  const RiscvXretTransition transition =
+      riscv_machine_return_transition(cpu.csr.mstatus);
+  cpu.csr.mstatus = transition.status;
+  cpu.priv = transition.privilege;
   state->dnpc = cpu.csr.mepc;
-  etrace_log_mret(state->pc, state->dnpc, returned_status);
+  etrace_log_mret(state->pc, state->dnpc, transition.status);
   return true;
 }
 
 /* SRET legality and the full xRET state transition deliberately live together. */
 static inline bool riscv_execute_supervisor_return(Decode *state) {
-  if (cpu.priv < PRIV_S) return false;
-  if (cpu.priv == PRIV_S && (cpu.csr.mstatus & MSTATUS_TSR)) return false;
+  if (!riscv_supervisor_return_is_legal(
+          cpu.priv, cpu.csr.mstatus)) return false;
 
-  const word_t previous_status = cpu.csr.mstatus;
-  const uint8_t return_privilege =
-      (previous_status & MSTATUS_SPP) ? PRIV_S : PRIV_U;
-  word_t returned_status = previous_status;
-
-  /* SIE <- SPIE; SPIE <- 1; SPP <- least-supported privilege (U). */
-  if (previous_status & MSTATUS_SPIE) returned_status |= MSTATUS_SIE;
-  else returned_status &= ~MSTATUS_SIE;
-  returned_status |= MSTATUS_SPIE;
-  returned_status &= ~MSTATUS_SPP;
-
-  /* SRET always returns below M-mode and therefore clears MPRV. */
-  returned_status &= ~MSTATUS_MPRV;
-  returned_status |= MSTATUS_SXL_UXL;
-
-  cpu.csr.mstatus = returned_status;
-  cpu.priv = return_privilege;
+  const RiscvXretTransition transition =
+      riscv_supervisor_return_transition(cpu.csr.mstatus);
+  cpu.csr.mstatus = transition.status;
+  cpu.priv = transition.privilege;
   state->dnpc = cpu.csr.sepc;
   syscall_debug_log_return(state->dnpc);
   return true;

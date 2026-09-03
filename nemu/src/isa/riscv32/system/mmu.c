@@ -90,7 +90,13 @@ static inline bool sv32_page_table_access_allowed(
     uint64_t address, int access_type) {
   if (!sv32_physical_address_representable(address)) return false;
   paddr_t paddr = (paddr_t)address;
-  return paddr_is_accessible(paddr, SV32_PTE_BYTES) &&
+  /*
+   * An implicit page-table access requires idempotent main memory in NEMU's
+   * fixed PMA.  A readable MMIO register is not page-table memory: probing it
+   * as a PTE could latch/dequeue device state before the original access
+   * faults.
+   */
+  return paddr_span_in_pmem(paddr, SV32_PTE_BYTES) &&
          isa_riscv32_pmp_check(paddr, SV32_PTE_BYTES, access_type);
 }
 
