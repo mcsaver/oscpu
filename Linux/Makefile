@@ -521,14 +521,14 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         opensbi-ubuntu-shell opensbi-rootfs qemu qemu-build qemu-ubuntu-probe qemu-ubuntu-shell \
         tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
         ubuntu-rootfs-flavors-check \
-        check-ubuntu-rootfs check-ubuntu-rootfs-systemd ubuntu-rootfs-systemd-image \
+        check-ubuntu-rootfs check-ubuntu-rootfs-systemd check-ubuntu-rootfs-systemd-minimal ubuntu-rootfs-systemd-image \
         check-ubuntu-rootfs-systemd-strict ubuntu-rootfs-systemd-strict-image \
         ubuntu-rootfs-systemd-overlay ubuntu-rootfs-interactive-image ubuntu-rootfs-full-image \
         check-ubuntu-rootfs-interactive check-ubuntu-rootfs-full \
 	        check-npc-systemd-guest check-npc-systemd-guest-full \
 	        check-npc-systemd-guest-systemd-strict __check-npc-systemd-guest \
         check-nemu-systemd-guest check-nemu-systemd-guest-long \
-        check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full \
+        check-nemu-systemd-guest-interactive check-nemu-systemd-guest-full check-nemu-python-int-preflight \
         check-nemu-systemd-guest-full-soak \
         check-nemu-tap-host show-nemu-tap-setup show-nemu-tap-teardown \
         check-nemu-systemd-guest-tap check-nemu-systemd-guest-full-tap \
@@ -539,7 +539,7 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         __check-nemu-gui __check-nemu-virtio-input __check-nemu-retirement-sdtrig \
         __check-nemu-virtio-blk-error \
         __check-nemu-reboot-loop __check-nemu-reboot-persistence \
-        check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
+        check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest __check-nemu-python-int-preflight clean clean-logs \
         FORCE $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
 help:
@@ -554,11 +554,11 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-npc run'
 	@printf '%s\n' '      启动完整 Ubuntu rootfs 路线，自动挂载 virtio-mmio block 镜像。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu run'
-	@printf '%s\n' '      用 NEMU 启动同一条完整 Ubuntu rootfs 路线，默认无限预算并使用 no-PMU OpenSBI。'
+	@printf '%s\n' '      用 NEMU 的默认 headless profile 启动完整 Ubuntu rootfs；使用 ttyS0，不会打开 VGA/SDL。'
 	@printf '%s\n' '  make run-ubuntu-gui'
-	@printf '%s\n' '      启动隔离的 NEMU GUI profile：SDL simplefb/fbcon、tty1 与标准 virtio-input 键盘。'
+	@printf '%s\n' '      启动隔离的 NEMU GUI profile：当前终端保留 ttyS0，SDL 显示 simplefb/fbcon/tty1。'
 	@printf '%s\n' '  make check-nemu-gui'
-	@printf '%s\n' '      在 Xvfb 中验证 simplefb/fbcon/tty1、SDL 画面及 SDL→virtio-input→Linux→tty1 按键闭环。'
+	@printf '%s\n' '      在 Xvfb 中自动验证 GUI/键盘闭环，通常不会弹出可见窗口；人工交互请用 run-ubuntu-gui。'
 	@printf '%s\n' '  make check-nemu-retirement-sdtrig'
 	@printf '%s\n' '      验证 minstret 只统计成功退休指令，并确认未实现的 Sdtrig CSR 产生非法指令异常。'
 	@printf '%s\n' '  make check-nemu-virtio-input'
@@ -582,9 +582,9 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-npc paths'
 	@printf '%s\n' '      打印当前 ARCH/BOOT 的资源路径。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-ubuntu-rootfs'
-	@printf '%s\n' '      检查 ext4 rootfs 是否具备 /init、/bin/sh、os-release，并报告 systemd readiness。'
+	@printf '%s\n' '      补建缺失的默认 ext4/cpio 后检查 /init、/bin/sh、os-release，并报告 systemd readiness。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-ubuntu-rootfs-systemd'
-	@printf '%s\n' '      要求 rootfs 已包含 systemd；当前 Ubuntu Base fakeroot 镜像会明确失败。'
+	@printf '%s\n' '      先检查 systemd-minimal；失败则重建并复查，最终仍不满足才失败。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-machine-info'
 	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs block 镜像并导出容量/只读状态。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info'
@@ -616,7 +616,7 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-nemu ubuntu-rootfs-full-image'
 	@printf '%s\n' '      构建 full flavor 到独立 ext4，补 ubuntu-standard/openssh-server/sudo/locales/man-db/cron/rsyslog 等 server 用户态。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-ubuntu-rootfs-full'
-	@printf '%s\n' '      对 full flavor 独立 ext4 执行实物检查；未重建 full 镜像时应明确失败。'
+	@printf '%s\n' '      检查 full flavor 独立 ext4；失败则重建并复查，最终仍不满足才失败。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full'
 	@printf '%s\n' '      用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs。'
 	@printf '%s\n' '  make check-npc-systemd-guest'
@@ -637,6 +637,8 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-npc run-ubuntu-rootfs'
 	@printf '%s\n' '  make ARCH=riscv64-npc run-ubuntu-shell'
 	@printf '%s\n' '  make ARCH=riscv64-npc run-ubuntu-probe'
+	@printf '%s\n' ''
+	@printf '%s\n' '完整命令、默认值和常见误区: $(LINUX_HOME)/README-COMMANDS.md'
 
 run: $(RUN_DEPS)
 	@bash '$(SCRIPT_DIR)/guard-artifact-paths.sh' \
@@ -1901,6 +1903,7 @@ paths:
 	@printf 'PLATFORM_LOG_ROOT=%s\n' '$(PLATFORM_LOG_ROOT)'
 	@printf 'BUILD_DIR=%s\n' '$(BUILD_DIR)'
 	@printf 'LINUX_BUILD_DIR=%s\n' '$(LINUX_BUILD_DIR)'
+	@printf 'LINUX_FEATURE_PROFILE=%s\n' '$(LINUX_FEATURE_PROFILE)'
 	@printf 'MAX_CYCLES=%s\n' '$(MAX_CYCLES)'
 	@printf 'OPENSBI_PROFILE=%s\n' '$(OPENSBI_PROFILE)'
 	@printf 'OPENSBI_DISABLE_PMU=%s\n' '$(OPENSBI_DISABLE_PMU)'
@@ -1908,6 +1911,11 @@ paths:
 	@printf 'RUN_SIM=%s\n' '$(RUN_SIM)'
 	@printf 'NPC_SIM=%s\n' '$(NPC_SIM)'
 	@printf 'NEMU_SIM=%s\n' '$(NEMU_SIM)'
+	@printf 'NEMU_DEFCONFIG=%s\n' '$(NEMU_DEFCONFIG)'
+	@printf 'NEMU_CONFIG_DIR=%s\n' '$(NEMU_CONFIG_DIR)'
+	@printf 'NEMU_BUILD_DIR=%s\n' '$(NEMU_BUILD_DIR)'
+	@printf 'NEMU_DISPLAY=%s\n' '$(NEMU_DISPLAY)'
+	@printf 'NEMU_VIRTIO_INPUT=%s\n' '$(NEMU_VIRTIO_INPUT)'
 	@printf 'LINUX_IMAGE=%s\n' '$(LINUX_IMAGE)'
 	@printf 'RUN_FW=%s\n' '$(RUN_FW)'
 	@printf 'RUN_DTB=%s\n' '$(RUN_DTB)'

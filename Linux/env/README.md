@@ -2,6 +2,12 @@
 
 本目录用于把 RV64 Linux/Ubuntu bring-up 所需的外部套件统一收进 ysyx-workbench，避免散落到 `/tmp` 或其它宿主路径。
 
+本文件主要说明 `Linux/env/` 的目录职责、产物布局，并保留专项维护记录。日常入口先看
+[`../README.md`](../README.md)，完整的命令分类、默认值、覆盖变量和常见误区以
+[`../README-COMMANDS.md`](../README-COMMANDS.md) 为准；可执行目标的最终定义仍是
+[`../Makefile`](../Makefile)，可随时用 `make -C Linux help` 和
+`make -C Linux ARCH=<平台> paths` 从实际工程查询。
+
 默认布局：
 
 - `src/opensbi/`：OpenSBI 源码；NEMU/NPC 共享源码，不在这里放平台构建输出
@@ -26,24 +32,24 @@
 
 平台隔离规则：`ARCH=riscv64-npc` 默认只写 `platforms/npc/`，`ARCH=riscv64-nemu` 默认只写 `platforms/nemu/`；共享目录只放源码、下载缓存和工具链。这样可以同时构建 NEMU/NPC，不会互相覆盖 Linux `.config`、OpenSBI `.config`、Ubuntu rootfs overlay 或 smoke 日志。确实需要复用旧共享镜像时，可在命令行显式覆盖 `UBUNTU_IMAGE_DIR`、`UBUNTU_ROOTFS_IMAGE` 或 `RUN_ROOTFS`。
 
-常用入口：
+常用入口摘录（不是完整命令索引；以下命令均从工作区根目录执行）：
 
 - `make -C Linux qemu-build`：把 QEMU riscv64-softmmu 构建/安装到 `tools/qemu/`
 - `make -C Linux ARCH=riscv64-npc BOOT=ubuntu-shell run`：用 NPC/Verilator 启动 Ubuntu shell initramfs gate
-- `make -C Linux ARCH=riscv64-nemu run`：用 NEMU 启动完整 Ubuntu rootfs 路线，默认 `MAX_CYCLES=0` 为无限预算
-- `make -C Linux run-ubuntu-gui`：启动隔离的 800×600 simplefb/fbcon/tty1 profile；SDL 键盘通过标准 virtio-input 进入 guest，串口仅保留为维护通道
-- `make -C Linux check-nemu-gui`：在 Xvfb 中验证 framebuffer 画面、tty1/getty、真实宿主按键注入、guest 命令执行和正常关机
+- `make -C Linux ARCH=riscv64-nemu run`：用 NEMU 的默认 **headless** profile 启动完整 Ubuntu rootfs；`MAX_CYCLES=0` 为无限预算，只使用当前终端里的 `ttyS0`，不会打开 VGA/SDL
+- `make -C Linux run-ubuntu-gui`：启动隔离的 800×600 simplefb/fbcon/tty1 profile；SDL 键盘通过标准 virtio-input 进入 guest，同时保留当前终端里的 `ttyS0`，形成双控制台
+- `make -C Linux check-nemu-gui`：在 Xvfb 中自动验证 framebuffer 画面、tty1/getty、真实宿主按键注入、guest 命令执行和正常关机；这是自动 gate，通常不会弹出肉眼可见的窗口
 - `make -C Linux check-nemu-virtio-input`：用裸机 payload 验证 virtio-input event/status 双队列、坏描述符、repeat 过滤和 PLIC IRQ7
 - `make -C Linux check-nemu-retirement-sdtrig`：验证 RV64 `minstret` 只计成功退休，并确认未实现的 Sdtrig CSR 必须触发非法指令
 - `make -C Linux ARCH=riscv64-nemu nemu-qmp-smoke`：验证 QMP 启动/运行期查询、stop/cont、reset、powerdown、事件去重和控制连接故障语义
 - `make -C Linux check-nemu-reboot-persistence`：在两个全新 NEMU 进程间复用同一 overlay，验证 reboot rc32、数据读回和 backing 不变
-- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs`：检查 ext4 rootfs 实物并报告是否含 systemd 候选入口
-- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-systemd`：把 systemd 作为硬门槛；Ubuntu Base/fakeroot shell-only 镜像会明确失败
+- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs`：缺少默认 ext4/cpio 时先构建，再检查 rootfs 实物并报告 systemd readiness
+- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-systemd`：把 systemd 作为硬门槛；首次检查失败会重建 systemd-minimal 后复查，最终仍不满足才失败
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-systemd-image`：无 sudo/debootstrap/qemu-user-static 时，用 apt 沙箱下载 jammy/riscv64 的 systemd 相关 deb 并解包进 rootfs，形成 systemd gate 候选镜像
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-flavors-check`：不下载、不重建镜像，只检查 `systemd-minimal/interactive/full` flavor manifest 的包清单、镜像大小、recommends 策略和 required path 格式
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-interactive-image`：在最小 systemd rootfs 上增加 `curl/wget/ping/ssh/htop/less/strace` 等串口调试常用工具，默认镜像大小 4G，生成独立 `ubuntu-22.04-riscv64-interactive.ext4` 与 `rootfs-interactive`
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-full-image`：在 interactive 基础上增加 `ubuntu-standard/openssh-server/sudo/locales/tzdata/man-db/cron/rsyslog/systemd-timesyncd/gpgv/ubuntu-keyring` 等更接近完整 server 用户态的包，默认镜像大小 8G，生成独立 `ubuntu-22.04-riscv64-full.ext4` 与 `rootfs-full`；它仍不是桌面 Ubuntu，也不证明 NEMU 已具备 SMP/PCI/TAP/NAT/snapshot
-- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-full`：对 full flavor 独立 ext4 执行实物检查；未重建 full 镜像时会按缺失工具/服务入口明确失败
+- `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-full`：检查 full flavor 独立 ext4；失败会重建对应 flavor 后复查，最终仍不满足才失败
 - `make -C Linux ARCH=riscv64-nemu check-nemu-systemd-guest-full`：用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs
 - `make -C Linux ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak`：用 full flavor 独立 ext4 运行重型稳定性 gate，默认复用 300s soak、32MiB rootfs stress、256 个元数据文件、128 轮进程循环、1024 行 UART RX stress 和 4 个 4MiB 并发 direct IO job，并保留 full 用户态 runtime hard gate；这是 full server-like rootfs 的长稳态入口，不等于多小时/QEMU 等价签核
 - `make -C Linux check-nemu-systemd-guest`：启动 NEMU Ubuntu rootfs，在 guest 内检查 systemd running、systemd target 链、serial-getty@ttyS0、systemd manager API、journald、system bus/dbus、systemd-run transient service/timer/cgroup/journal、runtime unit reload request/start/output/status/cgroup/journal/cleanup、伪文件系统挂载与 fstype、udevd/udev settle、`/dev/hwrng`/virtio-rng、`/dev/rtc0`/goldfish-rtc、1GiB MemTotal、virtio-net `eth0`/MAC 可见性、hostless DHCP offer/ack、hostless DNS A 记录、hostless TCP burst health check、静态 IPv4 fallback、hostless ARP/ICMP echo、TTY/console、UART RX 命令突发、基础 shell syscall、riscv64 ELF syscall probe（含 mremap/mprotect、madvise/mincore、epoll/timerfd、periodic timerfd、ppoll/pselect、setitimer、POSIX timer signal、signalfd、pidfd/waitid、inotify、futex、prctl/getrandom、Unix socket SCM_RIGHTS、pipe2/dup3、sendfile/splice、statx/openat2/faccessat2/getdents64/renameat2/copy_file_range、close_range、linkat/fchmodat/utimensat/directory-fsync、fcntl record lock、relative/absolute sleep、PTY/termios/devpts/job-control 等 systemd/tty 常用机制）、full flavor 的 `gpgv` 与 Ubuntu archive keyring、timer、`/dev/vda` 容量/逻辑与物理块大小、discard/write-zeroes queue limit、serial/GET_ID、sysfs driver、virtio modalias/status/feature 协商（含 BLK_SIZE/FLUSH/DISCARD/WRITE_ZEROES/INDIRECT/EVENT_IDX/VERSION_1、RNG device id 4 和 NET device id 1）、udev properties、`/dev/disk` symlink、`/proc/interrupts` 中 ttyS0/virtio/riscv-timer 可见性、virtio-blk direct read 后 IRQ 增长、direct block read、高 offset sha256 读回、rootfs direct IO、4 个并发 direct IO job、rootfs 元数据树压力、rootfs 压力写回、短 soak 和 guest 自然 poweroff，并生成含 `poweroff_seconds`、`fs_tree_files`、`uart_rx_stress_lines` 与 `net_tcp_burst_loops` 的 `perf.tsv`。MemTotal hard gate 固定在 UART RX stress 前执行，避免大段串口输入污染紧随其后的关键 shell 命令；`nemu-ubuntu` e2e 会检查该顺序。virtio-net gate 证明 Linux 枚举接口、driver、固定 MAC、hostless DHCP Discover/Offer/Request/Ack、`nemu.local -> 10.0.2.2` DNS A 记录、`/nemu-health` TCP/HTTP 204 burst 健康检查、静态 IPv4 fallback 以及 `10.0.2.2` hostless ARP/ICMP echo，不证明已有 TAP/NAT/外网收发；DISCARD/WRITE_ZEROES gate 只检查 Linux-visible queue limit 与 feature bit，不在已挂载 rootfs 上执行破坏性擦除命令。runtime unit reload 使用短 `daemon-reload`/PID1 `SIGHUP` 发起 reload，再以 runtime unit start/output 证明 PID1 已加载，避免长轮询 `systemctl show`。默认 gate 预算为 `NEMU_SYSTEMD_CHECK_MAX_CYCLES=50000000000`，默认 `NEMU_SYSTEMD_MIN_MEMTOTAL_KB=900000`；syscall probe 默认使用 `riscv64-linux-gnu-gcc` 构建，可用 `RISCV64_LINUX_GCC=...` 覆盖或 `NEMU_SYSTEMD_SYSCALL_PROBE=0` 临时关闭

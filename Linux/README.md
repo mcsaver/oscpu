@@ -2,24 +2,68 @@
 
 这个目录是 RV64 Linux/Ubuntu bring-up 的顶层入口。`npc/rv64` 只保留 core RTL、testbench 和 Verilator 仿真本体；OpenSBI、Linux、Ubuntu、DTB、initramfs/rootfs、QEMU reference 和启动脚本统一放在这里。
 
+## 先看这里：默认命令契约
+
+完整的命令、默认变量、产物路径、验证范围和常见误用统一维护在
+[README-COMMANDS.md](README-COMMANDS.md)。不确定该用哪个目标时，先执行
+`make` 或 `make help`，再执行 `make ARCH=<平台> paths` 查看当前选择的实物路径。
+
+在 `Linux/` 目录内直接执行 `make ...`；在仓库根目录执行同一命令时，在前面
+加 `make -C Linux ...`。
+
+| 目的 | 在 `Linux/` 目录执行 | 默认行为 |
+| --- | --- | --- |
+| 查看帮助 | `make` 或 `make help` | 只打印帮助，不构建、不启动 guest |
+| 启动 NPC Ubuntu | `make ARCH=riscv64-npc run` | 完整 rootfs，NPC Verilator，串口控制台 |
+| 启动 NEMU Ubuntu | `make ARCH=riscv64-nemu run` | **headless** NEMU；不编译 VGA/SDL，使用 `ttyS0` |
+| 启动 NEMU 图形控制台 | `make run-ubuntu-gui` | 独立 GUI profile；SDL 800x600、simplefb/fbcon/tty1、virtio-input |
+| 自动验证 GUI | `make check-nemu-gui` | 在 Xvfb 中验证 VGA、tty1 和键盘闭环；通常不弹可见窗口 |
+| 验证 NEMU Ubuntu/systemd | `make check-nemu-systemd-guest` | headless 自动 gate；通过串口驱动 guest 检查并自然关机 |
+| 验证本期 NEMU 演进 | `make check-nemu-evolution` | 聚合 block、reboot、systemd/网络/RNG 与持久化 gate |
+| 查看当前实物路径 | `make ARCH=riscv64-nemu paths` | 打印 kernel、DTB、OpenSBI、rootfs、模拟器等路径 |
+
+> [!IMPORTANT]
+> `ARCH=riscv64-nemu` 只选择 NEMU 平台，**不代表自动启用图形**。
+> 普通 `run` 的默认组合是 `NEMU_DEFCONFIG=riscv64-linux_defconfig`、
+> `LINUX_FEATURE_PROFILE=headless`、`NEMU_DISPLAY=0`。要打开 VGA，请使用
+> `make run-ubuntu-gui`；不要只给普通 `run` 追加 `NEMU_DISPLAY=1`，因为那只会
+> 改变 DTB 开关，不能把 headless NEMU/kernel/rootfs 变成一致的 GUI 构建。
+
+GUI 正常运行时，原终端仍会显示 `ttyS0`（字母 `S`、数字 `0`）启动日志；
+SDL 窗口显示的是 `tty1`。这是有意保留的双控制台，不表示 VGA 未启动。
+NEMU 命令行中的 `-b` 只关闭交互式 SDB 提示符，也不会关闭 SDL。
+
+关键默认值：
+
+| 变量/入口 | 默认值 | 含义 |
+| --- | --- | --- |
+| `make` | `help` | `.DEFAULT_GOAL` 是帮助页 |
+| `ARCH` | `riscv64-npc` | 默认平台；NEMU 必须显式传 `ARCH=riscv64-nemu`，GUI wrapper 除外 |
+| `BOOT` | `ubuntu-rootfs` | 完整 Ubuntu ext4 rootfs；不会静默退化为 initramfs shell |
+| `LINUX_FEATURE_PROFILE` | `headless` | 普通内核不启用 FB/VT 图形控制台 |
+| `NEMU_DEFCONFIG` | `riscv64-linux_defconfig` | 普通 NEMU 构建关闭 VGA；GUI wrapper 改用专属 defconfig |
+| `NEMU_DISPLAY` | `0` | 普通 DTB 不生成 simple-framebuffer/virtio-input GUI 节点 |
+| NEMU `MAX_CYCLES` | `0` | 无限指令预算，直到 guest 关机、重启或用户终止 |
+| NPC `MAX_CYCLES` | `3000000000` | NPC 默认仿真预算 |
+
 命令规范：
 
 - `ARCH` 表示 ISA + 平台命名空间，格式为 `riscv64-<platform>`；当前支持 `riscv64-npc` 和 `riscv64-nemu`。
 - `riscv64-npc` 与 `riscv64-nemu` 共享 `Linux/env/src/` 源码、`Linux/env/downloads/` 下载缓存和可选本地工具链；Linux `O=` 构建、OpenSBI 构建、initramfs/rootfs 镜像和日志默认完全分到 `Linux/env/platforms/npc/` 与 `Linux/env/platforms/nemu/`。
 - `BOOT` 表示启动场景，默认是 `ubuntu-rootfs`。
 - `make ARCH=riscv64-npc run` 必须表示完整 Ubuntu rootfs 路线，不会偷偷降级成 shell initramfs gate。
-- `make ARCH=riscv64-nemu run` 使用同一套 kernel/DTB/rootfs 启动 NEMU 参考入口，默认构建 no-PMU OpenSBI，且 `MAX_CYCLES=0` 表示无限预算。
+- `make ARCH=riscv64-nemu run` 使用同一套 kernel/DTB/rootfs 启动 NEMU 的 **headless** 参考入口，默认构建 no-PMU OpenSBI，使用 `ttyS0`，且 `MAX_CYCLES=0` 表示无限预算；图形入口必须显式使用 `make run-ubuntu-gui`。
 
 常用命令：
 
 ```sh
 cd Linux
 
-# 完整 Ubuntu rootfs 路线。当前 virtio-blk/rootfs 后端仍是后续 gate，
-# 因此这条命令用于继续调试完整 Linux，不等同于已通过。
+# NPC 完整 Ubuntu rootfs 路线；其 RTL/设备验收与 NEMU 参考入口分别维护。
 make ARCH=riscv64-npc run
 
-# 用 NEMU 跑同一条完整 Ubuntu rootfs 路线。
+# 用 NEMU 的默认 headless profile 跑同一条完整 Ubuntu rootfs 路线。
+# 该命令不会打开 VGA/SDL；图形运行请使用下面的 run-ubuntu-gui。
 # 当前已能进入 ttyS0 root shell、systemd running，并通过 syscon/SRST 完成自然 poweroff；
 # 但还不是 QEMU 级通用机器。
 make ARCH=riscv64-nemu run
@@ -108,11 +152,11 @@ make ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info
 make ARCH=riscv64-nemu nemu-qmp-smoke
 
 # A 扩展属于 ISA/AM 边界测试，不再在 Linux/tools 维护重复裸机 payload。
-# 以下命令从工作区根目录运行；RV32/RV64 分别使用当前匹配的 NEMU 配置。
-AM_HOME=$PWD/abstract-machine NEMU_HOME=$PWD/nemu \
-  make -C am-kernels/tests/cpu-tests ARCH=riscv32-nemu ALL=rv32a-amo c
-AM_HOME=$PWD/abstract-machine NEMU_HOME=$PWD/nemu \
-  make -C am-kernels/tests/cpu-tests ARCH=riscv64-nemu ALL=rv64a-amo c
+# 本代码块仍位于 Linux/；RV32/RV64 分别使用当前匹配的 NEMU 配置。
+AM_HOME=$PWD/../abstract-machine NEMU_HOME=$PWD/../nemu \
+  make -C ../am-kernels/tests/cpu-tests ARCH=riscv32-nemu ALL=rv32a-amo c
+AM_HOME=$PWD/../abstract-machine NEMU_HOME=$PWD/../nemu \
+  make -C ../am-kernels/tests/cpu-tests ARCH=riscv64-nemu ALL=rv64a-amo c
 
 # NEMU RV64 PMP access fault smoke：验证 S-mode 被 PMP 拒绝的 load/store/ifetch
 # 会投递 access fault，而不是 page fault 或静默通过。
@@ -152,10 +196,10 @@ make ARCH=riscv64-npc BOOT=ubuntu-probe run
 make ARCH=riscv64-npc paths
 make ARCH=riscv64-nemu paths
 
-# 检查 ext4 rootfs 实物是否至少具备 /init、/bin/sh、os-release，并报告 systemd readiness。
+# 缺少默认 ext4/cpio 时会先构建，再检查 /init、/bin/sh、os-release 并报告 systemd readiness。
 make ARCH=riscv64-nemu check-ubuntu-rootfs
 
-# 严格要求 systemd rootfs；当前 Ubuntu Base/fakeroot 镜像会在这里明确失败。
+# 严格要求 systemd rootfs；首次检查失败会重建 systemd-minimal 后复查，最终不满足才失败。
 make ARCH=riscv64-nemu check-ubuntu-rootfs-systemd
 
 # 无 sudo/debootstrap/qemu-user-static 时的过渡路线：用 apt + dpkg-deb 把
@@ -171,6 +215,7 @@ make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image
 make ARCH=riscv64-nemu ubuntu-rootfs-flavors-check
 make ARCH=riscv64-nemu ubuntu-rootfs-interactive-image
 make ARCH=riscv64-nemu ubuntu-rootfs-full-image
+# full 检查失败时会重建对应 flavor 后复查，最终仍不满足才失败。
 make ARCH=riscv64-nemu check-ubuntu-rootfs-full
 make ARCH=riscv64-nemu check-nemu-systemd-guest-full
 make ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak
