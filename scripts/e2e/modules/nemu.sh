@@ -425,7 +425,7 @@ e2e_nemu_ubuntu_static_gate_impl() {
     "platform.virtio_mmio_slots=3" \
     "monitor.machine_info=enabled" \
     "monitor.oneshot_cmd=enabled" \
-    "monitor.qmp=startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown" \
+    "monitor.qmp=startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown-quit" \
     "monitor.qmp.mode=startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown-quit" \
     "debug.gdbstub=remote-startup-rw-step-cont-swbreak-hbreak-watch-vcont-async-stop-target-xml-memory-map-noack" \
     "debug.gdbstub.mode=startup-rw-regmem-step-cont-swbreak-hbreak-watch-vcont-async-stop-target-xml-memory-map-noack" \
@@ -977,6 +977,8 @@ e2e_nemu_ubuntu_static_gate_impl() {
     local rootfs_overlay_machine_info="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info.txt"
     local rootfs_overlay_stat_file="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info-overlay.stat"
     local rootfs_overlay_file="$E2E_ROOT_DIR/Linux/build/riscv64-nemu/nemu-rootfs-overlay-machine-info.raw"
+    local rootfs_overlay_meta_file="${rootfs_overlay_file}.meta"
+    local rootfs_overlay_meta_tmp_file="${rootfs_overlay_file}.meta.tmp"
     for pattern in \
       "device.virtio_blk.enabled=1" \
       "device.virtio_blk.mmio=0x10001000" \
@@ -994,8 +996,10 @@ e2e_nemu_ubuntu_static_gate_impl() {
       "device.virtio_blk.queue_num_max=64" \
       "device.virtio_blk.read_mmap=enabled" \
       "device.virtio_blk.read_mmap_bytes=$rootfs_size" \
-      "device.virtio_blk.backing_readonly=0" \
+      "device.virtio_blk.backing_readonly=1" \
       "device.virtio_blk.overlay=enabled" \
+      "device.virtio_blk.overlay_state=new" \
+      "device.virtio_blk.overlay_metadata=sidecar-v1-crc64" \
       "device.virtio_blk.write_target=overlay" \
       "device.virtio_blk.overlay_dirty_sectors=0" \
       "mmio.virtio-blk=0x10001000..0x10001fff"; do
@@ -1016,11 +1020,12 @@ e2e_nemu_ubuntu_static_gate_impl() {
       printf 'FAIL rootfs overlay stat %s\n' "$rootfs_overlay_stat"
       missing=1
     fi
-    if [[ ! -e "$rootfs_overlay_file" ]]; then
+    if [[ ! -e "$rootfs_overlay_file" && ! -e "$rootfs_overlay_meta_file" &&
+          ! -e "$rootfs_overlay_meta_tmp_file" ]]; then
       printf 'PASS rootfs overlay machine-info cleanup\n'
     else
-      printf 'FAIL rootfs overlay machine-info cleanup left %s\n' "$rootfs_overlay_file"
-      rm -f "$rootfs_overlay_file"
+      printf 'FAIL rootfs overlay machine-info cleanup left raw/meta artifacts\n'
+      rm -f "$rootfs_overlay_file" "$rootfs_overlay_meta_file" "$rootfs_overlay_meta_tmp_file"
       missing=1
     fi
   else
@@ -4156,7 +4161,10 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "--block='$E2E_ROOT_DIR/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'" \
     "--block-overlay='$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
-    "rm -f '$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
+    "bash '$E2E_ROOT_DIR/Linux/scripts/prepare-nemu-overlay.sh'" \
+    "--backing='$E2E_ROOT_DIR/Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4'" \
+    "--overlay='$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
+    "--reset='1'" \
     "[Linux] overlay:"; do
     if grep -Fq -- "$pattern" "$run_dry_log"; then
       printf 'PASS run dry %s\n' "$pattern"
@@ -4165,6 +4173,14 @@ e2e_nemu_ubuntu_slice_contract() {
       missing=1
     fi
   done
+  if grep -Fq -- \
+      "rm -f '$E2E_ROOT_DIR/Linux/env/platforms/nemu/logs/linux-front/riscv64-nemu-ubuntu-rootfs/rootfs-overlay.raw'" \
+      "$run_dry_log"; then
+    printf 'FAIL run dry still deletes the overlay directly\n'
+    missing=1
+  else
+    printf 'PASS run dry delegates overlay reset to the guarded helper\n'
+  fi
   for pattern in \
     "check-nemu-kernel-config" \
     "LINUX_KERNEL_CONFIG='\$(LINUX_BUILD_DIR)/.config'" \
@@ -4334,7 +4350,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "qmp_set_port" \
     "qmp_runtime_enabled" \
     "qmp_capability" \
-    "startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown" \
+    "startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial-version-kvm-pci-schema-id-echo-query-events-system-reset-system-powerdown-quit" \
     "qmp_wait_for_client_if_enabled" \
     "atomic_bool qmp_cont_requested" \
     "atomic_bool qmp_stop_requested" \
@@ -4616,7 +4632,7 @@ e2e_nemu_ubuntu_slice_contract() {
   for pattern in \
     "device_update_after_inst" \
     "NEMU_DEVICE_UPDATE_CHECK_INTERVAL" \
-    "skip += retired"; do
+    "skip += attempted"; do
     if grep -q "$pattern" "$device_c"; then
       printf 'PASS device.c %s\n' "$pattern"
     else
@@ -4708,7 +4724,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "fa0_raw" \
     "fa5_raw" \
     "pc_gpr_trace_after_exec" \
-    "device_update_after_inst(retired"; do
+    "device_update_after_inst(attempted"; do
     if grep -q "$pattern" "$cpu_exec_c"; then
       printf 'PASS cpu-exec.c %s\n' "$pattern"
     else

@@ -686,6 +686,13 @@ static inline bool take_vaddr_fault(Decode *s) {
 }
 
 int isa_exec_once(Decode *s) {
+  /*
+   * Counter retirement is a per-instruction transaction.  Start it before
+   * instruction fetch so an instruction-access fault is attributed to this
+   * attempt, while an asynchronous interrupt taken at the preceding TB
+   * boundary is kept outside the transaction.
+   */
+  isa_riscv64_begin_exec();
 #ifdef CONFIG_RISCV_EXT_C
   VaddrIfetchWideResult wide = vaddr_ifetch_wide(s->snpc);
   if (wide != VADDR_IFETCH_WIDE_MISS) {

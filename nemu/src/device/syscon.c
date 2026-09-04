@@ -53,7 +53,9 @@ static void syscon_reset_io_handler(uint32_t offset, int len, bool is_write) {
   } else if (value == CONFIG_SYSCON_REBOOT_VALUE) {
     Log("syscon-reset: reboot requested value=0x%08x pc=" FMT_WORD,
         value, cpu.pc);
-    set_nemu_state(NEMU_END, cpu.pc, 0);
+    // 进程内 warm reset 无法完整重置设备、host I/O 线程和持久化边界。
+    // 用独立终态通知宿主 supervisor 启动一个全新的 NEMU 进程。
+    set_nemu_state(NEMU_REBOOT, cpu.pc, 0);
   } else if ((value & 0xffffu) == 0x3333u) {
     // SiFive Test Finisher FAIL 编码: 低 16 位=0x3333, 高 16 位=退出码。
     // AM guest 的 halt(code!=0) 经此统一退出 → BAD TRAP(halt_ret=code); halt(0) 走 poweroff(0x5555)。

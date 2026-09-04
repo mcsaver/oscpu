@@ -926,9 +926,14 @@ module tb_ooo_alu_decode_backend;
   initial begin : real_npu_link_test
     integer cycles;
     reg [7:0] issued_pid;
-  reg saw_matching_terminal;
-  reg saw_precise_commit;
-  reg saw_error_terminal;
+    reg [7:0] issued_opclass;
+    reg issued_required;
+    reg issued_is_64;
+    reg [63:0] issued_bits;
+    reg [7:0] observed_error_code;
+    reg saw_matching_terminal;
+    reg saw_precise_commit;
+    reg saw_error_terminal;
 
     tb_errors = 0;
     link_stall = 1'b1;
@@ -1061,31 +1066,108 @@ module tb_ooo_alu_decode_backend;
     tb_check1("real LO+HI reaches CPU command link", tensor_cmd_valid, 1'b1);
     tb_check1("real LO+HI is 64-bit", pair_tensor_is_64, 1'b1);
     issued_pid = tensor_cmd_pid;
+    issued_opclass = pair_tensor_opclass;
+    issued_required = pair_tensor_required;
+    issued_is_64 = pair_tensor_is_64;
+    issued_bits = tensor_cmd_bits;
+    observed_error_code = 8'b0;
     `TB_TICK(clk);
 
     saw_matching_terminal = 1'b0;
     saw_precise_commit = 1'b0;
     saw_error_terminal = 1'b0;
     cycles = 0;
-    while (!saw_precise_commit && cycles < 120) begin
+    while (!npu_completion_valid && cycles < 120) begin
+      `TB_TICK(clk);
+      cycles = cycles + 1;
+    end
+    tb_check1("real LO+HI error terminal held by NPU",
+              npu_completion_valid, 1'b1);
+    tb_check32("real LO+HI terminal PID", {24'b0, npu_completion_pid},
+               {24'b0, issued_pid});
+    tb_check1("real LO+HI terminal reports error", npu_completion_error,
+              1'b1);
+    if (npu_completion_error_code == 8'b0) begin
+      $display("[CHECK-FAIL] real LO+HI error code must be nonzero");
+      tb_errors = tb_errors + 1;
+    end
+    observed_error_code = npu_completion_error_code;
+    saw_matching_terminal = 1'b1;
+    saw_error_terminal = 1'b1;
+
+    // Test-only pressure is applied to the arbitration facts and final WB
+    // valids together: both lanes look occupied to the Tensor arbiter, while
+    // no synthetic packet is allowed to write the ROB during the hold.
+    force dut.u_int_backend.wb0_base_valid_w = 1'b1;
+    force dut.u_int_backend.wb1_base_valid_w = 1'b1;
+    force dut.u_int_backend.wb0_valid_w = 1'b0;
+    force dut.u_int_backend.wb1_valid_w = 1'b0;
+    completion_stall = 1'b0;
+    #1;
+    tb_check1("real LO+HI completion blocked by two full WB lanes",
+              dut.u_int_backend.tensor_completion_ready_w, 1'b0);
+    `TB_TICK(clk);
+    #1;
+    tb_check1("real LO+HI completion captured under WB backpressure",
+              dut.u_int_backend.tensor_completion_valid_w, 1'b1);
+    tb_check32("real LO+HI held completion PID",
+               {24'b0, dut.u_int_backend.tensor_completion_producer_id_w},
+               {24'b0, issued_pid});
+    tb_check32("real LO+HI held mtval payload",
+               dut.u_int_backend.tensor_fault_mtval_w[31:0],
+               issued_bits[31:0]);
+    tb_check32("real LO+HI held mtval metadata",
+               dut.u_int_backend.tensor_fault_mtval_w[63:32],
+               {observed_error_code, issued_pid, issued_opclass,
+                issued_required, issued_is_64, 6'd1});
+    `TB_TICK(clk);
+    #1;
+    tb_check1("real LO+HI completion remains sticky under WB backpressure",
+              dut.u_int_backend.tensor_completion_valid_w, 1'b1);
+    tb_check32("real LO+HI mtval metadata stable under WB backpressure",
+               dut.u_int_backend.tensor_fault_mtval_w[63:32],
+               {observed_error_code, issued_pid, issued_opclass,
+                issued_required, issued_is_64, 6'd1});
+
+    // Free only lane1.  This exercises the independent WB1 exception/cause/
+    // tval mux before allowing the packet to update the ROB.
+    release dut.u_int_backend.wb1_base_valid_w;
+    release dut.u_int_backend.wb1_valid_w;
+    #1;
+    tb_check1("real LO+HI completion selects WB1",
+              dut.u_int_backend.tensor_wb1_claim_w, 1'b1);
+    tb_check1("real LO+HI WB1 carries exception",
+              dut.u_int_backend.wb1_exception_w, 1'b1);
+    tb_check32("real LO+HI WB1 carries NPU fault cause",
+               {27'b0, dut.u_int_backend.wb1_cause_w},
+               {27'b0, `EXC_NPU_FAULT});
+    tb_check32("real LO+HI WB1 carries mtval payload",
+               dut.u_int_backend.wb1_tval_w[31:0], issued_bits[31:0]);
+    tb_check32("real LO+HI WB1 carries mtval metadata",
+               dut.u_int_backend.wb1_tval_w[63:32],
+               {observed_error_code, issued_pid, issued_opclass,
+                issued_required, issued_is_64, 6'd1});
+    `TB_TICK(clk);
+    release dut.u_int_backend.wb0_valid_w;
+    release dut.u_int_backend.wb0_base_valid_w;
+
+    saw_precise_commit = 1'b0;
+    cycles = 0;
+    while (!saw_precise_commit && cycles < 40) begin
       #1;
-      if (npu_completion_valid) begin
-        tb_check32("real LO+HI terminal PID", {24'b0, npu_completion_pid},
-                   {24'b0, issued_pid});
-        tb_check1("real LO+HI terminal reports error", npu_completion_error,
-                  1'b1);
-        if (npu_completion_error_code == 8'b0) begin
-          $display("[CHECK-FAIL] real LO+HI error code must be nonzero");
-          tb_errors = tb_errors + 1;
-        end
-        saw_matching_terminal = 1'b1;
-        saw_error_terminal = 1'b1;
-      end
       if (commit0_valid) begin
         tb_check32("real LO+HI precise retire PC", commit0_pc[31:0],
                    32'h8000_0010);
         tb_check1("real LO+HI error becomes precise exception",
                   commit0_exception, 1'b1);
+        tb_check32("real LO+HI precise NPU fault cause",
+                   {27'b0, commit0_cause}, {27'b0, `EXC_NPU_FAULT});
+        tb_check32("real LO+HI NPU fault mtval payload",
+                   commit0_tval[31:0], issued_bits[31:0]);
+        tb_check32("real LO+HI NPU fault mtval metadata",
+                   commit0_tval[63:32],
+                   {observed_error_code, issued_pid, issued_opclass,
+                    issued_required, issued_is_64, 6'd1});
         tb_check1("real LO+HI error cannot write an architectural register",
                   commit0_rd_en, 1'b0);
         saw_precise_commit = 1'b1;

@@ -969,11 +969,23 @@ static int conf_write_dep(const char *name)
 static int conf_touch_deps(void)
 {
 	const char *name;
+	const char *splitconfig_dir;
 	struct symbol *sym;
 	int res, i;
 
-	strcpy(depfile_path, "include/config/");
+	splitconfig_dir = getenv("KCONFIG_SPLITCONFIG");
+	if (!splitconfig_dir)
+		splitconfig_dir = "include/config/";
+	if (snprintf(depfile_path, sizeof(depfile_path), "%s", splitconfig_dir) >=
+	    sizeof(depfile_path))
+		return -1;
 	depfile_prefix_len = strlen(depfile_path);
+	if (depfile_prefix_len == 0 || depfile_path[depfile_prefix_len - 1] != '/') {
+		if (depfile_prefix_len + 1 >= sizeof(depfile_path))
+			return -1;
+		depfile_path[depfile_prefix_len++] = '/';
+		depfile_path[depfile_prefix_len] = '\0';
+	}
 
 	name = conf_get_autoconfig_name();
 	conf_read_simple(name, S_DEF_AUTO);
@@ -1042,6 +1054,7 @@ int conf_write_autoconf(int overwrite)
 {
 	struct symbol *sym;
 	const char *name;
+	const char *dep_name;
 	const char *autoconf_name = conf_get_autoconfig_name();
 	FILE *out, *out_h;
 	int i;
@@ -1049,7 +1062,10 @@ int conf_write_autoconf(int overwrite)
 	if (!overwrite && is_present(autoconf_name))
 		return 0;
 
-	conf_write_dep("include/config/auto.conf.cmd");
+	dep_name = getenv("KCONFIG_AUTOCONFIG_DEP");
+	if (!dep_name)
+		dep_name = "include/config/auto.conf.cmd";
+	conf_write_dep(dep_name);
 
 	if (conf_touch_deps())
 		return 1;

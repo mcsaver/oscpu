@@ -239,10 +239,6 @@ static inline bool csr_is_implemented(uint32_t csr) {
     case CSR_INSTRET:
     case CSR_MISA:
     case CSR_MHARTID:
-    case CSR_TSELECT:
-    case CSR_TDATA1:
-    case CSR_TDATA2:
-    case CSR_TCONTROL:
       return true;
     default:
       return false;
@@ -371,11 +367,6 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
     case CSR_INSTRET:  *value = (word_t)cpu.csr.minstret; return true;
     case CSR_MISA:     *value = csr_misa_value(); return true;
     case CSR_MHARTID:  *value = 0; return true;
-    // debug trigger 最小 no-op(对齐 NPC): tselect 读回 NO_TRIGGER(1)、tdata1/2/tcontrol 恒 0。
-    case CSR_TSELECT:  *value = 1; return true;
-    case CSR_TDATA1:
-    case CSR_TDATA2:
-    case CSR_TCONTROL: *value = 0; return true;
     default: return false;
   }
 }
@@ -486,11 +477,6 @@ static inline bool csr_write(uint32_t csr, word_t value) {
     }
     case CSR_MCYCLE:   isa_riscv64_write_mcycle(value); return true;
     case CSR_MINSTRET: isa_riscv64_write_minstret(value); return true;
-    // debug trigger 最小 no-op(对齐 NPC): 写忽略(WARL), 不 illegal。
-    case CSR_TSELECT:
-    case CSR_TDATA1:
-    case CSR_TDATA2:
-    case CSR_TCONTROL: return true;
     default: return false;
   }
 }

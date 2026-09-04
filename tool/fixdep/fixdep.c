@@ -141,8 +141,10 @@ static void xputchar(int c)
 static void print_dep(const char *m, int slen, const char *dir)
 {
 	int c, prev_c = '/', i;
+	size_t dir_len = strlen(dir);
 
-	xprintf("    $(wildcard %s/", dir);
+	xprintf("    $(wildcard %s%s", dir,
+		(dir_len > 0 && dir[dir_len - 1] == '/') ? "" : "/");
 	for (i = 0; i < slen; i++) {
 		c = m[i];
 		if (c == '_')
@@ -214,13 +216,17 @@ static void define_config(const char *name, int len, unsigned int hash)
  */
 static void use_config(const char *m, int slen)
 {
+	const char *config_dir;
 	unsigned int hash = strhash(m, slen);
 
 	if (is_defined_config(m, slen, hash))
 	    return;
 
 	define_config(m, slen, hash);
-	print_dep(m, slen, "include/config");
+	config_dir = getenv("KCONFIG_SPLITCONFIG");
+	if (!config_dir || !config_dir[0])
+		config_dir = "include/config";
+	print_dep(m, slen, config_dir);
 }
 
 /* test if s ends in sub */

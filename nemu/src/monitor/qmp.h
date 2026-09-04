@@ -31,8 +31,17 @@ static inline bool qmp_fast_enabled(void) {
 }
 
 const char *qmp_capability(void);
-bool qmp_wait_for_client_if_enabled(void);
+typedef enum {
+  QMP_STARTUP_RUN_GUEST,
+  QMP_STARTUP_EXIT_SUCCESS,
+  QMP_STARTUP_EXIT_FAILURE,
+} QMPStartupResult;
+
+QMPStartupResult qmp_wait_for_client_if_enabled(void);
+void qmp_cpu_running_point(void);
 void qmp_cpu_pause_point(void);
+void qmp_cpu_stopped_point(void);
 void qmp_notify_shutdown_event(void);
+void qmp_notify_reset_event(void);
 
 #endif

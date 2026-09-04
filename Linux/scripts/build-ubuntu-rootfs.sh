@@ -18,15 +18,31 @@ ROOTFS_ARTIFACT_SUFFIX=${UBUNTU_ROOTFS_ARTIFACT_SUFFIX:-$(ubuntu_rootfs_flavor_a
 ROOTFS=${UBUNTU_ROOTFS_DIR:-"$WORK/rootfs$ROOTFS_ARTIFACT_SUFFIX"}
 IMAGE=${UBUNTU_ROOTFS_IMAGE:-"$WORK/ubuntu-22.04-riscv64$ROOTFS_ARTIFACT_SUFFIX.ext4"}
 CPIO=${UBUNTU_ROOTFS_CPIO_IMAGE:-"$WORK/ubuntu-22.04-riscv64$ROOTFS_ARTIFACT_SUFFIX-rootfs.cpio"}
+FINAL_IMAGE=$IMAGE
+FINAL_CPIO=$CPIO
+PROFILE_STAMP=${UBUNTU_ROOTFS_BUILD_STAMP:-}
+EXPECTED_PROFILE_STAMP=${UBUNTU_ROOTFS_EXPECTED_PROFILE_STAMP:-}
 IMAGE_SIZE=${UBUNTU_ROOTFS_IMAGE_SIZE:-$(ubuntu_rootfs_flavor_image_size "$ROOTFS_FLAVOR")}
 ROOTFS_INCLUDE=${UBUNTU_ROOTFS_INCLUDE:-$(ubuntu_rootfs_flavor_include_csv "$ROOTFS_FLAVOR")}
 DEBOOTSTRAP_VARIANT=${UBUNTU_DEBOOTSTRAP_VARIANT:-$(ubuntu_rootfs_flavor_debootstrap_variant "$ROOTFS_FLAVOR")}
 ROOTFS_REQUIRE_SYSTEMD=${UBUNTU_ROOTFS_REQUIRE_SYSTEMD:-0}
 ROOTFS_SYSTEMD_OVERLAY=${UBUNTU_ROOTFS_SYSTEMD_OVERLAY:-0}
 ROOTFS_SYSTEMD_OVERLAY_SCRIPT=${UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT:-"$SCRIPT_DIR/build-ubuntu-systemd-overlay.sh"}
+ROOTFS_SYSTEMD_OVERLAY_APT_ROOT="$WORK/apt-systemd-overlay/$ROOTFS_FLAVOR"
+# Resolve the overlay's public knobs here as well as in the helper.  They are
+# part of the produced rootfs identity, so the parent must both stamp and pass
+# the exact values that the child will consume; relying on ambient export state
+# would let a changed package/source policy reuse an older ext4/CPIO pair.
+SYSTEMD_OVERLAY_APT_TRUSTED=${UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED:-1}
+SYSTEMD_OVERLAY_COMPONENTS=${UBUNTU_SYSTEMD_OVERLAY_COMPONENTS:-"main universe"}
+SYSTEMD_OVERLAY_NO_RECOMMENDS=${UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS:-$(ubuntu_rootfs_flavor_no_recommends "$ROOTFS_FLAVOR")}
+SYSTEMD_OVERLAY_PACKAGES=${UBUNTU_SYSTEMD_OVERLAY_PACKAGES:-$(ubuntu_rootfs_flavor_packages "$ROOTFS_FLAVOR")}
 ROOTFS_SERIAL_AUTOLOGIN=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN:-1}
 ROOTFS_SERIAL_AUTOLOGIN_USER=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER:-root}
 ROOTFS_SERIAL_AUTOLOGIN_TTYS=${UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS:-ttyS0}
+ROOTFS_VT_AUTOLOGIN=${UBUNTU_ROOTFS_VT_AUTOLOGIN:-0}
+ROOTFS_VT_AUTOLOGIN_USER=${UBUNTU_ROOTFS_VT_AUTOLOGIN_USER:-root}
+ROOTFS_VT_AUTOLOGIN_TTY=${UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY:-tty1}
 ROOTFS_SERIAL_MASK_TTYS=${UBUNTU_ROOTFS_SERIAL_MASK_TTYS:-hvc0}
 ROOTFS_NPC_CONSOLE_SHELL=${UBUNTU_ROOTFS_NPC_CONSOLE_SHELL:-0}
 ROOTFS_NPC_TTY_READER=${UBUNTU_ROOTFS_NPC_TTY_READER:-0}
@@ -64,11 +80,418 @@ fi
 CROSS_COMPILE=${CROSS_COMPILE:-$DEFAULT_CROSS_COMPILE}
 CC=${CC:-"${CROSS_COMPILE}gcc"}
 
-mkdir -p "$WORK" "$(dirname "$TARBALL")"
+for host_tool in flock mktemp realpath sha256sum sort sync; do
+  command -v "$host_tool" >/dev/null 2>&1 || {
+    echo "[ubuntu-rootfs] missing host tool: $host_tool" >&2
+    exit 1
+  }
+done
+
+artifact_paths_alias() {
+  local lhs=$1 rhs=$2 lhs_real rhs_real
+  lhs_real=$(realpath -m -- "$lhs")
+  rhs_real=$(realpath -m -- "$rhs")
+  [[ $lhs_real == "$rhs_real" ]] ||
+    { [[ -e $lhs && -e $rhs ]] && [[ $lhs -ef $rhs ]]; }
+}
+
+path_is_within_or_equal() {
+  local child=$1 parent=$2 child_real parent_real
+  child_real=$(realpath -m -- "$child")
+  parent_real=$(realpath -m -- "$parent")
+  if [[ $parent_real == / ]]; then
+    [[ $child_real == /* ]]
+  else
+    [[ $child_real == "$parent_real" || $child_real == "$parent_real"/* ]]
+  fi
+}
+
+ROOTFS_REAL=$(realpath -m -- "$ROOTFS")
+WORK_REAL=$(realpath -m -- "$WORK")
+REPO_ROOT_REAL=$(realpath -m -- "$LINUX_HOME/..")
+[[ ! -L $ROOTFS ]] || {
+  echo "[ubuntu-rootfs] rootfs staging directory must not be a symlink: $ROOTFS" >&2
+  exit 1
+}
+[[ ! -e $ROOTFS || -d $ROOTFS ]] || {
+  echo "[ubuntu-rootfs] rootfs staging path has unsafe type: $ROOTFS" >&2
+  exit 1
+}
+if [[ $WORK_REAL == / || $ROOTFS_REAL == "$WORK_REAL" ]] ||
+   ! path_is_within_or_equal "$ROOTFS_REAL" "$WORK_REAL"; then
+  echo "[ubuntu-rootfs] rootfs staging directory must be a strict child of WORK: $ROOTFS / $WORK" >&2
+  exit 1
+fi
+if [[ $ROOTFS_SYSTEMD_OVERLAY == 1 ]]; then
+  ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL=$(realpath -m -- "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT")
+  if [[ $ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL == "$WORK_REAL" ]] ||
+     ! path_is_within_or_equal "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL" "$WORK_REAL"; then
+    echo "[ubuntu-rootfs] systemd overlay APT root must be a strict child of WORK: $ROOTFS_SYSTEMD_OVERLAY_APT_ROOT / $WORK" >&2
+    exit 1
+  fi
+  for overlay_dir in "$WORK/apt-systemd-overlay" "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT"; do
+    [[ ! -L $overlay_dir ]] || {
+      echo "[ubuntu-rootfs] systemd overlay APT path must not be a symlink: $overlay_dir" >&2
+      exit 1
+    }
+    [[ ! -e $overlay_dir || -d $overlay_dir ]] || {
+      echo "[ubuntu-rootfs] systemd overlay APT path has unsafe type: $overlay_dir" >&2
+      exit 1
+    }
+  done
+  if path_is_within_or_equal "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL" "$ROOTFS_REAL" ||
+     path_is_within_or_equal "$ROOTFS_REAL" "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL"; then
+    echo "[ubuntu-rootfs] systemd overlay APT root conflicts with rootfs staging: $ROOTFS_SYSTEMD_OVERLAY_APT_ROOT / $ROOTFS" >&2
+    exit 1
+  fi
+else
+  ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL=
+fi
+
+# rm -rf is used for ROOTFS later.  Even a caller-provided WORK must not make
+# that deletion scope equal to, or an ancestor of, the host home/repository or
+# shared Linux environment roots.
+PROTECTED_ROOTS=(/ "$REPO_ROOT_REAL" "$LINUX_HOME" "$ENV_ROOT")
+if [[ -n ${HOME:-} ]]; then
+  PROTECTED_ROOTS+=("$HOME")
+fi
+for protected_root in "${PROTECTED_ROOTS[@]}"; do
+  if path_is_within_or_equal "$protected_root" "$WORK_REAL"; then
+    echo "[ubuntu-rootfs] WORK contains a protected host root: $WORK / $protected_root" >&2
+    exit 1
+  fi
+  if path_is_within_or_equal "$protected_root" "$ROOTFS_REAL"; then
+    echo "[ubuntu-rootfs] refusing destructive rootfs scope: $ROOTFS / $protected_root" >&2
+    exit 1
+  fi
+done
+
+PUBLISH_OUTPUTS=("$FINAL_IMAGE" "$FINAL_CPIO")
+if [[ -n $PROFILE_STAMP ]]; then
+  [[ -n $EXPECTED_PROFILE_STAMP && -f $EXPECTED_PROFILE_STAMP &&
+      ! -L $EXPECTED_PROFILE_STAMP ]] || {
+    echo "[ubuntu-rootfs] expected profile payload is missing or unsafe: $EXPECTED_PROFILE_STAMP" >&2
+    exit 1
+  }
+  PUBLISH_OUTPUTS+=("$PROFILE_STAMP")
+fi
+
+for output in "${PUBLISH_OUTPUTS[@]}"; do
+  [[ -n $output ]] || {
+    echo "[ubuntu-rootfs] writable output path is empty" >&2
+    exit 1
+  }
+  [[ ! -L $output ]] || {
+    echo "[ubuntu-rootfs] writable output must not be a symlink: $output" >&2
+    exit 1
+  }
+  [[ ! -e $output || -f $output ]] || {
+    echo "[ubuntu-rootfs] writable output has unsafe type: $output" >&2
+    exit 1
+  }
+done
+
+for ((i = 0; i < ${#PUBLISH_OUTPUTS[@]}; i++)); do
+  for ((j = i + 1; j < ${#PUBLISH_OUTPUTS[@]}; j++)); do
+    if artifact_paths_alias "${PUBLISH_OUTPUTS[i]}" "${PUBLISH_OUTPUTS[j]}"; then
+      echo "[ubuntu-rootfs] writable outputs must not alias: ${PUBLISH_OUTPUTS[i]} / ${PUBLISH_OUTPUTS[j]}" >&2
+      exit 1
+    fi
+  done
+done
+
+# These paths are consumed as immutable inputs during the build.  Reject both
+# pathname equality and pre-existing hard-link equality before creating any
+# publish temporary, so a public output override cannot replace its own source.
+READ_INPUTS=(
+  "$TARBALL"
+  "$SHA_FILE"
+  "$ROOTFS_FLAVOR_SCRIPT"
+  "$ROOTFS_SYSTEMD_OVERLAY_SCRIPT"
+  "$ROOTFS_INIT_SRC"
+  "$ROOTFS_PROBE_SRC"
+  "$ROOTFS_NPC_TTY_PROBE_SRC"
+  "$ROOTFS_NPC_GENERATOR_SKIP_SRC"
+  "$ROOTFS_NPC_STRICT_CHECK_SRC"
+)
+if [[ -n $EXPECTED_PROFILE_STAMP ]]; then
+  READ_INPUTS+=("$EXPECTED_PROFILE_STAMP")
+fi
+if artifact_paths_alias "$TARBALL" "$SHA_FILE"; then
+  echo "[ubuntu-rootfs] base tarball and checksum manifest must not alias: $TARBALL / $SHA_FILE" >&2
+  exit 1
+fi
+
+INTERMEDIATE_OUTPUTS=(
+  "$ROOTFS_INIT_BIN"
+  "$ROOTFS_PROBE_BIN"
+  "$ROOTFS_NPC_TTY_PROBE_BIN"
+  "$ROOTFS_NPC_GENERATOR_SKIP_BIN"
+  "$WORK/.build-rootfs-fakeroot.sh"
+)
+for intermediate in "${INTERMEDIATE_OUTPUTS[@]}"; do
+  [[ -n $intermediate ]] || {
+    echo "[ubuntu-rootfs] intermediate output path is empty" >&2
+    exit 1
+  }
+  [[ ! -L $intermediate ]] || {
+    echo "[ubuntu-rootfs] intermediate output must not be a symlink: $intermediate" >&2
+    exit 1
+  }
+  [[ ! -e $intermediate || -f $intermediate ]] || {
+    echo "[ubuntu-rootfs] intermediate output has unsafe type: $intermediate" >&2
+    exit 1
+  }
+done
+WRITABLE_ARTIFACTS=("${PUBLISH_OUTPUTS[@]}" "${INTERMEDIATE_OUTPUTS[@]}")
+for ((i = 0; i < ${#WRITABLE_ARTIFACTS[@]}; i++)); do
+  for ((j = i + 1; j < ${#WRITABLE_ARTIFACTS[@]}; j++)); do
+    if artifact_paths_alias "${WRITABLE_ARTIFACTS[i]}" "${WRITABLE_ARTIFACTS[j]}"; then
+      echo "[ubuntu-rootfs] writable artifacts must not alias: ${WRITABLE_ARTIFACTS[i]} / ${WRITABLE_ARTIFACTS[j]}" >&2
+      exit 1
+    fi
+  done
+done
+for output in "${PUBLISH_OUTPUTS[@]}"; do
+  for input in "${READ_INPUTS[@]}"; do
+    if artifact_paths_alias "$output" "$input"; then
+      echo "[ubuntu-rootfs] writable output aliases read-only input: $output / $input" >&2
+      exit 1
+    fi
+  done
+  if path_is_within_or_equal "$output" "$ROOTFS_REAL" ||
+     path_is_within_or_equal "$ROOTFS_REAL" "$output"; then
+    echo "[ubuntu-rootfs] writable output conflicts with rootfs staging tree: $output / $ROOTFS" >&2
+    exit 1
+  fi
+done
+for intermediate in "${INTERMEDIATE_OUTPUTS[@]}"; do
+  for input in "${READ_INPUTS[@]}"; do
+    if artifact_paths_alias "$intermediate" "$input"; then
+      echo "[ubuntu-rootfs] intermediate output aliases read-only input: $intermediate / $input" >&2
+      exit 1
+    fi
+  done
+  if path_is_within_or_equal "$intermediate" "$ROOTFS_REAL" ||
+     path_is_within_or_equal "$ROOTFS_REAL" "$intermediate"; then
+    echo "[ubuntu-rootfs] intermediate output conflicts with rootfs staging tree: $intermediate / $ROOTFS" >&2
+    exit 1
+  fi
+done
+for input in "${READ_INPUTS[@]}"; do
+  if path_is_within_or_equal "$input" "$ROOTFS_REAL" ||
+     path_is_within_or_equal "$ROOTFS_REAL" "$input"; then
+    echo "[ubuntu-rootfs] rootfs staging tree conflicts with read-only input: $ROOTFS / $input" >&2
+    exit 1
+  fi
+done
+
+mkdir -p "$WORK" "$(dirname "$TARBALL")" "$(dirname "$SHA_FILE")" \
+  "$(dirname "$FINAL_IMAGE")" "$(dirname "$FINAL_CPIO")"
+
+# 同一 WORK 下的 rootfs、helper 与 apt state 是一组事务性产物。不同 make
+# 进程并发构建时必须串行，避免一个 flavor 正在解包时被另一个 flavor 清理。
+ROOTFS_BUILD_LOCK=${UBUNTU_ROOTFS_BUILD_LOCK:-"$WORK/.build-ubuntu-rootfs.lock"}
+ROOTFS_IMAGE_BUILD_LOCK=${UBUNTU_ROOTFS_IMAGE_BUILD_LOCK:-"$FINAL_IMAGE.build.lock"}
+ROOTFS_CPIO_BUILD_LOCK=${UBUNTU_ROOTFS_CPIO_BUILD_LOCK:-"$FINAL_CPIO.build.lock"}
+
+# WORK 锁只能保护完全相同的 WORK。调用者可以把 stamp、staging 或
+# helper 放到另一个路径，也可以使用不同 WORK 但共享这些资源，所以每个
+# 可覆写资源都需要自己的 writer lock。下载锁也必须在同一批候选中：
+# 先 canonicalize，再全局去重/排序，最后一次性获取，从根本上排除
+# build-lock -> download-lock 与反向 override 形成的 ABBA 死锁。
+ROOTFS_RESOURCE_LOCK_CANDIDATES=(
+  "$ROOTFS_BUILD_LOCK"
+  "$ROOTFS_IMAGE_BUILD_LOCK"
+  "$ROOTFS_CPIO_BUILD_LOCK"
+  "$ROOTFS_REAL.build.lock"
+  "$TARBALL.download.lock"
+  "$SHA_FILE.download.lock"
+)
+if [[ -n $PROFILE_STAMP ]]; then
+  ROOTFS_RESOURCE_LOCK_CANDIDATES+=("$PROFILE_STAMP.build.lock")
+fi
+if [[ $ROOTFS_SYSTEMD_OVERLAY == 1 ]]; then
+  ROOTFS_RESOURCE_LOCK_CANDIDATES+=("$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL.build.lock")
+fi
+for intermediate in "${INTERMEDIATE_OUTPUTS[@]}"; do
+  ROOTFS_RESOURCE_LOCK_CANDIDATES+=("$intermediate.build.lock")
+done
+
+ROOTFS_RESOURCE_LOCK_REALS=()
+for lock_path in "${ROOTFS_RESOURCE_LOCK_CANDIDATES[@]}"; do
+  [[ -n $lock_path ]] || {
+    echo "[ubuntu-rootfs] resource lock path is empty" >&2
+    exit 1
+  }
+  [[ ! -L $lock_path ]] || {
+    echo "[ubuntu-rootfs] resource lock must not be a symlink: $lock_path" >&2
+    exit 1
+  }
+  [[ ! -e $lock_path || -f $lock_path ]] || {
+    echo "[ubuntu-rootfs] resource lock has unsafe type: $lock_path" >&2
+    exit 1
+  }
+  for output in "${WRITABLE_ARTIFACTS[@]}"; do
+    if artifact_paths_alias "$lock_path" "$output"; then
+      echo "[ubuntu-rootfs] resource lock aliases writable artifact: $lock_path / $output" >&2
+      exit 1
+    fi
+  done
+  for input in "${READ_INPUTS[@]}"; do
+    if artifact_paths_alias "$lock_path" "$input"; then
+      echo "[ubuntu-rootfs] resource lock aliases read-only input: $lock_path / $input" >&2
+      exit 1
+    fi
+  done
+  if path_is_within_or_equal "$lock_path" "$ROOTFS_REAL" ||
+     path_is_within_or_equal "$ROOTFS_REAL" "$lock_path"; then
+    echo "[ubuntu-rootfs] resource lock conflicts with rootfs staging tree: $lock_path / $ROOTFS" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname -- "$lock_path")"
+  ROOTFS_RESOURCE_LOCK_REALS+=("$(realpath -m -- "$lock_path")")
+done
+mapfile -t ROOTFS_RESOURCE_LOCK_PATHS < <(
+  printf '%s\n' "${ROOTFS_RESOURCE_LOCK_REALS[@]}" | LC_ALL=C sort -u
+)
+for ((i = 0; i < ${#ROOTFS_RESOURCE_LOCK_PATHS[@]}; i++)); do
+  for ((j = i + 1; j < ${#ROOTFS_RESOURCE_LOCK_PATHS[@]}; j++)); do
+    if [[ -e ${ROOTFS_RESOURCE_LOCK_PATHS[i]} && -e ${ROOTFS_RESOURCE_LOCK_PATHS[j]} &&
+          ${ROOTFS_RESOURCE_LOCK_PATHS[i]} -ef ${ROOTFS_RESOURCE_LOCK_PATHS[j]} ]]; then
+      echo "[ubuntu-rootfs] distinct resource locks alias one inode: ${ROOTFS_RESOURCE_LOCK_PATHS[i]} / ${ROOTFS_RESOURCE_LOCK_PATHS[j]}" >&2
+      exit 1
+    fi
+  done
+done
+# All pathname/inode checks above intentionally finish before the first lock
+# file is opened.  Append mode avoids truncating an existing inode even if a
+# non-cooperating process races a hard-link replacement after validation.
+ROOTFS_RESOURCE_LOCK_FDS=()
+for lock_path in "${ROOTFS_RESOURCE_LOCK_PATHS[@]}"; do
+  exec {lock_fd}>>"$lock_path"
+  flock "$lock_fd"
+  ROOTFS_RESOURCE_LOCK_FDS+=("$lock_fd")
+done
+
+resource_lock_fd_for_path() {
+  local requested_real index
+  requested_real=$(realpath -m -- "$1")
+  for ((index = 0; index < ${#ROOTFS_RESOURCE_LOCK_PATHS[@]}; index++)); do
+    if [[ ${ROOTFS_RESOURCE_LOCK_PATHS[index]} == "$requested_real" ]]; then
+      printf '%s\n' "${ROOTFS_RESOURCE_LOCK_FDS[index]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ROOTFS_PARENT_WORK_LOCK_FD=
+ROOTFS_PARENT_STAGING_LOCK_FD=
+ROOTFS_PARENT_OVERLAY_APT_LOCK_FD=
+if [[ $ROOTFS_SYSTEMD_OVERLAY == 1 ]]; then
+  ROOTFS_PARENT_WORK_LOCK_FD=$(resource_lock_fd_for_path "$ROOTFS_BUILD_LOCK")
+  ROOTFS_PARENT_STAGING_LOCK_FD=$(resource_lock_fd_for_path "$ROOTFS_REAL.build.lock")
+  ROOTFS_PARENT_OVERLAY_APT_LOCK_FD=$(resource_lock_fd_for_path "$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL.build.lock")
+fi
+
+publish_temp() {
+  local target=$1
+  local target_dir target_base
+  target_dir=$(dirname -- "$target")
+  target_base=$(basename -- "$target")
+  mktemp "$target_dir/.${target_base}.tmp.XXXXXX"
+}
+
+PROFILE_STAMP_TEMP=
+EFFECTIVE_PROFILE_STAMP=
+DOWNLOAD_TEMP=
+IMAGE_ROLLBACK=
+CPIO_ROLLBACK=
+PROFILE_STAMP_ROLLBACK=
+IMAGE_HAD_PREVIOUS=0
+CPIO_HAD_PREVIOUS=0
+PROFILE_STAMP_HAD_PREVIOUS=0
+PUBLISH_TRANSACTION_ACTIVE=0
+
+prepare_publish_rollback() {
+  local target=$1 rollback_var=$2 had_previous_var=$3 rollback_path
+  rollback_path=$(publish_temp "$target")
+  if [[ -e $target ]]; then
+    rm -f -- "$rollback_path"
+    ln -- "$target" "$rollback_path"
+    printf -v "$had_previous_var" '%s' 1
+  else
+    printf -v "$had_previous_var" '%s' 0
+  fi
+  printf -v "$rollback_var" '%s' "$rollback_path"
+}
+
+restore_publish_target() {
+  local target=$1 rollback_path=$2 had_previous=$3
+  if [[ $had_previous == 1 ]]; then
+    if [[ -n $rollback_path && -f $rollback_path && ! -L $rollback_path ]]; then
+      # A failure can happen before this target's rename.  In that case the
+      # public name and rollback name still reference the same old inode;
+      # replacing one with the other is unnecessary and GNU mv reports it as
+      # a same-file error.
+      if [[ -e $target && $target -ef $rollback_path ]]; then
+        rm -f -- "$rollback_path"
+        return 0
+      fi
+      if ! mv -fT -- "$rollback_path" "$target"; then
+        echo "[ubuntu-rootfs] failed to restore published artifact: $target" >&2
+        return 1
+      fi
+    else
+      echo "[ubuntu-rootfs] missing rollback inode for published artifact: $target" >&2
+      return 1
+    fi
+  elif ! rm -f -- "$target"; then
+    echo "[ubuntu-rootfs] failed to remove newly published artifact: $target" >&2
+    return 1
+  fi
+}
+
+rollback_published_generation() {
+  local rollback_failed=0 dir
+  [[ $PUBLISH_TRANSACTION_ACTIVE == 1 ]] || return 0
+  echo "[ubuntu-rootfs] rolling back interrupted artifact generation" >&2
+  restore_publish_target "$FINAL_CPIO" "$CPIO_ROLLBACK" "$CPIO_HAD_PREVIOUS" || rollback_failed=1
+  restore_publish_target "$FINAL_IMAGE" "$IMAGE_ROLLBACK" "$IMAGE_HAD_PREVIOUS" || rollback_failed=1
+  if [[ -n $PROFILE_STAMP ]]; then
+    restore_publish_target "$PROFILE_STAMP" "$PROFILE_STAMP_ROLLBACK" \
+      "$PROFILE_STAMP_HAD_PREVIOUS" || rollback_failed=1
+  fi
+  for dir in "$(dirname -- "$FINAL_CPIO")" "$(dirname -- "$FINAL_IMAGE")"; do
+    sync -f "$dir" 2>/dev/null || rollback_failed=1
+  done
+  if [[ -n $PROFILE_STAMP ]]; then
+    sync -f "$(dirname -- "$PROFILE_STAMP")" 2>/dev/null || rollback_failed=1
+  fi
+  PUBLISH_TRANSACTION_ACTIVE=0
+  return "$rollback_failed"
+}
+
+cleanup_publish_temps() {
+  local status=$?
+  trap - EXIT HUP INT TERM
+  rollback_published_generation || true
+  [[ -z ${IMAGE:-} ]] || rm -f -- "$IMAGE"
+  [[ -z ${CPIO:-} ]] || rm -f -- "$CPIO"
+  [[ -z ${PROFILE_STAMP_TEMP:-} ]] || rm -f -- "$PROFILE_STAMP_TEMP"
+  [[ -z ${EFFECTIVE_PROFILE_STAMP:-} ]] || rm -f -- "$EFFECTIVE_PROFILE_STAMP"
+  [[ -z ${DOWNLOAD_TEMP:-} ]] || rm -f -- "$DOWNLOAD_TEMP"
+  [[ -z ${IMAGE_ROLLBACK:-} ]] || rm -f -- "$IMAGE_ROLLBACK"
+  [[ -z ${CPIO_ROLLBACK:-} ]] || rm -f -- "$CPIO_ROLLBACK"
+  [[ -z ${PROFILE_STAMP_ROLLBACK:-} ]] || rm -f -- "$PROFILE_STAMP_ROLLBACK"
+  exit "$status"
+}
+
 echo "[ubuntu-rootfs] flavor: $ROOTFS_FLAVOR"
 echo "[ubuntu-rootfs] rootfs dir: $ROOTFS"
-echo "[ubuntu-rootfs] image: $IMAGE"
-echo "[ubuntu-rootfs] cpio: $CPIO"
+echo "[ubuntu-rootfs] image: $FINAL_IMAGE (atomic publish)"
+echo "[ubuntu-rootfs] cpio: $FINAL_CPIO (atomic publish)"
 echo "[ubuntu-rootfs] image size: $IMAGE_SIZE"
 echo "[ubuntu-rootfs] include packages: $ROOTFS_INCLUDE"
 
@@ -77,16 +500,46 @@ can_sudo() {
 }
 
 download_ubuntu_base() {
+  local expected_digest actual_digest
+
   if [ ! -f "$TARBALL" ]; then
     echo "[ubuntu-rootfs] download: $BASE_URL/$FILENAME"
-    curl -fL "$BASE_URL/$FILENAME" -o "$TARBALL"
+    DOWNLOAD_TEMP=$(mktemp "$(dirname -- "$TARBALL")/.${FILENAME}.tmp.XXXXXX")
+    if ! curl -fL --retry 5 --retry-delay 2 "$BASE_URL/$FILENAME" -o "$DOWNLOAD_TEMP"; then
+      rm -f -- "$DOWNLOAD_TEMP"
+      DOWNLOAD_TEMP=
+      return 1
+    fi
+    sync -f "$DOWNLOAD_TEMP"
+    mv -fT -- "$DOWNLOAD_TEMP" "$TARBALL"
+    DOWNLOAD_TEMP=
+    sync -f "$(dirname -- "$TARBALL")"
   fi
   if [ ! -f "$SHA_FILE" ]; then
     echo "[ubuntu-rootfs] download: $BASE_URL/SHA256SUMS"
-    curl -fL "$BASE_URL/SHA256SUMS" -o "$SHA_FILE"
+    DOWNLOAD_TEMP=$(mktemp "$(dirname -- "$SHA_FILE")/.SHA256SUMS.tmp.XXXXXX")
+    if ! curl -fL --retry 5 --retry-delay 2 "$BASE_URL/SHA256SUMS" -o "$DOWNLOAD_TEMP"; then
+      rm -f -- "$DOWNLOAD_TEMP"
+      DOWNLOAD_TEMP=
+      return 1
+    fi
+    sync -f "$DOWNLOAD_TEMP"
+    mv -fT -- "$DOWNLOAD_TEMP" "$SHA_FILE"
+    DOWNLOAD_TEMP=
+    sync -f "$(dirname -- "$SHA_FILE")"
   fi
-  grep " \\*$FILENAME\$" "$SHA_FILE" > "$WORK/$FILENAME.sha256"
-  (cd "$ENV_ROOT/downloads" && sha256sum -c "$WORK/$FILENAME.sha256")
+  expected_digest=$(awk -v filename="$FILENAME" \
+    '$2 == filename || $2 == "*" filename { print $1; exit }' "$SHA_FILE")
+  [[ $expected_digest =~ ^[[:xdigit:]]{64}$ ]] || {
+    echo "[ubuntu-rootfs] checksum manifest has no valid entry for $FILENAME: $SHA_FILE" >&2
+    return 1
+  }
+  actual_digest=$(sha256sum "$TARBALL" | cut -d ' ' -f1)
+  if [[ ${actual_digest,,} != ${expected_digest,,} ]]; then
+    echo "[ubuntu-rootfs] checksum mismatch for base tarball: $TARBALL" >&2
+    return 1
+  fi
+  echo "$FILENAME: OK"
 }
 
 build_rootfs_static_init() {
@@ -498,6 +951,32 @@ install_serial_masks() {
   done
 }
 
+install_vt_autologin() {
+  local dir=$1
+  if [ "$ROOTFS_VT_AUTOLOGIN" != "1" ]; then
+    return
+  fi
+  case "$ROOTFS_VT_AUTOLOGIN_TTY" in
+    tty[1-9]|tty[1-9][0-9]*) ;;
+    *)
+      echo "[ubuntu-rootfs] invalid virtual terminal: $ROOTFS_VT_AUTOLOGIN_TTY" >&2
+      return 1
+      ;;
+  esac
+
+  local unit="getty@${ROOTFS_VT_AUTOLOGIN_TTY}.service"
+  local dropin_dir="$dir/etc/systemd/system/${unit}.d"
+  mkdir -p "$dropin_dir" "$dir/etc/systemd/system/getty.target.wants"
+  cat > "$dropin_dir/autologin.conf" <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_VT_AUTOLOGIN_USER} --noclear %I \$TERM
+Type=idle
+EOF
+  ln -sfn /lib/systemd/system/getty@.service \
+    "$dir/etc/systemd/system/getty.target.wants/$unit"
+}
+
 install_npc_login_marker() {
   local dir=$1
   if [ "$ROOTFS_NPC_LOGIN_MARKER" != "1" ]; then
@@ -599,7 +1078,9 @@ install_nemu_login_marker() {
     cat >> "$dir/root/.profile" <<'EOF'
 
 # Marker-only profile for NEMU serial-getty login/session gates.
-if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+nemu_marker_tty="$(tty 2>/dev/null || echo unknown)"
+if [ "$nemu_marker_tty" = "/dev/ttyS0" ] && \
+   [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
   export YSYX_NEMU_LOGIN_MARKER_EMITTED=1
   echo __NEMU_LOGIN_CHECK_BEGIN__
   check_fail=0
@@ -607,7 +1088,7 @@ if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
   fail() { echo "__NEMU_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
 
   uid="$(id -u 2>/dev/null || echo unknown)"
-  tty_path="$(tty 2>/dev/null || echo unknown)"
+  tty_path="$nemu_marker_tty"
   pid1_comm=unknown
   [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
   loginuid=unknown
@@ -627,6 +1108,7 @@ if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
 
   echo "__NEMU_LOGIN_CHECK_DONE__ rc=$check_fail"
 fi
+unset nemu_marker_tty
 EOF
   fi
   chmod 0644 "$dir/root/.profile"
@@ -1131,14 +1613,23 @@ build_with_sudo_debootstrap() {
     sudo_cmd=(sudo)
   fi
 
-  if [ ! -d "$ROOTFS/debootstrap" ] && [ ! -x "$ROOTFS/bin/sh" ]; then
-    local debootstrap_args=(--arch="$ARCH" --foreign)
-    if [ -n "$DEBOOTSTRAP_VARIANT" ]; then
-      debootstrap_args+=(--variant="$DEBOOTSTRAP_VARIANT")
-    fi
-    debootstrap_args+=(--include="$ROOTFS_INCLUDE" "$RELEASE" "$ROOTFS" "$MIRROR")
-    "${sudo_cmd[@]}" debootstrap "${debootstrap_args[@]}"
+  # Reaching this function means the profile/hash fast path missed while all
+  # staging/output writer locks are held.  Reusing a previously complete tree
+  # would retain files removed by a new profile (for example VT autologin 1->0
+  # or full->minimal), so every debootstrap miss starts from an empty staging
+  # directory just like the fakeroot path does.
+  [[ ! -L $ROOTFS && $(realpath -m -- "$ROOTFS") == "$ROOTFS_REAL" ]] || {
+    echo "[ubuntu-rootfs] rootfs staging path changed after validation: $ROOTFS" >&2
+    exit 1
+  }
+  "${sudo_cmd[@]}" rm -rf -- "$ROOTFS"
+
+  local debootstrap_args=(--arch="$ARCH" --foreign)
+  if [ -n "$DEBOOTSTRAP_VARIANT" ]; then
+    debootstrap_args+=(--variant="$DEBOOTSTRAP_VARIANT")
   fi
+  debootstrap_args+=(--include="$ROOTFS_INCLUDE" "$RELEASE" "$ROOTFS" "$MIRROR")
+  "${sudo_cmd[@]}" debootstrap "${debootstrap_args[@]}"
 
   if [ ! -x "$ROOTFS/usr/bin/qemu-riscv64-static" ]; then
     "${sudo_cmd[@]}" cp /usr/bin/qemu-riscv64-static "$ROOTFS/usr/bin/"
@@ -1147,6 +1638,7 @@ build_with_sudo_debootstrap() {
   "${sudo_cmd[@]}" chroot "$ROOTFS" /debootstrap/debootstrap --second-stage
   "${sudo_cmd[@]}" bash -c "$(declare -f write_guest_config); write_guest_config '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_trace_wrapper); $(declare -f install_serial_autologin); ROOTFS_SERIAL_AUTOLOGIN='$ROOTFS_SERIAL_AUTOLOGIN' ROOTFS_SERIAL_AUTOLOGIN_USER='$ROOTFS_SERIAL_AUTOLOGIN_USER' ROOTFS_SERIAL_AUTOLOGIN_TTYS='$ROOTFS_SERIAL_AUTOLOGIN_TTYS' ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' ROOTFS_NPC_LOGIN_TRACE='$ROOTFS_NPC_LOGIN_TRACE' install_serial_autologin '$ROOTFS'"
+  "${sudo_cmd[@]}" bash -c "$(declare -f install_vt_autologin); ROOTFS_VT_AUTOLOGIN='$ROOTFS_VT_AUTOLOGIN' ROOTFS_VT_AUTOLOGIN_USER='$ROOTFS_VT_AUTOLOGIN_USER' ROOTFS_VT_AUTOLOGIN_TTY='$ROOTFS_VT_AUTOLOGIN_TTY' install_vt_autologin '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_serial_masks); ROOTFS_SERIAL_MASK_TTYS='$ROOTFS_SERIAL_MASK_TTYS' install_serial_masks '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f install_npc_login_marker); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' install_npc_login_marker '$ROOTFS'"
   "${sudo_cmd[@]}" bash -c "$(declare -f trim_npc_login_pam); ROOTFS_NPC_LOGIN_MARKER='$ROOTFS_NPC_LOGIN_MARKER' trim_npc_login_pam '$ROOTFS'"
@@ -1203,7 +1695,13 @@ fi
   fi
   "${sudo_cmd[@]}" truncate -s "$IMAGE_SIZE" "$IMAGE"
   "${sudo_cmd[@]}" mkfs.ext4 -F -d "$ROOTFS" "$IMAGE"
+  "${sudo_cmd[@]}" bash -c '
+set -e
+cd -- "$1"
+find . -print0 | sort -z | cpio --quiet --null -o --format=newc > "$2"
+' _ "$ROOTFS" "$CPIO"
   "${sudo_cmd[@]}" chown "$(id -u):$(id -g)" "$IMAGE"
+  "${sudo_cmd[@]}" chown "$(id -u):$(id -g)" "$CPIO"
 }
 
 build_with_fakeroot_ubuntu_base() {
@@ -1215,8 +1713,6 @@ build_with_fakeroot_ubuntu_base() {
     echo "[ubuntu-rootfs] missing mkfs.ext4" >&2
     exit 1
   }
-  download_ubuntu_base
-
   local helper="$WORK/.build-rootfs-fakeroot.sh"
   cat > "$helper" <<'FAKEROOT'
 set -euo pipefail
@@ -1235,7 +1731,18 @@ if [ "$ROOTFS_SYSTEMD_OVERLAY" = "1" ]; then
     UBUNTU_ROOTFS_FLAVOR="$ROOTFS_FLAVOR" \
     UBUNTU_ROOTFS_FLAVOR_SCRIPT="$ROOTFS_FLAVOR_SCRIPT" \
     UBUNTU_ROOTFS_WORK="$WORK" \
-    UBUNTU_SYSTEMD_OVERLAY_APT_ROOT="$WORK/apt-systemd-overlay" \
+    UBUNTU_SYSTEMD_OVERLAY_APT_ROOT="$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT" \
+    UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED="$SYSTEMD_OVERLAY_APT_TRUSTED" \
+    UBUNTU_SYSTEMD_OVERLAY_COMPONENTS="$SYSTEMD_OVERLAY_COMPONENTS" \
+    UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS="$SYSTEMD_OVERLAY_NO_RECOMMENDS" \
+    UBUNTU_SYSTEMD_OVERLAY_PACKAGES="$SYSTEMD_OVERLAY_PACKAGES" \
+    UBUNTU_SYSTEMD_OVERLAY_PARENT_LOCK_HELD=1 \
+    UBUNTU_SYSTEMD_OVERLAY_WORK_LOCK="$ROOTFS_BUILD_LOCK" \
+    UBUNTU_SYSTEMD_OVERLAY_ROOTFS_LOCK="$ROOTFS_REAL.build.lock" \
+    UBUNTU_SYSTEMD_OVERLAY_APT_LOCK="$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL.build.lock" \
+    UBUNTU_SYSTEMD_OVERLAY_WORK_LOCK_FD="$ROOTFS_PARENT_WORK_LOCK_FD" \
+    UBUNTU_SYSTEMD_OVERLAY_ROOTFS_LOCK_FD="$ROOTFS_PARENT_STAGING_LOCK_FD" \
+    UBUNTU_SYSTEMD_OVERLAY_APT_LOCK_FD="$ROOTFS_PARENT_OVERLAY_APT_LOCK_FD" \
     bash "$ROOTFS_SYSTEMD_OVERLAY_SCRIPT"
 fi
 mkdir -p "$ROOTFS/bin"
@@ -1490,6 +1997,26 @@ EOF
     fi
   done
 fi
+if [ "$ROOTFS_VT_AUTOLOGIN" = "1" ]; then
+  case "$ROOTFS_VT_AUTOLOGIN_TTY" in
+    tty[1-9]|tty[1-9][0-9]*) ;;
+    *)
+      echo "[ubuntu-rootfs] invalid virtual terminal: $ROOTFS_VT_AUTOLOGIN_TTY" >&2
+      exit 1
+      ;;
+  esac
+  unit="getty@${ROOTFS_VT_AUTOLOGIN_TTY}.service"
+  dropin_dir="$ROOTFS/etc/systemd/system/${unit}.d"
+  mkdir -p "$dropin_dir" "$ROOTFS/etc/systemd/system/getty.target.wants"
+  cat > "$dropin_dir/autologin.conf" <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${ROOTFS_VT_AUTOLOGIN_USER} --noclear %I \$TERM
+Type=idle
+EOF
+  ln -sfn /lib/systemd/system/getty@.service \
+    "$ROOTFS/etc/systemd/system/getty.target.wants/$unit"
+fi
 for tty in $ROOTFS_SERIAL_MASK_TTYS; do
   mkdir -p "$ROOTFS/etc/systemd/system"
   ln -sfn /dev/null "$ROOTFS/etc/systemd/system/serial-getty@${tty}.service"
@@ -1562,7 +2089,9 @@ if [ "$ROOTFS_NEMU_LOGIN_MARKER" = "1" ]; then
     cat >> "$ROOTFS/root/.profile" <<'EOF'
 
 # Marker-only profile for NEMU serial-getty login/session gates.
-if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
+nemu_marker_tty="$(tty 2>/dev/null || echo unknown)"
+if [ "$nemu_marker_tty" = "/dev/ttyS0" ] && \
+   [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
   export YSYX_NEMU_LOGIN_MARKER_EMITTED=1
   echo __NEMU_LOGIN_CHECK_BEGIN__
   check_fail=0
@@ -1570,7 +2099,7 @@ if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
   fail() { echo "__NEMU_LOGIN_CHECK_FAIL__:$1"; check_fail=1; }
 
   uid="$(id -u 2>/dev/null || echo unknown)"
-  tty_path="$(tty 2>/dev/null || echo unknown)"
+  tty_path="$nemu_marker_tty"
   pid1_comm=unknown
   [ -r /proc/1/comm ] && IFS= read -r pid1_comm </proc/1/comm || true
   loginuid=unknown
@@ -1590,6 +2119,7 @@ if [ "${YSYX_NEMU_LOGIN_MARKER_EMITTED:-0}" != "1" ]; then
 
   echo "__NEMU_LOGIN_CHECK_DONE__ rc=$check_fail"
 fi
+unset nemu_marker_tty
 EOF
   fi
   chmod 0644 "$ROOTFS/root/.profile"
@@ -2148,10 +2678,24 @@ FAKEROOT
     ROOTFS_STATIC_INIT="$ROOTFS_STATIC_INIT" ROOTFS_INIT_BIN="$ROOTFS_INIT_BIN" \
     ROOTFS_PROBE_ENABLE="$ROOTFS_PROBE_ENABLE" ROOTFS_PROBE_BIN="$ROOTFS_PROBE_BIN" \
     ROOTFS_SYSTEMD_OVERLAY="$ROOTFS_SYSTEMD_OVERLAY" \
+    ROOTFS_REAL="$ROOTFS_REAL" \
+    ROOTFS_SYSTEMD_OVERLAY_APT_ROOT="$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT" \
+    ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL="$ROOTFS_SYSTEMD_OVERLAY_APT_ROOT_REAL" \
+    SYSTEMD_OVERLAY_APT_TRUSTED="$SYSTEMD_OVERLAY_APT_TRUSTED" \
+    SYSTEMD_OVERLAY_COMPONENTS="$SYSTEMD_OVERLAY_COMPONENTS" \
+    SYSTEMD_OVERLAY_NO_RECOMMENDS="$SYSTEMD_OVERLAY_NO_RECOMMENDS" \
+    SYSTEMD_OVERLAY_PACKAGES="$SYSTEMD_OVERLAY_PACKAGES" \
+    ROOTFS_BUILD_LOCK="$ROOTFS_BUILD_LOCK" \
+    ROOTFS_PARENT_WORK_LOCK_FD="$ROOTFS_PARENT_WORK_LOCK_FD" \
+    ROOTFS_PARENT_STAGING_LOCK_FD="$ROOTFS_PARENT_STAGING_LOCK_FD" \
+    ROOTFS_PARENT_OVERLAY_APT_LOCK_FD="$ROOTFS_PARENT_OVERLAY_APT_LOCK_FD" \
     ROOTFS_FLAVOR="$ROOTFS_FLAVOR" ROOTFS_FLAVOR_SCRIPT="$ROOTFS_FLAVOR_SCRIPT" \
     ROOTFS_SERIAL_AUTOLOGIN="$ROOTFS_SERIAL_AUTOLOGIN" \
     ROOTFS_SERIAL_AUTOLOGIN_USER="$ROOTFS_SERIAL_AUTOLOGIN_USER" \
     ROOTFS_SERIAL_AUTOLOGIN_TTYS="$ROOTFS_SERIAL_AUTOLOGIN_TTYS" \
+    ROOTFS_VT_AUTOLOGIN="$ROOTFS_VT_AUTOLOGIN" \
+    ROOTFS_VT_AUTOLOGIN_USER="$ROOTFS_VT_AUTOLOGIN_USER" \
+    ROOTFS_VT_AUTOLOGIN_TTY="$ROOTFS_VT_AUTOLOGIN_TTY" \
     ROOTFS_SERIAL_MASK_TTYS="$ROOTFS_SERIAL_MASK_TTYS" \
     ROOTFS_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
     ROOTFS_NPC_TTY_READER="$ROOTFS_NPC_TTY_READER" \
@@ -2173,12 +2717,83 @@ FAKEROOT
     fakeroot -- bash "$helper"
 }
 
+IMAGE=
+CPIO=
+trap cleanup_publish_temps EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if can_sudo && command -v debootstrap >/dev/null && command -v qemu-riscv64-static >/dev/null; then
+  ROOTFS_BUILD_MODE=debootstrap
+else
+  ROOTFS_BUILD_MODE=ubuntu-base-fakeroot
+fi
+if [[ $ROOTFS_BUILD_MODE == ubuntu-base-fakeroot ]]; then
+  download_ubuntu_base
+  BASE_INPUTS_SHA256=$(sha256sum "$TARBALL" "$SHA_FILE" | sha256sum | cut -d ' ' -f1)
+else
+  BASE_INPUTS_SHA256=unused
+fi
+
+# The profile stamp is a success record, not an intent marker.  Extend the
+# Make-provided static payload with the selected build path and the verified
+# base inputs while holding all writer/download locks.  A current result also
+# requires both members of the public ext4/CPIO pair.
+if [[ -n $PROFILE_STAMP ]]; then
+  EFFECTIVE_PROFILE_STAMP=$(mktemp)
+  cp -- "$EXPECTED_PROFILE_STAMP" "$EFFECTIVE_PROFILE_STAMP"
+  printf '%s\n' \
+    "UBUNTU_ROOTFS_BUILD_MODE=$ROOTFS_BUILD_MODE" \
+    "UBUNTU_ROOTFS_BASE_INPUTS_SHA256=$BASE_INPUTS_SHA256" \
+    >> "$EFFECTIVE_PROFILE_STAMP"
+  if [[ $ROOTFS_BUILD_MODE == ubuntu-base-fakeroot &&
+        $ROOTFS_SYSTEMD_OVERLAY == 1 ]]; then
+    # %q is a one-line, unambiguous serialization even when a caller supplies
+    # whitespace or shell metacharacters in the component/package lists.
+    printf 'UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED=%q\n' \
+      "$SYSTEMD_OVERLAY_APT_TRUSTED" >> "$EFFECTIVE_PROFILE_STAMP"
+    printf 'UBUNTU_SYSTEMD_OVERLAY_COMPONENTS=%q\n' \
+      "$SYSTEMD_OVERLAY_COMPONENTS" >> "$EFFECTIVE_PROFILE_STAMP"
+    printf 'UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS=%q\n' \
+      "$SYSTEMD_OVERLAY_NO_RECOMMENDS" >> "$EFFECTIVE_PROFILE_STAMP"
+    printf 'UBUNTU_SYSTEMD_OVERLAY_PACKAGES=%q\n' \
+      "$SYSTEMD_OVERLAY_PACKAGES" >> "$EFFECTIVE_PROFILE_STAMP"
+  else
+    printf '%s\n' \
+      'UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED=unused' \
+      'UBUNTU_SYSTEMD_OVERLAY_COMPONENTS=unused' \
+      'UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS=unused' \
+      'UBUNTU_SYSTEMD_OVERLAY_PACKAGES=unused' \
+      >> "$EFFECTIVE_PROFILE_STAMP"
+  fi
+  sync -f "$EFFECTIVE_PROFILE_STAMP"
+  profile_lines=$(wc -l < "$EFFECTIVE_PROFILE_STAMP")
+  stamp_lines=$(wc -l < "$PROFILE_STAMP" 2>/dev/null || echo 0)
+  if [[ -s $FINAL_IMAGE && -s $FINAL_CPIO && -f $PROFILE_STAMP &&
+        $stamp_lines -eq $((profile_lines + 2)) ]] &&
+     head -n "$profile_lines" "$PROFILE_STAMP" | cmp -s - "$EFFECTIVE_PROFILE_STAMP"; then
+    recorded_image_sha256=$(sed -n "$((profile_lines + 1))s/^UBUNTU_ROOTFS_IMAGE_SHA256=//p" "$PROFILE_STAMP")
+    recorded_cpio_sha256=$(sed -n "$((profile_lines + 2))s/^UBUNTU_ROOTFS_CPIO_SHA256=//p" "$PROFILE_STAMP")
+    current_image_sha256=$(sha256sum "$FINAL_IMAGE" | cut -d ' ' -f1)
+    current_cpio_sha256=$(sha256sum "$FINAL_CPIO" | cut -d ' ' -f1)
+    if [[ $recorded_image_sha256 == "$current_image_sha256" &&
+          $recorded_cpio_sha256 == "$current_cpio_sha256" ]]; then
+      echo "[ubuntu-rootfs] profile and ext4/cpio artifacts are current"
+      exit 0
+    fi
+  fi
+fi
+
+IMAGE=$(publish_temp "$FINAL_IMAGE")
+CPIO=$(publish_temp "$FINAL_CPIO")
+
 build_rootfs_static_init
 build_rootfs_probe
 build_npc_tty_probe
 build_npc_generator_skip_wrapper
 
-if can_sudo && command -v debootstrap >/dev/null && command -v qemu-riscv64-static >/dev/null; then
+if [[ $ROOTFS_BUILD_MODE == debootstrap ]]; then
   echo "[ubuntu-rootfs] build via debootstrap"
   build_with_sudo_debootstrap
 else
@@ -2196,8 +2811,6 @@ else
   build_with_fakeroot_ubuntu_base
 fi
 
-echo "[ubuntu-rootfs] generated: $IMAGE"
-echo "[ubuntu-rootfs] generated rootfs cpio: $CPIO"
 if [ "$ROOTFS_REQUIRE_SYSTEMD" = "1" ] && [ -f "$SCRIPT_DIR/check-ubuntu-rootfs.sh" ]; then
   UBUNTU_ROOTFS_IMAGE="$IMAGE" UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
     UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL="$ROOTFS_NPC_CONSOLE_SHELL" \
@@ -2210,7 +2823,75 @@ if [ "$ROOTFS_REQUIRE_SYSTEMD" = "1" ] && [ -f "$SCRIPT_DIR/check-ubuntu-rootfs.
     UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE="$ROOTFS_NPC_GENERATOR_SKIP_MODE" \
     UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE="$ROOTFS_NPC_GENERATOR_REAL_MODE" \
     UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER="$ROOTFS_NEMU_LOGIN_MARKER" \
+    UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN="$ROOTFS_VT_AUTOLOGIN" \
+    UBUNTU_ROOTFS_VT_AUTOLOGIN_USER="$ROOTFS_VT_AUTOLOGIN_USER" \
+    UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY="$ROOTFS_VT_AUTOLOGIN_TTY" \
     UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE="$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE" \
     bash "$SCRIPT_DIR/check-ubuntu-rootfs.sh"
 fi
+
+# POSIX 不能用一次 rename 替换 ext4/cpio/stamp 三个名字。发布前在
+# 各自目标目录为旧 inode 建立临时硬链接；后续 rename、sync 或 stamp
+# 发布在可捕获 signal/命令失败下中断时，EXIT trap 恢复上一个
+# generation。SIGKILL/掉电和未取锁读者不在这个 process-level 保证内；
+# stamp 最后发布，下次构建会重新校验并拒绝误判 mixed pair 为 fast path。
+prepare_publish_rollback "$FINAL_CPIO" CPIO_ROLLBACK CPIO_HAD_PREVIOUS
+prepare_publish_rollback "$FINAL_IMAGE" IMAGE_ROLLBACK IMAGE_HAD_PREVIOUS
+if [[ -n $PROFILE_STAMP ]]; then
+  prepare_publish_rollback "$PROFILE_STAMP" PROFILE_STAMP_ROLLBACK \
+    PROFILE_STAMP_HAD_PREVIOUS
+fi
+PUBLISH_TRANSACTION_ACTIVE=1
+
+# 先发布配套 cpio，再发布 ext4。NEMU 已打开的旧 backing inode 不会被
+# 下一次构建 truncate；如果 ext4 rename 失败，trap 会将 cpio 恢复到旧 inode。
+sync -f "$CPIO"
+sync -f "$IMAGE"
+mv -fT -- "$CPIO" "$FINAL_CPIO"
+CPIO=
+sync -f "$(dirname -- "$FINAL_CPIO")"
+mv -fT -- "$IMAGE" "$FINAL_IMAGE"
+IMAGE=
+sync -f "$(dirname -- "$FINAL_IMAGE")"
+
+if [[ ! -s $FINAL_IMAGE || ! -s $FINAL_CPIO ]]; then
+  echo "[ubuntu-rootfs] published ext4/cpio pair is incomplete" >&2
+  exit 1
+fi
+if [[ -n $PROFILE_STAMP ]]; then
+  printf '%s\n' \
+    "UBUNTU_ROOTFS_IMAGE_SHA256=$(sha256sum "$FINAL_IMAGE" | cut -d ' ' -f1)" \
+    "UBUNTU_ROOTFS_CPIO_SHA256=$(sha256sum "$FINAL_CPIO" | cut -d ' ' -f1)" \
+    >> "$EFFECTIVE_PROFILE_STAMP"
+  sync -f "$EFFECTIVE_PROFILE_STAMP"
+  mkdir -p "$(dirname -- "$PROFILE_STAMP")"
+  PROFILE_STAMP_TEMP=$(publish_temp "$PROFILE_STAMP")
+  cp -- "$EFFECTIVE_PROFILE_STAMP" "$PROFILE_STAMP_TEMP"
+  sync -f "$PROFILE_STAMP_TEMP"
+  if cmp -s "$PROFILE_STAMP_TEMP" "$PROFILE_STAMP"; then
+    rm -f -- "$PROFILE_STAMP_TEMP"
+  else
+    mv -fT -- "$PROFILE_STAMP_TEMP" "$PROFILE_STAMP"
+    sync -f "$(dirname -- "$PROFILE_STAMP")"
+  fi
+  PROFILE_STAMP_TEMP=
+fi
+
+# stamp 是 generation 的最后一个成功记录；到这里才丢弃回滚 inode。
+PUBLISH_TRANSACTION_ACTIVE=0
+rm -f -- "$IMAGE_ROLLBACK" "$CPIO_ROLLBACK"
+IMAGE_ROLLBACK=
+CPIO_ROLLBACK=
+if [[ -n $PROFILE_STAMP_ROLLBACK ]]; then
+  rm -f -- "$PROFILE_STAMP_ROLLBACK"
+  PROFILE_STAMP_ROLLBACK=
+fi
+if [[ -n $EFFECTIVE_PROFILE_STAMP ]]; then
+  rm -f -- "$EFFECTIVE_PROFILE_STAMP"
+  EFFECTIVE_PROFILE_STAMP=
+fi
+trap - EXIT HUP INT TERM
+
+echo "[ubuntu-rootfs] generated: $FINAL_IMAGE"
+echo "[ubuntu-rootfs] generated rootfs cpio: $FINAL_CPIO"
 echo "[ubuntu-rootfs] 注意：启动该 rootfs 还需要 RTL/仿真侧 virtio-mmio block、host block backend 与 IRQ2 路径。"

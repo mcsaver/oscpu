@@ -59,6 +59,7 @@ npc/rv64/.config
 npc/rv64/.config.old
 npc/rv64/.linux-defconfig.stamp
 npc/rv64/.linux-trace-defconfig.stamp
+npc/rv64/.linux-kconfig.lock
 npc/rv64/build*/
 npc/rv64/gmon.out
 npc/rv64/include/config/

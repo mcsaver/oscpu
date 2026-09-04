@@ -29,6 +29,7 @@ NEMU_FP_CONVERT_LOG ?= $(BUILD_DIR)/fp-convert-nemu.log
 NEMU_FP_COMPARE_SGNJ_LOG ?= $(BUILD_DIR)/fp-compare-sgnj-nemu.log
 NEMU_FP_SQRT_LOG ?= $(BUILD_DIR)/fp-sqrt-nemu.log
 NEMU_VIRTIO_BLK_ERROR_LOG ?= $(BUILD_DIR)/virtio-blk-error-nemu.log
+NEMU_VIRTIO_BLK_ERROR_OVERLAY ?= $(BUILD_DIR)/virtio-blk-error-overlay.raw
 NEMU_VIRTIO_NET_CTRL_LOG ?= $(BUILD_DIR)/virtio-net-ctrl-nemu.log
 PYTHON ?= $(if $(wildcard $(ENV_ROOT)/tools/python/bin/python3),$(ENV_ROOT)/tools/python/bin/python3,python3)
 # tools 的 smoke DTB 只喂 NPC_SIM,固定用 NPC 平台 yml;共享契约在 common-rv64.yml。
@@ -304,11 +305,30 @@ smoke-virtio-blk: $(VIRTIO_BLK_BIN)
 
 smoke-nemu-virtio-blk-error: $(VIRTIO_BLK_ERROR_BIN)
 	test -f $(VIRTIO_BLK_IMAGE)
+	bash '$(abspath ../scripts/guard-artifact-paths.sh)' \
+	  --input='$(abspath $(VIRTIO_BLK_ERROR_BIN))' \
+	  --input='$(abspath $(VIRTIO_BLK_IMAGE))' \
+	  --input='$(abspath $(NEMU_PRESERVED_RUN))' \
+	  --output='$(abspath $(NEMU_VIRTIO_BLK_ERROR_LOG))' \
+	  --output='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY))' \
+	  --output='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY)).meta' \
+	  --output='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY)).meta.tmp' \
+	  --output='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY)).lock'
+	bash '$(abspath ../scripts/prepare-nemu-overlay.sh)' \
+	  --backing='$(abspath $(VIRTIO_BLK_IMAGE))' \
+	  --overlay='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY))' --reset=1
 	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
 	  -b --max-insts=$(VIRTIO_BLK_ERROR_MAX_INSTS) \
-	  --block=$(VIRTIO_BLK_IMAGE) -i $(VIRTIO_BLK_ERROR_BIN) > $(NEMU_VIRTIO_BLK_ERROR_LOG) 2>&1
+	  --block=$(VIRTIO_BLK_IMAGE) --block-overlay=$(NEMU_VIRTIO_BLK_ERROR_OVERLAY) \
+	  -i $(VIRTIO_BLK_ERROR_BIN) > $(NEMU_VIRTIO_BLK_ERROR_LOG) 2>&1
 	cat $(NEMU_VIRTIO_BLK_ERROR_LOG)
+	grep -q 'virtio-blk: overlay=.*state=new.*dirty_sectors=0.*backing_readonly=1' $(NEMU_VIRTIO_BLK_ERROR_LOG)
 	grep -q 'HIT GOOD TRAP' $(NEMU_VIRTIO_BLK_ERROR_LOG)
+	test -f $(NEMU_VIRTIO_BLK_ERROR_OVERLAY).meta
+	test "$$(od -An -tu8 -j48 -N8 $(NEMU_VIRTIO_BLK_ERROR_OVERLAY).meta | tr -d '[:space:]')" = 0
+	bash '$(abspath ../scripts/prepare-nemu-overlay.sh)' \
+	  --backing='$(abspath $(VIRTIO_BLK_IMAGE))' \
+	  --overlay='$(abspath $(NEMU_VIRTIO_BLK_ERROR_OVERLAY))' --reset=1
 
 smoke-nemu-virtio-net-ctrl: $(VIRTIO_NET_CTRL_BIN)
 	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \

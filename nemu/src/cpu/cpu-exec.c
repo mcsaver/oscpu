@@ -293,7 +293,7 @@ uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 
 void device_update();
-void device_update_after_inst(uint64_t retired);
+void device_update_after_inst(uint64_t attempted);
 void virtio_blk_statistic();
 void virtio_net_statistic();
 
@@ -915,7 +915,7 @@ static inline InterpreterTbStopReason interpreter_tb_static_stop_reason(const De
 
 static uint64_t execute_basic_block(uint64_t n) {
   Decode s;
-  uint64_t retired = 0;
+  uint64_t attempted = 0;
   uint64_t tb_max_inst = cpu_interpreter_tb_max_inst_runtime();
   uint64_t limit = n < tb_max_inst ? n : tb_max_inst;
   bool stopped_by_reason = false;
@@ -925,10 +925,10 @@ static uint64_t execute_basic_block(uint64_t n) {
   if (unlikely(paddr_has_device_write())) {
     paddr_take_device_write();
   }
-  while (retired < limit) {
+  while (attempted < limit) {
     if (debug_breakpoint_stop()) break;
     execute_one(&s);
-    retired++;
+    attempted++;
     // 块内指令(tohost store/ebreak 等)可能 set_nemu_state(NEMU_END) 结束运行:
     // 必须在此立即停,不能等到 TB 静态边界,否则退出后仍会继续执行整块指令。
     if (unlikely(nemu_state.state != NEMU_RUNNING)) break;
@@ -943,23 +943,23 @@ static uint64_t execute_basic_block(uint64_t n) {
       break;
     }
   }
-  if (retired == limit && nemu_state.state == NEMU_RUNNING && !stopped_by_reason) {
+  if (attempted == limit && nemu_state.state == NEMU_RUNNING && !stopped_by_reason) {
     interpreter_tb_profile_stop(INTERPRETER_TB_STOP_LIMIT);
   }
 
-  return retired;
+  return attempted;
 }
 #endif
 
 static uint64_t execute_one_or_block(uint64_t n) {
 #ifdef CONFIG_INTERPRETER_BASIC_BLOCK
   if (!g_print_step && cpu_interpreter_basic_block_runtime_enabled()) {
-    uint64_t retired = execute_basic_block(n);
-    if (unlikely(nemu_profile_enabled()) && retired > 0) {
+    uint64_t attempted = execute_basic_block(n);
+    if (unlikely(nemu_profile_enabled()) && attempted > 0) {
       nemu_profile_count(NEMU_PROFILE_CPU_BASIC_BLOCKS, 1);
-      nemu_profile_count(NEMU_PROFILE_CPU_BASIC_BLOCK_INST, retired);
+      nemu_profile_count(NEMU_PROFILE_CPU_BASIC_BLOCK_INST, attempted);
     }
-    return retired;
+    return attempted;
   }
 #endif
 
@@ -975,7 +975,7 @@ static uint64_t execute_one_or_block(uint64_t n) {
 //GDB Ctrl-c/执行断电
 //查询并投递异步中断
 //执行一条指令或一个TB
-//扣减退休额度
+//扣减指令尝试预算（与架构 minstret 的成功退休计数分离）
 //推进设备
 static void execute(uint64_t n) {
   while (n > 0 && nemu_state.state == NEMU_RUNNING) {
@@ -1000,17 +1000,17 @@ static void execute(uint64_t n) {
     intr = isa_query_intr();
 #endif
     if (intr != INTR_EMPTY) {
-      // 异步中断在 TB 边界进入；先重定向到 trap handler，再执行本轮要退休的 handler 指令。
+      // 异步中断在 TB 边界进入；先重定向到 trap handler，再尝试执行 handler 的第一条指令。
       cpu.pc = isa_raise_intr(intr, cpu.pc);
     }
 
-    uint64_t retired = execute_one_or_block(n);
-    if (retired == 0) break;
-    n -= retired;
+    uint64_t attempted = execute_one_or_block(n);
+    if (attempted == 0) break;
+    n -= attempted;
 
     if (nemu_state.state != NEMU_RUNNING) break;//如果执行过程中状态不再是NEMU_RUNNING(例如遇到了ebreak或断点，跳出循环)
 #if defined(CONFIG_DEVICE) && !defined(CONFIG_TARGET_SHARE)
-    device_update_after_inst(retired);//如果有设备模拟配置，通过device_update()刷新状态
+    device_update_after_inst(attempted);//如果有设备模拟配置，通过device_update()刷新状态
 #endif
   }
 }
@@ -1051,6 +1051,7 @@ void assert_fail_msg() {
 //RUNNING--断点/监视点-->STOP
 //RUNNING--正常结束-->END
 //RUNNING--内部错误/Difftest失败-->ABORT
+//RUNNING--guest syscon reboot-->REBOOT（由宿主以新进程重启）
 //任意非中止状态--q/QMP/SDL-->QUIT
 //cpu_exec(n)工作流：
 //1.拒绝执行已经end/abort/quit的机器
@@ -1063,17 +1064,29 @@ void cpu_exec(uint64_t n) {
   //判断n是否小于MAX_INST_TO_PRINT，如果是开启g_print_step，这会让后续执行的时候打印每条指令的汇编消息
   //用于si单步调试
   g_print_step = (n < MAX_INST_TO_PRINT);
-  //检查运行状态，如果状态时是END,ABORT,QUIT说明程序已经结束，打印信息并且返回
-  switch (nemu_state.state) {
-    case NEMU_END: case NEMU_ABORT: case NEMU_QUIT:
+  // 只有 STOP 可以进入 RUNNING。CAS 保证异步管理线程或调试线程已经发布的
+  // terminal/stop 状态不会被一个拆开的 load+store 覆盖。
+  int expected_state = NEMU_STOP;
+  if (!atomic_compare_exchange_strong_explicit(&nemu_state.state,
+        &expected_state, NEMU_RUNNING, memory_order_acq_rel,
+        memory_order_acquire)) {
+    if (expected_state == NEMU_END || expected_state == NEMU_ABORT ||
+        expected_state == NEMU_QUIT || expected_state == NEMU_REBOOT) {
       printf("Program execution has ended. To restart the program, exit NEMU and run again.\n");
-      return;
-    default: nemu_state.state = NEMU_RUNNING;
+    } else {
+      Log("nemu: refuse cpu_exec while state=%d (expected STOP)", expected_state);
+    }
+    return;
   }
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+  if (qmp_fast_enabled()) qmp_cpu_running_point();
+#endif
   //启动记时，记录当前宿主机时间
   uint64_t timer_start = get_time();
 
-  execute(n);
+  if (atomic_load_explicit(&nemu_state.state, memory_order_acquire) == NEMU_RUNNING) {
+    execute(n);
+  }
 
   uint64_t timer_end = get_time();
   uint64_t elapsed = timer_end - timer_start;
@@ -1083,15 +1096,23 @@ void cpu_exec(uint64_t n) {
     nemu_profile_count(NEMU_PROFILE_CPU_EXEC_US, elapsed);
   }
 
+  expected_state = NEMU_RUNNING;
+  bool stopped_after_budget = atomic_compare_exchange_strong_explicit(
+      &nemu_state.state, &expected_state, NEMU_STOP, memory_order_acq_rel,
+      memory_order_acquire);
+
+  int final_state = atomic_load_explicit(&nemu_state.state, memory_order_acquire);
 #if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
-  if (nemu_state.state == NEMU_END) {
+  if (final_state == NEMU_END) {
     qmp_notify_shutdown_event();
+  } else if (final_state == NEMU_REBOOT) {
+    qmp_notify_reset_event();
   }
 #endif
 
-  switch (nemu_state.state) {
-    case NEMU_RUNNING:
-      nemu_state.state = NEMU_STOP;
+  switch (final_state) {
+    case NEMU_STOP:
+      if (!stopped_after_budget) break;
       if (n >= MAX_INST_TO_PRINT) {
         Log("nemu: STOP after requested budget at pc = " FMT_WORD, cpu.pc);
         statistic();
@@ -1100,11 +1121,25 @@ void cpu_exec(uint64_t n) {
 
     case NEMU_END: case NEMU_ABORT:
       Log("nemu: %s at pc = " FMT_WORD,
-          (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
+          (final_state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
       // fall through
     case NEMU_QUIT: statistic();
+      break;
+
+    case NEMU_REBOOT:
+      Log("nemu: %s at pc = " FMT_WORD " (host exit status %d)",
+          ANSI_FMT("GUEST REBOOT", ANSI_FG_YELLOW), nemu_state.halt_pc,
+          NEMU_REBOOT_EXIT_STATUS);
+      statistic();
+      break;
   }
+
+#if !defined(CONFIG_TARGET_AM) && !defined(CONFIG_TARGET_SHARE)
+  // active=false 是设备 snapshot 的 release 边界；必须晚于 shutdown event、
+  // cache flush 和全部 PLIC/block/net 统计，不能让 QMP 与收尾读取并发。
+  if (qmp_fast_enabled()) qmp_cpu_stopped_point();
+#endif
 }

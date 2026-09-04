@@ -45,6 +45,7 @@ typedef enum {
   VIRTIO_DEVICE_ID_NETWORK = 1,
   VIRTIO_DEVICE_ID_BLOCK = 2,
   VIRTIO_DEVICE_ID_ENTROPY = 4,
+  VIRTIO_DEVICE_ID_INPUT = 18,
 } VirtioDeviceId;
 
 typedef enum {

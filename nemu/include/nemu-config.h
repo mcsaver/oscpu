@@ -34,6 +34,7 @@
      defined(CONFIG_HAS_KEYBOARD) || defined(CONFIG_HAS_VGA) || \
      defined(CONFIG_HAS_AUDIO) || defined(CONFIG_HAS_DISK) || \
      defined(CONFIG_HAS_VIRTIO_RNG) || defined(CONFIG_HAS_VIRTIO_NET) || \
+     defined(CONFIG_HAS_VIRTIO_INPUT) || \
      defined(CONFIG_HAS_GOLDFISH_RTC) || defined(CONFIG_HAS_SDCARD))
 #error "SOC_SIM owns its machine topology; generic device and PLIC-backed providers must be disabled"
 #endif
@@ -49,7 +50,7 @@
 /* SDL 只服务 native generic 图形/输入/音频 provider，纯 service extension 不引入它。 */
 #if !defined(CONFIG_TARGET_AM) && \
     (defined(CONFIG_HAS_KEYBOARD) || defined(CONFIG_HAS_VGA) || \
-     defined(CONFIG_HAS_AUDIO))
+     defined(CONFIG_HAS_AUDIO) || defined(CONFIG_HAS_VIRTIO_INPUT))
 #define NEMU_HAS_SDL 1
 #endif
 

@@ -41,6 +41,7 @@ endif
 endif
 SRCS-$(CONFIG_HAS_VIRTIO_RNG) += src/device/rng.c
 SRCS-$(CONFIG_HAS_VIRTIO_NET) += src/device/net.c
+SRCS-$(CONFIG_HAS_VIRTIO_INPUT) += src/device/virtio-input.c
 SRCS-$(CONFIG_HAS_GOLDFISH_RTC) += src/device/goldfish_rtc.c
 SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c
 endif
@@ -59,7 +60,7 @@ SRCS-BLACKLIST-$(CONFIG_TARGET_AM) += src/device/alarm.c
 ##把这些参数追加到LIBS中，确保编译时能正常链接SDL2库(用于图形、音频等设备模拟)
 ifdef CONFIG_DEVICE
 ifndef CONFIG_TARGET_AM
-ifneq ($(filter y,$(CONFIG_HAS_KEYBOARD) $(CONFIG_HAS_VGA) $(CONFIG_HAS_AUDIO)),)
+ifneq ($(filter y,$(CONFIG_HAS_KEYBOARD) $(CONFIG_HAS_VGA) $(CONFIG_HAS_AUDIO) $(CONFIG_HAS_VIRTIO_INPUT)),)
 LIBS += $(shell sdl2-config --libs)
 endif
 endif

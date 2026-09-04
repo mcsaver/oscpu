@@ -17,8 +17,11 @@
 //全局状态，类型为NEMUState，定义在include/utils.h，初始状态为NEMU_STOP：表示NEMU处于停止状态，通常是进入监控器等待用户命令
 NEMUState nemu_state = { .state = NEMU_STOP };
 
-//END && halt_ret ==0成功，QUIT成功，ABORT、bad trap或停在STOP失败
+// poweroff/good trap 和 QUIT 返回 0；guest reboot 返回可监督重启的固定状态；其余返回 1。
 int is_exit_status_bad() {
+  if (nemu_state.state == NEMU_REBOOT) {
+    return NEMU_REBOOT_EXIT_STATUS;
+  }
   int good = (nemu_state.state == NEMU_END && nemu_state.halt_ret == 0) ||
     (nemu_state.state == NEMU_QUIT);
   return !good;

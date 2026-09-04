@@ -84,8 +84,6 @@ module CsrFile (
       64'h8000_0000_0014_1105 | (64'd1 << 3) | (64'd1 << 5) | (64'd1 << 1);
   localparam [`XLEN-1:0] EPC_WARL_MASK =
       {{(`XLEN-1){1'b1}}, 1'b0};
-  localparam [`XLEN-1:0] CSR_TSELECT_NO_TRIGGER_VALUE =
-      {{(`XLEN-1){1'b0}}, 1'b1};
   localparam [`XLEN-1:0] MENVCFG_WRITABLE_MASK = `MENVCFG_PBMTE;
   localparam [`XLEN-1:0] PMPADDR_WRITABLE_MASK = `PMP_ADDR_MASK;
   localparam integer PMP_CFG_CSR_COUNT = 2;
@@ -368,11 +366,7 @@ module CsrFile (
         `CSR_MIP,
         `CSR_PMPADDR0,
         `CSR_MCYCLE,
-        `CSR_MINSTRET,
-        `CSR_TSELECT,
-        `CSR_TDATA1,
-        `CSR_TDATA2,
-        `CSR_TCONTROL: csr_addr_writable = 1'b1;
+        `CSR_MINSTRET: csr_addr_writable = 1'b1;
         default:       csr_addr_writable = csr_pmpcfg_known(csr_addr) ||
                                            csr_pmpaddr_known(csr_addr);
       endcase
@@ -417,10 +411,6 @@ module CsrFile (
         `CSR_PMPADDR0,
         `CSR_MCYCLE,
         `CSR_MINSTRET,
-        `CSR_TSELECT,
-        `CSR_TDATA1,
-        `CSR_TDATA2,
-        `CSR_TCONTROL,
         `CSR_CYCLE,
         `CSR_TIME,
         `CSR_INSTRET,
@@ -729,10 +719,6 @@ module CsrFile (
       csr_pmpaddr_known_w           ? csr_pmpaddr_rdata_w :
       (csr_addr_i == `CSR_MCYCLE)   ? csr_mcycle_q :
       (csr_addr_i == `CSR_MINSTRET) ? csr_minstret_q :
-      (csr_addr_i == `CSR_TSELECT)  ? CSR_TSELECT_NO_TRIGGER_VALUE :
-      (csr_addr_i == `CSR_TDATA1)   ? {`XLEN{1'b0}} :
-      (csr_addr_i == `CSR_TDATA2)   ? {`XLEN{1'b0}} :
-      (csr_addr_i == `CSR_TCONTROL) ? {`XLEN{1'b0}} :
       (csr_addr_i == `CSR_CYCLE)    ? csr_mcycle_q :
       (csr_addr_i == `CSR_TIME)     ? time_i :
       (csr_addr_i == `CSR_INSTRET)  ? csr_minstret_q :

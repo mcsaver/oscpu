@@ -511,6 +511,8 @@ static inline bool rv_execute_environment_call(Decode *state) {
 }
 
 static inline bool rv_execute_breakpoint(Decode *state) {
+  /* EBREAK/C.EBREAK never retire, including the NEMU EEI halt form. */
+  isa_riscv64_mark_sync_exception();
   const bool trap_vector_configured =
       cpu.csr.mtvec != 0 || cpu.csr.stvec != 0;
   if (riscv_eei_ebreak_requests_halt(trap_vector_configured)) {

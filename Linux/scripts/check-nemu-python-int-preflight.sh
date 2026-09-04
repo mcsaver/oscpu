@@ -295,8 +295,8 @@ rm -f "$SERIAL_FIFO" "$CONSOLE_LOG" "$LOG_FILE" "$GUEST_CMDS" "$PROBE_B64" "$SUM
 block_overlay_args=()
 if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
   # focused gate 会写 guest 临时文件；overlay 保护 full rootfs 基准镜像。
-  mkdir -p "$(dirname -- "$RUN_ROOTFS_OVERLAY")"
-  rm -f "$RUN_ROOTFS_OVERLAY"
+  bash "$SCRIPT_DIR/prepare-nemu-overlay.sh" \
+    --backing="$RUN_ROOTFS" --overlay="$RUN_ROOTFS_OVERLAY" --reset=1
   block_overlay_args=(--block-overlay="$RUN_ROOTFS_OVERLAY")
 fi
 : >"$CONSOLE_LOG"

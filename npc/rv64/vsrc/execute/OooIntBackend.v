@@ -360,6 +360,23 @@ module OooIntBackend #(
   localparam [1:0] MEM_OWNER_EPOCH_BASE = 2'b00;
   localparam integer BRANCH_RESOLVE_PAYLOAD_W =
       (2 * `XLEN) + PRODUCER_ID_W + `BPU_BHT_INDEX_W + 5;
+
+  // NPU-fault mtval ABI v1 reserves eight bits for ProducerId.  Current
+  // products with a narrower ProducerId are represented by zero extension;
+  // only a width that cannot fit this field requires a future ABI version.
+  localparam integer NPU_FAULT_MTVAL_PID_COPY_W =
+      (PRODUCER_ID_W < 8) ? PRODUCER_ID_W : 8;
+  localparam integer NPU_FAULT_MTVAL_PID_PAD_W =
+      8 - NPU_FAULT_MTVAL_PID_COPY_W;
+  generate
+    if (PRODUCER_ID_W > 8) begin : g_npu_fault_mtval_pid_width_overflow
+      initial begin
+        $error("[NPU-FAULT-MTVAL] ABI v1 requires PRODUCER_ID_W<=8, got %0d",
+               PRODUCER_ID_W);
+        $fatal;
+      end
+    end
+  endgenerate
   // Registered EX completion packet, low to high:
   // tval/cause/exception/result/pdest/raw-ROB/fwd/generation.  Derive every
   // boundary from public width parameters; default 64/6/4/4 retains the
@@ -6242,6 +6259,27 @@ module OooIntBackend #(
       tensor_completion_rob_open_w && !wb0_base_valid_w;
   wire tensor_wb1_claim_w = tensor_completion_valid_w &&
       tensor_completion_rob_open_w && wb0_base_valid_w && !wb1_base_valid_w;
+  // Self-describing NPU-fault mtval ABI v1:
+  // [63:56] tagged terminal error (bit63=fatal/reset-required),
+  // [55:48] exact CPU ProducerId, [47:40] Tensor opclass,
+  // [39] required, [38] 64-bit logical command, [37:32] format version,
+  // [31:0] raw logical command low word (macro LO for a paired command).
+  // The sidecar retains this owner payload through terminal backpressure, so
+  // both WB lanes observe the same frozen identity as the error byte.
+  wire [7:0] tensor_completion_producer_id_mtval_w = {
+      {NPU_FAULT_MTVAL_PID_PAD_W{1'b0}},
+      tensor_completion_producer_id_w[
+          NPU_FAULT_MTVAL_PID_COPY_W-1:0]
+  };
+  wire [`XLEN-1:0] tensor_fault_mtval_w = {
+      tensor_completion_error_code_w,
+      tensor_completion_producer_id_mtval_w,
+      tensor_cmd_opclass_o,
+      tensor_cmd_required_o,
+      tensor_cmd_is_64_o,
+      6'd1,
+      tensor_cmd_bits_o[31:0]
+  };
   assign tensor_completion_ready_w = !tensor_completion_rob_open_w ||
       tensor_wb0_claim_w || tensor_wb1_claim_w;
   assign wb0_valid_w = wb0_base_valid_w || tensor_wb0_claim_w;
@@ -6287,15 +6325,14 @@ module OooIntBackend #(
   assign wb0_cause_w = ex0_wb_valid_w ? ex0_cause_q :
                        mem_rsp_to_wb0_w ? mem_rsp_wb_cause_w :
                        mem1_rsp_to_wb0_w ? mem1_rsp_wb_cause_w :
-                       tensor_wb0_claim_w ? `EXC_ILLEGAL_INST :
+                       tensor_wb0_claim_w ? `EXC_NPU_FAULT :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb0_tval_w = ex0_wb_valid_w ? ex0_tval_q :
                       mem_rsp_to_wb0_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
                       mem1_rsp_to_wb0_w ? miq1_head_addr_w :
-                      tensor_wb0_claim_w ?
-                        {{(`XLEN-32){1'b0}}, tensor_cmd_bits_o[31:0]} :
+                      tensor_wb0_claim_w ? tensor_fault_mtval_w :
                         {`XLEN{1'b0}};
   assign wb0_fflags_w = fpwb_wb0_valid_w ? fpwb_fflags_w : 5'b00000;
   assign wb1_fflags_w = fpwb_wb1_valid_w ? fpwb_fflags_w : 5'b00000;
@@ -6342,15 +6379,14 @@ module OooIntBackend #(
   assign wb1_cause_w = ex1_wb_valid_w ? ex1_cause_q :
                        mem_rsp_to_wb1_w ? mem_rsp_wb_cause_w :
                        mem1_rsp_to_wb1_w ? mem1_rsp_wb_cause_w :
-                       tensor_wb1_claim_w ? `EXC_ILLEGAL_INST :
+                       tensor_wb1_claim_w ? `EXC_NPU_FAULT :
                                            {`TRAP_CAUSE_W{1'b0}};
   assign wb1_tval_w = ex1_wb_valid_w ? ex1_tval_q :
                       mem_rsp_to_wb1_w ?
                         (miq_drain_wb_fire_w ? sq_drain_vaddr_w :
                                                miq_head_addr_w) :
                       mem1_rsp_to_wb1_w ? miq1_head_addr_w :
-                      tensor_wb1_claim_w ?
-                        {{(`XLEN-32){1'b0}}, tensor_cmd_bits_o[31:0]} :
+                      tensor_wb1_claim_w ? tensor_fault_mtval_w :
                         {`XLEN{1'b0}};
 
   // P0-A: write-enable 在各 WB owner 的本地 pdest 上完成 p0 过滤后再 OR。

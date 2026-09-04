@@ -33,6 +33,8 @@ void virtio_blk_update();
 void init_virtio_rng();
 void init_virtio_net();
 void virtio_net_update();
+void init_virtio_input();
+void virtio_input_update();
 void init_goldfish_rtc();
 void init_syscon_reset();
 void init_sdcard();
@@ -40,28 +42,29 @@ void init_alarm();
 void goldfish_rtc_update();
 
 void send_key(uint8_t, bool);
+void virtio_input_send_sdl_key(uint32_t, bool);
 void vga_update_screen();
 
 // 先按 guest 指令数做粗粒度节流，避免每条指令都查询一次宿主时间。
 // policy header 会在 performance 构建中增大该间隔；真正的可见刷新仍由
 // 下面的 60Hz host time gate 控制。
 
-void device_update_after_inst(uint64_t retired) {
+void device_update_after_inst(uint64_t attempted) {
   static uint64_t skip = 0;
   static uint64_t last = 0;
 
-  if (retired == 0) {
+  if (attempted == 0) {
     return;
   }
   bool profile_on = unlikely(nemu_profile_enabled());
   if (profile_on) {
     nemu_profile_count(NEMU_PROFILE_DEVICE_UPDATE_CALLS, 1);
-    nemu_profile_count(NEMU_PROFILE_DEVICE_UPDATE_RETIRED, retired);
+    nemu_profile_count(NEMU_PROFILE_DEVICE_UPDATE_ATTEMPTS, attempted);
   }
 
-  // TB 批执行时一次可能退休多条指令，这里按 guest 指令数累计，
-  // 让设备刷新频率保持原语义，同时避免 CPU 热路径每条指令都调用本函数。
-  skip += retired;
+  // TB 批执行时一次可能尝试多条指令。设备节流按尝试数累计，
+  // 不冒充架构 minstret 的成功退休计数；同步异常循环仍能推进设备。
+  skip += attempted;
   if (skip < (uint64_t)NEMU_DEVICE_UPDATE_CHECK_INTERVAL) {
     if (profile_on) {
       nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_SKIPS, 1);
@@ -84,6 +87,7 @@ void device_update_after_inst(uint64_t retired) {
   }
 #endif
   IFDEF(CONFIG_HAS_VIRTIO_NET, virtio_net_update());
+  IFDEF(CONFIG_HAS_VIRTIO_INPUT, virtio_input_update());
 
   uint64_t now = get_time();
   if (now - last < 1000000 / TIMER_HZ) {
@@ -109,13 +113,21 @@ void device_update_after_inst(uint64_t retired) {
       case SDL_QUIT:
         nemu_state.state = NEMU_QUIT;
         break;
-#ifdef CONFIG_HAS_KEYBOARD
-      // If a key was pressed
+#if defined(CONFIG_HAS_KEYBOARD) || defined(CONFIG_HAS_VIRTIO_INPUT)
+      // 同一个 SDL 事件可同时送往 legacy AM keyboard 和标准 virtio-input。
       case SDL_KEYDOWN:
       case SDL_KEYUP: {
-        uint8_t k = event.key.keysym.scancode;
         bool is_keydown = (event.key.type == SDL_KEYDOWN);
+#ifdef CONFIG_HAS_KEYBOARD
+        uint8_t k = event.key.keysym.scancode;
         send_key(k, is_keydown);
+#endif
+#ifdef CONFIG_HAS_VIRTIO_INPUT
+        // Linux input core 负责 EV_REP；过滤 SDL 自动重复，避免双重 repeat。
+        if (event.key.repeat == 0) {
+          virtio_input_send_sdl_key(event.key.keysym.scancode, is_keydown);
+        }
+#endif
         break;
       }
 #endif
@@ -151,6 +163,7 @@ void init_device() {
   IFDEF(CONFIG_HAS_TIMER, init_timer());
   IFDEF(CONFIG_HAS_VGA, init_vga());
   IFDEF(CONFIG_HAS_KEYBOARD, init_i8042());
+  IFDEF(CONFIG_HAS_VIRTIO_INPUT, init_virtio_input());
   IFDEF(CONFIG_HAS_AUDIO, init_audio());
   IFDEF(CONFIG_HAS_DISK, init_disk());
   IFDEF(CONFIG_HAS_VIRTIO_RNG, init_virtio_rng());

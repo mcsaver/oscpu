@@ -30,13 +30,24 @@ rootfs:
   image: Linux/env/platforms/nemu/images/ubuntu2204/ubuntu-22.04-riscv64.ext4
 
 # NEMU 独有设备:NPC RTL 未实现,避免给 NPC DTB 写实际总线无响应的节点。
-# 这些节点仅在 NEMU rootfs DTB 规则以 --virtio-rng/--virtio-net/
-# --goldfish-rtc 开关打开时进入 DTS；reset_syscon 已提升为 common 设备。
-# 注意:check-device-address-map.sh 门禁不校验这 3 个设备,改地址时
+# 这些节点仅在 NEMU rootfs DTB 规则以对应开关打开时进入 DTS；
+# reset_syscon 已提升为 common 设备。GUI profile 的 framebuffer/input
+# 地址由 check-nemu-gui-config.py 对 YAML 与 NEMU generic-map 做交叉校验；
+# 其它 NEMU 独有设备仍未全部进入 check-device-address-map.sh，改地址时
 # 必须人工同步 nemu/include/device/device_address.h,其中 goldfish_rtc/
 # reset_syscon 还被 abstract-machine/am/include/device_address.h 消费，
 # 改 common 地址时必须同步 AM/NEMU/NPC 三侧，漏改会静默失联。
 devices:
+  # 第一阶段 Linux 图形控制台复用 NEMU 已有的 host SDL framebuffer，
+  # 通过标准 simple-framebuffer DT binding 暴露给 Linux；它不是 legacy
+  # vgactl guest ABI，也不假装已经实现 virtio-gpu/DRM 加速。
+  simple_framebuffer:
+    base: 0x13000000
+    size: 0x001d4c00   # 800 * 600 * 4
+    width: 800
+    height: 600
+    stride: 3200
+    format: x8r8g8b8
   virtio_rng:
     base: 0x10002000
     size: 0x1000
@@ -45,6 +56,11 @@ devices:
     base: 0x10004000
     size: 0x1000
     irq: 5
+  # 0x10005000 / IRQ 6 为未来标准 virtio-gpu 保留；simplefb 阶段不抢占。
+  virtio_input:
+    base: 0x10006000
+    size: 0x1000
+    irq: 7
   goldfish_rtc:
     base: 0x10003000
     size: 0x1000

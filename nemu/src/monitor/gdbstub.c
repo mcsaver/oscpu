@@ -720,6 +720,9 @@ static void format_exec_stop_reply(char *out, size_t cap) {
     case NEMU_QUIT:
       snprintf(out, cap, "W00");
       break;
+    case NEMU_REBOOT:
+      snprintf(out, cap, "W%02x", NEMU_REBOOT_EXIT_STATUS);
+      break;
     default:
       snprintf(out, cap, "S05");
       break;

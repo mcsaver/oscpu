@@ -660,6 +660,11 @@
 `define EXC_INST_PAGE_FAULT      5'd12
 `define EXC_LOAD_PAGE_FAULT      5'd13
 `define EXC_STORE_PAGE_FAULT     5'd15
+// Custom synchronous exception raised by an architecturally owned Tensor/NPU
+// command.  mtval carries the self-describing v1 fault payload; this must not
+// be collapsed into ILLEGAL_INST because firmware needs the tagged NPU error,
+// exact ProducerId and logical-command identity to decide clear vs reset.
+`define EXC_NPU_FAULT            5'd24
 
 // redirect 统一仲裁 reason 编码（P4 复活，2026-07-08）：消费者 OooRedirectArbiter。
 // shadow 等价断言阶段仅在 OooCoreTopGlue 的 `ifdef OOO_ASSERT 段作并行影子仲裁（不驱动

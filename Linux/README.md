@@ -24,9 +24,31 @@ make ARCH=riscv64-npc run
 # 但还不是 QEMU 级通用机器。
 make ARCH=riscv64-nemu run
 
+# 启动隔离的 GUI profile。串口 ttyS0 仍保留为调试/恢复控制台，Linux
+# 同时把 800x600 XRGB8888 simple-framebuffer 绑定为 fb0/fbcon/tty1，
+# SDL 键盘经 0x10006000/PLIC IRQ7 的标准 virtio-input 进入 Linux input core。
+make run-ubuntu-gui
+
+# 可重复的端到端 GUI gate：在 Xvfb 中检查 DT/Kconfig/rootfs 契约，启动
+# Ubuntu，确认 simplefb/fbcon/tty1 和 virtio-input 枚举，再把真实 X11
+# 按键送入 SDL 窗口并要求命令在 tty1 执行，最后保存非空 800x600 截图。
+make check-nemu-gui
+
+# ISA focused gate：minstret 只统计成功退休指令；ECALL/EBREAK/访存或
+# 取指 fault 不退休；未实现的 tselect/tdata* 等 Sdtrig CSR 必须非法。
+make check-nemu-retirement-sdtrig
+
+# 不启动 Linux，直接验证 virtio-input 配置区、event/status 双队列、
+# 坏 descriptor、SDL down/up/repeat 过滤和 PLIC IRQ7 claim/ACK。
+make check-nemu-virtio-input
+
 # Makefile 会先同步 Linux defconfig 并做增量构建；check-sim 也不会
 # 在 defconfig 已切换时复用旧二进制。run 的 NEMU | tee 管道开启
-# pipefail，NEMU 非零退出会直接让 make 失败。
+# pipefail。guest poweroff 返回 0；guest reboot 返回专用状态 32，并由
+# run-nemu-reboot-loop.sh 用全新 NEMU 进程重启，默认最多共启动 2 次；
+# 其他非零状态仍直接让 make 失败。可用 NEMU_RUN_MAX_BOOTS 调整上限。
+# rootfs overlay 的 reset=1 只在本次 make run 的 boot1 前执行一次，
+# wrapper 启动的 boot2 会复用同一个 raw overlay 与校验 sidecar。
 
 # NEMU Ubuntu/systemd 自动化验收：在 guest 内检查 systemd target/getty、journal/dbus、
 # systemd-run transient service/timer/cgroup/journal、runtime unit reload request/start/output/status/cgroup/journal/cleanup、伪文件系统挂载、udev/sysfs、
@@ -48,6 +70,23 @@ make ARCH=riscv64-nemu run
 # 默认 NEMU_SYSTEMD_CHECK_MAX_CYCLES=50000000000，以覆盖 runtime reload 和 syscall probe。
 make check-nemu-systemd-guest
 
+# reboot 生命周期轻量 gate：真实裸机 payload 写 syscon 0x7777，要求 NEMU
+# 以 rc=32 退出且不报告 GOOD TRAP；wrapper 重启一次后再以 0x5555 poweroff。
+make check-nemu-reboot-loop
+
+# virtio-blk 异常/边界 gate：在 fresh persistent overlay 上覆盖零长度
+# IN/OUT（不可访问地址不得被解引用）、越界、错误方向、循环链与嵌套 indirect。
+make check-nemu-virtio-blk-error
+
+# 完整 Ubuntu 双启动 gate：boot1 在专属 sparse overlay 写文件并 sync/reboot，
+# boot2 从同一 overlay 读回，再自然 poweroff；同时校验 backing 的 stat 与
+# 完整 SHA-256 前后不变，最终保留 raw overlay/.meta 供检查。
+make check-nemu-reboot-persistence
+
+# P0 聚合 gate：依次执行上面的 block 异常边界、reboot smoke、
+# 现有 hostless 网络/RNG/systemd 完整回归和 Ubuntu 跨 reboot 持久化回归。
+make check-nemu-evolution
+
 # 调试卡点时可以显式切到 debug defconfig 并放开 performance 守门。
 NEMU_DEFCONFIG=riscv64-linux_debug_defconfig NEMU_PERFORMANCE_REQUIRED=0 make check-nemu-systemd-guest
 
@@ -59,6 +98,14 @@ make ARCH=riscv64-nemu nemu-machine-info
 # 不启动 guest，但真实打开 Ubuntu ext4 rootfs block 镜像。
 # 用于确认 virtio-blk device id、容量、sector 数和只读状态没有漂移。
 make ARCH=riscv64-nemu nemu-rootfs-machine-info
+
+# 不启动 guest，检查首次创建的 raw overlay 保持 sparse、backing 从文件描述符
+# 层面只读，并导出 sidecar-v1-crc64 元数据类型与 new/restored 状态。
+make ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info
+
+# QMP 回归覆盖启动/运行期查询、stop/cont/reset/powerdown/quit、事件去重，
+# 以及超长、断开未终止帧、嵌套/duplicate execute 和非法 id 的 fail-closed 解析。
+make ARCH=riscv64-nemu nemu-qmp-smoke
 
 # A 扩展属于 ISA/AM 边界测试，不再在 Linux/tools 维护重复裸机 payload。
 # 以下命令从工作区根目录运行；RV32/RV64 分别使用当前匹配的 NEMU 配置。
@@ -158,6 +205,33 @@ make ARCH=riscv64-nemu run-ubuntu-rootfs
 - `Linux/tools/`：Linux bring-up 专用 focused gates、小 payload 和 Ubuntu init 源码。
 - `npc/rv64/`：RV64 core RTL、testbench、Kconfig 和 Verilator 仿真本体。
 
+NEMU GUI 一期的真实边界：
+
+- 显示端不是 virtio-gpu。NEMU 继续使用已有 `0x13000000` SDL framebuffer，
+  GUI DTB 在 `/chosen` 以标准 `simple-framebuffer` 描述固定的
+  `800x600/x8r8g8b8/stride=3200` scanout；Linux 内建 `simplefb + fbcon`
+  后得到 `/dev/fb0` 与 tty1。`VGA_AUTO_SCANOUT` 只在 GUI profile 打开，
+  默认 AM/legacy profile 仍保持显式 `vgactl.sync` 语义。
+- 键盘端是标准 virtio-input，而不是 NEMU legacy AM 键盘。设备 ID 为 18，
+  使用两个 64-entry split virtqueue、`0x10006000` 和 PLIC IRQ7；
+  `0x10005000/IRQ6` 明确保留给后续 virtio-gpu。Linux input core 负责按键
+  repeat，SDL 自动 repeat 不会重复注入。
+- GUI rootfs 仍是 minimized Ubuntu 22.04 文本用户态，只增加 tty1
+  autologin；它不包含桌面环境。ttyS0 同时保留，登录 marker 只在 ttyS0
+  输出，避免把 tty1 登录误报成串口闭环。
+- GUI 的 NEMU config/build、Linux `O=`、OpenSBI、DTB、rootfs、overlay、
+  日志与截图均使用独立路径，不会覆写默认 headless 启动产物。
+
+建议中其余能力不能按名称直接宣称完成：当前仍是 no-PMU OpenSBI，Linux
+profile 也未开启 RISC-V PMU；在真实 `mhpmcounter/mhpmevent` 与事件来源接通前
+不会打开 SBI PMU。NEMU/NPC 当前没有 Trigger Module，所以不再用恒零/写忽略
+CSR 假装 `Sdtrig+0`，`tselect/tdata*/tcontrol` 按未实现 CSR 报 illegal。
+RV64 NEMU/NPC 的 Zicntr `cycle/time/instret` 现有路径保留，其中 `minstret` 已改为只在指令
+成功退休时增加；`mcycle` 是 NEMU 的模拟 attempt tick（含 WFI 时间快进），不是硅上真实
+cycle 或可用于 PPA 声明的硬件 PMU 数据。virtio-gpu/DRM、sound、真实 MHPM/PMU、真实
+Sdtrig、suspend/CPPC 以及 EDK2/UEFI 都是后续独立里程碑，不能由本期 simplefb 文本
+控制台 gate 代替。
+
 若需要临时复用旧的共享镜像或外部镜像，可以显式传 `UBUNTU_IMAGE_DIR=...`、`UBUNTU_ROOTFS_IMAGE=...`、`RUN_ROOTFS=...` 或 `LINUX_BUILD_DIR=...`；默认路径保持平台隔离，避免同时开发 NEMU/NPC 时互相覆盖 `.config`、OpenSBI `.config`、rootfs overlay 或日志。
 
 UART 架构边界：NEMU 的 ttyS0 路线现在使用 opaque `Uart16550 *` 设备对象，公共头只暴露 config/ops/bus profile、FIFO room 和读写/service/receive API；寄存器、真实 16B RX FIFO 与 IRQ pending 状态由 `uart16550.c` 私有维护，1MiB host 输入 staging 和 4KiB 串口 TX 宿主缓冲属于 `SerialPort` 前端，前端按 `uart16550_rx_room()` 分批送入 core，TX 缓冲按行、按块或设备轮询 flush 到 stderr，SoC adapter 仍只负责映射、TX 与 PLIC IRQ1 接线。
@@ -168,7 +242,9 @@ Ubuntu 常用命令边界：当前 rootfs 是 minimized Ubuntu 22.04，不会默
 
 DTS ISA 边界：`Linux/platform/gen_dts.py` 现在同时输出兼容旧内核的 `riscv,isa = "rv64imafdc_zicsr_zifencei"`，以及 Linux 现代 binding 使用的 `riscv,isa-base = "rv64i"` 和 `riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicsr", "zifencei"`。这样当前内核不再需要回退到 deprecated `riscv,isa` 解析；DTS 没有声明 B/Zba/Zbb/Zbc/Zbs，因为当前 NEMU Ubuntu defconfig 没有把 B 扩展作为 Linux 平台能力暴露。
 
-NEMU 机器清单边界：`make ARCH=riscv64-nemu nemu-machine-info` 会运行当前 NEMU 二进制的 `--machine-info`，在不开 guest 的情况下导出 ISA/engine/performance、B/E/cache 状态、固定的 decode-cache 策略 `policy.interpreter_decode_cache=1`/`policy.interpreter_decode_cache_entries=32768`、唯一运行期开关 `runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0`、CLINT 10MHz timebase、`time/timeh` CSR source、CLINT/PLIC interrupt source map、1GiB memory、`memory.pmp.mode=rv64-basic`/`entries=16`/`active=0`、boot 参数、UART/virtio-blk/virtio-rng/goldfish-rtc/virtio-net/syscon 的 MMIO/IRQ、QMP `startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial` 边界、实际注册的 MMIO/PIO map，以及无镜像时 virtio-blk `detached/device_id=0/capacity=0` 和 virtio-net hostless responder 的 MAC/IP/DHCP/DNS/TCP 健康检查边界。`make ARCH=riscv64-nemu nemu-rootfs-machine-info` 会先验证 systemd rootfs 实物，再真实打开 Ubuntu ext4 镜像并导出 `attached/device_id=2/capacity/readonly`。`nemu-ubuntu` e2e 会检查这些条目，防止固定策略、DTB、设备注册表、CLINT/PLIC/PMP 边界、CLINT/CSR time、rootfs block 后端和 hostless 网络边界漂移。该清单、`query-chardev`、`query-serial`、`query-netdev`、`query-rng`、`query-rtc` 和 `query-interrupts` 只代表非交互 introspection、serial0 console chardev、serial0 16550A UART 快照、net0 hostless responder、rng0 entropy、rtc0 wall-clock 与 CLINT/PLIC 只读查询，不是完整 GDB stub、完整 QMP 命令集、完整中断控制器模型、snapshot/checkpoint、热插拔能力、TAP/NAT 外网或 wall-clock time model。
+NEMU 机器清单边界：`make ARCH=riscv64-nemu nemu-machine-info` 会运行当前 NEMU 二进制的 `--machine-info`，在不开 guest 的情况下导出 ISA/engine/performance、B/E/cache 状态、固定的 decode-cache 策略 `policy.interpreter_decode_cache=1`/`policy.interpreter_decode_cache_entries=32768`、唯一运行期开关 `runtime.interpreter_decode_cache.disable_env=NEMU_INTERPRETER_DECODE_CACHE=0`、CLINT 10MHz timebase、`time/timeh` CSR source、CLINT/PLIC interrupt source map、1GiB memory、`memory.pmp.mode=rv64-basic`/`entries=16`/`active=0`、boot 参数、UART/virtio-blk/virtio-rng/goldfish-rtc/virtio-net/syscon 的 MMIO/IRQ、QMP `startup-query-cont-stop-events-guest-shutdown-runtime-query-chardev-netdev-rng-rtc-interrupts-serial` 边界、实际注册的 MMIO/PIO map，以及无镜像时 virtio-blk `detached/device_id=0/capacity=0` 和 virtio-net hostless responder 的 MAC/IP/DHCP/DNS/TCP 健康检查边界。`make ARCH=riscv64-nemu nemu-rootfs-machine-info` 会先验证 systemd rootfs 实物，再真实打开 Ubuntu ext4 镜像并导出 `attached/device_id=2/capacity/readonly`；`nemu-rootfs-overlay-machine-info` 还会验证 backing 只读、raw overlay 稀疏性以及 `overlay_state`/`sidecar-v1-crc64` 元数据契约。`nemu-ubuntu` e2e 会检查这些条目，防止固定策略、DTB、设备注册表、CLINT/PLIC/PMP 边界、CLINT/CSR time、rootfs block 后端和 hostless 网络边界漂移。运行期可变设备查询（block/chardev/serial/net/rng/rtc/interrupts）只允许在 CPU 已真实 STOP、prelaunch 或执行循环已结束时读取；CPU 正在运行时返回 `GenericError`，避免管理线程与设备模型形成数据竞争。首次 `cont`、`stop` 和暂停后的 `cont` 回复也分别以 CPU 进入 RUNNING、进入 pause wait、离开 pause wait 为确认点。QMP 与 GDB stub 都拥有 CPU run-control，因此启动参数显式互斥；首次 `cont` 后若 CPU 仍处于非 terminal 的运行/暂停状态，管理连接意外断开会 fail-closed 停止 guest 并返回宿主失败码 1；若 guest 已经自然进入 END/REBOOT，则保留其 terminal 结果。已确认的 `quit`/`system_powerdown` 仍是成功的管理结束。该清单与这些查询只代表非交互 introspection 和一致的单机快照，不是完整 GDB stub、完整 QMP 命令集、完整中断控制器模型、snapshot/checkpoint、热插拔能力、已配置好的 TAP/NAT 外网或 wall-clock time model。
+
+持久 overlay 的 raw 文件保持与 guest 磁盘同偏移，`<overlay>.meta` sidecar 保存 backing/overlay 身份、容量、dirty-sector bitmap/count 和 CRC64-ECMA；已有 pair 不匹配或 sidecar 损坏时会拒绝启动。guest FLUSH 与正常退出先同步 raw 数据，再以 `.meta.tmp` + `fsync` + `rename` + 父目录 `fsync` 发布 bitmap；正常 reboot 只有在 block shutdown 成功后才会返回专用 rc=32。machine-info、monitor-command 和启动阶段 QMP 退出也在发布成功状态前完成输出/block shutdown；QMP 握手后未发 `cont`/`quit` 就断开会返回失败。这个 CRC 保护的是 sidecar header/bitmap，不是 raw dirty-sector 的逐扇区内容校验；因此它闭合正常 `sync`/reboot 的持久化和元数据 fail-closed，不等同于抗宿主存储静默损坏、写时快照或掉电原子事务文件系统。reboot 使用全新 NEMU 进程，所以原 QMP socket 会关闭；启用 QMP 的 supervisor 必须在 boot2 重新连接并重新执行 `qmp_capabilities`/`cont`。跨独立 `make run` 保留同一 overlay 时使用 `NEMU_RUN_ROOTFS_OVERLAY_RESET=0`；若 backing 被替换，必须显式清理 raw、`.meta` 和 `.meta.tmp` 后重新创建。
 
 A 扩展边界统一由 AM `cpu-tests` 维护。`rv32a-amo` 覆盖九种 AMO.W、LR.W/SC.W、非法 LR 固定字段、三类非对齐异常、AMONone/RsrvNone 设备访问、PMP 写保护，以及 Sv32 下同一 VA 从物理页 A 改映射到物理页 B 后 SC 必须按原 reservation set 失败；`rv64a-amo` 在同一组 word 语义上增加九种 AMO.D、LR.D/SC.D、`.W` 返回值符号扩展、宽度不匹配和 byte/word 范围重叠。两项测试都由现有 `am-kernels/tests/cpu-tests/Makefile` 自动发现和运行，不再通过 Linux 专属 `.S`/shell 入口复制同一 ISA oracle。它们验证当前单 hart NEMU 策略，不声称完成 SMP coherence 或完整 RVWMO 并发证明。
 
@@ -182,8 +258,8 @@ Decode cache 架构边界：decode cache 不再是 Kconfig 能力项；`nemu/inc
 
 Virtio-blk async completion fast flag 边界：这是不改变 guest 可见语义的宿主实现策略，由 `nemu-config.h` 的 `NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG=1` 固定总控，不再占用 Kconfig/defconfig；`--machine-info` 输出 `device.virtio_blk.async_completion_fast_flag=1`。它只在 threaded-poll 后端没有 worker 完成项时跳过完成队列 mutex；一旦有完成请求，仍由主线程执行 `virtio_blk_complete_request()` 写回 guest PMEM/used ring 并按 EVENT_IDX 或 avail flags 触发 PLIC IRQ2，不等同于 eventfd/epoll、PCI/SMP、完整异步 block layer 或 QEMU 级多 outstanding 签核。
 
-Interpreter TB 长度边界：Ubuntu performance 配置要求 `CONFIG_INTERPRETER_TB_MAX_INST=256`，普通配置仍默认 16。该值只控制 `execute_basic_block()` 单次最多连续退休的 guest 指令数；遇到控制流、SYSTEM、store/AMO、fence 或压缩控制/存储指令仍提前收束，`--machine-info` 与 `nemu-ubuntu` e2e 会检查 `config.interpreter_tb_max_inst=256`，防止源码重新退回硬编码 16 或 menuconfig/defconfig 漂移。
+Interpreter TB 长度边界：Ubuntu performance 配置要求 `CONFIG_INTERPRETER_TB_MAX_INST=256`，普通配置仍默认 16。该值只控制 `execute_basic_block()` 单次最多连续尝试执行的 guest 指令数，不是架构 `minstret` 计数；遇到控制流、SYSTEM、store/AMO、fence 或压缩控制/存储指令仍提前收束，`--machine-info` 与 `nemu-ubuntu` e2e 会检查 `config.interpreter_tb_max_inst=256`，防止源码重新退回硬编码 16 或 menuconfig/defconfig 漂移。
 
 串口宿主输入轮询边界：Ubuntu performance 配置要求 `CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL=4`，普通配置仍默认 1。该值只控制全局 60Hz device tick 中每几次轮询一次宿主 stdin/FIFO；guest 对 UART MMIO 的 read path 仍会立即 poll host，staging 到 16550 RX FIFO 的投递仍按 FIFO room 进行，`--machine-info` 与 `nemu-ubuntu` e2e 会检查 `device.serial.host_rx_poll_interval=4`，防止性能配置漂移后又在空闲长跑中高频做 host fd 轮询。
 
-验收口径仍按项目记忆分层：`ubuntu-shell` 只代表 initramfs 内官方 Ubuntu `/bin/sh -c` gate；`ubuntu-rootfs`、virtio-blk、Linux-visible display 和完整设备栈是独立 gate。当前 Ubuntu Base + fakeroot 产物可作为 shell/rootfs gate；需要 `systemd` gate 时，优先使用具备 sudo、`debootstrap` 与 `qemu-riscv64-static` 的环境重建，并用 `check-ubuntu-rootfs-systemd` 验证实物。若当前机器缺这些工具，可用 `ubuntu-rootfs-systemd-image` 生成 apt/dpkg-deb overlay 候选镜像继续调试 systemd 启动；当前 NEMU 已用该路线证明 ttyS0 root shell 与 systemd `running`，并可通过 `check-nemu-systemd-guest` 做 guest 内自动化回归。该回归还覆盖 systemd target 链、serial-getty@ttyS0、systemd manager API、journald、system bus/dbus、systemd-run transient service/timer、runtime unit reload request/start/output/status/cgroup/journal/cleanup（短 daemon-reload/SIGHUP 后用 unit start/output 证明 PID1 已加载，避免长轮询 `systemctl show`）、伪文件系统 fstype、udev/sysfs/virtio-blk、`/dev/hwrng`/virtio-rng、`/dev/rtc0`/goldfish-rtc、1GiB MemTotal、virtio-net `eth0`/MAC 可见性、hostless DHCP offer/ack、hostless DNS A 记录、hostless TCP burst health check、静态 IPv4 fallback、hostless ARP/ICMP echo、virtio modalias/status/feature 协商（含 DISCARD/WRITE_ZEROES/EVENT_IDX）、基础 syscall 小电池、VM syscall（mremap/mprotect/madvise/mincore）、现代 FS syscall（statx/openat2/faccessat2/getdents64/renameat2/copy_file_range/close_range/linkat/fchmodat/utimensat/directory-fsync/fcntl record lock）、Unix socket fd 传递（SCM_RIGHTS）、pipe2/dup3、sendfile/splice 零拷贝路径、timer syscall（one-shot/periodic timerfd、setitimer、POSIX timer signal、relative/absolute sleep）、UART RX 命令突发、rootfs 元数据树压力、rootfs 压力写回、direct IO、`/dev/vda` 高 offset sha256 读回、并发 direct IO、timer、短时间 soak 和 guest 侧自然 poweroff；需要更重的长期运行证据时使用 `check-nemu-systemd-guest-soak`。reset-syscon 现为 NPC/NEMU 共有节点，两侧都通过 systemd -> kernel -> OpenSBI SRST -> syscon 闭合关机链；`ARCH=riscv64-nemu` 的 rootfs 路线另使用专用 `npc-rv64-nemu-rootfs.dtb`，DTB memory 与 NEMU `CONFIG_MSIZE` 对齐为 1GiB，并额外暴露 `virtio_rng0`、`virtio_net0` 与 `RTC0: google,goldfish-rtc`，让 Linux 运行期 hwrng 走 virtio-rng 设备路径，让 virtio_net driver 枚举一个固定 MAC 的接口，并通过内置 `10.0.2.2` DHCP/DNS/TCP/ARP/ICMP responder 验证最小 TX/RX 数据路径，让系统时钟从 RTC 设备初始化。边界仍然有效：NEMU UART 已按公共 16550A core + bus profile + SerialPort host staging/front-end + SoC adapter + PLIC glue 重新架构，不再是旧 mini 串口；core 只建模真实 UART FIFO，host 脚本大缓冲在前端；virtio-net 当前支持固定 `10.0.2.2` hostless DHCP lease、`nemu.local` DNS A 记录、`/nemu-health` TCP/HTTP 204 burst 健康检查、ARP/ICMP echo，用于证明最小 TX/RX 数据路径；仍没有 TAP/NAT/外网收发后端；virtio-blk 的 DISCARD/WRITE_ZEROES gate 只检查 Linux-visible queue limit 与 feature bit，不在已挂载 rootfs 上执行破坏性擦除命令。当前 profile 对齐 DTS `ns16550a/reg-shift=0`，并已用 32-bit stride smoke 覆盖未来扩展边界。但 virtio-blk/virtio-rng/virtio-net/goldfish-rtc/UART/PLIC 仍是 Linux bring-up 功能模型，完整 virtio 特性、长期设备压力和 QEMU 级通用虚拟机不能由单次 systemd running/poweroff gate 代替。
+验收口径仍按项目记忆分层：`ubuntu-shell` 只代表 initramfs 内官方 Ubuntu `/bin/sh -c` gate；`ubuntu-rootfs`、virtio-blk、Linux-visible display 和完整设备栈是独立 gate。当前 Ubuntu Base + fakeroot 产物可作为 shell/rootfs gate；需要 `systemd` gate 时，优先使用具备 sudo、`debootstrap` 与 `qemu-riscv64-static` 的环境重建，并用 `check-ubuntu-rootfs-systemd` 验证实物。若当前机器缺这些工具，可用 `ubuntu-rootfs-systemd-image` 生成 apt/dpkg-deb overlay 候选镜像继续调试 systemd 启动；当前 NEMU 已用该路线证明 ttyS0 root shell 与 systemd `running`，并可通过 `check-nemu-systemd-guest` 做 guest 内自动化回归。该回归还覆盖 systemd target 链、serial-getty@ttyS0、systemd manager API、journald、system bus/dbus、systemd-run transient service/timer、runtime unit reload request/start/output/status/cgroup/journal/cleanup（短 daemon-reload/SIGHUP 后用 unit start/output 证明 PID1 已加载，避免长轮询 `systemctl show`）、伪文件系统 fstype、udev/sysfs/virtio-blk、`/dev/hwrng`/virtio-rng、`/dev/rtc0`/goldfish-rtc、1GiB MemTotal、virtio-net `eth0`/MAC 可见性、hostless DHCP offer/ack、hostless DNS A 记录、hostless TCP burst health check、静态 IPv4 fallback、hostless ARP/ICMP echo、virtio modalias/status/feature 协商（含 DISCARD/WRITE_ZEROES/EVENT_IDX）、基础 syscall 小电池、VM syscall（mremap/mprotect、madvise/mincore）、现代 FS syscall（statx/openat2/faccessat2/getdents64/renameat2/copy_file_range/close_range/linkat/fchmodat/utimensat/directory-fsync/fcntl record lock）、Unix socket fd 传递（SCM_RIGHTS）、pipe2/dup3、sendfile/splice 零拷贝路径、timer syscall（one-shot/periodic timerfd、setitimer、POSIX timer signal、relative/absolute sleep）、UART RX 命令突发、rootfs 元数据树压力、rootfs 压力写回、direct IO、`/dev/vda` 高 offset sha256 读回、并发 direct IO、timer、短时间 soak 和 guest 侧自然 poweroff；需要更重的长期运行证据时使用 `check-nemu-systemd-guest-soak`。reset-syscon 现为 NPC/NEMU 共有节点，两侧都通过 systemd -> kernel -> OpenSBI SRST -> syscon 闭合关机链；`ARCH=riscv64-nemu` 的 rootfs 路线另使用专用 `npc-rv64-nemu-rootfs.dtb`，DTB memory 与 NEMU `CONFIG_MSIZE` 对齐为 1GiB，并额外暴露 `virtio_rng0`、`virtio_net0` 与 `RTC0: google,goldfish-rtc`，让 Linux 运行期 hwrng 走 virtio-rng 设备路径，让 virtio_net driver 枚举一个固定 MAC 的接口，并通过内置 `10.0.2.2` DHCP/DNS/TCP/ARP/ICMP responder 验证最小 TX/RX 数据路径，让系统时钟从 RTC 设备初始化。边界仍然有效：NEMU UART 已按公共 16550A core + bus profile + SerialPort host staging/front-end + SoC adapter + PLIC glue 重新架构，不再是旧 mini 串口；core 只建模真实 UART FIFO，host 脚本大缓冲在前端；virtio-net 当前支持固定 `10.0.2.2` hostless DHCP lease、`nemu.local` DNS A 记录、`/nemu-health` TCP/HTTP 204 burst 健康检查、ARP/ICMP echo，并支持显式 `--net-tap=<ifname>` 把帧接到宿主 TAP；TAP/NAT/外网是否可用仍取决于宿主 `/dev/net/tun`、CAP_NET_ADMIN、接口与转发/NAT 配置，可先运行 `check-nemu-tap-host`，hostless gate 本身不证明外网；virtio-blk 的 DISCARD/WRITE_ZEROES gate 只检查 Linux-visible queue limit 与 feature bit，不在已挂载 rootfs 上执行破坏性擦除命令。当前 profile 对齐 DTS `ns16550a/reg-shift=0`，并已用 32-bit stride smoke 覆盖未来扩展边界。但 virtio-blk/virtio-rng/virtio-net/goldfish-rtc/UART/PLIC 仍是 Linux bring-up 功能模型，完整 virtio 特性、长期设备压力和 QEMU 级通用虚拟机不能由单次 systemd running/poweroff gate 代替。

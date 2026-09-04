@@ -15,6 +15,8 @@ REQUIRE_NPC_GENERATOR_SKIP=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP:-}
 REQUIRE_NPC_GENERATOR_SKIP_MODE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_SKIP_MODE:-shell}
 REQUIRE_NPC_GENERATOR_REAL_MODE=${UBUNTU_ROOTFS_REQUIRE_NPC_GENERATOR_REAL_MODE:-}
 REQUIRE_NEMU_LOGIN_MARKER=${UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER:-0}
+REQUIRE_VT_AUTOLOGIN=${UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN:-0}
+VT_AUTOLOGIN_USER=${UBUNTU_ROOTFS_VT_AUTOLOGIN_USER:-root}
 REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE=${UBUNTU_ROOTFS_REQUIRE_NPC_PRESEED_SYSTEMD_UPDATE:-0}
 EXPECT_NPC_SYSTEMD_GENERATORS=${UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS:-disabled}
 DEBUGFS=${DEBUGFS:-debugfs}
@@ -1276,6 +1278,35 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
         systemd_missing=1
       fi
     done
+  fi
+fi
+
+if [ "$REQUIRE_VT_AUTOLOGIN" = "1" ]; then
+  vt_unit=${UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY:-tty1}
+  case "$vt_unit" in
+    tty[1-9]|tty[1-9][0-9]*) ;;
+    *)
+      echo "[ubuntu-rootfs-check] invalid virtual terminal: $vt_unit" >&2
+      systemd_missing=1
+      vt_unit=
+      ;;
+  esac
+  if [ -n "$vt_unit" ]; then
+    vt_service="getty@${vt_unit}.service"
+    vt_dropin="/etc/systemd/system/${vt_service}.d/autologin.conf"
+    vt_exec="ExecStart=-/sbin/agetty --autologin ${VT_AUTOLOGIN_USER} --noclear %I \$TERM"
+    if rootfs_cat "$vt_dropin" | grep -Fxq -- "$vt_exec"; then
+      echo "[ubuntu-rootfs-check] OK      $vt_unit autologin drop-in: $VT_AUTOLOGIN_USER"
+    else
+      echo "[ubuntu-rootfs-check] MISSING $vt_unit autologin drop-in for user: $VT_AUTOLOGIN_USER" >&2
+      systemd_missing=1
+    fi
+    if rootfs_symlink_points_to "/etc/systemd/system/getty.target.wants/$vt_service" /lib/systemd/system/getty@.service; then
+      echo "[ubuntu-rootfs-check] OK      $vt_service enabled"
+    else
+      echo "[ubuntu-rootfs-check] MISSING $vt_service enable symlink" >&2
+      systemd_missing=1
+    fi
   fi
 fi
 

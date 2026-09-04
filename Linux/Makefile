@@ -54,18 +54,50 @@ endif
 NPC_SIM_MAKE_ARGS += OOO_CSR_QUEUE_HEAD='$(NPC_OOO_CSR_QUEUE_HEAD)'
 NPC_SIM_MAKE_ARGS += OOO_TERMINAL_HOLDER_ASSERT='$(NPC_OOO_TERMINAL_HOLDER_ASSERT)'
 NEMU_HOME := $(REPO_ROOT)/nemu
-NEMU_SIM ?= $(NEMU_HOME)/build/riscv64-nemu-interpreter
+NEMU_BUILD_DIR ?= $(NEMU_HOME)/build
+NEMU_CONFIG_DIR ?= $(NEMU_HOME)
+NEMU_SIM ?= $(NEMU_BUILD_DIR)/riscv64-nemu-interpreter
 NEMU_DEFCONFIG ?= riscv64-linux_defconfig
+NEMU_SAFE_FLOCK := $(NEMU_HOME)/scripts/safe-flock.py
 
 ENV_ROOT ?= $(LINUX_HOME)/env
+NEMU_GUI_PLATFORM_ROOT ?= $(ENV_ROOT)/platforms/nemu
+NEMU_GUI_BUILD_DIR ?= $(NEMU_HOME)/build/riscv64-linux-gui
+NEMU_GUI_CONFIG_DIR ?= $(NEMU_HOME)/build/config-riscv64-linux-gui
+NEMU_GUI_SIM ?= $(NEMU_GUI_BUILD_DIR)/riscv64-nemu-interpreter
+NEMU_GUI_FRONT_BUILD_DIR ?= $(LINUX_HOME)/build/riscv64-nemu-gui
+NEMU_GUI_KERNEL_BUILD_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/build/linux-gui
+NEMU_GUI_OPENSBI_BUILD_ROOT ?= $(NEMU_GUI_PLATFORM_ROOT)/build/opensbi-gui
+NEMU_GUI_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu-gui
+NEMU_GUI_ROOTFS_OVERLAY ?= $(NEMU_GUI_LOG_DIR)/rootfs-overlay.raw
+NEMU_GUI_SCREENSHOT ?= $(NEMU_GUI_LOG_DIR)/tty1.png
+NEMU_GUI_CHECK_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu-gui-check
+NEMU_GUI_CHECK_ROOTFS_OVERLAY ?= $(NEMU_GUI_CHECK_LOG_DIR)/rootfs-overlay.raw
+NEMU_GUI_CHECK_SCREENSHOT ?= $(NEMU_GUI_CHECK_LOG_DIR)/tty1.png
+NEMU_GUI_ROOTFS_WORK ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/work-gui
+NEMU_GUI_CHECK_TIMEOUT ?= 1800
+NEMU_GUI_BOOT_TIMEOUT ?= 900
+NEMU_GUI_POWEROFF_TIMEOUT ?= 180
+NEMU_GUI_MAX_CYCLES ?= 50000000000
+NEMU_RETIRE_BUILD_DIR ?= $(NEMU_HOME)/build/riscv64-retirement-smoke
+NEMU_RETIRE_CONFIG_DIR ?= $(NEMU_HOME)/build/config-riscv64-retirement-smoke
+NEMU_RETIRE_SIM ?= $(NEMU_RETIRE_BUILD_DIR)/riscv64-nemu-interpreter
 PLATFORM_ROOT ?= $(ENV_ROOT)/platforms/$(LINUX_PLATFORM)
 PLATFORM_BUILD_ROOT ?= $(PLATFORM_ROOT)/build
 PLATFORM_IMAGE_ROOT ?= $(PLATFORM_ROOT)/images
 PLATFORM_LOG_ROOT ?= $(PLATFORM_ROOT)/logs
 LINUX_BUILD_DIR ?= $(PLATFORM_BUILD_ROOT)/linux
+LINUX_FEATURE_PROFILE ?= headless
+LINUX_FEATURE_PROFILE_STAMP ?= $(LINUX_BUILD_DIR)/.ysyx-feature-profile
+LINUX_ROOT ?= $(ENV_ROOT)/src/linux
+LINUX_REF ?= v6.6
+LINUX_PATCH ?= $(LINUX_HOME)/patches/linux-skip-riscv-unaligned-benchmark.patch
+LINUX_DEFAULT_CROSS_COMPILE := $(if $(shell test -x '$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-gcc' && printf 1),$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-,riscv64-linux-gnu-)
+LINUX_CROSS_COMPILE := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE),$(LINUX_DEFAULT_CROSS_COMPILE))
 BUILD_DIR ?= $(LINUX_HOME)/build/$(ARCH)
 SCRIPT_DIR := $(LINUX_HOME)/scripts
 TOOLS_DIR := $(LINUX_HOME)/tools
+LINUX_SOURCE_INPUTS := $(SCRIPT_DIR)/build-linux.sh $(wildcard $(LINUX_PATCH))
 LINUX_CONFIG ?= $(LINUX_HOME)/configs/rv64_linux_defconfig
 TRACE_CONFIG ?= $(LINUX_HOME)/configs/rv64_trace_defconfig
 # 平台 yml 按 ARCH 自动选择(npc-rv64.yml / nemu-rv64.yml),共享 SoC 契约在
@@ -81,8 +113,14 @@ KCONFIG_PATH := $(YSYX_HOME)/tool/kconfig
 FIXDEP_PATH := $(YSYX_HOME)/tool/fixdep
 CONF := $(KCONFIG_PATH)/build/conf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
+KCONFIG_TOOL_INPUTS := $(wildcard $(KCONFIG_PATH)/*.c $(KCONFIG_PATH)/*.h \
+  $(KCONFIG_PATH)/*.l $(KCONFIG_PATH)/*.y $(KCONFIG_PATH)/lxdialog/*) \
+  $(KCONFIG_PATH)/Makefile $(YSYX_HOME)/scripts/build.mk
+FIXDEP_TOOL_INPUTS := $(wildcard $(FIXDEP_PATH)/*.c $(FIXDEP_PATH)/*.h) \
+  $(FIXDEP_PATH)/Makefile $(YSYX_HOME)/scripts/build.mk
 LINUX_CONFIG_STAMP := $(NPC_RV64)/.linux-defconfig.stamp
 TRACE_CONFIG_STAMP := $(NPC_RV64)/.linux-trace-defconfig.stamp
+NPC_KCONFIG_LOCK := $(NPC_RV64)/.linux-kconfig.lock
 FORCE_CONFIG ?= 0
 
 NEXT_ADDR ?= 0x80200000
@@ -97,6 +135,8 @@ LOG_ROOT ?= $(PLATFORM_LOG_ROOT)/linux-front
 EXTRA_ARGS ?=
 BOOTARGS_EXTRA ?=
 NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0
+NEMU_DISPLAY ?= 0
+NEMU_VIRTIO_INPUT ?= $(NEMU_DISPLAY)
 NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
 NEMU_SYSTEMD_ROOTFS_OVERLAY ?= $(NEMU_SYSTEMD_CHECK_LOG_DIR)/rootfs-overlay.raw
 NEMU_SYSTEMD_NET_TAP ?=
@@ -179,6 +219,16 @@ NEMU_PYTHON_INT_TAGS ?=
 NEMU_PYTHON_INT_POWEROFF ?= 1
 NEMU_SYSTEMD_ROOTFS_FLAVOR ?= systemd-minimal
 NEMU_SYSTEMD_ROOTFS_CHECK_TARGET = $(if $(filter full,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(NEMU_SYSTEMD_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
+NEMU_REBOOT_PERSIST_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-reboot-persistence-check
+NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY ?= $(NEMU_REBOOT_PERSIST_LOG_DIR)/rootfs-overlay.raw
+NEMU_REBOOT_PERSIST_TIMEOUT ?= 2400
+NEMU_REBOOT_PERSIST_BOOT_TIMEOUT ?= 900
+NEMU_REBOOT_PERSIST_POWEROFF_TIMEOUT ?= 300
+NEMU_REBOOT_PERSIST_FIFO_TIMEOUT ?= 60
+NEMU_REBOOT_PERSIST_MAX_INSTS ?= 50000000000
+NEMU_REBOOT_PERSIST_INPUT_CHUNK_BYTES ?= 8
+NEMU_REBOOT_PERSIST_INPUT_CHUNK_DELAY ?= 0.002
+NEMU_REBOOT_PERSIST_INPUT_LINE_DELAY ?= 0.05
 NEMU_SYSTEMD_SOAK_CHECK_MAX_CYCLES ?= 300000000000
 NEMU_SYSTEMD_SOAK_CHECK_TIMEOUT ?= 7200
 NEMU_SYSTEMD_SOAK_SOAK_SECONDS ?= 300
@@ -245,8 +295,10 @@ NEMU_QMP_SMOKE_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-nemu.log
 NEMU_QMP_SMOKE_CONT_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-cont-nemu.log
 NEMU_QMP_SMOKE_BLOCK_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-block-nemu.log
 NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-nemu.log
+NEMU_QMP_SMOKE_DISCONNECT_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-disconnect-nemu.log
 NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown-nemu.log
 NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG ?= $(BUILD_DIR)/nemu-qmp-smoke-guest-shutdown-nemu.log
+NEMU_QMP_SMOKE_DISCONNECT_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-disconnect.bin
 NEMU_QMP_SMOKE_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-overlay.raw
 NEMU_QMP_SMOKE_RUNTIME_OVERLAY ?= $(BUILD_DIR)/nemu-qmp-smoke-runtime-overlay.raw
 NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE ?= $(BUILD_DIR)/nemu-qmp-smoke-system-powerdown.bin
@@ -267,16 +319,53 @@ UBUNTU_ROOTFS_SYSTEMD_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64.ext4
 UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict.ext4
 UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive.ext4
 UBUNTU_ROOTFS_FULL_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full.ext4
+UBUNTU_ROOTFS_GUI_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-gui.ext4
 UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-rootfs.cpio
 UBUNTU_ROOTFS_SYSTEMD_STRICT_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict-rootfs.cpio
 UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive-rootfs.cpio
 UBUNTU_ROOTFS_FULL_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full-rootfs.cpio
+UBUNTU_ROOTFS_GUI_CPIO_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-gui-rootfs.cpio
 UBUNTU_ROOTFS_SYSTEMD_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs
 UBUNTU_ROOTFS_SYSTEMD_STRICT_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-strict
 UBUNTU_ROOTFS_INTERACTIVE_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-interactive
 UBUNTU_ROOTFS_FULL_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-full
+UBUNTU_ROOTFS_GUI_DIR ?= $(NEMU_GUI_ROOTFS_WORK)/rootfs-gui
+UBUNTU_ROOTFS_WORK ?= $(UBUNTU_IMAGE_DIR)
+UBUNTU_ROOTFS_BUILD_STAMP ?= $(UBUNTU_ROOTFS_WORK)/.ysyx-rootfs-build-profile
 UBUNTU_ROOTFS_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_IMAGE)
 UBUNTU_ROOTFS_CPIO_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)
+UBUNTU_ROOTFS_DIR ?= $(UBUNTU_ROOTFS_SYSTEMD_DIR)
+UBUNTU_ROOTFS_INIT_SRC ?= $(TOOLS_DIR)/ysyx-rootfs-init.c
+UBUNTU_ROOTFS_PROBE_SRC ?= $(TOOLS_DIR)/ysyx-ubuntu-init.c
+UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC ?= $(TOOLS_DIR)/ysyx-npc-tty-probe.c
+UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC ?= $(TOOLS_DIR)/ysyx-npc-generator-skip.c
+UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC ?= $(SCRIPT_DIR)/npc-systemd-strict-check.sh
+UBUNTU_RELEASE ?= jammy
+UBUNTU_BASE_VERSION ?= 22.04.5
+UBUNTU_ARCH ?= riscv64
+UBUNTU_MIRROR ?= http://ports.ubuntu.com/ubuntu-ports
+UBUNTU_BASE_URL ?= https://cdimages.ubuntu.com/ubuntu-base/releases/22.04/release
+UBUNTU_BASE_TARBALL ?= $(ENV_ROOT)/downloads/ubuntu-base-$(UBUNTU_BASE_VERSION)-base-$(UBUNTU_ARCH).tar.gz
+UBUNTU_BASE_SHA_FILE ?= $(ENV_ROOT)/downloads/SHA256SUMS
+UBUNTU_ROOTFS_DEFAULT_CROSS_COMPILE := $(if $(shell test -x '$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-gcc' && printf 1),$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-,riscv64-linux-gnu-)
+UBUNTU_ROOTFS_CROSS_COMPILE := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE),$(UBUNTU_ROOTFS_DEFAULT_CROSS_COMPILE))
+UBUNTU_ROOTFS_CC := $(if $(filter command line environment override,$(origin CC)),$(CC),$(UBUNTU_ROOTFS_CROSS_COMPILE)gcc)
+UBUNTU_ROOTFS_FLAVOR_SCRIPT ?= $(SCRIPT_DIR)/ubuntu-rootfs-flavors.sh
+UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT ?= $(SCRIPT_DIR)/build-ubuntu-systemd-overlay.sh
+UBUNTU_ROOTFS_PROFILE_INPUTS := \
+  $(SCRIPT_DIR)/build-ubuntu-rootfs.sh \
+  $(SCRIPT_DIR)/check-ubuntu-rootfs.sh \
+  $(UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT) \
+  $(UBUNTU_ROOTFS_FLAVOR_SCRIPT) \
+  $(UBUNTU_ROOTFS_INIT_SRC) \
+  $(UBUNTU_ROOTFS_PROBE_SRC) \
+  $(UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC) \
+  $(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC) \
+  $(UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC)
+UBUNTU_ROOTFS_VT_AUTOLOGIN ?= 0
+UBUNTU_ROOTFS_VT_AUTOLOGIN_USER ?= root
+UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY ?= tty1
+UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN ?= $(UBUNTU_ROOTFS_VT_AUTOLOGIN)
 UBUNTU_ROOTFS_CHECK_TARGET = $(if $(filter full,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
 
 KERNEL_DTB ?= $(BUILD_DIR)/npc-rv64.dtb
@@ -301,14 +390,46 @@ OPENSBI_BUSYBOX_BUILD_DIR ?= $(OPENSBI_BUILD_ROOT)/busybox-initramfs
 OPENSBI_UBUNTU_PROBE_BUILD_DIR ?= $(OPENSBI_BUILD_ROOT)/ubuntu-initramfs
 OPENSBI_UBUNTU_SHELL_BUILD_DIR ?= $(OPENSBI_BUILD_ROOT)/ubuntu-shell-initramfs
 OPENSBI_ROOTFS_BUILD_DIR ?= $(OPENSBI_BUILD_ROOT)/rootfs
+OPENSBI_ROOT ?= $(ENV_ROOT)/src/opensbi
+OPENSBI_REF ?= v1.8
+OPENSBI_NPC_PATCH ?= $(LINUX_HOME)/patches/opensbi-npc-no-pmp-hart-protection.patch
+OPENSBI_PLATFORM ?= generic
+OPENSBI_DEFAULT_CROSS_COMPILE := $(if $(shell test -x '$(ENV_ROOT)/toolchains/riscv/bin/riscv64-unknown-elf-gcc' && printf 1),$(ENV_ROOT)/toolchains/riscv/bin/riscv64-unknown-elf-,riscv64-linux-gnu-)
+OPENSBI_CROSS_COMPILE := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE),$(OPENSBI_DEFAULT_CROSS_COMPILE))
+FW_JUMP_ADDR ?= $(NEXT_ADDR)
+FW_JUMP_FDT_ADDR ?=
 # NEMU 目前没有完整 PMU 设备模型，默认给它构建 no-PMU OpenSBI，避免用户手工补参数。
 OPENSBI_DISABLE_PMU ?= $(PLATFORM_OPENSBI_DISABLE_PMU)
 
-OPENSBI_FW ?= $(OPENSBI_BUILD_DIR)/platform/generic/firmware/fw_jump.bin
-OPENSBI_BUSYBOX_FW ?= $(OPENSBI_BUSYBOX_BUILD_DIR)/platform/generic/firmware/fw_jump.bin
-OPENSBI_UBUNTU_PROBE_FW ?= $(OPENSBI_UBUNTU_PROBE_BUILD_DIR)/platform/generic/firmware/fw_jump.bin
-OPENSBI_UBUNTU_SHELL_FW ?= $(OPENSBI_UBUNTU_SHELL_BUILD_DIR)/platform/generic/firmware/fw_jump.bin
-OPENSBI_ROOTFS_FW ?= $(OPENSBI_ROOTFS_BUILD_DIR)/platform/generic/firmware/fw_jump.bin
+OPENSBI_PROFILE_STAMP ?= $(OPENSBI_BUILD_DIR)/.ysyx-build-profile
+OPENSBI_BUSYBOX_PROFILE_STAMP ?= $(OPENSBI_BUSYBOX_BUILD_DIR)/.ysyx-build-profile
+OPENSBI_UBUNTU_PROBE_PROFILE_STAMP ?= $(OPENSBI_UBUNTU_PROBE_BUILD_DIR)/.ysyx-build-profile
+OPENSBI_UBUNTU_SHELL_PROFILE_STAMP ?= $(OPENSBI_UBUNTU_SHELL_BUILD_DIR)/.ysyx-build-profile
+OPENSBI_ROOTFS_PROFILE_STAMP ?= $(OPENSBI_ROOTFS_BUILD_DIR)/.ysyx-build-profile
+OPENSBI_PROFILE_STAMPS := $(OPENSBI_PROFILE_STAMP) \
+  $(OPENSBI_BUSYBOX_PROFILE_STAMP) \
+  $(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP) \
+  $(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP) \
+  $(OPENSBI_ROOTFS_PROFILE_STAMP)
+OPENSBI_STAMP_COMMON_ENV = \
+	OPENSBI_STAMP_ARCH='$(ARCH)' \
+	OPENSBI_STAMP_LINUX_PLATFORM='$(LINUX_PLATFORM)' \
+	OPENSBI_STAMP_PROFILE='$(OPENSBI_PROFILE)' \
+	OPENSBI_STAMP_ROOT='$(OPENSBI_ROOT)' \
+	OPENSBI_STAMP_REF='$(OPENSBI_REF)' \
+	OPENSBI_STAMP_NPC_PATCH='$(OPENSBI_NPC_PATCH)' \
+	OPENSBI_STAMP_CROSS_COMPILE='$(OPENSBI_CROSS_COMPILE)' \
+	OPENSBI_STAMP_PLATFORM='$(OPENSBI_PLATFORM)' \
+	OPENSBI_STAMP_FW_JUMP_ADDR='$(FW_JUMP_ADDR)' \
+	OPENSBI_STAMP_FW_JUMP_FDT_ADDR='$(FW_JUMP_FDT_ADDR)' \
+	OPENSBI_STAMP_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)'
+OPENSBI_SOURCE_INPUTS := $(SCRIPT_DIR)/build-opensbi.sh $(wildcard $(OPENSBI_NPC_PATCH))
+
+OPENSBI_FW ?= $(OPENSBI_BUILD_DIR)/platform/$(OPENSBI_PLATFORM)/firmware/fw_jump.bin
+OPENSBI_BUSYBOX_FW ?= $(OPENSBI_BUSYBOX_BUILD_DIR)/platform/$(OPENSBI_PLATFORM)/firmware/fw_jump.bin
+OPENSBI_UBUNTU_PROBE_FW ?= $(OPENSBI_UBUNTU_PROBE_BUILD_DIR)/platform/$(OPENSBI_PLATFORM)/firmware/fw_jump.bin
+OPENSBI_UBUNTU_SHELL_FW ?= $(OPENSBI_UBUNTU_SHELL_BUILD_DIR)/platform/$(OPENSBI_PLATFORM)/firmware/fw_jump.bin
+OPENSBI_ROOTFS_FW ?= $(OPENSBI_ROOTFS_BUILD_DIR)/platform/$(OPENSBI_PLATFORM)/firmware/fw_jump.bin
 
 UBUNTU_PROBE_EXPECT ?= PRETTY_NAME="Ubuntu 22.04.5 LTS"
 UBUNTU_SHELL_EXPECT ?= [ysyx-sh] /bin/sh -c marker
@@ -382,6 +503,7 @@ CONSOLE_LOG ?= $(LOG_DIR)/console.log
 # 默认 NEMU rootfs run 使用 sparse overlay，避免日常 make run 污染基准 Ubuntu ext4。
 NEMU_RUN_ROOTFS_OVERLAY ?= $(if $(and $(filter riscv64-nemu,$(ARCH)),$(strip $(RUN_ROOTFS))),$(LOG_DIR)/rootfs-overlay.raw,)
 NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1
+NEMU_RUN_MAX_BOOTS ?= 2
 RUN_SIM := $(if $(filter riscv64-nemu,$(ARCH)),$(NEMU_SIM),$(NPC_SIM))
 PROGRESS_OPT := $(if $(strip $(PROGRESS)),--progress=$(PROGRESS),--no-progress)
 EXPECT_ENV := $(if $(strip $(RUN_EXPECT)),NPC_GUEST_EXPECT='$(RUN_EXPECT)',)
@@ -391,7 +513,7 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
 
 .DEFAULT_GOAL := help
 
-.PHONY: help run run-ubuntu-rootfs run-ubuntu-shell run-ubuntu-probe run-busybox-initramfs run-kernel \
+.PHONY: help run run-ubuntu-rootfs run-ubuntu-gui run-ubuntu-shell run-ubuntu-probe run-busybox-initramfs run-kernel \
         prepare prepare-all setup-env linux-defconfig linux-trace-defconfig nemu-linux-defconfig sim check-sim \
         linux-image busybox-initramfs ubuntu-probe-initramfs \
         ubuntu-shell-initramfs ubuntu-rootfs-image dtb initramfs-dtb ubuntu-initramfs-dtb \
@@ -410,7 +532,14 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
         check-nemu-systemd-guest-full-soak \
         check-nemu-tap-host show-nemu-tap-setup show-nemu-tap-teardown \
         check-nemu-systemd-guest-tap check-nemu-systemd-guest-full-tap \
-        check-nemu-systemd-guest-soak check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
+        check-nemu-systemd-guest-soak check-nemu-virtio-blk-error \
+        check-nemu-reboot-loop check-nemu-reboot-persistence \
+        check-nemu-evolution check-nemu-gui check-nemu-gui-config \
+        check-nemu-virtio-input check-nemu-retirement-sdtrig \
+        __check-nemu-gui __check-nemu-virtio-input __check-nemu-retirement-sdtrig \
+        __check-nemu-virtio-blk-error \
+        __check-nemu-reboot-loop __check-nemu-reboot-persistence \
+        check-nemu-performance-config check-nemu-kernel-config nemu-machine-info nemu-monitor-cmd-smoke nemu-qmp-smoke nemu-gdbstub-smoke nemu-rootfs-machine-info nemu-rootfs-overlay-machine-info __check-nemu-systemd-guest clean clean-logs \
         FORCE $(TOOL_SMOKES) $(TOOL_BOOT_SMOKES)
 
 help:
@@ -426,6 +555,14 @@ help:
 	@printf '%s\n' '      启动完整 Ubuntu rootfs 路线，自动挂载 virtio-mmio block 镜像。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu run'
 	@printf '%s\n' '      用 NEMU 启动同一条完整 Ubuntu rootfs 路线，默认无限预算并使用 no-PMU OpenSBI。'
+	@printf '%s\n' '  make run-ubuntu-gui'
+	@printf '%s\n' '      启动隔离的 NEMU GUI profile：SDL simplefb/fbcon、tty1 与标准 virtio-input 键盘。'
+	@printf '%s\n' '  make check-nemu-gui'
+	@printf '%s\n' '      在 Xvfb 中验证 simplefb/fbcon/tty1、SDL 画面及 SDL→virtio-input→Linux→tty1 按键闭环。'
+	@printf '%s\n' '  make check-nemu-retirement-sdtrig'
+	@printf '%s\n' '      验证 minstret 只统计成功退休指令，并确认未实现的 Sdtrig CSR 产生非法指令异常。'
+	@printf '%s\n' '  make check-nemu-virtio-input'
+	@printf '%s\n' '      用裸机 payload 验证 virtio-input 配置、双队列、坏描述符、按键事件及 PLIC IRQ7。'
 	@printf '%s\n' '  make ARCH=riscv64-npc BOOT=ubuntu-shell run'
 	@printf '%s\n' '      启动已闭合的 Ubuntu shell initramfs gate，命中 /bin/sh marker 自动退出。'
 	@printf '%s\n' '  make ARCH=riscv64-npc BOOT=ubuntu-probe run'
@@ -451,11 +588,19 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-machine-info'
 	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs block 镜像并导出容量/只读状态。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-rootfs-overlay-machine-info'
-	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs + sparse overlay 并导出写入目标。'
+	@printf '%s\n' '      不启动 guest，检查 NEMU 是否真实打开 Ubuntu ext4 rootfs + 持久 sparse overlay/sidecar 并导出写入目标。'
+	@printf '%s\n' '  make check-nemu-reboot-loop'
+	@printf '%s\n' '      用裸机 syscon payload 验证 reboot=rc32、宿主单次重启与最终 poweroff。'
+	@printf '%s\n' '  make check-nemu-virtio-blk-error'
+	@printf '%s\n' '      在 persistent overlay 上验证零长度 IN/OUT 与异常 descriptor 边界。'
+	@printf '%s\n' '  make check-nemu-reboot-persistence'
+	@printf '%s\n' '      Ubuntu boot1 写入并 sync/reboot，boot2 从同一 overlay 读回后自然 poweroff，并证明 backing 未变。'
+	@printf '%s\n' '  make check-nemu-evolution'
+	@printf '%s\n' '      P0 聚合：顺序执行 block 异常边界、reboot smoke、完整 hostless 网络/RNG/systemd 和跨重启持久化 gate。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-monitor-cmd-smoke'
 	@printf '%s\n' '      不进入交互提示符，验证 --monitor-cmd="info r" 一次性管理入口。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu nemu-qmp-smoke'
-	@printf '%s\n' '      验证 --qmp=<port> 启动前和 cont 后运行期 QMP 查询/quit、guest poweroff 事件与 block/blockstats 基线。'
+	@printf '%s\n' '      验证 QMP 查询/run-control/事件/quit，以及超长、截断、嵌套或重复字段请求的 fail-closed 帧边界。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-tap-host'
 	@printf '%s\n' '      只读检查宿主 TAP/NAT 条件；show-nemu-tap-setup 只打印需 root 执行的配置命令。'
 	@printf '%s\n' '  make ARCH=riscv64-nemu check-nemu-systemd-guest-full-tap'
@@ -494,6 +639,16 @@ help:
 	@printf '%s\n' '  make ARCH=riscv64-npc run-ubuntu-probe'
 
 run: $(RUN_DEPS)
+	@bash '$(SCRIPT_DIR)/guard-artifact-paths.sh' \
+	  --input='$(RUN_SIM)' \
+	  --input='$(LINUX_IMAGE)' \
+	  $(if $(strip $(RUN_FW)),--input='$(RUN_FW)',) \
+	  $(if $(strip $(RUN_DTB)),--input='$(RUN_DTB)',) \
+	  $(if $(strip $(RUN_INITRD)),--input='$(RUN_INITRD)',) \
+	  $(if $(strip $(RUN_ROOTFS)),--input='$(RUN_ROOTFS)',) \
+	  --output='$(LOG_FILE)' \
+	  --output='$(CONSOLE_LOG)' \
+	  $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--output='$(NEMU_RUN_ROOTFS_OVERLAY)' --output='$(NEMU_RUN_ROOTFS_OVERLAY).meta' --output='$(NEMU_RUN_ROOTFS_OVERLAY).meta.tmp' --output='$(NEMU_RUN_ROOTFS_OVERLAY).lock',)
 	@mkdir -p '$(LOG_DIR)'
 	@printf '[Linux] ARCH=%s BOOT=%s\n' '$(ARCH)' '$(BOOT)'
 	@printf '[Linux] firmware: %s\n' '$(RUN_FW)'
@@ -504,14 +659,18 @@ run: $(RUN_DEPS)
 	  printf '[Linux] rootfs:   %s\n' '$(RUN_ROOTFS)'; \
 	fi
 	@if [ -n '$(NEMU_RUN_ROOTFS_OVERLAY)' ]; then \
-	  mkdir -p "$$(dirname -- '$(NEMU_RUN_ROOTFS_OVERLAY)')"; \
-	  if [ '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)' = '1' ]; then rm -f '$(NEMU_RUN_ROOTFS_OVERLAY)'; fi; \
+	  bash '$(SCRIPT_DIR)/prepare-nemu-overlay.sh' \
+	    --backing='$(RUN_ROOTFS)' \
+	    --overlay='$(NEMU_RUN_ROOTFS_OVERLAY)' \
+	    --reset='$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'; \
 	  printf '[Linux] overlay:  %s reset=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'; \
 	fi
 	@printf '[Linux] log:      %s\n' '$(CONSOLE_LOG)'
 ifeq ($(ARCH),riscv64-nemu)
 	@set -o pipefail; \
-	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b --max-insts=$(MAX_CYCLES) \
+	NEMU_HOME='$(NEMU_HOME)' bash '$(SCRIPT_DIR)/run-nemu-reboot-loop.sh' \
+	  --reboot-exit-code=32 --max-boots='$(NEMU_RUN_MAX_BOOTS)' -- \
+	  '$(NEMU_SIM)' -b --max-insts=$(MAX_CYCLES) \
 	  --log='$(LOG_FILE)' \
 	  --boot-hartid=0 \
 	  --boot-dtb=$(DTB_ADDR) \
@@ -536,6 +695,67 @@ endif
 run-ubuntu-rootfs:
 	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs run
 
+# 显示 profile 与默认 headless Ubuntu 使用独立的 NEMU Kconfig/build、
+# kernel、OpenSBI、DTB、rootfs、overlay 和日志产物。
+run-ubuntu-gui:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs run \
+	  BUILD_DIR='$(NEMU_GUI_FRONT_BUILD_DIR)' \
+	  LINUX_BUILD_DIR='$(NEMU_GUI_KERNEL_BUILD_DIR)' \
+	  OPENSBI_BUILD_ROOT='$(NEMU_GUI_OPENSBI_BUILD_ROOT)' \
+	  LINUX_FEATURE_PROFILE=display \
+	  NEMU_DEFCONFIG=riscv64-linux-gui_defconfig \
+	  NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
+	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
+	  NEMU_SIM='$(NEMU_GUI_SIM)' \
+	  NEMU_DISPLAY=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	  LOG_DIR='$(NEMU_GUI_LOG_DIR)' \
+	  NEMU_RUN_ROOTFS_OVERLAY='$(NEMU_GUI_ROOTFS_OVERLAY)' \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_GUI_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
+	  UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
+	  UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
+	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	  UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
+	  UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
+	  UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
+
+check-nemu-gui:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-gui \
+	  BUILD_DIR='$(NEMU_GUI_FRONT_BUILD_DIR)' \
+	  LINUX_BUILD_DIR='$(NEMU_GUI_KERNEL_BUILD_DIR)' \
+	  LINUX_FEATURE_PROFILE=display \
+	  OPENSBI_BUILD_ROOT='$(NEMU_GUI_OPENSBI_BUILD_ROOT)' \
+	  NEMU_DEFCONFIG=riscv64-linux-gui_defconfig \
+	  NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
+	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
+	  NEMU_SIM='$(NEMU_GUI_SIM)' \
+	  NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	  NEMU_GUI_LOG_DIR='$(NEMU_GUI_CHECK_LOG_DIR)' \
+	  NEMU_GUI_ROOTFS_OVERLAY='$(NEMU_GUI_CHECK_ROOTFS_OVERLAY)' \
+	  NEMU_GUI_SCREENSHOT='$(NEMU_GUI_CHECK_SCREENSHOT)' \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_GUI_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
+	  UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
+	  UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
+	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	  UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
+	  UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
+	  UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
+
+check-nemu-virtio-input:
+	+$(MAKE) ARCH=riscv64-nemu __check-nemu-virtio-input \
+	  NEMU_DEFCONFIG=riscv64-linux-gui_defconfig \
+	  NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
+	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
+	  NEMU_SIM='$(NEMU_GUI_SIM)'
+
+check-nemu-retirement-sdtrig:
+	+$(MAKE) ARCH=riscv64-nemu __check-nemu-retirement-sdtrig \
+	  NEMU_DEFCONFIG=riscv64-linux_defconfig \
+	  NEMU_BUILD_DIR='$(NEMU_RETIRE_BUILD_DIR)' \
+	  NEMU_CONFIG_DIR='$(NEMU_RETIRE_CONFIG_DIR)' \
+	  NEMU_SIM='$(NEMU_RETIRE_SIM)'
+
 run-ubuntu-shell:
 	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-shell run
 
@@ -557,12 +777,17 @@ prepare-all: sim linux-image busybox-initramfs ubuntu-probe-initramfs ubuntu-she
 setup-env:
 	bash '$(SCRIPT_DIR)/setup-env.sh'
 
-$(CONF):
-	$(MAKE) -s -C '$(KCONFIG_PATH)' NAME=conf
+$(CONF): $(KCONFIG_TOOL_INPUTS) $(NEMU_SAFE_FLOCK)
+	@mkdir -p '$(KCONFIG_PATH)/build'
+	python3 '$(NEMU_SAFE_FLOCK)' '$(KCONFIG_PATH)/build/.build.lock' -- \
+	  $(MAKE) -s -C '$(KCONFIG_PATH)' NAME=conf BUILD_DIR='$(KCONFIG_PATH)/build'
 
-$(FIXDEP):
-	$(MAKE) -s -C '$(FIXDEP_PATH)'
+$(FIXDEP): $(FIXDEP_TOOL_INPUTS) $(NEMU_SAFE_FLOCK)
+	@mkdir -p '$(FIXDEP_PATH)/build'
+	python3 '$(NEMU_SAFE_FLOCK)' '$(FIXDEP_PATH)/build/.build.lock' -- \
+	  $(MAKE) -s -C '$(FIXDEP_PATH)' BUILD_DIR='$(FIXDEP_PATH)/build'
 
+ifeq ($(NPC_KCONFIG_LOCK_HELD),1)
 linux-defconfig: $(CONF) $(FIXDEP)
 	@set -e; \
 	need=0; \
@@ -600,21 +825,33 @@ linux-trace-defconfig: $(CONF) $(FIXDEP)
 	else \
 	  echo '[Linux] rv64 trace defconfig up to date'; \
 	fi
+else
+# The NPC configuration, generated headers, profile stamps and the simulator
+# that consumes them form one mutable transaction.  Keep the lock outside all
+# build*/ directories so clean cannot replace its inode, then re-enter make
+# with the lock descriptor inherited for the complete writer/build graph.
+linux-defconfig linux-trace-defconfig: $(CONF) $(FIXDEP)
+	@mkdir -p '$(dir $(NPC_KCONFIG_LOCK))'
+	@python3 '$(NEMU_SAFE_FLOCK)' '$(NPC_KCONFIG_LOCK)' -- \
+	  $(MAKE) --no-print-directory NPC_KCONFIG_LOCK_HELD=1 '$@'
+endif
 
 ifeq ($(ARCH),riscv64-nemu)
 nemu-linux-defconfig:
-	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' $(NEMU_DEFCONFIG)
+	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' \
+	  NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' $(NEMU_DEFCONFIG)
 
 sim: nemu-linux-defconfig
-	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' -j'$(JOBS)'
+	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' \
+	  NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' BUILD_DIR='$(NEMU_BUILD_DIR)' -j'$(JOBS)'
 
 check-sim: sim
 	@test -x '$(NEMU_SIM)'
 
 check-nemu-performance-config: nemu-linux-defconfig
 	NEMU_PERFORMANCE_REQUIRED='$(NEMU_PERFORMANCE_REQUIRED)' \
-	NEMU_CONFIG='$(NEMU_HOME)/.config' \
-	NEMU_AUTOCONF='$(NEMU_HOME)/include/generated/autoconf.h' \
+	NEMU_CONFIG='$(NEMU_CONFIG_DIR)/.config' \
+	NEMU_AUTOCONF='$(NEMU_CONFIG_DIR)/include/generated/autoconf.h' \
 	NEMU_POLICY_HEADER='$(NEMU_HOME)/include/nemu-config.h' \
 	NEMU_DEVICE_ADDRESS_HEADER='$(NEMU_HOME)/include/device/device_address.h' \
 	NEMU_GENERIC_MAP_HEADER='$(NEMU_HOME)/include/platform/generic-map.h' \
@@ -644,11 +881,13 @@ nemu-qmp-smoke: sim check-ubuntu-rootfs-systemd $(OPENSBI_ROOTFS_FW) $(NEMU_ROOT
 	  --cont-nemu-log '$(NEMU_QMP_SMOKE_CONT_NEMU_LOG)' \
 	  --block-nemu-log '$(NEMU_QMP_SMOKE_BLOCK_NEMU_LOG)' \
 	  --runtime-nemu-log '$(NEMU_QMP_SMOKE_RUNTIME_NEMU_LOG)' \
+	  --disconnect-nemu-log '$(NEMU_QMP_SMOKE_DISCONNECT_NEMU_LOG)' \
 	  --system-powerdown-nemu-log '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_NEMU_LOG)' \
 	  --guest-shutdown-nemu-log '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_NEMU_LOG)' \
 	  --block-image '$(UBUNTU_ROOTFS_IMAGE)' \
 	  --overlay-image '$(NEMU_QMP_SMOKE_OVERLAY)' \
 	  --runtime-overlay-image '$(NEMU_QMP_SMOKE_RUNTIME_OVERLAY)' \
+	  --disconnect-image '$(NEMU_QMP_SMOKE_DISCONNECT_IMAGE)' \
 	  --system-powerdown-image '$(NEMU_QMP_SMOKE_SYSTEM_POWERDOWN_IMAGE)' \
 	  --guest-shutdown-image '$(NEMU_QMP_SMOKE_GUEST_SHUTDOWN_IMAGE)' \
 	  --firmware '$(OPENSBI_ROOTFS_FW)' \
@@ -671,6 +910,11 @@ nemu-gdbstub-smoke: sim
 	@cat '$(NEMU_GDBSTUB_SMOKE_LOG)'
 
 nemu-rootfs-machine-info: sim check-ubuntu-rootfs
+	@bash '$(SCRIPT_DIR)/guard-artifact-paths.sh' \
+	  --input='$(NEMU_SIM)' \
+	  --input='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --output='$(NEMU_ROOTFS_MACHINE_INFO_LOG)' \
+	  --output='$(NEMU_ROOTFS_MACHINE_INFO_FILE)'
 	@mkdir -p '$(BUILD_DIR)'
 	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
 	  --log='$(NEMU_ROOTFS_MACHINE_INFO_LOG)' \
@@ -679,8 +923,21 @@ nemu-rootfs-machine-info: sim check-ubuntu-rootfs
 	@cat '$(NEMU_ROOTFS_MACHINE_INFO_FILE)'
 
 nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs
+	@bash '$(SCRIPT_DIR)/guard-artifact-paths.sh' \
+	  --input='$(NEMU_SIM)' \
+	  --input='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_LOG)' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE)' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY).meta' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY).meta.tmp' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY).lock' \
+	  --output='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
 	@mkdir -p '$(BUILD_DIR)'
-	@rm -f '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
+	@bash '$(SCRIPT_DIR)/prepare-nemu-overlay.sh' \
+	  --backing='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --overlay='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' --reset=1
+	@rm -f -- '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
 	NEMU_HOME='$(NEMU_HOME)' '$(NEMU_SIM)' -b \
 	  --log='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_LOG)' \
 	  --block='$(UBUNTU_ROOTFS_IMAGE)' \
@@ -690,7 +947,9 @@ nemu-rootfs-overlay-machine-info: sim check-ubuntu-rootfs
 	  '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' > '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
 	@cat '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_FILE)'
 	@cat '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY_STAT)'
-	@rm -f '$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)'
+	@bash '$(SCRIPT_DIR)/prepare-nemu-overlay.sh' \
+	  --backing='$(UBUNTU_ROOTFS_IMAGE)' \
+	  --overlay='$(NEMU_ROOTFS_OVERLAY_MACHINE_INFO_OVERLAY)' --reset=1
 else
 nemu-linux-defconfig:
 	@echo '[Linux] skip NEMU defconfig for ARCH=$(ARCH)'
@@ -716,22 +975,25 @@ nemu-rootfs-machine-info:
 nemu-rootfs-overlay-machine-info:
 	@echo '[Linux] skip NEMU rootfs overlay machine info for ARCH=$(ARCH)'
 
+ifeq ($(NPC_KCONFIG_LOCK_HELD),1)
 sim: linux-defconfig
 	+$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)' $(NPC_SIM_MAKE_ARGS)
 
-check-sim: linux-defconfig
-	+@if [ ! -x '$(NPC_SIM)' ]; then \
-	  $(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)' $(NPC_SIM_MAKE_ARGS); \
-	else \
-	  echo '[Linux] NPC sim exists: $(NPC_SIM)'; \
-	fi
+check-sim: sim
+	@test -x '$(NPC_SIM)'
+else
+sim check-sim: $(CONF) $(FIXDEP)
+	@mkdir -p '$(dir $(NPC_KCONFIG_LOCK))'
+	@python3 '$(NEMU_SAFE_FLOCK)' '$(NPC_KCONFIG_LOCK)' -- \
+	  $(MAKE) --no-print-directory NPC_KCONFIG_LOCK_HELD=1 '$@'
+endif
 endif
 
 linux-image: $(LINUX_IMAGE)
 busybox-initramfs: $(BUSYBOX_INITRD)
 ubuntu-probe-initramfs: $(UBUNTU_PROBE_INITRD)
 ubuntu-shell-initramfs: $(UBUNTU_SHELL_INITRD)
-ubuntu-rootfs-image: $(UBUNTU_ROOTFS_IMAGE)
+ubuntu-rootfs-image: $(UBUNTU_ROOTFS_IMAGE) $(UBUNTU_ROOTFS_CPIO_IMAGE)
 ubuntu-rootfs-flavors-check:
 	bash '$(SCRIPT_DIR)/ubuntu-rootfs-flavors.sh' --check
 ubuntu-rootfs-systemd-image ubuntu-rootfs-systemd-overlay:
@@ -830,8 +1092,12 @@ ubuntu-rootfs-full-image:
 	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
 	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
 
-ubuntu-rootfs-check check-ubuntu-rootfs: $(UBUNTU_ROOTFS_IMAGE)
+ubuntu-rootfs-check check-ubuntu-rootfs: $(UBUNTU_ROOTFS_IMAGE) $(UBUNTU_ROOTFS_CPIO_IMAGE)
 	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' \
+	UBUNTU_ROOTFS_REQUIRE_SYSTEMD='$(if $(filter 1,$(UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN)),1,0)' \
+	UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN='$(UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN)' \
+	UBUNTU_ROOTFS_VT_AUTOLOGIN_USER='$(UBUNTU_ROOTFS_VT_AUTOLOGIN_USER)' \
+	UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY='$(UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY)' \
 	UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER='$(UBUNTU_ROOTFS_REQUIRE_NEMU_LOGIN_MARKER)' \
 	UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS='$(UBUNTU_ROOTFS_EXPECT_NPC_SYSTEMD_GENERATORS)' \
 	  bash '$(SCRIPT_DIR)/check-ubuntu-rootfs.sh'
@@ -952,6 +1218,21 @@ check-npc-systemd-guest-systemd-strict:
 
 check-nemu-systemd-guest:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-systemd-guest
+
+check-nemu-reboot-loop:
+	+$(MAKE) ARCH=riscv64-nemu __check-nemu-reboot-loop
+
+check-nemu-virtio-blk-error:
+	+$(MAKE) ARCH=riscv64-nemu __check-nemu-virtio-blk-error
+
+check-nemu-reboot-persistence:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-reboot-persistence
+
+check-nemu-evolution:
+	+$(MAKE) check-nemu-virtio-blk-error
+	+$(MAKE) check-nemu-reboot-loop
+	+$(MAKE) check-nemu-systemd-guest
+	+$(MAKE) check-nemu-reboot-persistence
 
 check-nemu-systemd-guest-tap:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
@@ -1075,6 +1356,40 @@ check-nemu-kernel-config: $(LINUX_IMAGE)
 	LINUX_KERNEL_CONFIG='$(LINUX_BUILD_DIR)/.config' \
 	  bash '$(SCRIPT_DIR)/check-nemu-kernel-config.sh'
 
+check-nemu-gui-config: nemu-linux-defconfig $(LINUX_IMAGE)
+	$(PYTHON) '$(SCRIPT_DIR)/check-nemu-gui-config.py' \
+	  --platform '$(PLATFORM_CONFIG)' \
+	  --generic-map '$(NEMU_HOME)/include/platform/generic-map.h' \
+	  --nemu-config '$(NEMU_CONFIG_DIR)/.config' \
+	  --linux-config '$(LINUX_BUILD_DIR)/.config'
+__check-nemu-virtio-input: sim
+	NEMU_HOME='$(NEMU_HOME)' NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' \
+	NEMU_SIM='$(NEMU_SIM)' \
+	  bash '$(NEMU_HOME)/tests/check-virtio-input.sh'
+
+__check-nemu-retirement-sdtrig: sim
+	NEMU_HOME='$(NEMU_HOME)' NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' \
+	NEMU_SIM='$(NEMU_SIM)' \
+	  bash '$(NEMU_HOME)/tests/check-rv64-retirement-sdtrig.sh'
+
+__check-nemu-gui: $(RUN_DEPS) check-nemu-performance-config check-nemu-kernel-config check-nemu-gui-config __check-nemu-virtio-input
+	NEMU_HOME='$(NEMU_HOME)' \
+	NEMU_SIM='$(NEMU_SIM)' \
+	LINUX_IMAGE='$(LINUX_IMAGE)' \
+	RUN_FW='$(RUN_FW)' \
+	RUN_DTB='$(RUN_DTB)' \
+	RUN_ROOTFS='$(RUN_ROOTFS)' \
+	NEMU_GUI_LOG_DIR='$(NEMU_GUI_LOG_DIR)' \
+	NEMU_GUI_ROOTFS_OVERLAY='$(NEMU_GUI_ROOTFS_OVERLAY)' \
+	NEMU_GUI_SCREENSHOT='$(NEMU_GUI_SCREENSHOT)' \
+	NEMU_GUI_CHECK_TIMEOUT='$(NEMU_GUI_CHECK_TIMEOUT)' \
+	NEMU_GUI_BOOT_TIMEOUT='$(NEMU_GUI_BOOT_TIMEOUT)' \
+	NEMU_GUI_POWEROFF_TIMEOUT='$(NEMU_GUI_POWEROFF_TIMEOUT)' \
+	NEMU_GUI_MAX_CYCLES='$(NEMU_GUI_MAX_CYCLES)' \
+	NEXT_ADDR='$(NEXT_ADDR)' DTB_ADDR='$(DTB_ADDR)' \
+	  xvfb-run -a -s '-screen 0 1024x768x24' \
+	  bash '$(SCRIPT_DIR)/check-nemu-gui.sh'
+
 __check-npc-systemd-guest: $(RUN_DEPS)
 	LOG_DIR='$(NPC_SYSTEMD_CHECK_LOG_DIR)' \
 	CONSOLE_LOG='$(NPC_SYSTEMD_CHECK_LOG_DIR)/console.log' \
@@ -1154,6 +1469,39 @@ __check-nemu-systemd-guest: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) chec
 		NEMU_SYSTEMD_RESOLVED_DNS_TIMEOUT='$(NEMU_SYSTEMD_RESOLVED_DNS_TIMEOUT)' \
 		  bash '$(SCRIPT_DIR)/check-nemu-systemd-guest.sh'
 
+__check-nemu-reboot-loop: sim
+	NEMU_HOME='$(NEMU_HOME)' \
+	NEMU_SIM='$(NEMU_SIM)' \
+	  bash '$(SCRIPT_DIR)/check-nemu-reboot-loop.sh'
+
+__check-nemu-virtio-blk-error: sim ubuntu-rootfs-image
+	+$(MAKE) -C '$(TOOLS_DIR)' \
+	  NEMU_HOME='$(NEMU_HOME)' NEMU_BUILD_JOBS='$(JOBS)' TOOL_PLATFORM=nemu \
+	  VIRTIO_BLK_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' smoke-nemu-virtio-blk-error
+
+__check-nemu-reboot-persistence: $(RUN_DEPS) $(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET) check-nemu-performance-config check-nemu-kernel-config
+	NEMU_HOME='$(NEMU_HOME)' \
+	NEMU_SIM='$(NEMU_SIM)' \
+	NEMU_REBOOT_LOOP='$(SCRIPT_DIR)/run-nemu-reboot-loop.sh' \
+	LINUX_IMAGE='$(LINUX_IMAGE)' \
+	RUN_FW='$(RUN_FW)' \
+	RUN_DTB='$(RUN_DTB)' \
+	RUN_ROOTFS='$(RUN_ROOTFS)' \
+	NEXT_ADDR='$(NEXT_ADDR)' \
+	DTB_ADDR='$(DTB_ADDR)' \
+	NEMU_REBOOT_EXIT_CODE=32 \
+	NEMU_REBOOT_PERSIST_LOG_DIR='$(NEMU_REBOOT_PERSIST_LOG_DIR)' \
+	NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY='$(NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY)' \
+	NEMU_REBOOT_PERSIST_TIMEOUT='$(NEMU_REBOOT_PERSIST_TIMEOUT)' \
+	NEMU_REBOOT_PERSIST_BOOT_TIMEOUT='$(NEMU_REBOOT_PERSIST_BOOT_TIMEOUT)' \
+	NEMU_REBOOT_PERSIST_POWEROFF_TIMEOUT='$(NEMU_REBOOT_PERSIST_POWEROFF_TIMEOUT)' \
+	NEMU_REBOOT_PERSIST_FIFO_TIMEOUT='$(NEMU_REBOOT_PERSIST_FIFO_TIMEOUT)' \
+	NEMU_REBOOT_PERSIST_MAX_INSTS='$(NEMU_REBOOT_PERSIST_MAX_INSTS)' \
+	NEMU_REBOOT_PERSIST_INPUT_CHUNK_BYTES='$(NEMU_REBOOT_PERSIST_INPUT_CHUNK_BYTES)' \
+	NEMU_REBOOT_PERSIST_INPUT_CHUNK_DELAY='$(NEMU_REBOOT_PERSIST_INPUT_CHUNK_DELAY)' \
+	NEMU_REBOOT_PERSIST_INPUT_LINE_DELAY='$(NEMU_REBOOT_PERSIST_INPUT_LINE_DELAY)' \
+	  bash '$(SCRIPT_DIR)/check-nemu-reboot-persistence.sh'
+
 __check-nemu-python-int-preflight: $(RUN_DEPS) check-ubuntu-rootfs-full check-nemu-performance-config check-nemu-kernel-config
 	LOG_DIR='$(NEMU_PYTHON_INT_CHECK_LOG_DIR)' \
 	LOG_FILE='$(NEMU_PYTHON_INT_CHECK_LOG_DIR)/nemu.log' \
@@ -1191,10 +1539,29 @@ opensbi-ubuntu-probe: $(OPENSBI_UBUNTU_PROBE_FW)
 opensbi-ubuntu-shell: $(OPENSBI_UBUNTU_SHELL_FW)
 opensbi-rootfs: $(OPENSBI_ROOTFS_FW)
 
-$(LINUX_IMAGE): $(SCRIPT_DIR)/build-linux.sh
+# PROFILE_STAMP 是已成功消费对应输入的承诺，只允许 build-linux.sh 在
+# canonical O= lock 内、Image 验证成功后发布。FORCE 让脚本在锁内比较
+# payload 并走轻量 current fast-path；Make 自身不预写成功 stamp。
+$(LINUX_FEATURE_PROFILE_STAMP): FORCE $(LINUX_SOURCE_INPUTS)
 	LINUX_PLATFORM='$(LINUX_PLATFORM)' \
 	LINUX_BUILD_DIR='$(LINUX_BUILD_DIR)' \
+	LINUX_EXPECTED_IMAGE='$(LINUX_IMAGE)' \
+	LINUX_FEATURE_PROFILE='$(LINUX_FEATURE_PROFILE)' \
+	LINUX_FEATURE_PROFILE_STAMP='$(LINUX_FEATURE_PROFILE_STAMP)' \
+	LINUX_ROOT='$(LINUX_ROOT)' \
+	LINUX_REF='$(LINUX_REF)' \
+	LINUX_PATCH='$(LINUX_PATCH)' \
+	CROSS_COMPILE='$(LINUX_CROSS_COMPILE)' \
+	LINUX_STAMP_PLATFORM='$(LINUX_PLATFORM)' \
+	LINUX_STAMP_FEATURE_PROFILE='$(LINUX_FEATURE_PROFILE)' \
+	LINUX_STAMP_ROOT='$(LINUX_ROOT)' \
+	LINUX_STAMP_REF='$(LINUX_REF)' \
+	LINUX_STAMP_PATCH='$(LINUX_PATCH)' \
+	LINUX_STAMP_CROSS_COMPILE='$(LINUX_CROSS_COMPILE)' \
+	LINUX_STAMP_BUILD_DIR='$(LINUX_BUILD_DIR)' \
 	  bash '$(SCRIPT_DIR)/build-linux.sh'
+
+$(LINUX_IMAGE): $(LINUX_FEATURE_PROFILE_STAMP)
 
 $(BUSYBOX_INITRD):
 	INITRAMFS_WORK='$(INITRAMFS_IMAGE_DIR)' \
@@ -1213,20 +1580,123 @@ $(UBUNTU_SHELL_INITRD):
 	  UBUNTU_INITRD_IMAGE='$(UBUNTU_SHELL_INITRD)' \
 	  bash '$(SCRIPT_DIR)/build-ubuntu-base-initramfs.sh'
 
-$(UBUNTU_ROOTFS_IMAGE):
-	UBUNTU_ROOTFS_FLAVOR='$(UBUNTU_ROOTFS_FLAVOR)' \
-	UBUNTU_ROOTFS_WORK='$(UBUNTU_IMAGE_DIR)' \
-	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' \
-	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_CPIO_IMAGE)' \
-	UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 \
-	UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
-	UBUNTU_ROOTFS_NPC_CONSOLE_SHELL='$(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)' \
-	UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL='$(UBUNTU_ROOTFS_REQUIRE_NPC_CONSOLE_SHELL)' \
-	UBUNTU_ROOTFS_NPC_TTY_READER='$(UBUNTU_ROOTFS_NPC_TTY_READER)' \
-	UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER='$(UBUNTU_ROOTFS_REQUIRE_NPC_TTY_READER)' \
-	UBUNTU_ROOTFS_NPC_TTY_READER_MODE='$(UBUNTU_ROOTFS_NPC_TTY_READER_MODE)' \
-	UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$(UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS)' \
-	  bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'
+$(UBUNTU_ROOTFS_BUILD_STAMP): FORCE $(UBUNTU_ROOTFS_PROFILE_INPUTS)
+	@set -e -o pipefail; expected=$$(mktemp); \
+	  cleanup_expected() { status=$$?; trap - EXIT HUP INT TERM; \
+	    rm -f -- "$$expected"; exit "$$status"; }; \
+	  trap cleanup_expected EXIT; \
+	  trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM; \
+	  source_hash=$$(sha256sum $(foreach input,$(UBUNTU_ROOTFS_PROFILE_INPUTS),'$(input)') | sha256sum | cut -d ' ' -f1); \
+	  printf '%s\n' \
+	  'YSYX_LINUX_ENV_ROOT=$(ENV_ROOT)' \
+	  'UBUNTU_RELEASE=$(UBUNTU_RELEASE)' \
+	  'UBUNTU_BASE_VERSION=$(UBUNTU_BASE_VERSION)' \
+	  'UBUNTU_ARCH=$(UBUNTU_ARCH)' \
+	  'UBUNTU_MIRROR=$(UBUNTU_MIRROR)' \
+	  'UBUNTU_BASE_URL=$(UBUNTU_BASE_URL)' \
+	  'UBUNTU_ROOTFS_FLAVOR=$(UBUNTU_ROOTFS_FLAVOR)' \
+	  'UBUNTU_ROOTFS_ARTIFACT_SUFFIX=$(UBUNTU_ROOTFS_ARTIFACT_SUFFIX)' \
+	  'UBUNTU_ROOTFS_WORK=$(UBUNTU_ROOTFS_WORK)' \
+	  'UBUNTU_ROOTFS_IMAGE=$(UBUNTU_ROOTFS_IMAGE)' \
+	  'UBUNTU_ROOTFS_CPIO_IMAGE=$(UBUNTU_ROOTFS_CPIO_IMAGE)' \
+	  'UBUNTU_ROOTFS_DIR=$(UBUNTU_ROOTFS_DIR)' \
+	  'UBUNTU_ROOTFS_IMAGE_SIZE=$(UBUNTU_ROOTFS_IMAGE_SIZE)' \
+	  'UBUNTU_ROOTFS_INCLUDE=$(UBUNTU_ROOTFS_INCLUDE)' \
+	  'UBUNTU_DEBOOTSTRAP_VARIANT=$(UBUNTU_DEBOOTSTRAP_VARIANT)' \
+	  'UBUNTU_ROOTFS_SERIAL_AUTOLOGIN=$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN)' \
+	  'UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER=$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER)' \
+	  'UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS=$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS)' \
+	  'UBUNTU_ROOTFS_VT_AUTOLOGIN=$(UBUNTU_ROOTFS_VT_AUTOLOGIN)' \
+	  'UBUNTU_ROOTFS_VT_AUTOLOGIN_USER=$(UBUNTU_ROOTFS_VT_AUTOLOGIN_USER)' \
+	  'UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY=$(UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY)' \
+	  'UBUNTU_ROOTFS_SERIAL_MASK_TTYS=$(UBUNTU_ROOTFS_SERIAL_MASK_TTYS)' \
+	  'UBUNTU_ROOTFS_STATIC_INIT=$(UBUNTU_ROOTFS_STATIC_INIT)' \
+	  'UBUNTU_ROOTFS_INIT_SRC=$(UBUNTU_ROOTFS_INIT_SRC)' \
+	  'UBUNTU_ROOTFS_PROBE=$(UBUNTU_ROOTFS_PROBE)' \
+	  'UBUNTU_ROOTFS_PROBE_SRC=$(UBUNTU_ROOTFS_PROBE_SRC)' \
+	  'UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC=$(UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC)' \
+	  'UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC=$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC)' \
+	  'UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC=$(UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC)' \
+	  'UBUNTU_BASE_TARBALL=$(UBUNTU_BASE_TARBALL)' \
+	  'UBUNTU_BASE_SHA_FILE=$(UBUNTU_BASE_SHA_FILE)' \
+	  'UBUNTU_ROOTFS_NEMU_LOGIN_MARKER=$(UBUNTU_ROOTFS_NEMU_LOGIN_MARKER)' \
+	  'UBUNTU_ROOTFS_NPC_CONSOLE_SHELL=$(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)' \
+	  'UBUNTU_ROOTFS_NPC_TTY_READER=$(UBUNTU_ROOTFS_NPC_TTY_READER)' \
+	  'UBUNTU_ROOTFS_NPC_TTY_READER_MODE=$(UBUNTU_ROOTFS_NPC_TTY_READER_MODE)' \
+	  'UBUNTU_ROOTFS_NPC_STRICT_AUTORUN=$(UBUNTU_ROOTFS_NPC_STRICT_AUTORUN)' \
+	  'UBUNTU_ROOTFS_NPC_LOGIN_MARKER=$(UBUNTU_ROOTFS_NPC_LOGIN_MARKER)' \
+	  'UBUNTU_ROOTFS_NPC_LOGIN_TRACE=$(UBUNTU_ROOTFS_NPC_LOGIN_TRACE)' \
+	  'UBUNTU_ROOTFS_NPC_GENERATOR_TRACE=$(UBUNTU_ROOTFS_NPC_GENERATOR_TRACE)' \
+	  'UBUNTU_ROOTFS_NPC_GENERATOR_SKIP=$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP)' \
+	  'UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_MODE=$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_MODE)' \
+	  'UBUNTU_ROOTFS_NPC_GENERATOR_REAL_MODE=$(UBUNTU_ROOTFS_NPC_GENERATOR_REAL_MODE)' \
+	  'UBUNTU_ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE=$(UBUNTU_ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE)' \
+	  'UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS=$(UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS)' \
+	  'UBUNTU_ROOTFS_FLAVOR_SCRIPT=$(UBUNTU_ROOTFS_FLAVOR_SCRIPT)' \
+	  'UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT=$(UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT)' \
+	  'UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1' \
+	  'UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1' \
+	  'CROSS_COMPILE=$(UBUNTU_ROOTFS_CROSS_COMPILE)' \
+	  'CC=$(UBUNTU_ROOTFS_CC)' \
+	  "UBUNTU_ROOTFS_SOURCE_SHA256=$$source_hash" > "$$expected"; \
+	  YSYX_LINUX_ENV_ROOT='$(ENV_ROOT)' \
+	  UBUNTU_RELEASE='$(UBUNTU_RELEASE)' \
+	  UBUNTU_BASE_VERSION='$(UBUNTU_BASE_VERSION)' \
+	  UBUNTU_ARCH='$(UBUNTU_ARCH)' \
+	  UBUNTU_MIRROR='$(UBUNTU_MIRROR)' \
+	  UBUNTU_BASE_URL='$(UBUNTU_BASE_URL)' \
+	  UBUNTU_ROOTFS_FLAVOR='$(UBUNTU_ROOTFS_FLAVOR)' \
+	  UBUNTU_ROOTFS_ARTIFACT_SUFFIX='$(UBUNTU_ROOTFS_ARTIFACT_SUFFIX)' \
+	  UBUNTU_ROOTFS_WORK='$(UBUNTU_ROOTFS_WORK)' \
+	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' \
+	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_CPIO_IMAGE)' \
+	  UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_DIR)' \
+	  UBUNTU_ROOTFS_IMAGE_SIZE='$(UBUNTU_ROOTFS_IMAGE_SIZE)' \
+	  UBUNTU_ROOTFS_INCLUDE='$(UBUNTU_ROOTFS_INCLUDE)' \
+	  UBUNTU_DEBOOTSTRAP_VARIANT='$(UBUNTU_DEBOOTSTRAP_VARIANT)' \
+	  UBUNTU_ROOTFS_SERIAL_AUTOLOGIN='$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN)' \
+	  UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER='$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_USER)' \
+	  UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS='$(UBUNTU_ROOTFS_SERIAL_AUTOLOGIN_TTYS)' \
+	  UBUNTU_ROOTFS_VT_AUTOLOGIN='$(UBUNTU_ROOTFS_VT_AUTOLOGIN)' \
+	  UBUNTU_ROOTFS_VT_AUTOLOGIN_USER='$(UBUNTU_ROOTFS_VT_AUTOLOGIN_USER)' \
+	  UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY='$(UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY)' \
+	  UBUNTU_ROOTFS_SERIAL_MASK_TTYS='$(UBUNTU_ROOTFS_SERIAL_MASK_TTYS)' \
+	  UBUNTU_ROOTFS_STATIC_INIT='$(UBUNTU_ROOTFS_STATIC_INIT)' \
+	  UBUNTU_ROOTFS_INIT_SRC='$(UBUNTU_ROOTFS_INIT_SRC)' \
+	  UBUNTU_ROOTFS_PROBE='$(UBUNTU_ROOTFS_PROBE)' \
+	  UBUNTU_ROOTFS_PROBE_SRC='$(UBUNTU_ROOTFS_PROBE_SRC)' \
+	  UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC='$(UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC)' \
+	  UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC='$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_SRC)' \
+	  UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC='$(UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC)' \
+	  UBUNTU_BASE_TARBALL='$(UBUNTU_BASE_TARBALL)' \
+	  UBUNTU_BASE_SHA_FILE='$(UBUNTU_BASE_SHA_FILE)' \
+	  UBUNTU_ROOTFS_NEMU_LOGIN_MARKER='$(UBUNTU_ROOTFS_NEMU_LOGIN_MARKER)' \
+	  UBUNTU_ROOTFS_NPC_CONSOLE_SHELL='$(UBUNTU_ROOTFS_NPC_CONSOLE_SHELL)' \
+	  UBUNTU_ROOTFS_NPC_TTY_READER='$(UBUNTU_ROOTFS_NPC_TTY_READER)' \
+	  UBUNTU_ROOTFS_NPC_TTY_READER_MODE='$(UBUNTU_ROOTFS_NPC_TTY_READER_MODE)' \
+	  UBUNTU_ROOTFS_NPC_STRICT_AUTORUN='$(UBUNTU_ROOTFS_NPC_STRICT_AUTORUN)' \
+	  UBUNTU_ROOTFS_NPC_LOGIN_MARKER='$(UBUNTU_ROOTFS_NPC_LOGIN_MARKER)' \
+	  UBUNTU_ROOTFS_NPC_LOGIN_TRACE='$(UBUNTU_ROOTFS_NPC_LOGIN_TRACE)' \
+	  UBUNTU_ROOTFS_NPC_GENERATOR_TRACE='$(UBUNTU_ROOTFS_NPC_GENERATOR_TRACE)' \
+	  UBUNTU_ROOTFS_NPC_GENERATOR_SKIP='$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP)' \
+	  UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_MODE='$(UBUNTU_ROOTFS_NPC_GENERATOR_SKIP_MODE)' \
+	  UBUNTU_ROOTFS_NPC_GENERATOR_REAL_MODE='$(UBUNTU_ROOTFS_NPC_GENERATOR_REAL_MODE)' \
+	  UBUNTU_ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE='$(UBUNTU_ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE)' \
+	  UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS='$(UBUNTU_ROOTFS_NPC_DISABLE_SYSTEMD_GENERATORS)' \
+	  UBUNTU_ROOTFS_FLAVOR_SCRIPT='$(UBUNTU_ROOTFS_FLAVOR_SCRIPT)' \
+	  UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT='$(UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT)' \
+	  UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 \
+	  UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
+	  UBUNTU_ROOTFS_BUILD_STAMP='$@' \
+	  UBUNTU_ROOTFS_EXPECTED_PROFILE_STAMP="$$expected" \
+	  CROSS_COMPILE='$(UBUNTU_ROOTFS_CROSS_COMPILE)' \
+	  CC='$(UBUNTU_ROOTFS_CC)' \
+	    bash '$(SCRIPT_DIR)/build-ubuntu-rootfs.sh'; \
+	  rm -f -- "$$expected"; expected=; trap - EXIT HUP INT TERM
+
+$(UBUNTU_ROOTFS_IMAGE) $(UBUNTU_ROOTFS_CPIO_IMAGE) &: $(UBUNTU_ROOTFS_BUILD_STAMP)
+	@test -s '$(UBUNTU_ROOTFS_IMAGE)'
+	@test -s '$(UBUNTU_ROOTFS_CPIO_IMAGE)'
 
 $(BUILD_DIR):
 	mkdir -p '$@'
@@ -1237,88 +1707,148 @@ $(BUILD_DIR)/generated:
 $(DTB_BOOTARGS_STAMP_DIR):
 	mkdir -p '$@'
 
-$(DTB_BOOTARGS_STAMP_DIR)/%.stamp: FORCE | $(DTB_BOOTARGS_STAMP_DIR)
-	@printf '%s\n' 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' 'NEMU_ROOTFS_BOOTARGS_EXTRA=$(NEMU_ROOTFS_BOOTARGS_EXTRA)' 'NPC_ROOTFS_BOOTARGS=$(NPC_ROOTFS_BOOTARGS)' > '$@.tmp'
-	@if cmp -s '$@.tmp' '$@'; then rm -f '$@.tmp'; else mv '$@.tmp' '$@'; fi
+# 每个 DTB 与其 profile stamp 是一个 grouped transaction。脚本在同一组
+# canonical resource locks 内完成 current 比较、DTS/DTB 校验和 stamp-last 发布。
+$(KERNEL_DTB) $(KERNEL_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(KERNEL_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64.dts' \
+	  --stamp '$(KERNEL_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --profile 'TARGET=kernel' --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode kernel \
+	  --bootargs-extra '$(BOOTARGS_EXTRA)'
 
-$(KERNEL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(KERNEL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode kernel \
+$(BUSYBOX_INITRAMFS_DTB) $(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(BUSYBOX_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(BUSYBOX_INITRAMFS_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts' \
+	  --stamp '$(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --input '$(BUSYBOX_INITRD)' \
+	  --profile 'TARGET=busybox-initramfs' --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
-	  --output '$(BUILD_DIR)/generated/npc-rv64.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64.dts'
+	  --initrd-image '$(BUSYBOX_INITRD)'
 
-$(BUSYBOX_INITRAMFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(BUSYBOX_INITRD) $(BUSYBOX_INITRAMFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
-	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
-	  --initrd-image '$(BUSYBOX_INITRD)' \
-	  --output '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-initramfs.dts'
-
-$(UBUNTU_PROBE_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_PROBE_INITRD) $(UBUNTU_PROBE_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
+$(UBUNTU_PROBE_DTB) $(UBUNTU_PROBE_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_PROBE_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(UBUNTU_PROBE_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts' \
+	  --stamp '$(UBUNTU_PROBE_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --input '$(UBUNTU_PROBE_INITRD)' \
+	  --profile 'TARGET=ubuntu-probe-initramfs' --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --initrd-image '$(UBUNTU_PROBE_INITRD)' \
-	  --memory-size 0x08000000 \
-	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-initramfs.dts'
+	  --memory-size 0x08000000
 
-$(UBUNTU_SHELL_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_SHELL_INITRD) $(UBUNTU_SHELL_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
+$(UBUNTU_SHELL_DTB) $(UBUNTU_SHELL_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(UBUNTU_SHELL_INITRD) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(UBUNTU_SHELL_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts' \
+	  --stamp '$(UBUNTU_SHELL_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --input '$(UBUNTU_SHELL_INITRD)' \
+	  --profile 'TARGET=ubuntu-shell-initramfs' --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode initramfs \
 	  --bootargs-key ubuntu_initramfs \
 	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
 	  --initrd-image '$(UBUNTU_SHELL_INITRD)' \
-	  --memory-size 0x10000000 \
-	  --output '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-ubuntu-shell-initramfs.dts'
+	  --memory-size 0x10000000
 
-$(NPC_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
+$(NPC_ROOTFS_DTB) $(NPC_ROOTFS_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(NPC_ROOTFS_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts' \
+	  --stamp '$(NPC_ROOTFS_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --profile 'TARGET=npc-rootfs' --profile 'NPC_ROOTFS_BOOTARGS=$(NPC_ROOTFS_BOOTARGS)' \
+	  --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
 	  --bootargs-override '$(NPC_ROOTFS_BOOTARGS)' \
-	  --bootargs-extra '$(BOOTARGS_EXTRA)' \
-	  --output '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-rootfs.dts'
+	  --bootargs-extra '$(BOOTARGS_EXTRA)'
 
-$(NEMU_ROOTFS_DTB): $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) $(NEMU_ROOTFS_DTB_BOOTARGS_STAMP) | $(BUILD_DIR) $(BUILD_DIR)/generated
-	$(PYTHON) '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
+$(NEMU_ROOTFS_DTB) $(NEMU_ROOTFS_DTB_BOOTARGS_STAMP) &: FORCE $(SCRIPT_DIR)/build-dtb.sh $(GEN_DTS) $(PLATFORM_CONFIG) $(PLATFORM_CONFIG_COMMON) | $(BUILD_DIR) $(BUILD_DIR)/generated $(DTB_BOOTARGS_STAMP_DIR)
+	@bash '$(SCRIPT_DIR)/build-dtb.sh' \
+	  --build-dir '$(BUILD_DIR)' \
+	  --dtb '$(NEMU_ROOTFS_DTB)' \
+	  --dts '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts' \
+	  --stamp '$(NEMU_ROOTFS_DTB_BOOTARGS_STAMP)' \
+	  --python '$(PYTHON)' --dtc '$(DTC)' \
+	  --input '$(GEN_DTS)' --input '$(PLATFORM_CONFIG)' --input '$(PLATFORM_CONFIG_COMMON)' \
+	  --profile 'TARGET=nemu-rootfs' \
+	  --profile 'BOOTARGS_EXTRA=$(BOOTARGS_EXTRA)' \
+	  --profile 'NEMU_ROOTFS_BOOTARGS_EXTRA=$(NEMU_ROOTFS_BOOTARGS_EXTRA)' \
+	  --profile 'NEMU_DISPLAY=$(NEMU_DISPLAY)' \
+	  --profile 'NEMU_VIRTIO_INPUT=$(NEMU_VIRTIO_INPUT)' -- \
+	  '$(GEN_DTS)' --config '$(PLATFORM_CONFIG)' --mode rootfs \
 	  --reset-syscon \
+	  $(if $(filter 1,$(NEMU_DISPLAY)),--simple-framebuffer,) \
+	  $(if $(filter 1,$(NEMU_VIRTIO_INPUT)),--virtio-input,) \
 	  --virtio-rng \
 	  --virtio-net \
 	  --goldfish-rtc \
-	  --bootargs-extra '$(BOOTARGS_EXTRA) $(NEMU_ROOTFS_BOOTARGS_EXTRA)' \
-	  --output '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
-	$(DTC) -I dts -O dtb -o '$@' '$(BUILD_DIR)/generated/npc-rv64-nemu-rootfs.dts'
+	  --bootargs-extra '$(BOOTARGS_EXTRA) $(NEMU_ROOTFS_BOOTARGS_EXTRA)'
 
-$(OPENSBI_FW): $(KERNEL_DTB)
-	OPENSBI_DTB='$(KERNEL_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_BUILD_DIR)' \
+$(OPENSBI_PROFILE_STAMP): private OPENSBI_TARGET_DTB := $(KERNEL_DTB)
+$(OPENSBI_PROFILE_STAMP): private OPENSBI_TARGET_BUILD_DIR := $(OPENSBI_BUILD_DIR)
+$(OPENSBI_PROFILE_STAMP): private OPENSBI_TARGET_FW := $(OPENSBI_FW)
+$(OPENSBI_PROFILE_STAMP): $(KERNEL_DTB)
+$(OPENSBI_BUSYBOX_PROFILE_STAMP): private OPENSBI_TARGET_DTB := $(BUSYBOX_INITRAMFS_DTB)
+$(OPENSBI_BUSYBOX_PROFILE_STAMP): private OPENSBI_TARGET_BUILD_DIR := $(OPENSBI_BUSYBOX_BUILD_DIR)
+$(OPENSBI_BUSYBOX_PROFILE_STAMP): private OPENSBI_TARGET_FW := $(OPENSBI_BUSYBOX_FW)
+$(OPENSBI_BUSYBOX_PROFILE_STAMP): $(BUSYBOX_INITRAMFS_DTB)
+$(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP): private OPENSBI_TARGET_DTB := $(UBUNTU_PROBE_DTB)
+$(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP): private OPENSBI_TARGET_BUILD_DIR := $(OPENSBI_UBUNTU_PROBE_BUILD_DIR)
+$(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP): private OPENSBI_TARGET_FW := $(OPENSBI_UBUNTU_PROBE_FW)
+$(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP): $(UBUNTU_PROBE_DTB)
+$(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP): private OPENSBI_TARGET_DTB := $(UBUNTU_SHELL_DTB)
+$(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP): private OPENSBI_TARGET_BUILD_DIR := $(OPENSBI_UBUNTU_SHELL_BUILD_DIR)
+$(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP): private OPENSBI_TARGET_FW := $(OPENSBI_UBUNTU_SHELL_FW)
+$(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP): $(UBUNTU_SHELL_DTB)
+$(OPENSBI_ROOTFS_PROFILE_STAMP): private OPENSBI_TARGET_DTB := $(ROOTFS_DTB)
+$(OPENSBI_ROOTFS_PROFILE_STAMP): private OPENSBI_TARGET_BUILD_DIR := $(OPENSBI_ROOTFS_BUILD_DIR)
+$(OPENSBI_ROOTFS_PROFILE_STAMP): private OPENSBI_TARGET_FW := $(OPENSBI_ROOTFS_FW)
+$(OPENSBI_ROOTFS_PROFILE_STAMP): $(ROOTFS_DTB)
+
+# 五类固件各自的 stamp 都只由 build-opensbi.sh 在对应 canonical O=
+# lock 内发布；这里传入的字段同时驱动脚本的 current fast-path。
+$(OPENSBI_PROFILE_STAMPS): FORCE $(OPENSBI_SOURCE_INPUTS)
+	$(OPENSBI_STAMP_COMMON_ENV) \
+	  OPENSBI_PROFILE_STAMP='$@' \
+	  OPENSBI_STAMP_DTB='$(OPENSBI_TARGET_DTB)' \
+	  OPENSBI_STAMP_BUILD_DIR='$(OPENSBI_TARGET_BUILD_DIR)' \
+	  OPENSBI_PROFILE='$(OPENSBI_PROFILE)' \
+	  LINUX_PLATFORM='$(LINUX_PLATFORM)' \
+	  OPENSBI_ROOT='$(OPENSBI_ROOT)' OPENSBI_REF='$(OPENSBI_REF)' \
+	  OPENSBI_NPC_PATCH='$(OPENSBI_NPC_PATCH)' CROSS_COMPILE='$(OPENSBI_CROSS_COMPILE)' \
+	  FW_JUMP_ADDR='$(FW_JUMP_ADDR)' FW_JUMP_FDT_ADDR='$(FW_JUMP_FDT_ADDR)' \
+	  OPENSBI_DTB='$(OPENSBI_TARGET_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_TARGET_BUILD_DIR)' \
+	  OPENSBI_EXPECTED_FIRMWARE='$(OPENSBI_TARGET_FW)' \
+	  OPENSBI_PLATFORM='$(OPENSBI_PLATFORM)' \
 	  LINUX_MAKE_ARCH='$(ARCH)' \
 	  OPENSBI_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)' \
 	  bash '$(SCRIPT_DIR)/build-opensbi.sh'
 
-$(OPENSBI_BUSYBOX_FW): $(BUSYBOX_INITRAMFS_DTB)
-	OPENSBI_DTB='$(BUSYBOX_INITRAMFS_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_BUSYBOX_BUILD_DIR)' \
-	  LINUX_MAKE_ARCH='$(ARCH)' \
-	  OPENSBI_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)' \
-	  bash '$(SCRIPT_DIR)/build-opensbi.sh'
-
-$(OPENSBI_UBUNTU_PROBE_FW): $(UBUNTU_PROBE_DTB)
-	OPENSBI_DTB='$(UBUNTU_PROBE_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_UBUNTU_PROBE_BUILD_DIR)' \
-	  LINUX_MAKE_ARCH='$(ARCH)' \
-	  OPENSBI_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)' \
-	  bash '$(SCRIPT_DIR)/build-opensbi.sh'
-
-$(OPENSBI_UBUNTU_SHELL_FW): $(UBUNTU_SHELL_DTB)
-	OPENSBI_DTB='$(UBUNTU_SHELL_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_UBUNTU_SHELL_BUILD_DIR)' \
-	  LINUX_MAKE_ARCH='$(ARCH)' \
-	  OPENSBI_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)' \
-	  bash '$(SCRIPT_DIR)/build-opensbi.sh'
-
-$(OPENSBI_ROOTFS_FW): $(ROOTFS_DTB)
-	OPENSBI_DTB='$(ROOTFS_DTB)' OPENSBI_BUILD_DIR='$(OPENSBI_ROOTFS_BUILD_DIR)' \
-	  LINUX_MAKE_ARCH='$(ARCH)' \
-	  OPENSBI_DISABLE_PMU='$(OPENSBI_DISABLE_PMU)' \
-	  bash '$(SCRIPT_DIR)/build-opensbi.sh'
+$(OPENSBI_FW): $(OPENSBI_PROFILE_STAMP)
+$(OPENSBI_BUSYBOX_FW): $(OPENSBI_BUSYBOX_PROFILE_STAMP)
+$(OPENSBI_UBUNTU_PROBE_FW): $(OPENSBI_UBUNTU_PROBE_PROFILE_STAMP)
+$(OPENSBI_UBUNTU_SHELL_FW): $(OPENSBI_UBUNTU_SHELL_PROFILE_STAMP)
+$(OPENSBI_ROOTFS_FW): $(OPENSBI_ROOTFS_PROFILE_STAMP)
 
 qemu: qemu-ubuntu-shell
 
@@ -1390,6 +1920,8 @@ paths:
 	@printf 'NEMU_SYSTEMD_ROOTFS_CHECK_TARGET=%s\n' '$(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
+	@printf 'NEMU_RUN_MAX_BOOTS=%s\n' '$(NEMU_RUN_MAX_BOOTS)'
+	@printf 'NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY=%s\n' '$(NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
 check:

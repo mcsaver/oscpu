@@ -188,7 +188,7 @@ static const char *profile_counter_names[NEMU_PROFILE_COUNTER__COUNT] = {
   [NEMU_PROFILE_CPU_RVC_OTHER] = "cpu.rvc.other",
 
   [NEMU_PROFILE_DEVICE_UPDATE_CALLS] = "device.update_calls",
-  [NEMU_PROFILE_DEVICE_UPDATE_RETIRED] = "device.update_retired",
+  [NEMU_PROFILE_DEVICE_UPDATE_ATTEMPTS] = "device.update_attempts",
   [NEMU_PROFILE_DEVICE_INTERVAL_SKIPS] = "device.interval_skips",
   [NEMU_PROFILE_DEVICE_INTERVAL_FIRES] = "device.interval_fires",
   [NEMU_PROFILE_DEVICE_TIME_SKIPS] = "device.time_skips",

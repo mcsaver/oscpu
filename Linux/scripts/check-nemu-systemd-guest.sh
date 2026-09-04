@@ -1050,8 +1050,8 @@ rm -f "$SERIAL_FIFO" "$CONSOLE_LOG" "$LOG_FILE" "$PERF_LOG" \
 block_overlay_args=()
 if [ -n "$RUN_ROOTFS_OVERLAY" ]; then
   # focused gate 会做真实 fs/block 写压力；overlay 用来保护基准 rootfs 不被测试污染。
-  mkdir -p "$(dirname -- "$RUN_ROOTFS_OVERLAY")"
-  rm -f "$RUN_ROOTFS_OVERLAY"
+  bash "$SCRIPT_DIR/prepare-nemu-overlay.sh" \
+    --backing="$RUN_ROOTFS" --overlay="$RUN_ROOTFS_OVERLAY" --reset=1
   block_overlay_args=(--block-overlay="$RUN_ROOTFS_OVERLAY")
 fi
 : >"$CONSOLE_LOG"

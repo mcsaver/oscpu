@@ -41,6 +41,8 @@ static bool clint_host_time_initialized = false;
 static bool host_timer_irq_pending = false;
 static bool mcycle_written_this_inst = false;
 static bool minstret_written_this_inst = false;
+static bool instruction_in_flight = false;
+static bool sync_exception_this_inst = false;
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int trap_log_budget = CONFIG_RISCV_FAULT_DEBUG_BUDGET;
 #endif
@@ -241,15 +243,30 @@ void isa_riscv64_clint_write(paddr_t addr, int len, word_t data) {
   }
 }
 
+void isa_riscv64_begin_exec(void) {
+  instruction_in_flight = true;
+  sync_exception_this_inst = false;
+  mcycle_written_this_inst = false;
+  minstret_written_this_inst = false;
+}
+
+void isa_riscv64_mark_sync_exception(void) {
+  if (instruction_in_flight) {
+    sync_exception_this_inst = true;
+  }
+}
+
 void isa_riscv64_post_exec(void) {
-  // NEMU 是指令级参考模型，这里用“每条已执行指令一跳”近似 NPC 的 mcycle/mtime 自然前进。
+  // NEMU 是指令级参考模型：mcycle/mtime 按执行尝试前进，minstret 只按真正退休前进。
   if (!mcycle_written_this_inst && (cpu.csr.mcountinhibit & MCOUNTINHIBIT_CY) == 0) {
     cpu.csr.mcycle++;
   }
-  if (!minstret_written_this_inst &&
+  if (!sync_exception_this_inst && !minstret_written_this_inst &&
       (cpu.csr.mcountinhibit & MCOUNTINHIBIT_IR) == 0) {
     cpu.csr.minstret++;
   }
+  instruction_in_flight = false;
+  sync_exception_this_inst = false;
   mcycle_written_this_inst = false;
   minstret_written_this_inst = false;
   clint_post_exec_tick();
@@ -260,6 +277,8 @@ void isa_riscv64_reset(void) {
   riscv_clint_reset(&clint);
   clint_rebase_host_time(0);
   host_timer_irq_pending = false;
+  instruction_in_flight = false;
+  sync_exception_this_inst = false;
   mcycle_written_this_inst = false;
   minstret_written_this_inst = false;
   isa_riscv64_plic_reset();
@@ -456,6 +475,14 @@ static vaddr_t riscv_enter_machine_trap(const RiscvTrapRequest *trap) {
 }
 
 vaddr_t isa_raise_intr_with_tval(word_t NO, vaddr_t epc, word_t tval) {
+  /*
+   * A synchronous exception terminates the current instruction without
+   * retirement.  Interrupts enter between instructions, so they must not
+   * suppress retirement of the first handler instruction begun afterwards.
+   */
+  if (!riscv_cause_is_interrupt(NO)) {
+    isa_riscv64_mark_sync_exception();
+  }
   const RiscvTrapRequest trap = {
     .cause = NO,
     .exception_pc = epc & riscv_mepc_mask(),

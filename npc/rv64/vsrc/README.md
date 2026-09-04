@@ -79,9 +79,10 @@ module/core 回归和性能样本分析。
 
 当前 privileged/core-regress 相关边界：
 
-- `core/CsrFile.v` 提供最小 debug trigger no-op CSR、`pmpcfg0/2`+`pmpaddr0-15`
-  CSR 存储（TOR/NA4/NAPOT + lock 链）、`misa` WARL no-op 写入，以及
-  `mstatus.TVM/TW/TSR` 可写位；
+- `core/CsrFile.v` 尚未实现 Trigger Module/Sdtrig，`tselect/tdata*/tcontrol`
+  访问按未实现 CSR 报 illegal；现有地址宏只用于编码与负向测试。该模块提供
+  `pmpcfg0/2`+`pmpaddr0-15` CSR 存储（TOR/NA4/NAPOT + lock 链）、`misa`
+  WARL no-op 写入，以及 `mstatus.TVM/TW/TSR` 可写位；
   当前由 `core/NpcCoreTop.v` 直接例化，`OooCoreTopGlue` 只导出 CSR access/trap/
   fflags/retire 事件并消费 CSR 状态。T3K 起 CSR 接口分为 commit/pending/readback
   使用的 `csr_access_*` 与 current-head-only、无副作用的 `csr_probe_*`；两者在

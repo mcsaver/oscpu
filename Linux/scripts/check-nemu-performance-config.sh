@@ -58,12 +58,14 @@ require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_BLK_BASE 0x10001000
 require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_RNG_BASE 0x10002000u
 require_header_value "$generic_map_path" NEMU_GENERIC_GOLDFISH_RTC_BASE 0x10003000u
 require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_NET_BASE 0x10004000u
+require_header_value "$generic_map_path" NEMU_GENERIC_VIRTIO_INPUT_BASE 0x10006000u
 require_header_value "$generic_map_path" NEMU_GENERIC_SYSCON_RESET_BASE 0x00100000u
 require_header_value "$device_address_path" DEV_SERIAL_MMIO NEMU_GENERIC_UART_BASE
 require_header_value "$device_address_path" DEV_DISK_MMIO NEMU_GENERIC_VIRTIO_BLK_BASE
 require_header_value "$device_address_path" DEV_VIRTIO_RNG_MMIO NEMU_GENERIC_VIRTIO_RNG_BASE
 require_header_value "$device_address_path" DEV_GOLDFISH_RTC_MMIO NEMU_GENERIC_GOLDFISH_RTC_BASE
 require_header_value "$device_address_path" DEV_VIRTIO_NET_MMIO NEMU_GENERIC_VIRTIO_NET_BASE
+require_header_value "$device_address_path" DEV_VIRTIO_INPUT_MMIO NEMU_GENERIC_VIRTIO_INPUT_BASE
 require_header_value "$device_address_path" DEV_SYSCON_RESET_MMIO NEMU_GENERIC_SYSCON_RESET_BASE
 echo "__NEMU_FIXED_POLICY__:ok"
 
@@ -188,6 +190,7 @@ legacy_device_opts=(
   CONFIG_HAS_TIMER
   CONFIG_HAS_KEYBOARD
   CONFIG_HAS_VGA
+  CONFIG_HAS_VIRTIO_INPUT
   CONFIG_HAS_AUDIO
 )
 

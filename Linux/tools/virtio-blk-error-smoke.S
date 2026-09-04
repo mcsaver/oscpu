@@ -48,6 +48,7 @@
 #define VIRTQ_DESC_F_INDIRECT    4
 #define VIRTIO_RING_F_INDIRECT_DESC_MASK 0x10000000
 #define VIRTIO_BLK_T_IN          0
+#define VIRTIO_BLK_T_OUT         1
 #define VIRTIO_BLK_S_OK          0
 #define VIRTIO_BLK_S_IOERR       1
 #define VIRTIO_BLK_S_UNSUPP      2
@@ -178,6 +179,14 @@ clear_initial_loop:
   li a0, VIRTIO_BLK_S_IOERR
   call submit_expect_status
 
+  call setup_zero_length_read
+  li a0, VIRTIO_BLK_S_OK
+  call submit_expect_status
+
+  call setup_zero_length_write
+  li a0, VIRTIO_BLK_S_OK
+  call submit_expect_status
+
   call setup_unsupported_request
   li a0, VIRTIO_BLK_S_UNSUPP
   call submit_expect_status
@@ -303,6 +312,43 @@ setup_beyond_capacity:
   sh t1, 14(t0)
   li t0, VIRTIO_REQ_ADDR
   sd s2, 8(t0)                     // one sector past the last valid sector
+  ld ra, 8(sp)
+  addi sp, sp, 16
+  ret
+
+setup_zero_length_read:
+  addi sp, sp, -16
+  sd ra, 8(sp)
+  call clear_request_area
+  call setup_common_read_request
+  li t0, VIRTIO_DESC_ADDR + 16
+  li t1, VIRTIO_INVALID_DATA_ADDR   // len=0 must not dereference or validate addr
+  sd t1, 0(t0)
+  sw zero, 8(t0)
+  li t1, VIRTQ_DESC_F_NEXT | VIRTQ_DESC_F_WRITE
+  sh t1, 12(t0)
+  li t1, 2
+  sh t1, 14(t0)
+  ld ra, 8(sp)
+  addi sp, sp, 16
+  ret
+
+setup_zero_length_write:
+  addi sp, sp, -16
+  sd ra, 8(sp)
+  call clear_request_area
+  call setup_common_read_request
+  li t0, VIRTIO_REQ_ADDR
+  li t1, VIRTIO_BLK_T_OUT
+  sw t1, 0(t0)
+  li t0, VIRTIO_DESC_ADDR + 16
+  li t1, VIRTIO_INVALID_DATA_ADDR   // len=0 must not dereference or validate addr
+  sd t1, 0(t0)
+  sw zero, 8(t0)
+  li t1, VIRTQ_DESC_F_NEXT
+  sh t1, 12(t0)
+  li t1, 2
+  sh t1, 14(t0)
   ld ra, 8(sp)
   addi sp, sp, 16
   ret

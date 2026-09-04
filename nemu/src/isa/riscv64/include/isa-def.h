@@ -78,12 +78,6 @@
 #define CSR_MARCHID  0xf12
 #define CSR_MIMPID   0xf13
 #define CSR_MHARTID  0xf14
-// debug trigger(Sdtrig)最小 no-op 实现(对齐 NPC CsrFile): tselect 读回 NO_TRIGGER(1)、
-// tdata1/tdata2/tcontrol 恒 0、写忽略、不 illegal —— 让 breakpoint 测试走 tselect 逃生门。
-#define CSR_TSELECT  0x7a0
-#define CSR_TDATA1   0x7a1
-#define CSR_TDATA2   0x7a2
-#define CSR_TCONTROL 0x7a5
 
 #define CAUSE_INST_MISALIGNED 0
 #define CAUSE_INST_ACCESS     1

@@ -46,6 +46,7 @@
 #define SERIAL_HOST_RX_STAGING_CAP 1048576u
 #define SERIAL_TX_BUFFER_CAP 4096u
 #define SERIAL_TRACE_MARKER_LINE_CAP 512u
+#define SERIAL_QMP_FILENAME_CAP 6144u
 #ifdef CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
 #define SERIAL_INPUT_HOST_POLL_INTERVAL_VALUE CONFIG_SERIAL_INPUT_HOST_POLL_INTERVAL
 #else
@@ -141,6 +142,114 @@ static const char *serial_host_backend_name(void) {
 #else
   return "stderr";
 #endif
+}
+
+static size_t serial_utf8_sequence_length(const uint8_t *text) {
+  uint8_t first = text[0];
+  if (first < 0x80u) return 1;
+  if (first >= 0xc2u && first <= 0xdfu) {
+    return text[1] >= 0x80u && text[1] <= 0xbfu ? 2 : 0;
+  }
+  if (first >= 0xe0u && first <= 0xefu) {
+    uint8_t second = text[1];
+    if (second == '\0') return 0;
+    bool second_ok = first == 0xe0u ? second >= 0xa0u && second <= 0xbfu :
+      first == 0xedu ? second >= 0x80u && second <= 0x9fu :
+      second >= 0x80u && second <= 0xbfu;
+    return second_ok && text[2] >= 0x80u && text[2] <= 0xbfu ? 3 : 0;
+  }
+  if (first >= 0xf0u && first <= 0xf4u) {
+    uint8_t second = text[1];
+    if (second == '\0') return 0;
+    bool second_ok = first == 0xf0u ? second >= 0x90u && second <= 0xbfu :
+      first == 0xf4u ? second >= 0x80u && second <= 0x8fu :
+      second >= 0x80u && second <= 0xbfu;
+    if (!second_ok || text[2] == '\0') return 0;
+    return text[2] >= 0x80u && text[2] <= 0xbfu &&
+      text[3] >= 0x80u && text[3] <= 0xbfu ? 4 : 0;
+  }
+  return 0;
+}
+
+static bool serial_json_append_string_bytes(char *out, size_t out_size,
+    size_t *out_len, const char *value) {
+  static const char hex[] = "0123456789abcdef";
+  const uint8_t *cursor = (const uint8_t *)value;
+  while (*cursor != '\0') {
+    char escaped[6];
+    const char *encoded = (const char *)cursor;
+    size_t encoded_len = 1;
+    if (*cursor == '"' || *cursor == '\\') {
+      escaped[0] = '\\';
+      escaped[1] = (char)*cursor;
+      encoded = escaped;
+      encoded_len = 2;
+    } else if (*cursor < 0x20u) {
+      escaped[0] = '\\';
+      escaped[1] = 'u';
+      escaped[2] = '0';
+      escaped[3] = '0';
+      escaped[4] = hex[*cursor >> 4];
+      escaped[5] = hex[*cursor & 0x0fu];
+      encoded = escaped;
+      encoded_len = sizeof(escaped);
+    } else if (*cursor >= 0x80u) {
+      encoded_len = serial_utf8_sequence_length(cursor);
+      if (encoded_len == 0) {
+        escaped[0] = '\\';
+        escaped[1] = 'u';
+        escaped[2] = '0';
+        escaped[3] = '0';
+        escaped[4] = hex[*cursor >> 4];
+        escaped[5] = hex[*cursor & 0x0fu];
+        encoded = escaped;
+        encoded_len = sizeof(escaped);
+      }
+    }
+
+    /* Keep room for the caller's closing quote and trailing NUL. */
+    if (*out_len > out_size || encoded_len > out_size - *out_len ||
+        out_size - *out_len - encoded_len < 2) {
+      return false;
+    }
+    memcpy(out + *out_len, encoded, encoded_len);
+    *out_len += encoded_len;
+    cursor += encoded == (const char *)cursor ? encoded_len : 1;
+  }
+  return true;
+}
+
+static bool serial_qmp_host_backend_json(char *out, size_t out_size) {
+  if (out == NULL || out_size < 3) return false;
+  size_t out_len = 0;
+  out[out_len++] = '"';
+
+  const char *base = "stderr";
+#if defined(CONFIG_SERIAL_INPUT_STDIN)
+  if (serial0.stdin_enabled) base = "stderr,stdin";
+#endif
+  if (!serial_json_append_string_bytes(out, out_size, &out_len, base)) {
+    out[0] = '\0';
+    return false;
+  }
+#if defined(CONFIG_SERIAL_INPUT_FIFO)
+  const char *fifo_path = serial0.fifo_path != NULL ?
+    serial0.fifo_path : "/tmp/nemu.serial";
+  if (!serial_json_append_string_bytes(out, out_size, &out_len, ",fifo:") ||
+      !serial_json_append_string_bytes(out, out_size, &out_len, fifo_path)) {
+    out[0] = '\0';
+    return false;
+  }
+#endif
+  out[out_len++] = '"';
+  out[out_len] = '\0';
+  return true;
+}
+
+static void serial_qmp_backend_error(char *out, size_t out_size) {
+  snprintf(out, out_size,
+      "{\"error\":{\"class\":\"GenericError\","
+      "\"desc\":\"serial host backend is too large for a QMP reply\"}}");
 }
 
 static bool serial_env_false(const char *value) {
@@ -447,19 +556,32 @@ static void serial_flush_all(void) {
 
 void serial_qmp_query_chardev(char *out, size_t out_size) {
   Assert(out != NULL && out_size > 0, "invalid query-chardev output buffer");
+  char filename[SERIAL_QMP_FILENAME_CAP];
+  if (!serial_qmp_host_backend_json(filename, sizeof(filename))) {
+    serial_qmp_backend_error(out, out_size);
+    return;
+  }
 
   /*
    * QMP 只暴露当前 console chardev 的只读状态，避免管理面审计时还得解析
    * machine-info 文本；这不是 chardev-add/remove 或多串口热插拔实现。
    */
-  snprintf(out, out_size,
-      "{\"return\":[{\"label\":\"serial0\",\"filename\":\"%s\","
+  int written = snprintf(out, out_size,
+      "{\"return\":[{\"label\":\"serial0\",\"filename\":%s,"
       "\"frontend-open\":true,\"backend\":\"nemu-16550a\"}]}",
-      serial_host_backend_name());
+      filename);
+  if (written < 0 || (size_t)written >= out_size) {
+    serial_qmp_backend_error(out, out_size);
+  }
 }
 
 void serial_qmp_query_serial(char *out, size_t out_size) {
   Assert(out != NULL && out_size > 0, "invalid query-serial output buffer");
+  char filename[SERIAL_QMP_FILENAME_CAP];
+  if (!serial_qmp_host_backend_json(filename, sizeof(filename))) {
+    serial_qmp_backend_error(out, out_size);
+    return;
+  }
 
   Uart16550Snapshot snap;
   if (serial0.uart != NULL) {
@@ -468,10 +590,10 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
     memset(&snap, 0, sizeof(snap));
   }
 
-  snprintf(out, out_size,
+  int written = snprintf(out, out_size,
       "{\"return\":[{\"id\":\"serial0\",\"type\":\"uart\","
       "\"model\":\"ns16550a\",\"backend\":\"nemu-16550a\","
-      "\"filename\":\"%s\",\"frontend-open\":true,"
+      "\"filename\":%s,\"frontend-open\":true,"
       "\"nemu\":{\"mmio\":\"0x%08x\",\"irq\":%u,"
       "\"bus-profile\":\"8bit\",\"map-size\":%u,"
       "\"registers\":{\"ier\":\"0x%02x\",\"iir\":\"0x%02x\","
@@ -486,7 +608,7 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
       "\"stdin-enabled\":%s},"
       "\"tx-buffer\":{\"capacity\":%u,\"count\":%u},"
       "\"irq-level\":%s,\"thr-irq-pending\":%s}}]}",
-      serial_host_backend_name(), DEV_SERIAL_MMIO, serial0.irq,
+      filename, DEV_SERIAL_MMIO, serial0.irq,
       serial0.bus_map_size, snap.ier, snap.iir, snap.fcr, snap.lcr,
       snap.mcr, snap.lsr, snap.msr, snap.scr, snap.dll, snap.dlm,
       serial_json_bool(snap.dlab), snap.rx_fifo_capacity,
@@ -497,6 +619,9 @@ void serial_qmp_query_serial(char *out, size_t out_size) {
       MUXDEF(CONFIG_SERIAL_INPUT_STDIN, serial_json_bool(serial0.stdin_enabled), "false"),
       SERIAL_TX_BUFFER_CAP, serial0.tx_count, serial_json_bool(snap.irq_level),
       serial_json_bool(snap.thr_irq_pending));
+  if (written < 0 || (size_t)written >= out_size) {
+    serial_qmp_backend_error(out, out_size);
+  }
 }
 #endif
 

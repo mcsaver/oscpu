@@ -93,6 +93,8 @@ def render(
     bootargs_extra: str | None,
     bootargs_override: str | None,
     reset_syscon: bool,
+    simple_framebuffer: bool,
+    virtio_input: bool,
     virtio_rng: bool,
     virtio_net: bool,
     goldfish_rtc: bool,
@@ -107,6 +109,8 @@ def render(
     rng = dev.get("virtio_rng")
     net = dev.get("virtio_net")
     rtc = dev.get("goldfish_rtc")
+    framebuffer = dev.get("simple_framebuffer")
+    input_device = dev.get("virtio_input")
     bootargs = bootargs_override.strip() if bootargs_override else cfg["bootargs"][bootargs_key or mode]
     if bootargs_extra:
         bootargs = f"{bootargs} {bootargs_extra.strip()}"
@@ -122,6 +126,39 @@ def render(
             f"    linux,initrd-end = <{initrd[1]}>;\n"
         )
     rng_seed = rng_seed_line(cfg)
+
+    framebuffer_bus_props = ""
+    framebuffer_node = ""
+    if mode == "rootfs" and simple_framebuffer:
+        if not framebuffer:
+            raise SystemExit("配置缺少 devices.simple_framebuffer")
+        fb_base = int(framebuffer["base"])
+        fb_size = int(framebuffer["size"])
+        fb_width = int(framebuffer["width"])
+        fb_height = int(framebuffer["height"])
+        fb_stride = int(framebuffer["stride"])
+        fb_format = str(framebuffer["format"])
+        if fb_size < fb_stride * fb_height:
+            raise SystemExit(
+                "devices.simple_framebuffer.size 小于 stride * height"
+            )
+        framebuffer_bus_props = """    #address-cells = <2>;
+    #size-cells = <2>;
+    ranges;
+"""
+        # simplefb 是固件已配置好的 scanout 描述，规范要求放在 /chosen 下。
+        # framebuffer 位于 NEMU MMIO 空间而非 System RAM，无需 reserved-memory。
+        framebuffer_node = f"""
+
+    framebuffer0: framebuffer@{fb_base:x} {{
+      compatible = "simple-framebuffer";
+      reg = <{u32_cells(fb_base)} {u32_cells(fb_size)}>;
+      width = <{fb_width}>;
+      height = <{fb_height}>;
+      stride = <{fb_stride}>;
+      format = "{fb_format}";
+      status = "okay";
+    }};"""
 
     virtio_node = ""
     if mode == "rootfs":
@@ -165,6 +202,22 @@ def render(
       reg = <{u32_cells(net_base)} {u32_cells(int(net["size"]))}>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(net["irq"])}>;
+    }};"""
+
+    virtio_input_node = ""
+    if mode == "rootfs" and virtio_input:
+        if not input_device:
+            raise SystemExit("配置缺少 devices.virtio_input")
+        input_base = int(input_device["base"])
+        # 0x10005000/IRQ6 保留给未来 virtio-gpu；当前标准键盘固定使用
+        # 下一槽位，避免 simplefb 被替换时再次改变 guest ABI。
+        virtio_input_node = f"""
+
+    virtio_input0: virtio_mmio@{input_base:x} {{
+      compatible = "virtio,mmio";
+      reg = <{u32_cells(input_base)} {u32_cells(int(input_device["size"]))}>;
+      interrupt-parent = <&PLIC>;
+      interrupts = <{int(input_device["irq"])}>;
     }};"""
 
     goldfish_rtc_node = ""
@@ -225,9 +278,11 @@ def render(
   model = "YSYX NPC RV64";
 
   chosen {{
+{framebuffer_bus_props}\
     stdout-path = "serial0:115200n8";
     bootargs = "{bootargs}";
-{rng_seed}{initrd_lines}  }};
+{rng_seed}{initrd_lines}{framebuffer_node}
+  }};
 
   aliases {{
     serial0 = &UART0;
@@ -292,7 +347,7 @@ def render(
       reg-io-width = <1>;
       interrupt-parent = <&PLIC>;
       interrupts = <{int(uart["irq"])}>;
-    }};{reset_syscon_node}{virtio_node}{virtio_rng_node}{virtio_net_node}{goldfish_rtc_node}
+    }};{reset_syscon_node}{virtio_node}{virtio_rng_node}{virtio_net_node}{virtio_input_node}{goldfish_rtc_node}
   }};
 }};
 """
@@ -306,6 +361,8 @@ def main() -> int:
     parser.add_argument("--bootargs-extra", default="")
     parser.add_argument("--bootargs-override", default="")
     parser.add_argument("--reset-syscon", action="store_true")
+    parser.add_argument("--simple-framebuffer", action="store_true")
+    parser.add_argument("--virtio-input", action="store_true")
     parser.add_argument("--virtio-rng", action="store_true")
     parser.add_argument("--virtio-net", action="store_true")
     parser.add_argument("--goldfish-rtc", action="store_true")
@@ -322,6 +379,8 @@ def main() -> int:
         cfg, args.mode, args.initrd_image, args.bootargs_key,
         args.memory_size, args.bootargs_extra, args.bootargs_override,
         args.reset_syscon,
+        args.simple_framebuffer,
+        args.virtio_input,
         args.virtio_rng, args.virtio_net, args.goldfish_rtc,
     )
     output.write_text(text, encoding="utf-8")

@@ -15,10 +15,12 @@
 #include <inttypes.h>
 #ifndef CONFIG_TARGET_AM
 #include <pthread.h>
+#include <sys/file.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 // Linux rootfs 使用 Virtio 1.x block device。host block I/O 由 worker 执行；
@@ -41,6 +43,56 @@
 #define VIRTIO_BLK_S_UNSUPP 2u
 
 #define VIRTIO_BLK_SECTOR_SIZE 512u
+
+/*
+ * The raw overlay intentionally has no in-band header: byte N in the file is
+ * still byte N of the guest disk, and ftruncate therefore creates a fully
+ * sparse image.  Sector ownership and the backing/overlay identity live in an
+ * atomically replaced sidecar instead.
+ */
+#define DISK_OVERLAY_META_SUFFIX ".meta"
+#define DISK_OVERLAY_META_TMP_SUFFIX ".meta.tmp"
+#define DISK_OVERLAY_LOCK_SUFFIX ".lock"
+#define DISK_OVERLAY_META_MAGIC "NEMUOVL1"
+#define DISK_OVERLAY_META_VERSION 1u
+#define DISK_OVERLAY_META_HEADER_SIZE 128u
+#define DISK_OVERLAY_META_FLAGS 1u /* CRC64-ECMA checksum. */
+
+enum {
+  DISK_OVERLAY_META_MAGIC_OFF = 0,
+  DISK_OVERLAY_META_VERSION_OFF = 8,
+  DISK_OVERLAY_META_HEADER_SIZE_OFF = 12,
+  DISK_OVERLAY_META_SECTOR_SIZE_OFF = 16,
+  DISK_OVERLAY_META_FLAGS_OFF = 20,
+  DISK_OVERLAY_META_DISK_SIZE_OFF = 24,
+  DISK_OVERLAY_META_SECTOR_COUNT_OFF = 32,
+  DISK_OVERLAY_META_DIRTY_BYTES_OFF = 40,
+  DISK_OVERLAY_META_DIRTY_COUNT_OFF = 48,
+  DISK_OVERLAY_META_BACKING_DEV_OFF = 56,
+  DISK_OVERLAY_META_BACKING_INO_OFF = 64,
+  DISK_OVERLAY_META_BACKING_MTIME_SEC_OFF = 72,
+  DISK_OVERLAY_META_BACKING_MTIME_NSEC_OFF = 80,
+  DISK_OVERLAY_META_BACKING_CTIME_SEC_OFF = 88,
+  DISK_OVERLAY_META_BACKING_CTIME_NSEC_OFF = 96,
+  DISK_OVERLAY_META_OVERLAY_DEV_OFF = 104,
+  DISK_OVERLAY_META_OVERLAY_INO_OFF = 112,
+  DISK_OVERLAY_META_CHECKSUM_OFF = 120,
+};
+
+typedef struct {
+  uint64_t dev;
+  uint64_t ino;
+  uint64_t mtime_sec;
+  uint32_t mtime_nsec;
+  uint64_t ctime_sec;
+  uint32_t ctime_nsec;
+} DiskBackingIdentity;
+
+typedef enum {
+  DISK_OVERLAY_DISABLED,
+  DISK_OVERLAY_NEW,
+  DISK_OVERLAY_RESTORED,
+} DiskOverlayOpenState;
 
 /* Layout witness for Virtio 1.2 section 5.2.4; values are serialized by the
  * MMIO handler, so this host structure is used only to derive and verify field
@@ -211,6 +263,12 @@ typedef struct {
 static uint8_t *virtio_base;
 static const char *disk_image_path;
 static const char *disk_overlay_path;
+static char *disk_overlay_meta_path;
+static char *disk_overlay_meta_tmp_path;
+#ifndef CONFIG_TARGET_AM
+static char *disk_overlay_lock_path;
+static int disk_overlay_lock_fd = -1;
+#endif
 static FILE *disk_fp;
 static FILE *disk_overlay_fp;
 static bool disk_readonly;
@@ -222,6 +280,14 @@ static uint64_t disk_mmap_size;
 static uint8_t *disk_overlay_dirty;
 static uint64_t disk_overlay_sector_count;
 static uint64_t disk_overlay_dirty_sector_count;
+static uint64_t disk_overlay_dirty_bytes;
+static uint64_t disk_overlay_dev;
+static uint64_t disk_overlay_ino;
+static DiskBackingIdentity disk_backing_identity;
+static DiskOverlayOpenState disk_overlay_open_state;
+static bool disk_overlay_meta_dirty;
+static bool disk_shutdown_started;
+static bool disk_shutdown_result = true;
 static VirtioMmioTransportState transport;
 static VirtqueueState queues[VIRTIO_BLK_QUEUE_COUNT];
 /* QueueReady=0 revokes the device's ownership of that queue's guest rings. */
@@ -321,6 +387,7 @@ static VirtioBlkAsyncReq *disk_pending_tail;
 static VirtioBlkAsyncReq *disk_done_head;
 static VirtioBlkAsyncReq *disk_done_tail;
 static bool disk_worker_started;
+static bool disk_worker_stop_requested;
 static uint64_t disk_async_submitted;
 static uint64_t disk_async_completed;
 #if NEMU_VIRTIO_BLK_ASYNC_COMPLETION_FAST_FLAG
@@ -452,8 +519,12 @@ static void *virtio_blk_worker_main(void *opaque) {
   (void)opaque;
   while (true) {
     pthread_mutex_lock(&disk_async_lock);
-    while (disk_pending_head == NULL) {
+    while (disk_pending_head == NULL && !disk_worker_stop_requested) {
       pthread_cond_wait(&disk_async_cond, &disk_async_lock);
+    }
+    if (disk_pending_head == NULL && disk_worker_stop_requested) {
+      pthread_mutex_unlock(&disk_async_lock);
+      break;
     }
     VirtioBlkAsyncReq *req = virtio_blk_pop_req(&disk_pending_head, &disk_pending_tail);
     pthread_mutex_unlock(&disk_async_lock);
@@ -473,15 +544,17 @@ static void *virtio_blk_worker_main(void *opaque) {
 
 static void virtio_blk_start_worker(void) {
   if (disk_worker_started) return;
+  disk_worker_stop_requested = false;
   int ret = pthread_create(&disk_worker_thread, NULL, virtio_blk_worker_main, NULL);
   Assert(ret == 0, "Can not start virtio-blk worker: %s", strerror(ret));
-  pthread_detach(disk_worker_thread);
   disk_worker_started = true;
 }
 
 static void virtio_blk_submit_request(VirtioBlkAsyncReq *req) {
   if (unlikely(disk_force_sync_backend)) {
+    pthread_mutex_lock(&disk_backend_lock);
     virtio_blk_execute_request(req);
+    pthread_mutex_unlock(&disk_backend_lock);
     virtio_blk_complete_request(req);
     return;
   }
@@ -607,6 +680,9 @@ void virtio_blk_dump_machine_info(FILE *out) {
 #if VIRTIO_BLK_ASYNC_BACKEND
   pthread_mutex_lock(&disk_backend_lock);
 #endif
+  const char *overlay_state =
+      disk_overlay_open_state == DISK_OVERLAY_RESTORED ? "restored" :
+      disk_overlay_open_state == DISK_OVERLAY_NEW ? "new" : "disabled";
   uint64_t sectors = disk_size / VIRTIO_BLK_SECTOR_SIZE;
   fprintf(out, "device.virtio_blk.block_image=%s\n", disk_fp != NULL ? "attached" : "detached");
   fprintf(out, "device.virtio_blk.mmio_device_id=%u\n", disk_fp != NULL ? VIRTIO_DEVICE_ID_BLOCK : 0u);
@@ -629,6 +705,9 @@ void virtio_blk_dump_machine_info(FILE *out) {
   fprintf(out, "device.virtio_blk.read_mmap_bytes=%" PRIu64 "\n", disk_mmap_size);
   fprintf(out, "device.virtio_blk.backing_readonly=%d\n", disk_backing_readonly ? 1 : 0);
   fprintf(out, "device.virtio_blk.overlay=%s\n", disk_overlay_fp != NULL ? "enabled" : "disabled");
+  fprintf(out, "device.virtio_blk.overlay_state=%s\n", overlay_state);
+  fprintf(out, "device.virtio_blk.overlay_metadata=%s\n",
+      disk_overlay_fp != NULL ? "sidecar-v1-crc64" : "disabled");
   fprintf(out, "device.virtio_blk.write_target=%s\n", disk_overlay_fp != NULL ? "overlay" : "backing");
   fprintf(out, "device.virtio_blk.overlay_dirty_sectors=%" PRIu64 "\n",
       disk_overlay_dirty_sector_count);
@@ -668,6 +747,9 @@ void virtio_blk_qmp_query_block(char *out, size_t out_size) {
   uint64_t read_mmap_bytes = disk_mmap_size;
   bool backing_readonly = disk_backing_readonly;
   bool overlay = disk_overlay_fp != NULL;
+  const char *overlay_state =
+      disk_overlay_open_state == DISK_OVERLAY_RESTORED ? "restored" :
+      disk_overlay_open_state == DISK_OVERLAY_NEW ? "new" : "disabled";
   uint64_t overlay_dirty_sectors = disk_overlay_dirty_sector_count;
 #if VIRTIO_BLK_ASYNC_BACKEND
   pthread_mutex_unlock(&disk_backend_lock);
@@ -698,6 +780,7 @@ void virtio_blk_qmp_query_block(char *out, size_t out_size) {
       "\"nemu\":{\"capacity-bytes\":%" PRIu64 ",\"capacity-sectors\":%" PRIu64 ","
       "\"read-mmap\":\"%s\",\"read-mmap-bytes\":%" PRIu64 ","
       "\"backing-readonly\":%s,\"overlay\":\"%s\",\"write-target\":\"%s\","
+      "\"overlay-state\":\"%s\",\"overlay-metadata\":\"%s\","
       "\"overlay-dirty-sectors\":%" PRIu64 ","
       "\"async-submitted\":%" PRIu64 ",\"async-completed\":%" PRIu64 "}}]}",
       readonly ? "true" : "false",
@@ -708,6 +791,8 @@ void virtio_blk_qmp_query_block(char *out, size_t out_size) {
       backing_readonly ? "true" : "false",
       overlay ? "enabled" : "disabled",
       overlay ? "overlay" : "backing",
+      overlay_state,
+      overlay ? "sidecar-v1-crc64" : "disabled",
       overlay_dirty_sectors,
       async_submitted, async_completed);
 }
@@ -971,6 +1056,363 @@ static bool disk_range_ok(uint64_t offset, uint32_t len) {
   return disk_range64_ok(offset, len);
 }
 
+static void disk_meta_put_le32(uint8_t *out, uint32_t value) {
+  out[0] = value;
+  out[1] = value >> 8;
+  out[2] = value >> 16;
+  out[3] = value >> 24;
+}
+
+static void disk_meta_put_le64(uint8_t *out, uint64_t value) {
+  disk_meta_put_le32(out, (uint32_t)value);
+  disk_meta_put_le32(out + 4, (uint32_t)(value >> 32));
+}
+
+static uint32_t disk_meta_get_le32(const uint8_t *in) {
+  return (uint32_t)in[0] |
+      ((uint32_t)in[1] << 8) |
+      ((uint32_t)in[2] << 16) |
+      ((uint32_t)in[3] << 24);
+}
+
+static uint64_t disk_meta_get_le64(const uint8_t *in) {
+  return (uint64_t)disk_meta_get_le32(in) |
+      ((uint64_t)disk_meta_get_le32(in + 4) << 32);
+}
+
+static uint64_t disk_meta_crc64_update(uint64_t crc,
+    const uint8_t *data, size_t len) {
+  static uint64_t table[256];
+  static bool table_ready;
+  if (!table_ready) {
+    for (uint32_t i = 0; i < ARRLEN(table); i++) {
+      uint64_t entry = (uint64_t)i << 56;
+      for (int bit = 0; bit < 8; bit++) {
+        entry = (entry & (UINT64_C(1) << 63)) != 0 ?
+          (entry << 1) ^ UINT64_C(0x42f0e1eba9ea3693) : entry << 1;
+      }
+      table[i] = entry;
+    }
+    table_ready = true;
+  }
+  for (size_t i = 0; i < len; i++) {
+    crc = table[((crc >> 56) ^ data[i]) & 0xffu] ^ (crc << 8);
+  }
+  return crc;
+}
+
+static uint64_t disk_overlay_meta_checksum(const uint8_t *header,
+    const uint8_t *dirty, size_t dirty_bytes) {
+  uint64_t crc = disk_meta_crc64_update(0, header,
+      DISK_OVERLAY_META_CHECKSUM_OFF);
+  return disk_meta_crc64_update(crc, dirty, dirty_bytes);
+}
+
+static char *disk_path_with_suffix(const char *path, const char *suffix) {
+  size_t path_len = strlen(path);
+  size_t suffix_len = strlen(suffix);
+  Assert(path_len <= SIZE_MAX - suffix_len - 1,
+      "Block overlay path is too long");
+  char *result = malloc(path_len + suffix_len + 1);
+  Assert(result != NULL, "Can not allocate block overlay sidecar path");
+  memcpy(result, path, path_len);
+  memcpy(result + path_len, suffix, suffix_len + 1);
+  return result;
+}
+
+static bool disk_path_exists(const char *path, struct stat *st) {
+  if (lstat(path, st) == 0) return true;
+  Assert(errno == ENOENT, "Can not inspect block overlay path '%s': %s",
+      path, strerror(errno));
+  return false;
+}
+
+static bool disk_fd_read_all(int fd, void *buf, size_t len) {
+  uint8_t *out = buf;
+  while (len != 0) {
+    ssize_t got = read(fd, out, len);
+    if (got < 0 && errno == EINTR) continue;
+    if (got <= 0) return false;
+    out += got;
+    len -= (size_t)got;
+  }
+  return true;
+}
+
+static bool disk_fd_write_all(int fd, const void *buf, size_t len) {
+  const uint8_t *in = buf;
+  while (len != 0) {
+    ssize_t done = write(fd, in, len);
+    if (done < 0 && errno == EINTR) continue;
+    if (done <= 0) return false;
+    in += done;
+    len -= (size_t)done;
+  }
+  return true;
+}
+
+static DiskBackingIdentity disk_backing_identity_from_stat(
+    const struct stat *st) {
+  DiskBackingIdentity identity = {
+    .dev = (uint64_t)st->st_dev,
+    .ino = (uint64_t)st->st_ino,
+#if defined(__APPLE__)
+    .mtime_sec = (uint64_t)st->st_mtimespec.tv_sec,
+    .mtime_nsec = (uint32_t)st->st_mtimespec.tv_nsec,
+    .ctime_sec = (uint64_t)st->st_ctimespec.tv_sec,
+    .ctime_nsec = (uint32_t)st->st_ctimespec.tv_nsec,
+#else
+    .mtime_sec = (uint64_t)st->st_mtim.tv_sec,
+    .mtime_nsec = (uint32_t)st->st_mtim.tv_nsec,
+    .ctime_sec = (uint64_t)st->st_ctim.tv_sec,
+    .ctime_nsec = (uint32_t)st->st_ctim.tv_nsec,
+#endif
+  };
+  return identity;
+}
+
+static bool disk_backing_identity_equal(const DiskBackingIdentity *lhs,
+    const DiskBackingIdentity *rhs) {
+  return lhs->dev == rhs->dev && lhs->ino == rhs->ino &&
+      lhs->mtime_sec == rhs->mtime_sec &&
+      lhs->mtime_nsec == rhs->mtime_nsec &&
+      lhs->ctime_sec == rhs->ctime_sec &&
+      lhs->ctime_nsec == rhs->ctime_nsec;
+}
+
+static bool disk_overlay_identities_current(void) {
+  struct stat backing_st;
+  struct stat overlay_st;
+  if (fstat(fileno(disk_fp), &backing_st) != 0 ||
+      fstat(fileno(disk_overlay_fp), &overlay_st) != 0) {
+    return false;
+  }
+  DiskBackingIdentity current_backing =
+      disk_backing_identity_from_stat(&backing_st);
+  return S_ISREG(backing_st.st_mode) && S_ISREG(overlay_st.st_mode) &&
+      backing_st.st_size >= 0 && (uint64_t)backing_st.st_size == disk_size &&
+      overlay_st.st_size >= 0 && (uint64_t)overlay_st.st_size == disk_size &&
+      disk_backing_identity_equal(&current_backing, &disk_backing_identity) &&
+      (uint64_t)overlay_st.st_dev == disk_overlay_dev &&
+      (uint64_t)overlay_st.st_ino == disk_overlay_ino;
+}
+
+static bool disk_fsync_parent_dir(const char *path) {
+  char *dir = strdup(path);
+  if (dir == NULL) return false;
+  char *slash = strrchr(dir, '/');
+  if (slash == NULL) {
+    free(dir);
+    dir = strdup(".");
+    if (dir == NULL) return false;
+  } else if (slash == dir) {
+    slash[1] = '\0';
+  } else {
+    *slash = '\0';
+  }
+  int fd = open(dir, O_RDONLY);
+  free(dir);
+  if (fd < 0) return false;
+  bool ok = fsync(fd) == 0;
+  if (close(fd) != 0) ok = false;
+  return ok;
+}
+
+static void disk_overlay_fill_meta_header(uint8_t *header) {
+  memset(header, 0, DISK_OVERLAY_META_HEADER_SIZE);
+  memcpy(header + DISK_OVERLAY_META_MAGIC_OFF,
+      DISK_OVERLAY_META_MAGIC, 8);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_VERSION_OFF,
+      DISK_OVERLAY_META_VERSION);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_HEADER_SIZE_OFF,
+      DISK_OVERLAY_META_HEADER_SIZE);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_SECTOR_SIZE_OFF,
+      VIRTIO_BLK_SECTOR_SIZE);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_FLAGS_OFF,
+      DISK_OVERLAY_META_FLAGS);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_DISK_SIZE_OFF, disk_size);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_SECTOR_COUNT_OFF,
+      disk_overlay_sector_count);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_DIRTY_BYTES_OFF,
+      disk_overlay_dirty_bytes);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_DIRTY_COUNT_OFF,
+      disk_overlay_dirty_sector_count);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_BACKING_DEV_OFF,
+      disk_backing_identity.dev);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_BACKING_INO_OFF,
+      disk_backing_identity.ino);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_BACKING_MTIME_SEC_OFF,
+      disk_backing_identity.mtime_sec);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_BACKING_MTIME_NSEC_OFF,
+      disk_backing_identity.mtime_nsec);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_BACKING_CTIME_SEC_OFF,
+      disk_backing_identity.ctime_sec);
+  disk_meta_put_le32(header + DISK_OVERLAY_META_BACKING_CTIME_NSEC_OFF,
+      disk_backing_identity.ctime_nsec);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_OVERLAY_DEV_OFF,
+      disk_overlay_dev);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_OVERLAY_INO_OFF,
+      disk_overlay_ino);
+  disk_meta_put_le64(header + DISK_OVERLAY_META_CHECKSUM_OFF,
+      disk_overlay_meta_checksum(header, disk_overlay_dirty,
+          (size_t)disk_overlay_dirty_bytes));
+}
+
+static bool disk_overlay_commit_meta(void) {
+  if (!disk_overlay_identities_current()) {
+    errno = ESTALE;
+    return false;
+  }
+
+  uint8_t header[DISK_OVERLAY_META_HEADER_SIZE];
+  disk_overlay_fill_meta_header(header);
+  int flags = O_WRONLY | O_CREAT | O_TRUNC;
+#ifdef O_CLOEXEC
+  flags |= O_CLOEXEC;
+#endif
+#ifdef O_NOFOLLOW
+  flags |= O_NOFOLLOW;
+#endif
+  int fd = open(disk_overlay_meta_tmp_path, flags, 0600);
+  if (fd < 0) return false;
+  bool ok = disk_fd_write_all(fd, header, sizeof(header)) &&
+      disk_fd_write_all(fd, disk_overlay_dirty,
+          (size_t)disk_overlay_dirty_bytes) &&
+      fsync(fd) == 0;
+  int saved_errno = ok ? 0 : errno;
+  if (close(fd) != 0 && ok) {
+    saved_errno = errno;
+    ok = false;
+  }
+  if (!ok) {
+    unlink(disk_overlay_meta_tmp_path);
+    errno = saved_errno != 0 ? saved_errno : EIO;
+    return false;
+  }
+  if (rename(disk_overlay_meta_tmp_path, disk_overlay_meta_path) != 0) {
+    saved_errno = errno;
+    unlink(disk_overlay_meta_tmp_path);
+    errno = saved_errno;
+    return false;
+  }
+  if (!disk_fsync_parent_dir(disk_overlay_meta_path)) return false;
+  disk_overlay_meta_dirty = false;
+  return true;
+}
+
+static bool disk_overlay_sync(void) {
+  if (disk_overlay_fp == NULL) return true;
+  if (fflush(disk_overlay_fp) != 0 || fsync(fileno(disk_overlay_fp)) != 0) {
+    return false;
+  }
+  return !disk_overlay_meta_dirty || disk_overlay_commit_meta();
+}
+
+static bool disk_sync_storage(void) {
+  if (disk_overlay_fp != NULL) return disk_overlay_sync();
+  return disk_fp == NULL ||
+      (fflush(disk_fp) == 0 && fsync(fileno(disk_fp)) == 0);
+}
+
+static void disk_overlay_load_meta(void) {
+  int flags = O_RDONLY;
+#ifdef O_CLOEXEC
+  flags |= O_CLOEXEC;
+#endif
+#ifdef O_NOFOLLOW
+  flags |= O_NOFOLLOW;
+#endif
+  int fd = open(disk_overlay_meta_path, flags);
+  Assert(fd >= 0, "Can not open block overlay metadata '%s': %s",
+      disk_overlay_meta_path, strerror(errno));
+  struct stat meta_st;
+  Assert(fstat(fd, &meta_st) == 0 && S_ISREG(meta_st.st_mode),
+      "Block overlay metadata '%s' is not a regular file",
+      disk_overlay_meta_path);
+  uint64_t expected_size = DISK_OVERLAY_META_HEADER_SIZE +
+      disk_overlay_dirty_bytes;
+  Assert(meta_st.st_size >= 0 && (uint64_t)meta_st.st_size == expected_size,
+      "Block overlay metadata '%s' has size %" PRIu64
+      ", expected %" PRIu64,
+      disk_overlay_meta_path, meta_st.st_size >= 0 ?
+        (uint64_t)meta_st.st_size : UINT64_MAX, expected_size);
+
+  uint8_t header[DISK_OVERLAY_META_HEADER_SIZE];
+  Assert(disk_fd_read_all(fd, header, sizeof(header)) &&
+      disk_fd_read_all(fd, disk_overlay_dirty,
+          (size_t)disk_overlay_dirty_bytes),
+      "Can not read block overlay metadata '%s': %s",
+      disk_overlay_meta_path, strerror(errno));
+  Assert(close(fd) == 0, "Can not close block overlay metadata '%s': %s",
+      disk_overlay_meta_path, strerror(errno));
+
+  Assert(memcmp(header + DISK_OVERLAY_META_MAGIC_OFF,
+          DISK_OVERLAY_META_MAGIC, 8) == 0 &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_VERSION_OFF) ==
+          DISK_OVERLAY_META_VERSION &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_HEADER_SIZE_OFF) ==
+          DISK_OVERLAY_META_HEADER_SIZE &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_SECTOR_SIZE_OFF) ==
+          VIRTIO_BLK_SECTOR_SIZE &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_FLAGS_OFF) ==
+          DISK_OVERLAY_META_FLAGS,
+      "Block overlay metadata '%s' has an unsupported format",
+      disk_overlay_meta_path);
+  Assert(disk_meta_get_le64(header + DISK_OVERLAY_META_DISK_SIZE_OFF) ==
+          disk_size &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_SECTOR_COUNT_OFF) ==
+          disk_overlay_sector_count &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_DIRTY_BYTES_OFF) ==
+          disk_overlay_dirty_bytes,
+      "Block overlay metadata '%s' does not match backing capacity",
+      disk_overlay_meta_path);
+  Assert(disk_meta_get_le64(header + DISK_OVERLAY_META_BACKING_DEV_OFF) ==
+          disk_backing_identity.dev &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_BACKING_INO_OFF) ==
+          disk_backing_identity.ino &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_BACKING_MTIME_SEC_OFF) ==
+          disk_backing_identity.mtime_sec &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_BACKING_MTIME_NSEC_OFF) ==
+          disk_backing_identity.mtime_nsec &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_BACKING_CTIME_SEC_OFF) ==
+          disk_backing_identity.ctime_sec &&
+      disk_meta_get_le32(header + DISK_OVERLAY_META_BACKING_CTIME_NSEC_OFF) ==
+          disk_backing_identity.ctime_nsec,
+      "Block overlay metadata '%s' belongs to a different backing image",
+      disk_overlay_meta_path);
+  Assert(disk_meta_get_le64(header + DISK_OVERLAY_META_OVERLAY_DEV_OFF) ==
+          disk_overlay_dev &&
+      disk_meta_get_le64(header + DISK_OVERLAY_META_OVERLAY_INO_OFF) ==
+          disk_overlay_ino,
+      "Block overlay metadata '%s' belongs to a different overlay file",
+      disk_overlay_meta_path);
+
+  uint64_t stored_checksum =
+      disk_meta_get_le64(header + DISK_OVERLAY_META_CHECKSUM_OFF);
+  Assert(stored_checksum == disk_overlay_meta_checksum(header,
+          disk_overlay_dirty, (size_t)disk_overlay_dirty_bytes),
+      "Block overlay metadata '%s' checksum mismatch",
+      disk_overlay_meta_path);
+  if ((disk_overlay_sector_count & 7u) != 0) {
+    uint8_t valid_mask = (1u << (disk_overlay_sector_count & 7u)) - 1u;
+    Assert((disk_overlay_dirty[disk_overlay_dirty_bytes - 1] &
+            (uint8_t)~valid_mask) == 0,
+        "Block overlay metadata '%s' has dirty bits beyond capacity",
+        disk_overlay_meta_path);
+  }
+  uint64_t dirty_count = 0;
+  for (uint64_t i = 0; i < disk_overlay_dirty_bytes; i++) {
+    dirty_count +=
+        (uint64_t)__builtin_popcount((unsigned)disk_overlay_dirty[i]);
+  }
+  Assert(dirty_count ==
+          disk_meta_get_le64(header + DISK_OVERLAY_META_DIRTY_COUNT_OFF),
+      "Block overlay metadata '%s' dirty-sector count mismatch",
+      disk_overlay_meta_path);
+  disk_overlay_dirty_sector_count = dirty_count;
+  disk_overlay_meta_dirty = false;
+}
+
 static bool disk_mmap_read(void *buf, uint32_t len, uint64_t offset) {
   if (disk_mmap == NULL || len > disk_mmap_size || offset > disk_mmap_size - len) {
     return false;
@@ -1033,6 +1475,7 @@ static void disk_overlay_dirty_set(uint64_t sector) {
   if ((*byte & mask) == 0) {
     *byte |= mask;
     disk_overlay_dirty_sector_count++;
+    disk_overlay_meta_dirty = true;
   }
 }
 
@@ -1081,12 +1524,20 @@ static bool disk_overlay_prepare_write(uint64_t offset, uint32_t len) {
         return false;
       }
     }
-    disk_overlay_dirty_set(sector);
   }
   return true;
 }
 
+static void disk_overlay_mark_write(uint64_t offset, uint32_t len) {
+  uint64_t first = offset / VIRTIO_BLK_SECTOR_SIZE;
+  uint64_t last = (offset + len - 1) / VIRTIO_BLK_SECTOR_SIZE;
+  for (uint64_t sector = first; sector <= last; sector++) {
+    disk_overlay_dirty_set(sector);
+  }
+}
+
 static bool disk_pread_all(void *buf, uint32_t len, uint64_t offset) {
+  if (len == 0) return true;
   if (disk_overlay_fp == NULL) {
     return disk_backing_pread_all(buf, len, offset);
   }
@@ -1119,9 +1570,12 @@ static bool disk_pread_all(void *buf, uint32_t len, uint64_t offset) {
 }
 
 static bool disk_pwrite_all(const void *buf, uint32_t len, uint64_t offset) {
+  if (len == 0) return true;
   if (disk_overlay_fp != NULL) {
     if (!disk_overlay_prepare_write(offset, len)) return false;
-    return disk_overlay_pwrite_all(buf, len, offset);
+    if (!disk_overlay_pwrite_all(buf, len, offset)) return false;
+    disk_overlay_mark_write(offset, len);
+    return true;
   }
 
   const uint8_t *in = buf;
@@ -1137,8 +1591,7 @@ static bool disk_pwrite_all(const void *buf, uint32_t len, uint64_t offset) {
 }
 
 static bool disk_sync_if_writethrough(void) {
-  FILE *sync_fp = disk_overlay_fp != NULL ? disk_overlay_fp : disk_fp;
-  return disk_writeback || (fflush(sync_fp) == 0 && fsync(fileno(sync_fp)) == 0);
+  return disk_writeback || disk_sync_storage();
 }
 
 static bool disk_zero_range(uint64_t offset, uint64_t len) {
@@ -1366,8 +1819,9 @@ static void virtio_blk_execute_request(VirtioBlkAsyncReq *req) {
     req->used_len = 0;
     for (uint32_t i = 0; i < req->data_seg_count; i++) {
       VirtioBlkDataSeg *seg = &req->data_segs[i];
+      void *seg_data = seg->len == 0 ? NULL : req->data + seg->data_off;
       if (!disk_range_ok(offset, seg->len) ||
-          !disk_pread_all(req->data + seg->data_off, seg->len, offset)) {
+          !disk_pread_all(seg_data, seg->len, offset)) {
         req->status = VIRTIO_BLK_S_IOERR;
         break;
       }
@@ -1382,8 +1836,10 @@ static void virtio_blk_execute_request(VirtioBlkAsyncReq *req) {
     uint64_t offset = req->offset;
     for (uint32_t i = 0; i < req->data_seg_count; i++) {
       VirtioBlkDataSeg *seg = &req->data_segs[i];
+      const void *seg_data =
+        seg->len == 0 ? NULL : req->data + seg->data_off;
       if (!disk_range_ok(offset, seg->len) ||
-          !disk_pwrite_all(req->data + seg->data_off, seg->len, offset)) {
+          !disk_pwrite_all(seg_data, seg->len, offset)) {
         req->status = VIRTIO_BLK_S_IOERR;
         break;
       }
@@ -1393,9 +1849,12 @@ static void virtio_blk_execute_request(VirtioBlkAsyncReq *req) {
       req->status = VIRTIO_BLK_S_IOERR;
     }
   } else if (req->kind == VIRTIO_BLK_REQ_FLUSH) {
-    FILE *sync_fp = disk_overlay_fp != NULL ? disk_overlay_fp : disk_fp;
-    if (sync_fp != NULL &&
-        (fflush(sync_fp) != 0 || fsync(fileno(sync_fp)) != 0)) {
+    /*
+     * Commit ordering is data first, then the checksummed bitmap sidecar.
+     * Thus metadata can never advertise a newly dirty sector before its raw
+     * bytes have reached stable storage.
+     */
+    if (!disk_sync_storage()) {
       req->status = VIRTIO_BLK_S_IOERR;
     }
   } else if (req->kind == VIRTIO_BLK_REQ_GET_ID) {
@@ -1784,31 +2243,243 @@ static void virtio_blk_io_handler(uint32_t offset, int len, bool is_write) {
   }
 }
 
+static bool disk_shutdown_impl(void) {
+  if (disk_shutdown_started) return disk_shutdown_result;
+  disk_shutdown_started = true;
+
+#if VIRTIO_BLK_ASYNC_BACKEND
+  if (disk_worker_started) {
+    pthread_mutex_lock(&disk_async_lock);
+    disk_worker_stop_requested = true;
+    pthread_cond_signal(&disk_async_cond);
+    pthread_mutex_unlock(&disk_async_lock);
+    int ret = pthread_join(disk_worker_thread, NULL);
+    if (ret != 0) {
+      fprintf(stderr, "virtio-blk: can not join worker during shutdown: %s\n",
+          strerror(ret));
+      disk_shutdown_result = false;
+    }
+    disk_worker_started = false;
+  }
+
+  pthread_mutex_lock(&disk_async_lock);
+  VirtioBlkAsyncReq *req;
+  while ((req = virtio_blk_pop_req(&disk_done_head, &disk_done_tail)) != NULL) {
+    virtio_blk_free_request(req);
+  }
+  while ((req = virtio_blk_pop_req(
+              &disk_pending_head, &disk_pending_tail)) != NULL) {
+    virtio_blk_free_request(req);
+  }
+  pthread_mutex_unlock(&disk_async_lock);
+  pthread_mutex_lock(&disk_backend_lock);
+#endif
+
+  if (!disk_sync_storage()) {
+    fprintf(stderr,
+        "virtio-blk: failed to persist block storage during shutdown: %s\n",
+        strerror(errno));
+    disk_shutdown_result = false;
+  }
+  if (disk_mmap != NULL) {
+    if (munmap(disk_mmap, (size_t)disk_mmap_size) != 0) {
+      fprintf(stderr, "virtio-blk: can not unmap backing image: %s\n",
+          strerror(errno));
+    }
+    disk_mmap = NULL;
+    disk_mmap_size = 0;
+  }
+  if (disk_overlay_fp != NULL) {
+    if (fclose(disk_overlay_fp) != 0) {
+      fprintf(stderr, "virtio-blk: can not close block overlay: %s\n",
+          strerror(errno));
+      disk_shutdown_result = false;
+    }
+    disk_overlay_fp = NULL;
+  }
+  if (disk_fp != NULL) {
+    if (fclose(disk_fp) != 0) {
+      fprintf(stderr, "virtio-blk: can not close backing image: %s\n",
+          strerror(errno));
+      disk_shutdown_result = false;
+    }
+    disk_fp = NULL;
+  }
+
+#if VIRTIO_BLK_ASYNC_BACKEND
+  pthread_mutex_unlock(&disk_backend_lock);
+#endif
+
+  free(disk_overlay_dirty);
+  disk_overlay_dirty = NULL;
+  free(disk_overlay_meta_path);
+  disk_overlay_meta_path = NULL;
+  free(disk_overlay_meta_tmp_path);
+  disk_overlay_meta_tmp_path = NULL;
+#ifndef CONFIG_TARGET_AM
+  if (disk_overlay_lock_fd >= 0) {
+    if (close(disk_overlay_lock_fd) != 0) {
+      fprintf(stderr, "virtio-blk: can not close stable overlay lock: %s\n",
+          strerror(errno));
+      disk_shutdown_result = false;
+    }
+    disk_overlay_lock_fd = -1;
+  }
+  free(disk_overlay_lock_path);
+  disk_overlay_lock_path = NULL;
+#endif
+  return disk_shutdown_result;
+}
+
+static void disk_shutdown_atexit(void) {
+  (void)disk_shutdown_impl();
+}
+
+bool virtio_blk_shutdown(void) {
+  return disk_shutdown_impl();
+}
+
 static void open_disk_overlay(void) {
   const char *path = disk_overlay_path;
   if (path == NULL || path[0] == '\0') {
     return;
   }
 
-  int fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0600);
+#ifndef CONFIG_TARGET_AM
+  disk_overlay_lock_path =
+      disk_path_with_suffix(path, DISK_OVERLAY_LOCK_SUFFIX);
+  int lock_flags = O_RDWR | O_CREAT;
+#ifdef O_CLOEXEC
+  lock_flags |= O_CLOEXEC;
+#endif
+#ifdef O_NOFOLLOW
+  lock_flags |= O_NOFOLLOW;
+#endif
+  disk_overlay_lock_fd = open(disk_overlay_lock_path, lock_flags, 0600);
+  Assert(disk_overlay_lock_fd >= 0,
+      "Can not open stable block overlay lock '%s': %s",
+      disk_overlay_lock_path, strerror(errno));
+  struct stat overlay_lock_st;
+  Assert(fstat(disk_overlay_lock_fd, &overlay_lock_st) == 0 &&
+          S_ISREG(overlay_lock_st.st_mode),
+      "Block overlay lock '%s' is not a regular file",
+      disk_overlay_lock_path);
+  Assert((uint64_t)overlay_lock_st.st_dev != disk_backing_identity.dev ||
+          (uint64_t)overlay_lock_st.st_ino != disk_backing_identity.ino,
+      "Block overlay lock '%s' aliases its backing image",
+      disk_overlay_lock_path);
+  Assert(flock(disk_overlay_lock_fd, LOCK_EX | LOCK_NB) == 0,
+      "Block overlay '%s' is already in use: %s", path, strerror(errno));
+#endif
+
+  disk_overlay_meta_path =
+      disk_path_with_suffix(path, DISK_OVERLAY_META_SUFFIX);
+  disk_overlay_meta_tmp_path =
+      disk_path_with_suffix(path, DISK_OVERLAY_META_TMP_SUFFIX);
+  disk_overlay_sector_count =
+      (disk_size + VIRTIO_BLK_SECTOR_SIZE - 1) / VIRTIO_BLK_SECTOR_SIZE;
+  disk_overlay_dirty_bytes = (disk_overlay_sector_count + 7) / 8;
+  Assert(disk_overlay_dirty_bytes <= SIZE_MAX,
+      "Block overlay dirty bitmap is too large");
+  disk_overlay_dirty = calloc((size_t)disk_overlay_dirty_bytes, 1);
+  Assert(disk_overlay_dirty != NULL, "Can not allocate overlay dirty bitmap");
+
+  struct stat overlay_path_st;
+  struct stat meta_path_st;
+  struct stat meta_tmp_path_st;
+  bool overlay_exists = disk_path_exists(path, &overlay_path_st);
+  bool meta_exists =
+      disk_path_exists(disk_overlay_meta_path, &meta_path_st);
+  bool meta_tmp_exists =
+      disk_path_exists(disk_overlay_meta_tmp_path, &meta_tmp_path_st);
+  Assert(overlay_exists == meta_exists,
+      "Block overlay '%s' and metadata '%s' must either both exist or both be absent",
+      path, disk_overlay_meta_path);
+  Assert(!meta_tmp_exists || (overlay_exists && meta_exists),
+      "Incomplete block overlay metadata transaction '%s'; reset the overlay",
+      disk_overlay_meta_tmp_path);
+  if (overlay_exists) {
+    Assert(S_ISREG(overlay_path_st.st_mode) &&
+            S_ISREG(meta_path_st.st_mode),
+        "Block overlay '%s' and metadata '%s' must be regular files",
+        path, disk_overlay_meta_path);
+#ifndef CONFIG_TARGET_AM
+    Assert(overlay_path_st.st_dev != overlay_lock_st.st_dev ||
+            overlay_path_st.st_ino != overlay_lock_st.st_ino,
+        "Block overlay '%s' aliases stable lock '%s'",
+        path, disk_overlay_lock_path);
+    Assert(meta_path_st.st_dev != overlay_lock_st.st_dev ||
+            meta_path_st.st_ino != overlay_lock_st.st_ino,
+        "Block overlay metadata '%s' aliases stable lock '%s'",
+        disk_overlay_meta_path, disk_overlay_lock_path);
+#endif
+  }
+
+  int flags = O_RDWR;
+  if (!overlay_exists) flags |= O_CREAT | O_EXCL;
+#ifdef O_CLOEXEC
+  flags |= O_CLOEXEC;
+#endif
+#ifdef O_NOFOLLOW
+  flags |= O_NOFOLLOW;
+#endif
+  int fd = open(path, flags, 0600);
   Assert(fd >= 0, "Can not open block overlay '%s': %s", path, strerror(errno));
-  Assert(ftruncate(fd, (off_t)disk_size) == 0,
-      "Can not resize block overlay '%s' to %" PRIu64 " bytes: %s",
-      path, disk_size, strerror(errno));
+#if !defined(CONFIG_TARGET_AM)
+  Assert(flock(fd, LOCK_EX | LOCK_NB) == 0,
+      "Block overlay '%s' is already in use: %s", path, strerror(errno));
+#endif
+  struct stat overlay_st;
+  Assert(fstat(fd, &overlay_st) == 0 && S_ISREG(overlay_st.st_mode),
+      "Block overlay '%s' is not a regular file", path);
+  Assert((uint64_t)overlay_st.st_dev != disk_backing_identity.dev ||
+          (uint64_t)overlay_st.st_ino != disk_backing_identity.ino,
+      "Block overlay '%s' aliases its backing image", path);
+  if (!overlay_exists) {
+    Assert(ftruncate(fd, (off_t)disk_size) == 0 && fsync(fd) == 0,
+        "Can not initialize sparse block overlay '%s' to %" PRIu64
+        " bytes: %s",
+        path, disk_size, strerror(errno));
+  } else {
+    Assert(overlay_st.st_size >= 0 &&
+            (uint64_t)overlay_st.st_size == disk_size,
+        "Block overlay '%s' has size %" PRIu64 ", expected %" PRIu64,
+        path, overlay_st.st_size >= 0 ?
+          (uint64_t)overlay_st.st_size : UINT64_MAX, disk_size);
+  }
+  Assert(fstat(fd, &overlay_st) == 0,
+      "Can not inspect block overlay '%s': %s", path, strerror(errno));
+  disk_overlay_dev = (uint64_t)overlay_st.st_dev;
+  disk_overlay_ino = (uint64_t)overlay_st.st_ino;
   disk_overlay_fp = fdopen(fd, "r+b");
   Assert(disk_overlay_fp != NULL, "Can not fdopen block overlay '%s': %s",
       path, strerror(errno));
 
-  disk_overlay_sector_count =
-    (disk_size + VIRTIO_BLK_SECTOR_SIZE - 1) / VIRTIO_BLK_SECTOR_SIZE;
-  uint64_t dirty_bytes = (disk_overlay_sector_count + 7) / 8;
-  disk_overlay_dirty = calloc((size_t)dirty_bytes, 1);
-  Assert(disk_overlay_dirty != NULL, "Can not allocate overlay dirty bitmap");
-  disk_overlay_dirty_sector_count = 0;
+  if (overlay_exists) {
+    disk_overlay_load_meta();
+    disk_overlay_open_state = DISK_OVERLAY_RESTORED;
+    if (meta_tmp_exists) {
+      Assert(unlink(disk_overlay_meta_tmp_path) == 0 &&
+              disk_fsync_parent_dir(disk_overlay_meta_tmp_path),
+          "Can not remove stale block overlay metadata transaction '%s': %s",
+          disk_overlay_meta_tmp_path, strerror(errno));
+    }
+  } else {
+    disk_overlay_dirty_sector_count = 0;
+    disk_overlay_meta_dirty = true;
+    disk_overlay_open_state = DISK_OVERLAY_NEW;
+    Assert(disk_overlay_commit_meta(),
+        "Can not create block overlay metadata '%s': %s",
+        disk_overlay_meta_path, strerror(errno));
+  }
   disk_readonly = false;
 
-  Log("virtio-blk: overlay=%s sectors=%" PRIu64 " backing_readonly=%u",
-      path, disk_overlay_sector_count, disk_backing_readonly);
+  Log("virtio-blk: overlay=%s meta=%s state=%s sectors=%" PRIu64
+      " dirty_sectors=%" PRIu64 " backing_readonly=%u",
+      path, disk_overlay_meta_path,
+      disk_overlay_open_state == DISK_OVERLAY_RESTORED ? "restored" : "new",
+      disk_overlay_sector_count, disk_overlay_dirty_sector_count,
+      disk_backing_readonly);
 }
 
 static void open_disk_image(void) {
@@ -1821,17 +2492,27 @@ static void open_disk_image(void) {
     return;
   }
 
-  disk_fp = fopen(path, "r+b");
-  if (disk_fp == NULL) {
+  if (disk_overlay_path != NULL && disk_overlay_path[0] != '\0') {
     disk_fp = fopen(path, "rb");
     disk_backing_readonly = true;
     disk_readonly = true;
+  } else {
+    disk_fp = fopen(path, "r+b");
+    if (disk_fp == NULL) {
+      disk_fp = fopen(path, "rb");
+      disk_backing_readonly = true;
+      disk_readonly = true;
+    }
   }
   Assert(disk_fp != NULL, "Can not open block image '%s': %s", path, strerror(errno));
   Assert(fseeko(disk_fp, 0, SEEK_END) == 0, "Can not seek block image '%s'", path);
   off_t size = ftello(disk_fp);
   Assert(size > 0, "Invalid block image size for '%s'", path);
   disk_size = size;
+  struct stat backing_st;
+  Assert(fstat(fileno(disk_fp), &backing_st) == 0,
+      "Can not inspect block image '%s': %s", path, strerror(errno));
+  disk_backing_identity = disk_backing_identity_from_stat(&backing_st);
   rewind(disk_fp);
   if ((uint64_t)(size_t)disk_size == disk_size) {
     void *map = mmap(NULL, (size_t)disk_size, PROT_READ, MAP_SHARED, fileno(disk_fp), 0);
@@ -1861,6 +2542,8 @@ void init_disk() {
     strcmp(force_sync, "0") != 0;
   virtio_blk_reset();
   open_disk_image();
+  Assert(atexit(disk_shutdown_atexit) == 0,
+      "Can not register virtio-blk shutdown handler");
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map("virtio-blk", CONFIG_DISK_CTL_PORT, virtio_base, 0x1000, virtio_blk_io_handler);
 #else

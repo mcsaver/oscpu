@@ -215,8 +215,8 @@ config INTERPRETER_TB_MAX_INST
   default 32 if PERFORMANCE
   default 16
   help
-    单个解释器 basic block 最多连续退休的 guest 指令数。它只是保守上限，
-    不是 TB chaining 或 JIT。
+    单个解释器 basic block 最多连续调度的 guest 指令尝试数；同步异常等未退休
+    尝试也计入这个调度上限。它不是 minstret、TB chaining 或 JIT。
 
 config INTERPRETER_WIDE_IFETCH
   depends on INTERPRETER_BASIC_BLOCK && RISCV_EXT_C
@@ -634,6 +634,15 @@ config VGA_SHOW_SCREEN
   bool "Enable SDL SCREEN"
   default y
 
+config VGA_AUTO_SCANOUT
+  depends on VGA_SHOW_SCREEN
+  bool "Refresh SDL after framebuffer writes without vgactl sync"
+  default n
+  help
+    Linux simple-framebuffer 不知道 legacy NEMU vgactl.sync 寄存器；开启后
+    设备轮询会呈现 framebuffer 脏页。默认关闭，保留 AM guest 的显式整帧
+    sync 契约，避免绘制中途显示半帧。
+
 choice
   prompt "Screen Size"
   default VGA_SIZE_400x300
@@ -687,6 +696,14 @@ menuconfig HAS_VIRTIO_NET
   depends on !SOC_SIM
   bool "Enable virtio-mmio network device"
   default n
+
+menuconfig HAS_VIRTIO_INPUT
+  depends on ISA_riscv && !SOC_SIM && HAS_VGA && VGA_SHOW_SCREEN
+  bool "Enable virtio-mmio SDL keyboard"
+  default n
+  help
+    通过标准 virtio-input event/status virtqueue 向 guest 发送 SDL 键盘事件。
+    该设备依赖可接收焦点的 SDL 显示窗口；legacy AM keyboard 可同时保留。
 
 menuconfig HAS_GOLDFISH_RTC
   depends on !SOC_SIM

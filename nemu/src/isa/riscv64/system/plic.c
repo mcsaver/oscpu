@@ -55,6 +55,7 @@ static const PlicSourceInfo plic_sources[] = {
   {3, "virtio-rng", "virtio-mmio", ISDEF(CONFIG_HAS_VIRTIO_RNG)},
   {4, "goldfish-rtc", "platform-rtc", ISDEF(CONFIG_HAS_GOLDFISH_RTC)},
   {5, "virtio-net", "virtio-mmio", ISDEF(CONFIG_HAS_VIRTIO_NET)},
+  {7, "virtio-input", "virtio-mmio", ISDEF(CONFIG_HAS_VIRTIO_INPUT)},
 };
 
 static const char *plic_json_bool(bool value) {

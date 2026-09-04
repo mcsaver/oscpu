@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+import fcntl
 import json
 import os
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -12,6 +14,47 @@ def reserve_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+def reserve_distinct_ports() -> tuple[int, int]:
+    first = reserve_port()
+    second = reserve_port()
+    while second == first:
+        second = reserve_port()
+    return first, second
+
+
+def run_qmp_gdbstub_conflict(args, log):
+    qmp_port, gdbstub_port = reserve_distinct_ports()
+    cmd = [
+        args.nemu,
+        f"--qmp={qmp_port}",
+        f"--gdbstub={gdbstub_port}",
+    ]
+    log.write(f"qmp-gdbstub-conflict-command: {' '.join(cmd)}\n")
+    try:
+        completed = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=args.timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "NEMU waited for a client instead of rejecting simultaneous QMP/GDB run-control"
+        ) from exc
+    output = completed.stdout or ""
+    log.write(output)
+    if completed.returncode == 0:
+        raise RuntimeError("NEMU accepted simultaneous --qmp and --gdbstub")
+    marker = "--qmp and --gdbstub cannot be enabled together"
+    if marker not in output:
+        raise RuntimeError(
+            f"QMP/GDB conflict failed without the expected diagnostic: rc={completed.returncode}"
+        )
+    log.write(f"PASS qmp-gdbstub-mutually-exclusive rc={completed.returncode}\n")
 
 
 def connect_with_retry(port: int, deadline: float) -> socket.socket:
@@ -74,11 +117,229 @@ def require_return(reply: dict, command: str):
     return reply["return"]
 
 
-def require_event_count(events: list, event: str, expected_min: int, label: str, log):
+def require_event_count(events: list, event: str, expected: int, label: str, log):
     count = sum(1 for item in events if item.get("event") == event)
-    if count < expected_min:
-        raise RuntimeError(f"missing QMP event {event}: count={count} expected>={expected_min} events={events}")
+    if count != expected:
+        raise RuntimeError(
+            f"unexpected QMP event multiplicity {event}: "
+            f"count={count} expected={expected} events={events}"
+        )
     log.write(f"PASS {label} {event} count={count}\n")
+
+
+def require_oversized_id_rejected(sock, sock_file, events: list, log):
+    payload = json.dumps(
+        {"execute": "query-status", "id": "x" * 300},
+        separators=(",", ":"),
+    ).encode("utf-8") + b"\r\n"
+    sock.sendall(payload)
+    while True:
+        reply = recv_json_line(sock_file)
+        if "event" in reply:
+            events.append(reply)
+            continue
+        break
+    error = reply.get("error")
+    if (
+        not isinstance(error, dict)
+        or error.get("class") != "GenericError"
+        or "request id" not in error.get("desc", "")
+        or "id" in reply
+    ):
+        raise RuntimeError(f"oversized QMP id was not safely rejected: {reply}")
+    # The malformed request must not poison or close the connection.
+    status = require_return(
+        qmp_execute(sock, sock_file, "query-status", events,
+                    request_id="after-oversized-id"),
+        "query-status",
+    )
+    if status.get("status") != "prelaunch":
+        raise RuntimeError(f"QMP did not recover after oversized id: {status}")
+    log.write("PASS qmp-oversized-id-rejected-and-connection-recovered\n")
+
+
+def require_oversized_frame_rejected(sock, sock_file, events: list, log):
+    # Put a destructive command before the receive-buffer boundary.  A reader
+    # that dispatches its truncated prefix would shut NEMU down instead of
+    # rejecting and draining the complete newline-delimited frame.
+    payload = (
+        b'{"execute":"system_powerdown","padding":"'
+        + (b"x" * 8192)
+        + b'"}\r\n'
+    )
+    sock.sendall(payload)
+    while True:
+        reply = recv_json_line(sock_file)
+        if "event" in reply:
+            events.append(reply)
+            continue
+        break
+    error = reply.get("error")
+    if (
+        not isinstance(error, dict)
+        or error.get("class") != "GenericError"
+        or "oversized QMP request frame" not in error.get("desc", "")
+        or "id" in reply
+    ):
+        raise RuntimeError(f"oversized QMP frame was not safely rejected: {reply}")
+    status = require_return(
+        qmp_execute(sock, sock_file, "query-status", events,
+                    request_id="after-oversized-frame"),
+        "query-status",
+    )
+    if status.get("status") != "prelaunch":
+        raise RuntimeError(f"QMP did not recover after oversized frame: {status}")
+    if any(event.get("event") == "SHUTDOWN" for event in events):
+        raise RuntimeError(
+            f"oversized frame dispatched its system_powerdown prefix: {events}"
+        )
+
+    # CR is a wire byte too.  A stream of CR bytes must not bypass the frame
+    # limit merely because CRLF framing permits one optional trailing CR.
+    sock.sendall((b"\r" * 5000) + b"\n")
+    cr_reply = recv_json_line(sock_file)
+    if (
+        cr_reply.get("error", {}).get("desc") != "oversized QMP request frame"
+        or "id" in cr_reply
+    ):
+        raise RuntimeError(f"oversized CR frame was not rejected: {cr_reply}")
+    log.write("PASS qmp-oversized-frame-drained-rejected-and-connection-recovered\n")
+
+
+def require_structural_json_validation(sock, sock_file, events: list, log):
+    def send_raw(payload: bytes) -> dict:
+        sock.sendall(payload + b"\r\n")
+        while True:
+            reply = recv_json_line(sock_file)
+            if "event" in reply:
+                events.append(reply)
+                continue
+            return reply
+
+    malformed = send_raw(b'{"execute":"system_powerdown"')
+    if malformed.get("error", {}).get("desc") != "invalid QMP request" or "id" in malformed:
+        raise RuntimeError(f"unterminated JSON frame was not rejected: {malformed}")
+
+    embedded_cr = send_raw(b'{"execute":"system_\rpowerdown"}')
+    if (
+        embedded_cr.get("error", {}).get("desc") != "invalid QMP request"
+        or "id" in embedded_cr
+    ):
+        raise RuntimeError(f"embedded CR was normalized into a command: {embedded_cr}")
+
+    raw_nul = send_raw(b'{"execute":"system_powerdown"}\x00trailing-garbage')
+    if (
+        raw_nul.get("error", {}).get("desc") != "invalid QMP request"
+        or "id" in raw_nul
+    ):
+        raise RuntimeError(f"raw NUL terminated and dispatched a prefix: {raw_nul}")
+
+    # C's isspace() accepts VT and FF, but JSON does not.  Keep a destructive
+    # command behind each byte so accepting non-JSON whitespace cannot hide as
+    # a harmless parser-compatibility difference.
+    for label, non_json_ws in (("vertical-tab", b"\x0b"),
+                               ("form-feed", b"\x0c")):
+        non_json_ws_reply = send_raw(
+            b'{"execute"' + non_json_ws + b':' + non_json_ws
+            + b'"system_powerdown"}'
+        )
+        if (
+            non_json_ws_reply.get("error", {}).get("desc")
+            != "invalid QMP request"
+            or "id" in non_json_ws_reply
+        ):
+            raise RuntimeError(
+                f"non-JSON {label} whitespace was accepted: "
+                f"{non_json_ws_reply}"
+            )
+
+    # RFC 8259 wire JSON is UTF-8.  Exercise every boundary class with the
+    # invalid sequence hidden in an otherwise ignored value behind a
+    # destructive command: validating only recognized strings would still
+    # permit system_powerdown to run.
+    invalid_utf8_sequences = (
+        ("isolated-continuation", b"\x80"),
+        ("overlong", b"\xc0\xaf"),
+        ("surrogate", b"\xed\xa0\x80"),
+        ("above-unicode-max", b"\xf4\x90\x80\x80"),
+        ("truncated", b"\xe2\x82"),
+    )
+    for label, sequence in invalid_utf8_sequences:
+        invalid_utf8_value = send_raw(
+            b'{"execute":"system_powerdown","extra":"'
+            + sequence
+            + b'"}'
+        )
+        if (
+            invalid_utf8_value.get("error", {}).get("desc")
+            != "invalid QMP request"
+            or "id" in invalid_utf8_value
+        ):
+            raise RuntimeError(
+                f"invalid UTF-8 {label} value was accepted: "
+                f"{invalid_utf8_value}"
+            )
+
+    invalid_utf8_id = send_raw(
+        b'{"execute":"query-status","id":"bad-\xff-id"}'
+    )
+    if (
+        invalid_utf8_id.get("error", {}).get("desc")
+        != "invalid QMP request"
+        or "id" in invalid_utf8_id
+    ):
+        raise RuntimeError(
+            f"invalid UTF-8 request id was accepted/reflected: {invalid_utf8_id}"
+        )
+
+    valid_utf8 = send_raw(
+        '{"execute":"query-status","extra":"中文😀",'
+        '"id":"utf8-中文😀"}'.encode("utf-8")
+    )
+    if valid_utf8.get("id") != "utf8-中文😀":
+        raise RuntimeError(f"valid UTF-8 request id was not preserved: {valid_utf8}")
+    valid_utf8_status = require_return(valid_utf8, "valid UTF-8 query-status")
+    if valid_utf8_status.get("status") != "prelaunch":
+        raise RuntimeError(f"valid UTF-8 request changed status: {valid_utf8}")
+
+    nested = send_raw(
+        b'{"arguments":{"execute":"system_powerdown"},'
+        b'"execute":"query-status","id":"top-level-wins"}'
+    )
+    if nested.get("id") != "top-level-wins":
+        raise RuntimeError(f"top-level QMP id was not preserved: {nested}")
+    nested_status = require_return(nested, "query-status with nested execute")
+    if nested_status.get("status") != "prelaunch":
+        raise RuntimeError(f"nested execute key was dispatched: {nested}")
+
+    nested_only = send_raw(
+        b'{"arguments":{"execute":"system_powerdown"},"id":"nested-only"}'
+    )
+    if (
+        nested_only.get("error", {}).get("desc") != "invalid QMP request"
+        or nested_only.get("id") != "nested-only"
+    ):
+        raise RuntimeError(f"nested-only execute was accepted: {nested_only}")
+
+    invalid_id = send_raw(b'{"execute":"query-status","id":true}')
+    if (
+        "request id" not in invalid_id.get("error", {}).get("desc", "")
+        or "id" in invalid_id
+    ):
+        raise RuntimeError(f"non-string/non-number QMP id was accepted: {invalid_id}")
+
+    status = require_return(
+        qmp_execute(sock, sock_file, "query-status", events,
+                    request_id="after-structural-json-validation"),
+        "query-status",
+    )
+    if status.get("status") != "prelaunch":
+        raise RuntimeError(f"QMP did not recover after malformed frames: {status}")
+    if any(event.get("event") == "SHUTDOWN" for event in events):
+        raise RuntimeError(f"malformed/nested frame dispatched powerdown: {events}")
+    log.write(
+        "PASS qmp-top-level-json-lexer-utf8-malformed-nested-id-recovery\n"
+    )
 
 
 def require_netdevs(netdevs, label: str, log):
@@ -456,8 +717,163 @@ def read_text(path: str) -> str:
         return ""
 
 
+def validate_artifact_paths(args):
+    readonly = {
+        "smoke-script": __file__,
+        "nemu": args.nemu,
+        "block-image": args.block_image,
+        "firmware": args.firmware,
+        "kernel": args.kernel,
+        "dtb": args.dtb,
+    }
+    writable = {
+        "log": args.log,
+        "nemu-log": args.nemu_log,
+        "cont-nemu-log": args.cont_nemu_log,
+        "block-nemu-log": args.block_nemu_log,
+        "runtime-nemu-log": args.runtime_nemu_log,
+        "disconnect-nemu-log": args.disconnect_nemu_log,
+        "system-powerdown-nemu-log": args.system_powerdown_nemu_log,
+        "guest-shutdown-nemu-log": args.guest_shutdown_nemu_log,
+        "disconnect-image": args.disconnect_image,
+        "system-powerdown-image": args.system_powerdown_image,
+        "guest-shutdown-image": args.guest_shutdown_image,
+    }
+    for label, overlay in {
+        "overlay-image": args.overlay_image,
+        "runtime-overlay-image": args.runtime_overlay_image,
+    }.items():
+        writable[label] = overlay
+        writable[f"{label}.meta"] = f"{overlay}.meta"
+        writable[f"{label}.meta.tmp"] = f"{overlay}.meta.tmp"
+        writable[f"{label}.lock"] = f"{overlay}.lock"
+
+    readonly_real = {}
+    for label, path in readonly.items():
+        if not path or not os.path.isfile(path):
+            raise RuntimeError(f"required {label} is not a regular file: {path}")
+        readonly_real[label] = os.path.realpath(path)
+
+    writable_real = {}
+    for label, path in writable.items():
+        if not path:
+            raise RuntimeError(f"writable {label} path is empty")
+        resolved = os.path.realpath(os.path.abspath(path))
+        if resolved == os.path.sep:
+            raise RuntimeError(f"unsafe writable {label} path: {path}")
+        if os.path.lexists(path):
+            if os.path.islink(path):
+                raise RuntimeError(f"writable {label} must not be a symlink: {path}")
+            mode = os.lstat(path).st_mode
+            if not stat.S_ISREG(mode):
+                raise RuntimeError(
+                    f"writable {label} has unsafe existing file type: {path}"
+                )
+        for input_label, input_path in readonly.items():
+            aliases = resolved == readonly_real[input_label]
+            if os.path.lexists(path):
+                try:
+                    aliases = aliases or os.path.samefile(path, input_path)
+                except FileNotFoundError:
+                    pass
+            if aliases:
+                raise RuntimeError(
+                    f"writable {label} aliases required {input_label}: {path}"
+                )
+        for other_label, other_path in writable.items():
+            if other_label == label or other_label not in writable_real:
+                continue
+            aliases = resolved == writable_real[other_label]
+            if os.path.lexists(path) and os.path.lexists(other_path):
+                try:
+                    aliases = aliases or os.path.samefile(path, other_path)
+                except FileNotFoundError:
+                    pass
+            if aliases:
+                raise RuntimeError(
+                    f"writable artifacts alias each other: {label}={path} and "
+                    f"{other_label}={other_path}"
+                )
+        writable_real[label] = resolved
+
+
+def artifact_identity(path: str):
+    info = os.lstat(path)
+    return info.st_dev, info.st_ino
+
+
+def unlink_owned_artifact(path: str, identity):
+    if identity is None:
+        return
+    try:
+        if artifact_identity(path) == identity:
+            os.unlink(path)
+    except FileNotFoundError:
+        pass
+
+
+def remove_overlay(path: str, backing: str):
+    candidates = (path, f"{path}.meta", f"{path}.meta.tmp")
+    lock_path = f"{path}.lock"
+    backing_real = os.path.realpath(backing)
+    if not path:
+        raise RuntimeError("overlay path is empty")
+    if not os.path.isfile(backing):
+        raise RuntimeError(f"block backing is not a regular file: {backing}")
+    os.makedirs(os.path.dirname(os.path.abspath(lock_path)), exist_ok=True)
+    lock_flags = os.O_RDWR | os.O_CREAT | os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        lock_flags |= os.O_NOFOLLOW
+    lock_fd = os.open(lock_path, lock_flags, 0o600)
+    try:
+        lock_stat = os.fstat(lock_fd)
+        backing_stat = os.stat(backing)
+        if not stat.S_ISREG(lock_stat.st_mode):
+            raise RuntimeError(f"overlay lock is not a regular file: {lock_path}")
+        if (lock_stat.st_dev, lock_stat.st_ino) == (
+            backing_stat.st_dev,
+            backing_stat.st_ino,
+        ):
+            raise RuntimeError(f"overlay lock aliases block backing: {lock_path}")
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(f"overlay is already in use: {path}") from exc
+
+        for candidate in (*candidates, lock_path):
+            candidate_real = os.path.realpath(candidate)
+            if candidate_real == backing_real:
+                raise RuntimeError(
+                    f"overlay artifact aliases block backing: {candidate} -> {backing_real}"
+                )
+            if os.path.lexists(candidate):
+                candidate_stat = os.lstat(candidate)
+                if stat.S_ISDIR(candidate_stat.st_mode):
+                    raise RuntimeError(f"overlay artifact is a directory: {candidate}")
+                if os.path.samefile(candidate, backing):
+                    raise RuntimeError(
+                        f"overlay artifact links to block backing: {candidate} -> {backing_real}"
+                    )
+                if candidate != lock_path and (
+                    candidate_stat.st_dev,
+                    candidate_stat.st_ino,
+                ) == (lock_stat.st_dev, lock_stat.st_ino):
+                    raise RuntimeError(
+                        f"overlay artifact aliases stable lock: {candidate}"
+                    )
+        for candidate in candidates:
+            try:
+                os.unlink(candidate)
+            except FileNotFoundError:
+                pass
+    finally:
+        os.close(lock_fd)
+
+
 def write_guest_poweroff_image(path: str):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     words = [
         0x001002B7,  # lui t0, 0x100      ; t0 = 0x00100000
         0x00005337,  # lui t1, 0x5        ; t1 = 0x5000
@@ -468,16 +884,31 @@ def write_guest_poweroff_image(path: str):
     with open(path, "wb") as f:
         for word in words:
             f.write(word.to_bytes(4, "little"))
+    return artifact_identity(path)
 
 
 def write_guest_spin_image(path: str):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     with open(path, "wb") as f:
         f.write((0x0000006F).to_bytes(4, "little"))  # j .
+    return artifact_identity(path)
 
 
 def run_query_quit(args, log):
     port = reserve_port()
+    fifo_parent = os.path.dirname(os.path.abspath(args.log))
+    qmp_fifo_path = os.path.join(
+        fifo_parent,
+        f'nemu-qmp-{os.getpid()}-{port}-"\\-\t-串口-🚀.fifo',
+    )
+    if os.path.lexists(qmp_fifo_path):
+        raise RuntimeError(f"QMP serial FIFO fixture already exists: {qmp_fifo_path!r}")
+    expected_host_backend = f"stderr,stdin,fifo:{qmp_fifo_path}"
+    child_env = os.environ.copy()
+    child_env["NEMU_SERIAL_FIFO"] = qmp_fifo_path
+    fifo_identity = None
     cmd = [
         args.nemu,
         f"--qmp={port}",
@@ -485,10 +916,22 @@ def run_query_quit(args, log):
     ]
 
     log.write(f"query-quit-command: {' '.join(cmd)}\n")
-    proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+    log.write(f"query-quit-serial-fifo: {qmp_fifo_path!r}\n")
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        env=child_env,
+    )
     try:
         with connect_with_retry(port, time.monotonic() + args.timeout) as sock:
             with sock.makefile("rwb", buffering=0) as sock_file:
+                fifo_info = os.lstat(qmp_fifo_path)
+                if not stat.S_ISFIFO(fifo_info.st_mode) or fifo_info.st_uid != os.getuid():
+                    raise RuntimeError(
+                        f"NEMU did not create the owned QMP serial FIFO fixture: {qmp_fifo_path!r}"
+                    )
+                fifo_identity = fifo_info.st_dev, fifo_info.st_ino
                 events = []
                 greeting = recv_json_line(sock_file)
                 if "QMP" not in greeting:
@@ -539,12 +982,19 @@ def run_query_quit(args, log):
                     raise RuntimeError(f"unexpected query-chardev: {chardevs}")
                 if chardevs[0].get("frontend-open") is not True:
                     raise RuntimeError(f"query-chardev frontend is not open: {chardevs}")
-                if "stderr" not in chardevs[0].get("filename", ""):
-                    raise RuntimeError(f"query-chardev missing host backend: {chardevs}")
-                log.write("PASS query-chardev serial0\n")
+                if chardevs[0].get("filename") != expected_host_backend:
+                    raise RuntimeError(
+                        f"query-chardev did not preserve escaped host backend: {chardevs}"
+                    )
+                log.write("PASS query-chardev serial0 escaped-fifo-path\n")
 
                 serials = require_return(qmp_execute(sock, sock_file, "query-serial", events), "query-serial")
                 require_serials(serials, "query-serial", log)
+                if serials[0].get("filename") != expected_host_backend:
+                    raise RuntimeError(
+                        f"query-serial did not preserve escaped host backend: {serials}"
+                    )
+                log.write("PASS query-serial escaped-fifo-path\n")
 
                 netdevs = require_return(qmp_execute(sock, sock_file, "query-netdev", events), "query-netdev")
                 require_netdevs(netdevs, "query-netdev", log)
@@ -635,6 +1085,10 @@ def run_query_quit(args, log):
                     raise RuntimeError(f"unsupported command did not return CommandNotFound: {error_reply}")
                 log.write("PASS qmp-id-echo return-error\n")
 
+                require_oversized_id_rejected(sock, sock_file, events, log)
+                require_oversized_frame_rejected(sock, sock_file, events, log)
+                require_structural_json_validation(sock, sock_file, events, log)
+
                 require_return(qmp_execute(sock, sock_file, "quit", events), "quit")
                 require_event_count(events, "SHUTDOWN", 1, "qmp-event-shutdown", log)
                 log.write("PASS quit OK\n")
@@ -646,15 +1100,66 @@ def run_query_quit(args, log):
     except Exception:
         kill_and_wait(proc)
         raise
+    finally:
+        if fifo_identity is None:
+            try:
+                fifo_info = os.lstat(qmp_fifo_path)
+                if stat.S_ISFIFO(fifo_info.st_mode) and fifo_info.st_uid == os.getuid():
+                    fifo_identity = fifo_info.st_dev, fifo_info.st_ino
+            except FileNotFoundError:
+                pass
+        unlink_owned_artifact(qmp_fifo_path, fifo_identity)
+
+
+def run_startup_disconnect(args, log):
+    port = reserve_port()
+    cmd = [
+        args.nemu,
+        f"--qmp={port}",
+        f"--log={args.nemu_log}",
+    ]
+
+    log.write(f"startup-disconnect-command: {' '.join(cmd)}\n")
+    proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+    try:
+        with connect_with_retry(port, time.monotonic() + args.timeout) as sock:
+            with sock.makefile("rwb", buffering=0) as sock_file:
+                greeting = recv_json_line(sock_file)
+                if "QMP" not in greeting:
+                    raise RuntimeError(f"missing QMP greeting for startup disconnect: {greeting}")
+                log.write(
+                    "PASS startup-disconnect-qmp-greeting "
+                    f"{greeting['QMP']['version']['package']}\n"
+                )
+
+        try:
+            rc = proc.wait(timeout=args.timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("NEMU did not fail closed after startup QMP disconnect") from exc
+        if rc != 1:
+            raise RuntimeError(
+                f"NEMU startup QMP disconnect returned rc={rc}, expected fail-closed rc=1"
+            )
+        log.write(f"PASS startup-qmp-disconnect-fail-closed rc={rc}\n")
+    except Exception:
+        kill_and_wait(proc)
+        raise
 
 
 def run_query_cont(args, log):
+    reset_hartid = 7
+    reset_dtb = 0x87F00000
     port = reserve_port()
     cmd = [
         args.nemu,
         f"--qmp={port}",
         f"--log={args.cont_nemu_log}",
+        f"--boot-hartid={reset_hartid}",
+        f"--boot-dtb={reset_dtb:#x}",
         "--monitor-cmd=info r",
+        # cont 的成功回复由 CPU 的真实 RUNNING 确认点发送；si 命令
+        # 创建该执行窗口，前一条 info r 保留对启动 ABI 的观察。
+        "--monitor-cmd=si 1",
     ]
 
     log.write(f"query-cont-command: {' '.join(cmd)}\n")
@@ -705,6 +1210,16 @@ def run_query_cont(args, log):
         if "pc  = 0x0000000080000000" not in content:
             raise RuntimeError("cont path did not preserve reset-vector PC")
         log.write("PASS cont-pc-reset-vector\n")
+        expected_a0 = f"x10 (  a0) = 0x{reset_hartid:016x}"
+        expected_a1 = f"x11 (  a1) = 0x{reset_dtb:016x}"
+        if expected_a0 not in content or expected_a1 not in content:
+            raise RuntimeError(
+                "system_reset did not restore boot ABI registers: "
+                f"expected {expected_a0!r} and {expected_a1!r}"
+            )
+        log.write(
+            f"PASS system-reset-boot-abi a0={reset_hartid:#x} a1={reset_dtb:#x}\n"
+        )
         content = read_text(args.cont_nemu_log) + "\n" + read_text(args.log)
         if "QMP system_reset requested" not in content:
             raise RuntimeError("system_reset command did not reach NEMU reset handler")
@@ -715,8 +1230,7 @@ def run_query_cont(args, log):
 
 
 def run_query_block_attached(args, log):
-    if os.path.exists(args.overlay_image):
-        os.unlink(args.overlay_image)
+    remove_overlay(args.overlay_image, args.block_image)
 
     port = reserve_port()
     cmd = [
@@ -752,6 +1266,8 @@ def run_query_block_attached(args, log):
                     raise RuntimeError(f"unexpected qmp block capacity: {nemu}")
                 if nemu.get("overlay") != "enabled" or nemu.get("write-target") != "overlay":
                     raise RuntimeError(f"unexpected qmp block overlay state: {nemu}")
+                if nemu.get("overlay-state") != "new" or nemu.get("overlay-metadata") != "sidecar-v1-crc64":
+                    raise RuntimeError(f"unexpected qmp block overlay metadata: {nemu}")
                 if nemu.get("overlay-dirty-sectors") != 0:
                     raise RuntimeError(f"unexpected dirty sectors before guest run: {nemu}")
                 if nemu.get("read-mmap") != "enabled" or nemu.get("read-mmap-bytes") != 0x80000000:
@@ -793,13 +1309,11 @@ def run_query_block_attached(args, log):
         kill_and_wait(proc)
         raise
     finally:
-        if os.path.exists(args.overlay_image):
-            os.unlink(args.overlay_image)
+        remove_overlay(args.overlay_image, args.block_image)
 
 
 def run_query_runtime(args, log):
-    if os.path.exists(args.runtime_overlay_image):
-        os.unlink(args.runtime_overlay_image)
+    remove_overlay(args.runtime_overlay_image, args.block_image)
 
     port = reserve_port()
     cmd = [
@@ -844,18 +1358,44 @@ def run_query_runtime(args, log):
                     raise RuntimeError(f"unexpected runtime running status: {status}")
                 log.write(f"PASS runtime-query-status {status['status']}\n")
 
+                for mutable_command in (
+                    "query-block",
+                    "query-blockstats",
+                    "query-chardev",
+                    "query-serial",
+                    "query-netdev",
+                    "query-rng",
+                    "query-rtc",
+                    "query-interrupts",
+                ):
+                    running_reply = qmp_execute(
+                        sock, sock_file, mutable_command, events,
+                        request_id=f"runtime-{mutable_command}-while-running",
+                    )
+                    running_error = running_reply.get("error")
+                    if (
+                        not isinstance(running_error, dict)
+                        or running_error.get("class") != "GenericError"
+                        or "paused" not in running_error.get("desc", "")
+                    ):
+                        raise RuntimeError(
+                            f"mutable {mutable_command} was not rejected while "
+                            f"CPU was running: {running_reply}"
+                        )
+                log.write("PASS runtime-all-mutable-queries-rejected-while-running\n")
+
                 require_return(qmp_execute(sock, sock_file, "stop", events), "stop")
                 require_event_count(events, "STOP", 1, "runtime-event-stop", log)
                 log.write("PASS runtime-stop OK\n")
 
-                deadline = time.monotonic() + args.timeout
-                while True:
-                    status = require_return(qmp_execute(sock, sock_file, "query-status", events), "query-status")
-                    if status.get("status") == "paused" and status.get("running") is False:
-                        break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError(f"runtime did not enter paused status: {status}")
-                    time.sleep(0.05)
+                # STOP reply 本身就是 CPU pause-point 的确认，不再容许先回复、
+                # 后暂停的竞态窗口。
+                status = require_return(
+                    qmp_execute(sock, sock_file, "query-status", events),
+                    "query-status",
+                )
+                if status.get("status") != "paused" or status.get("running") is not False:
+                    raise RuntimeError(f"STOP replied before CPU entered paused state: {status}")
                 log.write(f"PASS runtime-query-status-paused {status['status']}\n")
 
                 blockstats = require_return(qmp_execute(sock, sock_file, "query-blockstats", events), "query-blockstats")
@@ -894,14 +1434,13 @@ def run_query_runtime(args, log):
                 require_event_count(events, "RESUME", 2, "runtime-event-resume-after-stop", log)
                 log.write("PASS runtime-cont-after-stop OK\n")
 
-                deadline = time.monotonic() + args.timeout
-                while True:
-                    status = require_return(qmp_execute(sock, sock_file, "query-status", events), "query-status")
-                    if status.get("status") == "running" and status.get("running") is True:
-                        break
-                    if time.monotonic() >= deadline:
-                        raise RuntimeError(f"runtime did not resume running status: {status}")
-                    time.sleep(0.05)
+                # CONT reply 同理确认 CPU 已离开 pause wait。
+                status = require_return(
+                    qmp_execute(sock, sock_file, "query-status", events),
+                    "query-status",
+                )
+                if status.get("status") != "running" or status.get("running") is not True:
+                    raise RuntimeError(f"CONT replied before CPU resumed: {status}")
                 log.write(f"PASS runtime-query-status-resumed {status['status']}\n")
 
                 require_return(qmp_execute(sock, sock_file, "quit", events), "quit")
@@ -916,12 +1455,89 @@ def run_query_runtime(args, log):
         kill_and_wait(proc)
         raise
     finally:
-        if os.path.exists(args.runtime_overlay_image):
-            os.unlink(args.runtime_overlay_image)
+        remove_overlay(args.runtime_overlay_image, args.block_image)
+
+
+def run_runtime_stop_disconnect(args, log):
+    payload_identity = None
+    payload_identity = write_guest_spin_image(args.disconnect_image)
+
+    port = reserve_port()
+    cmd = [
+        args.nemu,
+        "-b",
+        "--max-insts=1000000000",
+        f"--qmp={port}",
+        f"--log={args.disconnect_nemu_log}",
+        "-i",
+        args.disconnect_image,
+    ]
+
+    log.write(f"runtime-disconnect-command: {' '.join(cmd)}\n")
+    log.flush()
+    case_output_start = os.lseek(log.fileno(), 0, os.SEEK_CUR)
+    proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+    try:
+        with connect_with_retry(port, time.monotonic() + args.timeout) as sock:
+            with sock.makefile("rwb", buffering=0) as sock_file:
+                events = []
+                greeting = recv_json_line(sock_file)
+                if "QMP" not in greeting:
+                    raise RuntimeError(
+                        f"missing QMP greeting for runtime disconnect: {greeting}"
+                    )
+                require_return(
+                    qmp_execute(sock, sock_file, "qmp_capabilities", events),
+                    "qmp_capabilities",
+                )
+                require_return(qmp_execute(sock, sock_file, "cont", events), "cont")
+                require_event_count(
+                    events, "RESUME", 1, "disconnect-event-resume", log
+                )
+                require_return(qmp_execute(sock, sock_file, "stop", events), "stop")
+                require_event_count(events, "STOP", 1, "disconnect-event-stop", log)
+
+                status = require_return(
+                    qmp_execute(sock, sock_file, "query-status", events),
+                    "query-status",
+                )
+                if status.get("status") != "paused" or status.get("running") is not False:
+                    raise RuntimeError(
+                        f"STOP replied before disconnect case actually paused: {status}"
+                    )
+                log.write("PASS runtime-disconnect-actually-paused\n")
+                sock.shutdown(socket.SHUT_RDWR)
+
+        try:
+            rc = proc.wait(timeout=args.timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                "NEMU hung after paused runtime QMP client disconnected"
+            ) from exc
+        if rc != 1:
+            raise RuntimeError(f"runtime QMP disconnect returned rc={rc}, expected 1")
+        log.flush()
+        with open(args.log, "rb") as case_output:
+            case_output.seek(case_output_start)
+            content = case_output.read().decode("utf-8", errors="replace")
+        for marker in (
+            "QMP CPU paused",
+            "QMP runtime client disconnected unexpectedly; requesting NEMU abort",
+            "QMP CPU resumed",
+        ):
+            if marker not in content:
+                raise RuntimeError(f"runtime disconnect path missing log marker: {marker}")
+        log.write("PASS runtime-qmp-disconnect-fail-closed rc=1\n")
+    except Exception:
+        kill_and_wait(proc)
+        raise
+    finally:
+        unlink_owned_artifact(args.disconnect_image, payload_identity)
 
 
 def run_system_powerdown(args, log):
-    write_guest_spin_image(args.system_powerdown_image)
+    payload_identity = None
+    payload_identity = write_guest_spin_image(args.system_powerdown_image)
 
     port = reserve_port()
     cmd = [
@@ -976,12 +1592,12 @@ def run_system_powerdown(args, log):
         kill_and_wait(proc)
         raise
     finally:
-        if os.path.exists(args.system_powerdown_image):
-            os.unlink(args.system_powerdown_image)
+        unlink_owned_artifact(args.system_powerdown_image, payload_identity)
 
 
 def run_guest_shutdown_event(args, log):
-    write_guest_poweroff_image(args.guest_shutdown_image)
+    payload_identity = None
+    payload_identity = write_guest_poweroff_image(args.guest_shutdown_image)
 
     port = reserve_port()
     cmd = [
@@ -1037,8 +1653,7 @@ def run_guest_shutdown_event(args, log):
         kill_and_wait(proc)
         raise
     finally:
-        if os.path.exists(args.guest_shutdown_image):
-            os.unlink(args.guest_shutdown_image)
+        unlink_owned_artifact(args.guest_shutdown_image, payload_identity)
 
 
 def main() -> int:
@@ -1049,11 +1664,13 @@ def main() -> int:
     parser.add_argument("--cont-nemu-log", required=True)
     parser.add_argument("--block-nemu-log", required=True)
     parser.add_argument("--runtime-nemu-log", required=True)
+    parser.add_argument("--disconnect-nemu-log", required=True)
     parser.add_argument("--system-powerdown-nemu-log", required=True)
     parser.add_argument("--guest-shutdown-nemu-log", required=True)
     parser.add_argument("--block-image", required=True)
     parser.add_argument("--overlay-image", required=True)
     parser.add_argument("--runtime-overlay-image", required=True)
+    parser.add_argument("--disconnect-image", required=True)
     parser.add_argument("--system-powerdown-image", required=True)
     parser.add_argument("--guest-shutdown-image", required=True)
     parser.add_argument("--firmware", required=True)
@@ -1065,12 +1682,18 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=10.0)
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.log), exist_ok=True)
+    validate_artifact_paths(args)
+    log_parent = os.path.dirname(args.log)
+    if log_parent:
+        os.makedirs(log_parent, exist_ok=True)
     with open(args.log, "w", encoding="utf-8") as log:
+        run_qmp_gdbstub_conflict(args, log)
+        run_startup_disconnect(args, log)
         run_query_quit(args, log)
         run_query_cont(args, log)
         run_query_block_attached(args, log)
         run_query_runtime(args, log)
+        run_runtime_stop_disconnect(args, log)
         run_system_powerdown(args, log)
         run_guest_shutdown_event(args, log)
         log.write("__NEMU_QMP_SMOKE__:ok\n")

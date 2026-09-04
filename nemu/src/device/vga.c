@@ -39,6 +39,12 @@ static uint32_t screen_size() {
 // 把两者区分开可以避免把“写像素”和“触发刷新”混成同一种动作。
 static void *vmem = NULL;
 static uint32_t *vgactl_port_base = NULL;
+/*
+ * AM guest 绘图后会显式写 vgactl.sync；Linux simplefb 不知道这个私有
+ * 寄存器，只会写 framebuffer 内存。通过 IOMap 回调跟踪显存写入，让两种
+ * guest 契约共用同一个 SDL presenter，同时不要求 Linux 使用 NEMU 私有驱动。
+ */
+static bool vmem_dirty = false;
 
 static const IoRegisterDescriptor vga_control_registers[]
     __attribute__((unused)) = {
@@ -68,6 +74,12 @@ static const IoAccessPolicy vga_control_mmio_policy
   .register_count = ARRLEN(vga_control_registers),
 };
 
+static void vmem_io_handler(uint32_t offset, int len, bool is_write) {
+  (void)offset;
+  (void)len;
+  if (is_write) vmem_dirty = true;
+}
+
 #ifdef CONFIG_VGA_SHOW_SCREEN
 #ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
@@ -79,22 +91,30 @@ static SDL_Texture *texture = NULL;
 static void init_screen() {
   SDL_Window *window = NULL;
   char title[128];
-  sprintf(title, "%s-NEMU", str(__GUEST_ISA__));
-  SDL_Init(SDL_INIT_VIDEO);
-  SDL_CreateWindowAndRenderer(
+  snprintf(title, sizeof(title), "%s-NEMU", str(__GUEST_ISA__));
+  int rc = SDL_Init(SDL_INIT_VIDEO);
+  Assert(rc == 0, "SDL video 初始化失败: %s", SDL_GetError());
+  rc = SDL_CreateWindowAndRenderer(
       SCREEN_W * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)),
       SCREEN_H * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)),
       0, &window, &renderer);
+  Assert(rc == 0 && window != NULL && renderer != NULL,
+      "SDL 窗口/renderer 创建失败: %s", SDL_GetError());
   SDL_SetWindowTitle(window, title);
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
       SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
+  Assert(texture != NULL, "SDL framebuffer texture 创建失败: %s", SDL_GetError());
   SDL_RenderPresent(renderer);
 }
 
 static inline void update_screen() {
-  SDL_UpdateTexture(texture, NULL, vmem, SCREEN_W * sizeof(uint32_t));
-  SDL_RenderClear(renderer);
-  SDL_RenderCopy(renderer, texture, NULL, NULL);
+  int rc = SDL_UpdateTexture(texture, NULL, vmem,
+      SCREEN_W * sizeof(uint32_t));
+  Assert(rc == 0, "SDL framebuffer 上传失败: %s", SDL_GetError());
+  rc = SDL_RenderClear(renderer);
+  Assert(rc == 0, "SDL renderer 清屏失败: %s", SDL_GetError());
+  rc = SDL_RenderCopy(renderer, texture, NULL, NULL);
+  Assert(rc == 0, "SDL framebuffer 呈现失败: %s", SDL_GetError());
   SDL_RenderPresent(renderer);
 }
 #else
@@ -112,9 +132,14 @@ void vga_update_screen() {
   // 修复：update_screen() 仅在 CONFIG_VGA_SHOW_SCREEN 下定义；不显示屏(如 difftest
   // 共享库构建)时本函数应为 no-op，否则 implicit-declaration 编译失败(warning-as-error)。
 #ifdef CONFIG_VGA_SHOW_SCREEN
-  if (vgactl_port_base[1] != 0) {
+  bool auto_scanout_dirty = false;
+#ifdef CONFIG_VGA_AUTO_SCANOUT
+  auto_scanout_dirty = vmem_dirty;
+#endif
+  if (vgactl_port_base[1] != 0 || auto_scanout_dirty) {
     update_screen();
     vgactl_port_base[1] = 0;
+    vmem_dirty = false;
   }
 #endif
 }
@@ -133,7 +158,10 @@ void init_vga() {
 
   //分配一整块vmem，并映射到FB地址
   vmem = new_space(screen_size());
-  add_mmio_map("vmem", DEV_FB_ADDR, vmem, screen_size(), NULL);
+  add_mmio_map("vmem", DEV_FB_ADDR, vmem, screen_size(), vmem_io_handler);
   IFDEF(CONFIG_VGA_SHOW_SCREEN, init_screen());
-  IFDEF(CONFIG_VGA_SHOW_SCREEN, memset(vmem, 0, screen_size()));
+  IFDEF(CONFIG_VGA_SHOW_SCREEN, {
+    memset(vmem, 0, screen_size());
+    vmem_dirty = true;
+  });
 }

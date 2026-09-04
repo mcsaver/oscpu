@@ -47,7 +47,7 @@
 #define OPC_OP_32  0x3b//ADDW/SUBW/MULW等
 #define OPC_MADD   0x43//FMADD
 #define OPC_MSUB   0x47//FMSUB
-#define OPC_NMSUB  0x4b//FNMADD
+#define OPC_NMSUB  0x4b//FNMSUB
 #define OPC_NMADD  0x4f//FNMADD
 #define OPC_OP_FP  0x53//其他FP算术、转换、比较
 #define OPC_LUI    0x37//LUI
@@ -56,11 +56,13 @@
 #define OPC_JAL    0x6f//JAL
 #define OPC_SYSTEM 0x73//ECALL、CSR、xRET、WFI等
 
+//构造key[9:3]=funct7、key[2:0]=funct3
 #define OP_KEY(funct3, funct7) ((((funct7) & 0x7f) << 3) | ((funct3) & 0x7))
 #define SHAMT5(value) ((value) & 0x1f)
 #define SHAMT_XLEN(value) ((value) & (XLEN_BITS - 1))
-#define BAD_DECODE() return false
+#define BAD_DECODE() return false//当前译码失败，返回类型为bool的函数
 
+//static内联、inline直接小函数展开，减少调用函数开销
 static inline bool rv_runtime_env_enabled_default_true(const char *name) {
 #ifndef CONFIG_TARGET_AM
   const char *env = getenv(name);
@@ -76,6 +78,8 @@ static inline bool rv_runtime_env_enabled_default_true(const char *name) {
  * 这两个 helper 放在 csr.c 与 fp.c 之前的公共层，确保显式 CSR 访问和
  * 浮点指令走完全相同的状态门控与 Dirty 更新。
  */
+//同时检查两层编译出来的模拟器有没有实现 F？
+//当前软件有没有把 FS 从 Off 打开？
 static inline bool fp_state_enabled(void) {
 #ifdef CONFIG_RISCV_EXT_F
   return (cpu.csr.mstatus & MSTATUS_FS_MASK) != 0;
@@ -84,8 +88,9 @@ static inline bool fp_state_enabled(void) {
 #endif
 }
 
+//定义“浮点状态已被修改”的helper
 static inline void fp_mark_dirty(void) {
-  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_FS_MASK) | MSTATUS_FS_DIRTY;
+  cpu.csr.mstatus = (cpu.csr.mstatus & ~MSTATUS_FS_MASK) | MSTATUS_FS_DIRTY;//本质上是清楚原FS字段，然后写入11
 }
 
 /*
@@ -98,8 +103,8 @@ static inline bool rv_instruction_target_valid(word_t target) {
   (void)target;
   return true;
 #else
-  if ((target & (word_t)0x3) == 0) return true;
-  vaddr_set_fault(CAUSE_INST_MISALIGNED, target);
+  if ((target & (word_t)0x3) == 0) return true;//目标地址是4-byte aligned，检查目标低两位是不是00
+  vaddr_set_fault(CAUSE_INST_MISALIGNED, target);//记录，cause=instruction-address-misaligned，tval=目标出错地址
   return false;
 #endif
 }
@@ -108,22 +113,35 @@ static inline bool rv_instruction_target_valid(word_t target) {
  * 按手册语义触发 Illegal Instruction 异常，并将出错指令写入 mtval。
  * 非法编码与可选 decode cache 无关，因此异常入口必须位于共享指令层。
  */
+//1.非法编码需要产生illegal instrction
+//2.原始指令编码作为trap value
+//3.这条路径不能依赖decode cache
+//尽管是写入mtval，更精确的说应该是写入目标特权级对应的xtval
+//1.trap进入M-mode：写mtval
+//2.异常委托给S-mode：写stval
 static inline void raise_illegal_instruction_exception(Decode *s,
                                                         uint32_t instruction) {
+
+  //CAUSE_ILLEGAL_INST表示异常原因Illegal instruction，其中riscv中illegal instruction的exception code 是cause=2
+  //cause = Illegal Instruction
+  //epc   = 当前出错指令的 PC
+  //tval  = 出错的 instruction encoding
   s->dnpc = isa_raise_intr_with_tval(CAUSE_ILLEGAL_INST, s->pc, instruction);
-  R(0) = 0;
+  R(0) = 0;//避免进入异常处理后错过架构x0=0
 }
 
 bool isa_riscv64_decode_cache_is_enabled = NEMU_RV64_DECODE_CACHE != 0;
 
+//GCC/Clang拓展：让紧接着的函数在main()之前执行
 __attribute__((constructor))
 static void rv_runtime_config_init(void) {
 #if NEMU_RV64_DECODE_CACHE
   isa_riscv64_decode_cache_is_enabled =
-    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");
+    rv_runtime_env_enabled_default_true("NEMU_INTERPRETER_DECODE_CACHE");//读取NEMU_INTERPRETER_DECODE_CACHE环境变量，未设置或者不是0开启，精确等于0就关闭
 #endif
 }
 
+//CSR调试日志
 #ifdef CONFIG_RISCV_DEBUG_LOG
 static int csr_boot_log_budget = 8;
 #define CSR_DEBUG_LOG(...) do { \

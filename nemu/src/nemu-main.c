@@ -20,6 +20,9 @@ void init_monitor(int, char *[]);
 void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
+#ifdef CONFIG_HAS_DISK
+bool virtio_blk_shutdown(void);
+#endif
 
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
@@ -36,5 +39,19 @@ int main(int argc, char *argv[]) {
   engine_start();//把执行权交给解释器
 
   //检查仿真是否以良好状态退出
-  return is_exit_status_bad();//根据NEMU最终状态决定宿主进程返回0还是1
+  int exit_status = is_exit_status_bad();
+#ifdef CONFIG_HAS_DISK
+  /*
+   * A reboot exit code is permission for the host supervisor to start a new
+   * process.  Publish it only after all pending block I/O and overlay metadata
+   * are durable; otherwise turn the lifecycle transition into a hard failure
+   * so the next boot cannot silently observe stale overlay ownership bits.
+   */
+  if (!virtio_blk_shutdown()) {
+    fprintf(stderr,
+        "nemu: block storage shutdown failed; suppressing guest reboot/poweroff success\n");
+    exit_status = EXIT_FAILURE;
+  }
+#endif
+  return exit_status;
 }

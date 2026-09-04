@@ -46,7 +46,9 @@ void isa_riscv64_plic_statistic(void);
 void isa_riscv64_plic_dump_machine_info(FILE *out);
 void isa_riscv64_plic_qmp_snapshot(char *out, size_t out_size);
 #endif
+void isa_riscv64_begin_exec(void);
 void isa_riscv64_post_exec(void);
+void isa_riscv64_mark_sync_exception(void);
 void isa_riscv64_reset(void);
 void isa_riscv64_restart(void);
 void isa_riscv64_mmu_tlb_flush(void);

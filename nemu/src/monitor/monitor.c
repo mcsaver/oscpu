@@ -33,6 +33,7 @@ void init_device();
 void disk_set_image(const char *path);
 void disk_set_overlay(const char *path);
 void virtio_blk_dump_machine_info(FILE *out);
+bool virtio_blk_shutdown(void);
 #endif
 #ifdef CONFIG_HAS_SERIAL
 void serial_dump_machine_info(FILE *out);
@@ -43,6 +44,9 @@ void virtio_net_set_tap(const char *ifname);
 #endif
 #ifdef CONFIG_HAS_VIRTIO_RNG
 void virtio_rng_dump_machine_info(FILE *out);
+#endif
+#ifdef CONFIG_HAS_VIRTIO_INPUT
+void virtio_input_dump_machine_info(FILE *out);
 #endif
 #ifdef CONFIG_HAS_GOLDFISH_RTC
 void goldfish_rtc_dump_machine_info(FILE *out);
@@ -65,6 +69,7 @@ static void welcome() {
 #ifndef CONFIG_TARGET_AM
 #include <errno.h>
 #include <getopt.h>
+#include "monitor.h"
 #include "sdb/sdb.h"
 #include "qmp.h"
 #include "gdbstub.h"
@@ -83,6 +88,19 @@ static bool boot_hartid_valid = false;
 static bool boot_dtb_valid = false;
 static word_t boot_hartid = 0;
 static word_t boot_dtb = 0;
+
+void monitor_apply_boot_arguments(void) {
+#if defined(CONFIG_ISA_riscv)
+  if (boot_hartid_valid) {
+    cpu.gpr[10] = boot_hartid;
+    Log("Boot argument a0/hartid = " FMT_WORD, boot_hartid);
+  }
+  if (boot_dtb_valid) {
+    cpu.gpr[11] = boot_dtb;
+    Log("Boot argument a1/dtb = " FMT_WORD, boot_dtb);
+  }
+#endif
+}
 
 #define NEMU_MAX_LOAD_IMAGES 16
 
@@ -338,7 +356,8 @@ static void dump_machine_info(FILE *out) {
   const unsigned virtio_mmio_slots =
       (ISDEF(CONFIG_HAS_DISK) ? 1u : 0u) +
       (ISDEF(CONFIG_HAS_VIRTIO_RNG) ? 1u : 0u) +
-      (ISDEF(CONFIG_HAS_VIRTIO_NET) ? 1u : 0u);
+      (ISDEF(CONFIG_HAS_VIRTIO_NET) ? 1u : 0u) +
+      (ISDEF(CONFIG_HAS_VIRTIO_INPUT) ? 1u : 0u);
   fprintf(out, "platform.virtio_transport=%s\n",
       virtio_mmio_slots != 0 ? "mmio" : "none");
   fprintf(out, "platform.virtio_mmio_slots=%u\n", virtio_mmio_slots);
@@ -487,6 +506,23 @@ static void dump_machine_info(FILE *out) {
 #endif
 #endif
 
+#ifdef CONFIG_SOC_SIM
+  machine_info_write_bool(out, "device.virtio_input.enabled", false);
+  fprintf(out, "device.virtio_input.provider=none\n");
+#else
+  machine_info_write_bool(out, "device.virtio_input.enabled",
+      ISDEF(CONFIG_HAS_VIRTIO_INPUT));
+#ifdef CONFIG_HAS_VIRTIO_INPUT
+  machine_info_write_hex(out, "device.virtio_input.mmio",
+      DEV_VIRTIO_INPUT_MMIO);
+  fprintf(out, "device.virtio_input.irq=7\n");
+  fprintf(out, "device.virtio_input.provider=iomap\n");
+  virtio_input_dump_machine_info(out);
+#else
+  fprintf(out, "device.virtio_input.provider=none\n");
+#endif
+#endif
+
   machine_info_write_bool(out, "device.syscon_reset.enabled", ISDEF(CONFIG_HAS_SYSCON_RESET));
 #ifdef CONFIG_HAS_SYSCON_RESET
   machine_info_write_hex(out, "device.syscon_reset.mmio", DEV_SYSCON_RESET_MMIO);
@@ -510,10 +546,31 @@ static void dump_machine_info_and_exit() {
   }
   // 这里导出的是已初始化后的机器契约，用于 e2e 在不开 guest 的情况下验证 VM 形态。
   dump_machine_info(out);
-  if (out != stdout) {
-    fclose(out);
+  int output_errno = 0;
+  if (fflush(out) != 0) {
+    output_errno = errno != 0 ? errno : EIO;
+  } else if (ferror(out)) {
+    output_errno = EIO;
   }
-  exit(0);
+  if (out != stdout) {
+    if (fclose(out) != 0 && output_errno == 0) {
+      output_errno = errno != 0 ? errno : EIO;
+    }
+  }
+  int exit_status = EXIT_SUCCESS;
+  if (output_errno != 0) {
+    fprintf(stderr, "nemu: can not finish machine-info output '%s': %s\n",
+        machine_info_file, strerror(output_errno));
+    exit_status = EXIT_FAILURE;
+  }
+#ifdef CONFIG_HAS_DISK
+  if (!virtio_blk_shutdown()) {
+    fprintf(stderr,
+        "nemu: block storage shutdown failed during machine-info; forcing failure\n");
+    exit_status = EXIT_FAILURE;
+  }
+#endif
+  exit(exit_status);
 }
 
 static void run_monitor_cmds_and_exit() {
@@ -535,7 +592,15 @@ static void run_monitor_cmds_and_exit() {
   if (nemu_state.state == NEMU_STOP) {
     nemu_state.state = NEMU_QUIT;
   }
-  exit(is_exit_status_bad());
+  int exit_status = is_exit_status_bad();
+#ifdef CONFIG_HAS_DISK
+  if (!virtio_blk_shutdown()) {
+    fprintf(stderr,
+        "nemu: block storage shutdown failed during monitor-command; forcing failure\n");
+    exit_status = EXIT_FAILURE;
+  }
+#endif
+  exit(exit_status);
 }
 
 /* 用于解析命令行参数 */
@@ -642,13 +707,13 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t-b,--batch              run with batch mode\n");
         printf("\t-i,--image=FILE         load main image at reset vector\n");
         printf("\t   --load=ADDR:FILE     load extra image at physical address\n");
-        printf("\t   --max-insts=N        stop batch run after N retired instructions\n");
+        printf("\t   --max-insts=N        stop batch run after N dispatched instruction attempts\n");
         printf("\t   --boot-hartid=N      set boot argument a0 before guest start\n");
         printf("\t   --boot-dtb=ADDR      set boot argument a1 before guest start\n");
         printf("\t   --machine-info=FILE  dump initialized machine/device contract and exit\n");
         printf("\t   --monitor-cmd=CMD    run one SDB command after init and exit (repeatable)\n");
-        printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit\n");
-        printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost\n");
+        printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit (exclusive with --gdbstub)\n");
+        printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost (exclusive with --qmp)\n");
         printf("\t   --net-tap=IFNAME     attach virtio-net to an existing host TAP interface\n");
         printf("\t   --tohost=ADDR        stop when a riscv-tests/ACT4 tohost word becomes non-zero\n");
         printf("\t   --block=FILE         attach block image (Linux path placeholder)\n");
@@ -668,6 +733,12 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Parse arguments. */
   parse_args(argc, argv);//解析主镜像、磁盘、DTB、hartid、日志、difftest、QMP、GDB等参数
+  if (qmp_is_enabled() && gdbstub_is_enabled()) {
+    fprintf(stderr,
+        "nemu: --qmp and --gdbstub cannot be enabled together; "
+        "both own CPU run-control\n");
+    exit(EXIT_FAILURE);
+  }
 
   /* Set random seed. */
   //初始化随机数种子
@@ -704,14 +775,7 @@ void init_monitor(int argc, char *argv[]) {
   //然后设置启动ABI
   //a0/x10=boot hart id
   //a1/x11 = dtb地址
-  if (boot_hartid_valid) {
-    cpu.gpr[10] = boot_hartid;
-    Log("Boot argument a0/hartid = " FMT_WORD, boot_hartid);
-  }
-  if (boot_dtb_valid) {
-    cpu.gpr[11] = boot_dtb;
-    Log("Boot argument a1/dtb = " FMT_WORD, boot_dtb);
-  }
+  monitor_apply_boot_arguments();
 
   dump_machine_info_and_exit();
 
@@ -735,8 +799,18 @@ void init_monitor(int argc, char *argv[]) {
   IFDEF(CONFIG_FTRACE, init_ftrace(elf_file));
 
   //初始化qmp
-  if (qmp_wait_for_client_if_enabled()) {
-    exit(0);
+  QMPStartupResult qmp_startup_result = qmp_wait_for_client_if_enabled();
+  if (qmp_startup_result != QMP_STARTUP_RUN_GUEST) {
+    int exit_status = qmp_startup_result == QMP_STARTUP_EXIT_SUCCESS ?
+      EXIT_SUCCESS : EXIT_FAILURE;
+#ifdef CONFIG_HAS_DISK
+    if (!virtio_blk_shutdown()) {
+      fprintf(stderr,
+          "nemu: block storage shutdown failed during startup QMP exit; forcing failure\n");
+      exit_status = EXIT_FAILURE;
+    }
+#endif
+    exit(exit_status);
   }
   //初始化gdb
   gdbstub_wait_for_client_if_enabled();

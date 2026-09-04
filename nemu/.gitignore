@@ -4,6 +4,8 @@
 !*.mk
 !Makefile
 !*.[cSh]
+!*.sh
+!scripts/safe-flock.py
 !*.cc
 !*.inc
 !.gitignore

@@ -25,7 +25,16 @@
 
 // ----------- state -----------
 
-enum { NEMU_RUNNING, NEMU_STOP, NEMU_END, NEMU_ABORT, NEMU_QUIT };
+enum { NEMU_RUNNING, NEMU_STOP, NEMU_END, NEMU_ABORT, NEMU_QUIT, NEMU_REBOOT };
+
+/*
+ * A guest-requested reboot is a successful machine lifecycle transition, but
+ * it must remain distinguishable from both a normal poweroff (0) and a NEMU
+ * failure (1).  Keep this value in the portable shell exit-status range so a
+ * host-side supervisor can restart a fresh NEMU process without attempting an
+ * incomplete in-process warm reset.
+ */
+#define NEMU_REBOOT_EXIT_STATUS 32
 
 typedef struct {
   // QMP runtime thread may request quit while the CPU loop observes the state.
@@ -40,6 +49,7 @@ typedef struct {
 } NEMUState;
 
 extern NEMUState nemu_state;
+/* Legacy name: callers use the returned value directly as the host exit code. */
 int is_exit_status_bad(void);
 
 // ----------- timer -----------

@@ -20,7 +20,7 @@ COLOR_RED := $(shell echo "\033[1;31m")
 COLOR_END := $(shell echo "\033[0m")
 
 ##如果当前目录下没有有.config配置文件时候，输出警告
-ifeq ($(wildcard .config),)
+ifeq ($(wildcard $(NEMU_DOT_CONFIG)),)
 $(warning $(COLOR_RED)Warning: .config does not exist!$(COLOR_END))
 $(warning $(COLOR_RED)To build the project, first run 'make menuconfig'.$(COLOR_END))
 endif
@@ -36,7 +36,8 @@ FIXDEP_PATH  := $(YSYX_HOME)/tool/fixdep
 ##定义变量Kconfig，指向主配置文件Kconfig的路径：此文件描述了可配置项和依赖关系，是menuconfig系统的核心入口
 Kconfig      := $(NEMU_HOME)/Kconfig
 ##作用：把这些路径都追加到rm-distclean变量中：rm-distclean用于distclean目标，表示在执行make distance时要删除的文件和目录（如自动生成的配置和缓存文件）
-rm-distclean += include/generated include/config .config .config.old
+rm-distclean += $(NEMU_CONFIG_DIR)/include/generated \
+  $(NEMU_CONFIG_DIR)/include/config $(NEMU_DOT_CONFIG) $(NEMU_DOT_CONFIG).old
 ##定义变量silent，内容为-s，-s是GNU Make的静默选项，表示在执行make时不输出命令本身，只输出命令结果，常用于子make调用，减少终端噪音
 silent := -s
 
@@ -50,6 +51,12 @@ MCONF  := $(KCONFIG_PATH)/build/mconf
 ##fixdep是一个依赖关系处理工具，用于自动生成和修正依赖文件（比如头文件依赖）
 ##用途：makefile里用$(FIXDEP)调用它，保证依赖关系正确
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
+NEMU_SAFE_FLOCK := $(NEMU_HOME)/scripts/safe-flock.py
+KCONFIG_TOOL_INPUTS := $(wildcard $(KCONFIG_PATH)/*.c $(KCONFIG_PATH)/*.h \
+  $(KCONFIG_PATH)/*.l $(KCONFIG_PATH)/*.y $(KCONFIG_PATH)/lxdialog/*) \
+  $(KCONFIG_PATH)/Makefile $(YSYX_HOME)/scripts/build.mk
+FIXDEP_TOOL_INPUTS := $(wildcard $(FIXDEP_PATH)/*.c $(FIXDEP_PATH)/*.h) \
+  $(FIXDEP_PATH)/Makefile $(YSYX_HOME)/scripts/build.mk
 ##以上这三行代码分别为Kconfig系统的命令行配置工具、菜单配置工具和依赖修正工具定义了变量，方便后续在makefile里同一调用
 ##这样做可以让构建系统更灵活、更容易维护、也方便跨平台和自动化构建
 
@@ -60,29 +67,52 @@ FIXDEP := $(FIXDEP_PATH)/build/fixdep
 ##-c...表示切换掉KCONFIG_PATH目录下执行make
 ##NAME=conf传递变量，告诉zimake构建conf这个目标
 ##效果：在kconfig目录下编译出build/conf这个工具
-$(CONF):
-	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=conf
+$(CONF): $(KCONFIG_TOOL_INPUTS)
+	$(Q)mkdir -p $(KCONFIG_PATH)/build
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(KCONFIG_PATH)/build/.build.lock" -- \
+	  $(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=conf \
+	    BUILD_DIR=$(KCONFIG_PATH)/build
 
 ##如上
-$(MCONF):
-	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=mconf
+$(MCONF): $(KCONFIG_TOOL_INPUTS)
+	$(Q)mkdir -p $(KCONFIG_PATH)/build
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(KCONFIG_PATH)/build/.build.lock" -- \
+	  $(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=mconf \
+	    BUILD_DIR=$(KCONFIG_PATH)/build
 
 ##如上
-$(FIXDEP):
-	$(Q)$(MAKE) $(silent) -C $(FIXDEP_PATH)
+$(FIXDEP): $(FIXDEP_TOOL_INPUTS)
+	$(Q)mkdir -p $(FIXDEP_PATH)/build
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(FIXDEP_PATH)/build/.build.lock" -- \
+	  $(MAKE) $(silent) -C $(FIXDEP_PATH) \
+	    BUILD_DIR=$(FIXDEP_PATH)/build
 
 ##menconfig:这是一个makefile目标，表示可以通过make menuconfig命令来触发它
 ##冒号后是依赖目标，意思是在执行menucong前确保mconf\conf\fixdep这三个工具已经编译好，如果它们不存在，会自动去编译生成
+# Keep the writer lock outside build/: the default clean target removes that
+# whole directory, and unlinking a held lock would let a second writer acquire
+# a different inode under the same pathname.
+KCONFIG_LOCK := $(NEMU_HOME_REAL)/build.kconfig.lock
+KCONFIG_OUTPUT_DIRS := $(NEMU_CONFIG_DIR)/include/config \
+  $(NEMU_CONFIG_DIR)/include/generated
+
 menuconfig: $(MCONF) $(CONF) $(FIXDEP)
-	$(Q)$(MCONF) $(Kconfig)
-	$(Q)$(CONF) $(silent) --syncconfig $(Kconfig)
+	$(Q)mkdir -p $(KCONFIG_OUTPUT_DIRS) $(dir $(KCONFIG_LOCK))
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(KCONFIG_LOCK)" -- \
+	  sh -eu -c '"$$1" "$$4"; "$$2" "$$3" --syncconfig "$$4"' \
+	  sh "$(MCONF)" "$(CONF)" "$(silent)" "$(Kconfig)"
 
 savedefconfig: $(CONF)
-	$(Q)$< $(silent) --$@=configs/defconfig $(Kconfig)
+	$(Q)mkdir -p $(KCONFIG_OUTPUT_DIRS) $(dir $(KCONFIG_LOCK))
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(KCONFIG_LOCK)" -- \
+	  "$<" "$(silent)" "--$@=configs/defconfig" "$(Kconfig)"
 
 %defconfig: $(CONF) $(FIXDEP)
-	$(Q)$< $(silent) --defconfig=configs/$@ $(Kconfig)
-	$(Q)$< $(silent) --syncconfig $(Kconfig)
+	$(Q)mkdir -p $(KCONFIG_OUTPUT_DIRS) $(dir $(KCONFIG_LOCK))
+	$(Q)python3 "$(NEMU_SAFE_FLOCK)" "$(KCONFIG_LOCK)" -- \
+	  sh -eu -c '"$$1" "$$2" "--defconfig=$$3" "$$4"; \
+	    "$$1" "$$2" --syncconfig "$$4"' \
+	  sh "$<" "$(silent)" "configs/$@" "$(Kconfig)"
 
 .PHONY: menuconfig savedefconfig defconfig
 
@@ -91,8 +121,20 @@ help:
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
 	@echo  '  savedefconfig   - Save current config as configs/defconfig (minimal config)'
 
+ifeq ($(NEMU_BUILD_LOCK_HELD),1)
 distclean: clean
 	-@rm -rf $(rm-distclean)
+else
+# `clean` and the Kconfig removals are one transaction.  Taking the locks in a
+# `clean` prerequisite and reacquiring them here would leave a window in which
+# a concurrent builder could start before its generated headers are removed.
+distclean:
+	@mkdir -p $(dir $(NEMU_BUILD_LOCK)) $(dir $(KCONFIG_LOCK))
+	@python3 "$(NEMU_SAFE_FLOCK)" \
+	  "$(NEMU_BUILD_LOCK)" "$(KCONFIG_LOCK)" -- \
+	  $(MAKE) --no-print-directory NEMU_BUILD_LOCK_HELD=1 \
+	    NEMU_OUTER_CONFIG_PARSE_ID="$(NEMU_CONFIG_PARSE_ID)" distclean
+endif
 
 .PHONY: help distclean
 

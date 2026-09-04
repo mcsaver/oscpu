@@ -354,42 +354,33 @@ module tb_csr_file;
     tb_check1("inactive probe does not mask main illegality",
               dut.csr_access_illegal_w, 1'b1);
 
+    // 本核尚未实现 Trigger Module；不能用合法 no-op CSR 伪装 Sdtrig+0。
+    // main/probe 两个视图对每个曾伪实现的 trigger CSR 都必须报 illegal。
     drive_csr(`CSR_TSELECT, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check_mirrored_legality("tselect read is legal", 1'b0);
-    tb_check64("tselect reports no usable trigger", csr_rdata, {{(`XLEN-1){1'b0}}, 1'b1});
-
+    tb_check_mirrored_legality("unimplemented tselect read is illegal", 1'b1);
     drive_csr(`CSR_TSELECT, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check_mirrored_legality("tselect write is WARL legal", 1'b0);
-    `TB_TICK(clk);
-    drive_csr(`CSR_TSELECT, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
-    #1;
-    tb_check64("tselect remains hard-wired", csr_rdata, {{(`XLEN-1){1'b0}}, 1'b1});
+    tb_check_mirrored_legality("unimplemented tselect write is illegal", 1'b1);
 
-    drive_csr(`CSR_TDATA1, 3'b001, 5'd1, {`XLEN{1'b1}}, 1'b1);
-    #1;
-    tb_check_mirrored_legality("tdata1 write is legal no-op", 1'b0);
-    `TB_TICK(clk);
     drive_csr(`CSR_TDATA1, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check64("tdata1 unsupported value", csr_rdata, {`XLEN{1'b0}});
-
-    drive_csr(`CSR_TDATA2, 3'b001, 5'd1, 64'h8000_0040, 1'b1);
+    tb_check_mirrored_legality("unimplemented tdata1 read is illegal", 1'b1);
+    drive_csr(`CSR_TDATA1, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check_mirrored_legality("tdata2 write is legal no-op", 1'b0);
-    `TB_TICK(clk);
+    tb_check_mirrored_legality("unimplemented tdata1 write is illegal", 1'b1);
     drive_csr(`CSR_TDATA2, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check64("tdata2 unsupported value", csr_rdata, {`XLEN{1'b0}});
-
-    drive_csr(`CSR_TCONTROL, 3'b010, 5'd1, 64'h8, 1'b1);
+    tb_check_mirrored_legality("unimplemented tdata2 read is illegal", 1'b1);
+    drive_csr(`CSR_TDATA2, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
     #1;
-    tb_check_mirrored_legality("tcontrol csrs is legal no-op", 1'b0);
-    `TB_TICK(clk);
+    tb_check_mirrored_legality("unimplemented tdata2 write is illegal", 1'b1);
     drive_csr(`CSR_TCONTROL, 3'b010, {`REG_ADDR_W{1'b0}}, {`XLEN{1'b0}}, 1'b0);
     #1;
-    tb_check64("tcontrol unsupported value", csr_rdata, {`XLEN{1'b0}});
+    tb_check_mirrored_legality("unimplemented tcontrol read is illegal", 1'b1);
+    drive_csr(`CSR_TCONTROL, 3'b001, 5'd1, {`XLEN{1'b0}}, 1'b1);
+    #1;
+    tb_check_mirrored_legality("unimplemented tcontrol write is illegal", 1'b1);
 
     drive_csr(`CSR_MISA, 3'b111, 5'd4, {`XLEN{1'b0}}, 1'b1);
     #1;
