@@ -3770,7 +3770,7 @@ e2e_nemu_ubuntu_slice_contract() {
     "UBUNTU_ROOTFS_FULL_IMAGE ?= \$(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full.ext4" \
     "UBUNTU_ROOTFS_INTERACTIVE_DIR ?= \$(UBUNTU_IMAGE_DIR)/rootfs-interactive" \
     "UBUNTU_ROOTFS_FULL_DIR ?= \$(UBUNTU_IMAGE_DIR)/rootfs-full" \
-    "UBUNTU_ROOTFS_CPIO_IMAGE ?= \$(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)" \
+    "UBUNTU_ROOTFS_CPIO_IMAGE ?= \$(if \$(filter full standard,\$(UBUNTU_ROOTFS_FLAVOR))" \
     "NEMU_RUN_ROOTFS_OVERLAY ?=" \
     "NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1" \
     "--block-overlay='\$(NEMU_RUN_ROOTFS_OVERLAY)'" \

@@ -65,7 +65,7 @@ devices:
     base: 0x10003000
     size: 0x1000
     irq: 4
-# NEMU rootfs DTB 的 bootargs 真源(Makefile 只追加
-# NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0,不整串覆盖)。
+# NEMU rootfs DTB 的 bootargs 真源；Makefile 的 headless profile 不追加控制台，
+# GUI bundle 通过 NEMU_ROOTFS_BOOTARGS_EXTRA=console=tty0 增加 fbcon/tty1。
 bootargs:
   rootfs: "console=ttyS0,115200n8 root=/dev/vda rw init=/lib/systemd/systemd"

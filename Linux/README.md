@@ -5,8 +5,9 @@
 ## 先看这里：默认命令契约
 
 完整的命令、默认变量、产物路径、验证范围和常见误用统一维护在
-[README-COMMANDS.md](README-COMMANDS.md)。不确定该用哪个目标时，先执行
-`make` 或 `make help`，再执行 `make ARCH=<平台> paths` 查看当前选择的实物路径。
+[README-COMMANDS.md](README-COMMANDS.md)。不确定当前会启动什么时，先执行
+`make show-boot`；需要检查具体产物路径时，再用同一组命令行覆盖执行
+`make paths`。`make` 或 `make help` 只显示入口说明。
 
 在 `Linux/` 目录内直接执行 `make ...`；在仓库根目录执行同一命令时，在前面
 加 `make -C Linux ...`。
@@ -14,20 +15,24 @@
 | 目的 | 在 `Linux/` 目录执行 | 默认行为 |
 | --- | --- | --- |
 | 查看帮助 | `make` 或 `make help` | 只打印帮助，不构建、不启动 guest |
-| 启动 NPC Ubuntu | `make ARCH=riscv64-npc run` | 完整 rootfs，NPC Verilator，串口控制台 |
-| 启动 NEMU Ubuntu | `make ARCH=riscv64-nemu run` | **headless** NEMU；不编译 VGA/SDL，使用 `ttyS0` |
-| 启动 NEMU 图形控制台 | `make run-ubuntu-gui` | 独立 GUI profile；SDL 800x600、simplefb/fbcon/tty1、virtio-input |
+| 配置以后裸 `make run` 的选择 | `make menuconfig` | 只保存 `Linux/.config` 中的宿主启动编排，不改 Linux/NEMU/NPC 的组件 `.config` |
+| 查看当前有效启动项 | `make show-boot` | 不构建、不启动；显示配置来源、平台、BOOT、控制台、rootfs flavor、PID 1 和镜像选择 |
+| 按保存项启动 | `make run` | 使用 `Linux/.config`；文件不存在时回退为 NPC + Ubuntu rootfs + 串口 + systemd-minimal |
+| 强制 NPC 默认 flavor 串口 Ubuntu | `make ARCH=riscv64-npc BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run` | 四项均由命令行指定，不受保存项影响；使用 NPC Verilator 与 `ttyS0` |
+| 强制 NEMU 串口 Ubuntu | `make ARCH=riscv64-nemu BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial run` | NEMU headless；不编译 VGA/SDL，使用 `ttyS0` |
+| 强制 NEMU 图形控制台 | `make run-ubuntu-gui` | 固定 NEMU + Ubuntu rootfs + systemd-minimal GUI profile；SDL 800x600、tty1、virtio-input |
 | 自动验证 GUI | `make check-nemu-gui` | 在 Xvfb 中验证 VGA、tty1 和键盘闭环；通常不弹可见窗口 |
 | 验证 NEMU Ubuntu/systemd | `make check-nemu-systemd-guest` | headless 自动 gate；通过串口驱动 guest 检查并自然关机 |
 | 验证本期 NEMU 演进 | `make check-nemu-evolution` | 聚合 block、reboot、systemd/网络/RNG 与持久化 gate |
 | 查看当前实物路径 | `make ARCH=riscv64-nemu paths` | 打印 kernel、DTB、OpenSBI、rootfs、模拟器等路径 |
 
 > [!IMPORTANT]
-> `ARCH=riscv64-nemu` 只选择 NEMU 平台，**不代表自动启用图形**。
-> 普通 `run` 的默认组合是 `NEMU_DEFCONFIG=riscv64-linux_defconfig`、
-> `LINUX_FEATURE_PROFILE=headless`、`NEMU_DISPLAY=0`。要打开 VGA，请使用
-> `make run-ubuntu-gui`；不要只给普通 `run` 追加 `NEMU_DISPLAY=1`，因为那只会
-> 改变 DTB 开关，不能把 headless NEMU/kernel/rootfs 变成一致的 GUI 构建。
+> 对 `run/prepare/paths/check/show-boot`，`ARCH=riscv64-nemu` 只覆盖平台，
+> **不单独决定控制台**；其余未覆盖项仍来自 `Linux/.config`。因此保存过 NEMU
+> GUI 后，`make ARCH=riscv64-nemu run` 可以打开
+> GUI。要得到不受保存项影响的可见屏幕，使用 `make run-ubuntu-gui`；要强制串口，
+> 显式传 `LINUX_RUN_MODE=serial`。不要只给串口路线追加 `NEMU_DISPLAY=1`，因为它
+> 不能把 NEMU Kconfig、Linux Kconfig、DTB 和 rootfs 原子切换成一致的 GUI 构建。
 
 GUI 正常运行时，原终端仍会显示 `ttyS0`（字母 `S`、数字 `0`）启动日志；
 SDL 窗口显示的是 `tty1`。这是有意保留的双控制台，不表示 VGA 未启动。
@@ -38,37 +43,61 @@ NEMU 命令行中的 `-b` 只关闭交互式 SDB 提示符，也不会关闭 SDL
 | 变量/入口 | 默认值 | 含义 |
 | --- | --- | --- |
 | `make` | `help` | `.DEFAULT_GOAL` 是帮助页 |
-| `ARCH` | `riscv64-npc` | 默认平台；NEMU 必须显式传 `ARCH=riscv64-nemu`，GUI wrapper 除外 |
-| `BOOT` | `ubuntu-rootfs` | 完整 Ubuntu ext4 rootfs；不会静默退化为 initramfs shell |
-| `LINUX_FEATURE_PROFILE` | `headless` | 普通内核不启用 FB/VT 图形控制台 |
-| `NEMU_DEFCONFIG` | `riscv64-linux_defconfig` | 普通 NEMU 构建关闭 VGA；GUI wrapper 改用专属 defconfig |
-| `NEMU_DISPLAY` | `0` | 普通 DTB 不生成 simple-framebuffer/virtio-input GUI 节点 |
+| `make run` | `Linux/.config` 的保存项 | 没有该文件时才使用下列内建 fallback |
+| `ARCH` fallback | `riscv64-npc` | 未保存且命令行未覆盖时的平台 |
+| `BOOT` fallback | `ubuntu-rootfs` | Ubuntu ext4/virtio-blk 磁盘启动链，不会静默退化为 initramfs |
+| `LINUX_RUN_MODE` fallback | `serial` | 串口/headless，guest 控制台为 `ttyS0` |
+| `LINUX_RUN_ROOTFS_FLAVOR` fallback | `systemd-minimal` | 默认 2 GiB systemd 用户态，不等同于 `full` flavor 或桌面 Ubuntu |
+| 串口 NEMU profile | `riscv64-linux_defconfig` | `LINUX_FEATURE_PROFILE=headless`、`NEMU_DISPLAY=0` |
 | NEMU `MAX_CYCLES` | `0` | 无限指令预算，直到 guest 关机、重启或用户终止 |
 | NPC `MAX_CYCLES` | `3000000000` | NPC 默认仿真预算 |
+
+`make menuconfig` 操作的是 [Kconfig](Kconfig) 定义的宿主启动选择，并写入被
+git 忽略的 `Linux/.config`。它不会改写 kernel 构建目录中的 `.config`、
+`nemu/.config` 或 `npc/rv64/.config`。一次性命令行赋值优先于保存项且不会回写，
+上述五个选择型目标的优先级为：命令行
+`ARCH/BOOT/LINUX_RUN_MODE/LINUX_RUN_ROOTFS_FLAVOR` >
+`Linux/.config` > 内建 fallback。兼容变量 `UBUNTU_ROOTFS_FLAVOR` 也可用于一次性
+选择 flavor，但新命令优先使用 `LINUX_RUN_ROOTFS_FLAVOR`。
 
 命令规范：
 
 - `ARCH` 表示 ISA + 平台命名空间，格式为 `riscv64-<platform>`；当前支持 `riscv64-npc` 和 `riscv64-nemu`。
 - `riscv64-npc` 与 `riscv64-nemu` 共享 `Linux/env/src/` 源码、`Linux/env/downloads/` 下载缓存和可选本地工具链；Linux `O=` 构建、OpenSBI 构建、initramfs/rootfs 镜像和日志默认完全分到 `Linux/env/platforms/npc/` 与 `Linux/env/platforms/nemu/`。
-- `BOOT` 表示启动场景，默认是 `ubuntu-rootfs`。
-- `make ARCH=riscv64-npc run` 必须表示完整 Ubuntu rootfs 路线，不会偷偷降级成 shell initramfs gate。
-- `make ARCH=riscv64-nemu run` 使用同一套 kernel/DTB/rootfs 启动 NEMU 的 **headless** 参考入口，默认构建 no-PMU OpenSBI，使用 `ttyS0`，且 `MAX_CYCLES=0` 表示无限预算；图形入口必须显式使用 `make run-ubuntu-gui`。
+- `BOOT` 表示启动场景；无保存配置时回退为 `ubuntu-rootfs`。
+- `LINUX_RUN_MODE` 表示 `serial` 或 `gui`；GUI 只允许 NEMU + `ubuntu-rootfs` +
+  `systemd-minimal`，不兼容的显式组合会报错。
+- rootfs flavor 是一项原子选择：它同时选择实际 ext4、配套 cpio、rootfs 工作目录
+  和检查目标。`systemd-minimal`、`interactive`、`full` 不会共用同一个运行镜像。
+- `make run-ubuntu-gui` 是强制 GUI 入口，不受已保存的 NPC/BOOT/flavor 选择影响。
+- 启动前用 `make show-boot` 看语义，用 `make paths` 看真实路径；启动时开头的
+  `[Linux] startup/PID1/console/flavor/rootfs` 行是本次实际选择，不要只凭文件名猜测。
 
 常用命令：
 
 ```sh
 cd Linux
 
-# NPC 完整 Ubuntu rootfs 路线；其 RTL/设备验收与 NEMU 参考入口分别维护。
-make ARCH=riscv64-npc run
+# 交互选择并保存以后裸 make run 的平台、BOOT、控制台和 rootfs flavor。
+# 保存后先确认有效组合；这两步都不会启动 guest。
+make menuconfig
+make show-boot
 
-# 用 NEMU 的默认 headless profile 跑同一条完整 Ubuntu rootfs 路线。
-# 该命令不会打开 VGA/SDL；图形运行请使用下面的 run-ubuntu-gui。
+# 使用保存项启动；若 Linux/.config 不存在，则走 NPC + Ubuntu rootfs +
+# serial + systemd-minimal 的内建 fallback。
+make run
+
+# 强制 NPC 的 systemd-minimal Ubuntu 磁盘 rootfs 串口路线，不受保存项影响。
+make ARCH=riscv64-npc BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial \
+  LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run
+
+# 强制 NEMU headless 跑同一条 Ubuntu 磁盘 rootfs 路线。
+# 显式 serial 保证不会因已保存 GUI 选择而打开 SDL。
 # 当前已能进入 ttyS0 root shell、systemd running，并通过 syscon/SRST 完成自然 poweroff；
 # 但还不是 QEMU 级通用机器。
-make ARCH=riscv64-nemu run
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial run
 
-# 启动隔离的 GUI profile。串口 ttyS0 仍保留为调试/恢复控制台，Linux
+# 强制启动隔离的 GUI profile；它覆盖保存项。串口 ttyS0 仍保留为调试/恢复控制台，Linux
 # 同时把 800x600 XRGB8888 simple-framebuffer 绑定为 fb0/fbcon/tty1，
 # SDL 键盘经 0x10006000/PLIC IRQ7 的标准 virtio-input 进入 Linux input core。
 make run-ubuntu-gui
@@ -207,7 +236,9 @@ make ARCH=riscv64-nemu check-ubuntu-rootfs-systemd
 # systemd gate 的候选镜像。它不能替代 debootstrap 二阶段配置结果。
 make ARCH=riscv64-nemu ubuntu-rootfs-systemd-image
 
-# rootfs 用户态规模由 UBUNTU_ROOTFS_FLAVOR 显式选择：
+# 启动配置/一次性运行用 LINUX_RUN_ROOTFS_FLAVOR 原子选择 rootfs 用户态规模；
+# 它会同步选择匹配的 ext4、cpio、rootfs-dir 和检查目标。底层兼容变量仍是
+# UBUNTU_ROOTFS_FLAVOR，但不建议再手工拼装半套路径变量：
 # systemd-minimal 是默认 2G 最小 systemd gate；interactive 增加 curl/wget/ping/ssh/htop/less/strace
 # 等串口调试工具并默认 4G；full 增加 ubuntu-standard/openssh-server/sudo/locales/man-db/cron/rsyslog
 # 等更接近完整 server 用户态的包并默认 8G。interactive/full 会生成独立 ext4/cpio/rootfs-dir，
@@ -264,8 +295,9 @@ NEMU GUI 一期的真实边界：
 - GUI rootfs 仍是 minimized Ubuntu 22.04 文本用户态，只增加 tty1
   autologin；它不包含桌面环境。ttyS0 同时保留，登录 marker 只在 ttyS0
   输出，避免把 tty1 登录误报成串口闭环。
-- GUI 的 NEMU config/build、Linux `O=`、OpenSBI、DTB、rootfs、overlay、
-  日志与截图均使用独立路径，不会覆写默认 headless 启动产物。
+- GUI 的 NEMU config/build、Linux `O=`、OpenSBI、DTB、rootfs、overlay 和日志
+  使用独立路径，不会覆写默认 headless 启动产物。人工 `run-ubuntu-gui` 不自动
+  截图；只有 `check-nemu-gui` 使用独立 check 目录生成并验证 `tty1.png`。
 
 建议中其余能力不能按名称直接宣称完成：当前仍是 no-PMU OpenSBI，Linux
 profile 也未开启 RISC-V PMU；在真实 `mhpmcounter/mhpmevent` 与事件来源接通前

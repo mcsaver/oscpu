@@ -91,6 +91,8 @@ fpga/**/*.backup.jou
 fpga/**/*.backup.log
 
 # RV64 Linux/OpenSBI/Ubuntu 构建产物可能包含 GB 级源码、镜像和日志，禁止纳入 Git。
+Linux/.config
+Linux/.config.old
 Linux/build/
 Linux/env/*
 !Linux/env/README.md

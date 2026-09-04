@@ -1,0 +1,100 @@
+mainmenu "YSYX Linux startup configuration"
+
+menu "Default make run selection"
+
+choice
+	prompt "Simulation platform"
+	default LINUX_RUN_PLATFORM_NPC
+	help
+	  Select the default platform used by `make run`.  Explicit ARCH=...
+	  assignments on the make command line still take precedence.
+
+config LINUX_RUN_PLATFORM_NPC
+	bool "NPC RV64 Verilator"
+
+config LINUX_RUN_PLATFORM_NEMU
+	bool "NEMU RV64 reference platform"
+
+endchoice
+
+choice
+	prompt "Boot payload"
+	default LINUX_RUN_BOOT_UBUNTU_ROOTFS
+	help
+	  Select the firmware/kernel/userspace combination used by `make run`.
+	  This is a host launch choice; it is separate from the Linux kernel,
+	  NEMU and NPC component Kconfig files.
+
+config LINUX_RUN_BOOT_UBUNTU_ROOTFS
+	bool "Ubuntu 22.04 ext4 rootfs (systemd)"
+	help
+	  Boot OpenSBI and Linux, mount an Ubuntu ext4 image through virtio-blk,
+	  and enter the selected systemd userspace flavor.  This is the disk-rootfs
+	  route, not a desktop Ubuntu image.
+
+config LINUX_RUN_BOOT_UBUNTU_SHELL
+	bool "Ubuntu shell initramfs (/bin/sh gate)"
+	help
+	  Boot the small Ubuntu shell initramfs used by the closed shell gate.
+
+config LINUX_RUN_BOOT_UBUNTU_PROBE
+	bool "Ubuntu os-release probe initramfs"
+	help
+	  Boot the small Ubuntu userspace probe, print its result, then wait for the
+	  host-side focused gate or an operator to terminate the run.
+
+config LINUX_RUN_BOOT_BUSYBOX_INITRAMFS
+	bool "BusyBox initramfs (rdinit=/bin/sh)"
+	help
+	  Boot the minimal BusyBox initramfs bring-up environment.
+
+config LINUX_RUN_BOOT_KERNEL
+	bool "Kernel only (no rootfs or initramfs)"
+	help
+	  Boot OpenSBI and Linux without a userspace filesystem.  This route is
+	  intended for observing early kernel bring-up, not an interactive login.
+
+endchoice
+
+choice
+	prompt "Console profile"
+	default LINUX_RUN_CONSOLE_SERIAL
+	help
+	  The graphical profile is a coherent bundle: isolated NEMU, Linux,
+	  OpenSBI, DTB, rootfs, overlay and log paths are selected together.
+	  It is not equivalent to setting NEMU_DISPLAY=1 on a headless build.
+
+config LINUX_RUN_CONSOLE_SERIAL
+	bool "Serial/headless console (ttyS0)"
+
+config LINUX_RUN_CONSOLE_GUI
+	bool "NEMU SDL framebuffer console (ttyS0 + tty1)"
+	depends on LINUX_RUN_PLATFORM_NEMU && LINUX_RUN_BOOT_UBUNTU_ROOTFS
+	help
+	  Open a visible 800x600 SDL window.  Linux uses simplefb/fbcon on tty1
+	  and receives keyboard input through virtio-input, while ttyS0 remains
+	  available in the terminal that launched NEMU.
+
+endchoice
+
+choice
+	prompt "Ubuntu rootfs flavor"
+	default LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL
+	depends on LINUX_RUN_BOOT_UBUNTU_ROOTFS && !LINUX_RUN_CONSOLE_GUI
+	help
+	  Select the ext4 userspace image used by a serial/headless Ubuntu run.
+	  The GUI profile currently has its own validated systemd-minimal image,
+	  so interactive/full are deliberately unavailable with GUI selected.
+
+config LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL
+	bool "systemd-minimal (2 GiB image)"
+
+config LINUX_RUN_ROOTFS_INTERACTIVE
+	bool "interactive tools (4 GiB image)"
+
+config LINUX_RUN_ROOTFS_FULL
+	bool "full server userspace (8 GiB image)"
+
+endchoice
+
+endmenu

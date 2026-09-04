@@ -7,13 +7,40 @@
 
 SHELL := /bin/bash
 
-ARCH ?= riscv64-npc
-BOOT ?= ubuntu-rootfs
-
 LINUX_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 REPO_ROOT := $(abspath $(LINUX_HOME)/..)
 # 工作区根：通用工具(tool/kconfig 等)定位锚点，独立于 nemu
 YSYX_HOME ?= $(REPO_ROOT)
+
+# Linux/ 顶层 Kconfig 只保存 host launch/orchestration 默认值；它与 Linux
+# kernel、NEMU、NPC 各自的 .config 完全分离。命令行变量继续拥有更高优先级。
+LINUX_BOOT_KCONFIG ?= $(LINUX_HOME)/Kconfig
+LINUX_BOOT_CONFIG ?= $(LINUX_HOME)/.config
+LINUX_BOOT_DEFCONFIG ?= $(LINUX_HOME)/configs/boot_default_defconfig
+LINUX_BOOT_SELECTION_GOALS := run prepare paths check show-boot __run __prepare __paths __check __show-boot
+LINUX_BOOT_CONFIG_ACTIVE := $(if $(strip $(filter $(LINUX_BOOT_SELECTION_GOALS),$(MAKECMDGOALS))),1,0)
+ifeq ($(LINUX_BOOT_CONFIG_ACTIVE),1)
+-include $(LINUX_BOOT_CONFIG)
+endif
+
+LINUX_BOOT_DEFAULT_ARCH := $(if $(filter y,$(CONFIG_LINUX_RUN_PLATFORM_NEMU)),riscv64-nemu,riscv64-npc)
+LINUX_BOOT_DEFAULT_BOOT := $(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_UBUNTU_SHELL)),ubuntu-shell,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_UBUNTU_PROBE)),ubuntu-probe,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_BUSYBOX_INITRAMFS)),busybox-initramfs,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_KERNEL)),kernel,ubuntu-rootfs))))
+LINUX_BOOT_DEFAULT_RUN_MODE := $(if $(filter y,$(CONFIG_LINUX_RUN_CONSOLE_GUI)),gui,serial)
+LINUX_BOOT_DEFAULT_ROOTFS_FLAVOR := $(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_INTERACTIVE)),interactive,$(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_FULL)),full,systemd-minimal))
+LINUX_BOOT_CONFIG_STATE := $(if $(wildcard $(LINUX_BOOT_CONFIG)),loaded,built-in defaults)
+
+ARCH ?= $(LINUX_BOOT_DEFAULT_ARCH)
+BOOT ?= $(LINUX_BOOT_DEFAULT_BOOT)
+# A saved GUI preference only applies while the effective ARCH/BOOT combination
+# remains compatible.  An explicit incompatible LINUX_RUN_MODE=gui is rejected
+# below instead of silently constructing a mixed profile.
+LINUX_RUN_MODE ?= $(if $(and $(filter riscv64-nemu,$(ARCH)),$(filter ubuntu-rootfs,$(BOOT))),$(LINUX_BOOT_DEFAULT_RUN_MODE),serial)
+ifeq ($(origin UBUNTU_ROOTFS_FLAVOR),undefined)
+LINUX_RUN_ROOTFS_FLAVOR ?= $(LINUX_BOOT_DEFAULT_ROOTFS_FLAVOR)
+else
+LINUX_RUN_ROOTFS_FLAVOR ?= $(UBUNTU_ROOTFS_FLAVOR)
+endif
+
 ARCH_SPLIT := $(subst -, ,$(ARCH))
 LINUX_ISA := $(word 1,$(ARCH_SPLIT))
 LINUX_PLATFORM := $(word 2,$(ARCH_SPLIT))
@@ -112,7 +139,16 @@ JOBS ?= $(shell nproc)
 KCONFIG_PATH := $(YSYX_HOME)/tool/kconfig
 FIXDEP_PATH := $(YSYX_HOME)/tool/fixdep
 CONF := $(KCONFIG_PATH)/build/conf
+MCONF := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
+LINUX_BOOT_CONFIG_OUTPUT_DIR ?= $(LINUX_HOME)/build/boot-config
+LINUX_BOOT_CONFIG_LOCK ?= $(LINUX_BOOT_CONFIG_OUTPUT_DIR)/.config.lock
+LINUX_BOOT_KCONFIG_ENV = \
+	KCONFIG_CONFIG='$(LINUX_BOOT_CONFIG)' \
+	KCONFIG_AUTOCONFIG='$(LINUX_BOOT_CONFIG_OUTPUT_DIR)/auto.conf' \
+	KCONFIG_AUTOHEADER='$(LINUX_BOOT_CONFIG_OUTPUT_DIR)/autoconf.h' \
+	KCONFIG_AUTOCONFIG_DEP='$(LINUX_BOOT_CONFIG_OUTPUT_DIR)/auto.conf.cmd' \
+	KCONFIG_SPLITCONFIG='$(LINUX_BOOT_CONFIG_OUTPUT_DIR)/split'
 KCONFIG_TOOL_INPUTS := $(wildcard $(KCONFIG_PATH)/*.c $(KCONFIG_PATH)/*.h \
   $(KCONFIG_PATH)/*.l $(KCONFIG_PATH)/*.y $(KCONFIG_PATH)/lxdialog/*) \
   $(KCONFIG_PATH)/Makefile $(YSYX_HOME)/scripts/build.mk
@@ -134,7 +170,8 @@ PROGRESS ?= 50000000
 LOG_ROOT ?= $(PLATFORM_LOG_ROOT)/linux-front
 EXTRA_ARGS ?=
 BOOTARGS_EXTRA ?=
-NEMU_ROOTFS_BOOTARGS_EXTRA ?= console=tty0
+# headless profile 只使用平台 YAML 中的 ttyS0；GUI bundle 才追加 tty0。
+NEMU_ROOTFS_BOOTARGS_EXTRA ?=
 NEMU_DISPLAY ?= 0
 NEMU_VIRTIO_INPUT ?= $(NEMU_DISPLAY)
 NEMU_SYSTEMD_CHECK_LOG_DIR ?= $(LOG_ROOT)/riscv64-nemu-systemd-guest-check
@@ -332,9 +369,11 @@ UBUNTU_ROOTFS_FULL_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-full
 UBUNTU_ROOTFS_GUI_DIR ?= $(NEMU_GUI_ROOTFS_WORK)/rootfs-gui
 UBUNTU_ROOTFS_WORK ?= $(UBUNTU_IMAGE_DIR)
 UBUNTU_ROOTFS_BUILD_STAMP ?= $(UBUNTU_ROOTFS_WORK)/.ysyx-rootfs-build-profile
-UBUNTU_ROOTFS_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_IMAGE)
-UBUNTU_ROOTFS_CPIO_IMAGE ?= $(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)
-UBUNTU_ROOTFS_DIR ?= $(UBUNTU_ROOTFS_SYSTEMD_DIR)
+# flavor 是一个完整 artifact 选择，不能只改变包清单/check target 而仍然
+# 启动 systemd-minimal 镜像。命令行仍可显式覆盖任一具体路径。
+UBUNTU_ROOTFS_IMAGE ?= $(if $(filter full standard,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_FULL_IMAGE),$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE),$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)))
+UBUNTU_ROOTFS_CPIO_IMAGE ?= $(if $(filter full standard,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_FULL_CPIO_IMAGE),$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE),$(UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE)))
+UBUNTU_ROOTFS_DIR ?= $(if $(filter full standard,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_FULL_DIR),$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),$(UBUNTU_ROOTFS_INTERACTIVE_DIR),$(UBUNTU_ROOTFS_SYSTEMD_DIR)))
 UBUNTU_ROOTFS_INIT_SRC ?= $(TOOLS_DIR)/ysyx-rootfs-init.c
 UBUNTU_ROOTFS_PROBE_SRC ?= $(TOOLS_DIR)/ysyx-ubuntu-init.c
 UBUNTU_ROOTFS_NPC_TTY_PROBE_SRC ?= $(TOOLS_DIR)/ysyx-npc-tty-probe.c
@@ -366,7 +405,32 @@ UBUNTU_ROOTFS_VT_AUTOLOGIN ?= 0
 UBUNTU_ROOTFS_VT_AUTOLOGIN_USER ?= root
 UBUNTU_ROOTFS_VT_AUTOLOGIN_TTY ?= tty1
 UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN ?= $(UBUNTU_ROOTFS_VT_AUTOLOGIN)
-UBUNTU_ROOTFS_CHECK_TARGET = $(if $(filter full,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
+UBUNTU_ROOTFS_CHECK_TARGET = $(if $(filter full standard,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-full,$(if $(filter interactive,$(UBUNTU_ROOTFS_FLAVOR)),check-ubuntu-rootfs-interactive,check-ubuntu-rootfs-systemd))
+
+# 可见 GUI 是跨 NEMU/kernel/OpenSBI/DTB/rootfs 的完整隔离 profile。公开 run、
+# prepare、paths、check 和 show-boot dispatcher 共用这一份参数，避免 wrapper
+# 与 Kconfig 选择出现两套逐渐漂移的实现。
+NEMU_GUI_RUN_ARGS = \
+	BUILD_DIR='$(NEMU_GUI_FRONT_BUILD_DIR)' \
+	LINUX_BUILD_DIR='$(NEMU_GUI_KERNEL_BUILD_DIR)' \
+	OPENSBI_BUILD_ROOT='$(NEMU_GUI_OPENSBI_BUILD_ROOT)' \
+	LINUX_FEATURE_PROFILE=display \
+	NEMU_DEFCONFIG=riscv64-linux-gui_defconfig \
+	NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
+	NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
+	NEMU_SIM='$(NEMU_GUI_SIM)' \
+	NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	NEMU_ROOTFS_BOOTARGS_EXTRA=console=tty0 \
+	LOG_DIR='$(NEMU_GUI_LOG_DIR)' \
+	NEMU_RUN_ROOTFS_OVERLAY='$(NEMU_GUI_ROOTFS_OVERLAY)' \
+	UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_GUI_IMAGE)' \
+	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
+	UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
+	UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
+	UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
+	UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
+	UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
 
 KERNEL_DTB ?= $(BUILD_DIR)/npc-rv64.dtb
 BUSYBOX_INITRAMFS_DTB ?= $(BUILD_DIR)/npc-rv64-initramfs.dtb
@@ -436,6 +500,8 @@ UBUNTU_SHELL_EXPECT ?= [ysyx-sh] /bin/sh -c marker
 
 SUPPORTED_ARCHES := riscv64-npc riscv64-nemu
 SUPPORTED_BOOTS := ubuntu-rootfs ubuntu-shell ubuntu-probe busybox-initramfs kernel
+SUPPORTED_RUN_MODES := serial gui
+SUPPORTED_ROOTFS_FLAVORS := systemd-minimal interactive full
 TOOL_SMOKES := smoke-jal-link smoke-branch-raw \
   smoke-sret-user smoke-sret-user-pagefault smoke-sret-user-sv39 \
   smoke-sret-user-sv39-halfword smoke-sret-restore \
@@ -453,7 +519,36 @@ ifeq ($(filter $(BOOT),$(SUPPORTED_BOOTS)),)
 $(error unsupported BOOT=$(BOOT); supported: $(SUPPORTED_BOOTS))
 endif
 
-RUN_NAME := $(BOOT)
+LINUX_CANONICAL_ROOTFS_FLAVOR := $(if $(filter minimal systemd-minimal,$(LINUX_RUN_ROOTFS_FLAVOR)),systemd-minimal,$(if $(filter interactive,$(LINUX_RUN_ROOTFS_FLAVOR)),interactive,$(if $(filter standard full,$(LINUX_RUN_ROOTFS_FLAVOR)),full,)))
+LINUX_EFFECTIVE_ROOTFS_FLAVOR := $(if $(filter ubuntu-rootfs,$(BOOT)),$(if $(filter gui,$(LINUX_RUN_MODE)),systemd-minimal,$(LINUX_CANONICAL_ROOTFS_FLAVOR)),systemd-minimal)
+
+ifneq ($(strip $(filter $(LINUX_BOOT_SELECTION_GOALS),$(MAKECMDGOALS))),)
+ifeq ($(filter $(LINUX_RUN_MODE),$(SUPPORTED_RUN_MODES)),)
+$(error unsupported LINUX_RUN_MODE=$(LINUX_RUN_MODE); supported: $(SUPPORTED_RUN_MODES))
+endif
+ifeq ($(and $(filter ubuntu-rootfs,$(BOOT)),$(if $(LINUX_CANONICAL_ROOTFS_FLAVOR),,y)),y)
+$(error unsupported Linux run rootfs flavor '$(LINUX_RUN_ROOTFS_FLAVOR)'; supported: $(SUPPORTED_ROOTFS_FLAVORS) (aliases: minimal, standard))
+endif
+ifeq ($(LINUX_RUN_MODE),gui)
+ifneq ($(ARCH),riscv64-nemu)
+$(error LINUX_RUN_MODE=gui requires ARCH=riscv64-nemu; use ARCH=riscv64-nemu or LINUX_RUN_MODE=serial)
+endif
+ifneq ($(BOOT),ubuntu-rootfs)
+$(error LINUX_RUN_MODE=gui requires BOOT=ubuntu-rootfs; use BOOT=ubuntu-rootfs or LINUX_RUN_MODE=serial)
+endif
+ifneq ($(LINUX_CANONICAL_ROOTFS_FLAVOR),systemd-minimal)
+$(error LINUX_RUN_MODE=gui currently supports only systemd-minimal; use UBUNTU_ROOTFS_FLAVOR=systemd-minimal or LINUX_RUN_MODE=serial)
+endif
+endif
+endif
+
+LINUX_LAUNCH_ARGS = \
+	ARCH='$(ARCH)' BOOT='$(BOOT)' LINUX_RUN_MODE='$(LINUX_RUN_MODE)' \
+	UBUNTU_ROOTFS_FLAVOR='$(LINUX_EFFECTIVE_ROOTFS_FLAVOR)' \
+	$(if $(filter gui,$(LINUX_RUN_MODE)),$(NEMU_GUI_RUN_ARGS),)
+
+RUN_ROOTFS_FLAVOR_SUFFIX := $(if $(and $(filter ubuntu-rootfs,$(BOOT)),$(filter-out systemd-minimal,$(UBUNTU_ROOTFS_FLAVOR))),-$(UBUNTU_ROOTFS_FLAVOR),)
+RUN_NAME := $(BOOT)$(RUN_ROOTFS_FLAVOR_SUFFIX)
 RUN_FW :=
 RUN_DTB :=
 RUN_INITRD :=
@@ -497,6 +592,10 @@ RUN_DTB := $(KERNEL_DTB)
 RUN_DEPS += $(RUN_FW) $(RUN_DTB)
 endif
 
+LINUX_BOOT_PAYLOAD_DESC := $(if $(filter ubuntu-rootfs,$(BOOT)),Ubuntu 22.04 ext4/virtio-blk rootfs ($(UBUNTU_ROOTFS_FLAVOR)),$(if $(filter ubuntu-shell,$(BOOT)),Ubuntu shell initramfs,$(if $(filter ubuntu-probe,$(BOOT)),Ubuntu os-release probe initramfs,$(if $(filter busybox-initramfs,$(BOOT)),BusyBox initramfs,OpenSBI + Linux kernel only))))
+LINUX_GUEST_PID1 := $(if $(filter ubuntu-rootfs,$(BOOT)),$(if $(filter riscv64-npc,$(ARCH)),$(NPC_ROOTFS_INIT) -> /lib/systemd/systemd,/lib/systemd/systemd),$(if $(filter ubuntu-shell,$(BOOT)),/init -> /bin/sh,$(if $(filter ubuntu-probe,$(BOOT)),/init (ysyx Ubuntu probe),$(if $(filter busybox-initramfs,$(BOOT)),/bin/sh (rdinit),N/A (no userspace filesystem)))))
+LINUX_CONSOLE_DESC := $(if $(filter gui,$(LINUX_RUN_MODE)),ttyS0 + SDL simplefb/fbcon tty1 with virtio-input,ttyS0 serial/headless)
+
 LOG_DIR ?= $(LOG_ROOT)/$(ARCH)-$(RUN_NAME)
 LOG_FILE ?= $(LOG_DIR)/$(if $(filter riscv64-nemu,$(ARCH)),nemu,npc).log
 CONSOLE_LOG ?= $(LOG_DIR)/console.log
@@ -513,13 +612,14 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
 
 .DEFAULT_GOAL := help
 
-.PHONY: help run run-ubuntu-rootfs run-ubuntu-gui run-ubuntu-shell run-ubuntu-probe run-busybox-initramfs run-kernel \
-        prepare prepare-all setup-env linux-defconfig linux-trace-defconfig nemu-linux-defconfig sim check-sim \
+.PHONY: help menuconfig boot-defconfig boot-olddefconfig boot-savedefconfig show-boot __show-boot \
+        run __run run-ubuntu-rootfs run-ubuntu-gui run-ubuntu-shell run-ubuntu-probe run-busybox-initramfs run-kernel \
+        prepare __prepare prepare-all setup-env linux-defconfig linux-trace-defconfig nemu-linux-defconfig sim check-sim \
         linux-image busybox-initramfs ubuntu-probe-initramfs \
         ubuntu-shell-initramfs ubuntu-rootfs-image dtb initramfs-dtb ubuntu-initramfs-dtb \
         ubuntu-shell-initramfs-dtb rootfs-dtb opensbi opensbi-busybox opensbi-ubuntu-probe \
         opensbi-ubuntu-shell opensbi-rootfs qemu qemu-build qemu-ubuntu-probe qemu-ubuntu-shell \
-        tools-build boot-tools tools-smoke tools-clean paths check ubuntu-rootfs-check \
+        tools-build boot-tools tools-smoke tools-clean paths __paths check __check check-boot-config ubuntu-rootfs-check \
         ubuntu-rootfs-flavors-check \
         check-ubuntu-rootfs check-ubuntu-rootfs-systemd check-ubuntu-rootfs-systemd-minimal ubuntu-rootfs-systemd-image \
         check-ubuntu-rootfs-systemd-strict ubuntu-rootfs-systemd-strict-image \
@@ -545,16 +645,28 @@ ROOTFS_OVERLAY := $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--block-overlay='$(NE
 help:
 	@printf '%s\n' 'RV64 Linux/Ubuntu 顶层入口'
 	@printf '%s\n' ''
+	@printf '%s\n' '推荐启动流程:'
+	@printf '%s\n' '  make menuconfig'
+	@printf '%s\n' '      配置 make run 的平台、启动载荷、控制台与 Ubuntu rootfs flavor。'
+	@printf '%s\n' '  make show-boot'
+	@printf '%s\n' '      只解析并显示实际镜像、PID 1、控制台和构建 profile；不会构建或启动。'
+	@printf '%s\n' '  make run'
+	@printf '%s\n' '      使用 Linux/.config 中保存的启动项；没有配置时使用 NPC + systemd-minimal + 串口。'
+	@printf '%s\n' '  make boot-defconfig'
+	@printf '%s\n' '      无交互恢复并保存上述默认启动项。'
+	@printf '%s\n' '  make check-boot-config'
+	@printf '%s\n' '      不启动 guest，验证 Kconfig 到实际 artifact/profile 的解析闭环。'
+	@printf '%s\n' ''
 	@printf '%s\n' '命令规范:'
 	@printf '%s\n' '  ARCH=riscv64-npc 表示使用 NPC RV64 Verilator 目标'
 	@printf '%s\n' '  ARCH=riscv64-nemu 表示使用 NEMU RV64 Linux 参考入口'
-	@printf '%s\n' '  BOOT=ubuntu-rootfs 表示完整 Ubuntu rootfs 路线，默认值'
+	@printf '%s\n' '  BOOT=ubuntu-rootfs 表示 Ubuntu ext4/virtio-blk 磁盘路线，默认 flavor 为 systemd-minimal'
 	@printf '%s\n' ''
 	@printf '%s\n' '常用命令:'
-	@printf '%s\n' '  make ARCH=riscv64-npc run'
-	@printf '%s\n' '      启动完整 Ubuntu rootfs 路线，自动挂载 virtio-mmio block 镜像。'
-	@printf '%s\n' '  make ARCH=riscv64-nemu run'
-	@printf '%s\n' '      用 NEMU 的默认 headless profile 启动完整 Ubuntu rootfs；使用 ttyS0，不会打开 VGA/SDL。'
+	@printf '%s\n' '  make ARCH=riscv64-npc BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run'
+	@printf '%s\n' '      强制用 NPC 启动 systemd-minimal Ubuntu 磁盘 rootfs，并使用 ttyS0。'
+	@printf '%s\n' '  make ARCH=riscv64-nemu BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run'
+	@printf '%s\n' '      强制用 NEMU headless profile 启动同一 flavor；不会打开 VGA/SDL。'
 	@printf '%s\n' '  make run-ubuntu-gui'
 	@printf '%s\n' '      启动隔离的 NEMU GUI profile：当前终端保留 ttyS0，SDL 显示 simplefb/fbcon/tty1。'
 	@printf '%s\n' '  make check-nemu-gui'
@@ -640,7 +752,10 @@ help:
 	@printf '%s\n' ''
 	@printf '%s\n' '完整命令、默认值和常见误区: $(LINUX_HOME)/README-COMMANDS.md'
 
-run: $(RUN_DEPS)
+run:
+	+$(MAKE) --no-print-directory $(LINUX_LAUNCH_ARGS) __run
+
+__run: $(RUN_DEPS)
 	@bash '$(SCRIPT_DIR)/guard-artifact-paths.sh' \
 	  --input='$(RUN_SIM)' \
 	  --input='$(LINUX_IMAGE)' \
@@ -652,7 +767,11 @@ run: $(RUN_DEPS)
 	  --output='$(CONSOLE_LOG)' \
 	  $(if $(strip $(NEMU_RUN_ROOTFS_OVERLAY)),--output='$(NEMU_RUN_ROOTFS_OVERLAY)' --output='$(NEMU_RUN_ROOTFS_OVERLAY).meta' --output='$(NEMU_RUN_ROOTFS_OVERLAY).meta.tmp' --output='$(NEMU_RUN_ROOTFS_OVERLAY).lock',)
 	@mkdir -p '$(LOG_DIR)'
-	@printf '[Linux] ARCH=%s BOOT=%s\n' '$(ARCH)' '$(BOOT)'
+	@printf '[Linux] ARCH=%s BOOT=%s CONSOLE=%s\n' '$(ARCH)' '$(BOOT)' '$(LINUX_RUN_MODE)'
+	@printf '[Linux] startup:  %s\n' '$(LINUX_BOOT_PAYLOAD_DESC)'
+	@printf '[Linux] PID1:     %s\n' '$(LINUX_GUEST_PID1)'
+	@printf '[Linux] console:  %s\n' '$(LINUX_CONSOLE_DESC)'
+	@if [ '$(BOOT)' = ubuntu-rootfs ]; then printf '[Linux] flavor:   %s\n' '$(UBUNTU_ROOTFS_FLAVOR)'; fi
 	@printf '[Linux] firmware: %s\n' '$(RUN_FW)'
 	@printf '[Linux] kernel:   %s\n' '$(LINUX_IMAGE)'
 	@printf '[Linux] dtb:      %s\n' '$(RUN_DTB)'
@@ -695,31 +814,14 @@ else
 endif
 
 run-ubuntu-rootfs:
-	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs LINUX_RUN_MODE=$(LINUX_RUN_MODE) \
+	  LINUX_RUN_ROOTFS_FLAVOR='$(LINUX_RUN_ROOTFS_FLAVOR)' run
 
 # 显示 profile 与默认 headless Ubuntu 使用独立的 NEMU Kconfig/build、
 # kernel、OpenSBI、DTB、rootfs、overlay 和日志产物。
 run-ubuntu-gui:
-	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs run \
-	  BUILD_DIR='$(NEMU_GUI_FRONT_BUILD_DIR)' \
-	  LINUX_BUILD_DIR='$(NEMU_GUI_KERNEL_BUILD_DIR)' \
-	  OPENSBI_BUILD_ROOT='$(NEMU_GUI_OPENSBI_BUILD_ROOT)' \
-	  LINUX_FEATURE_PROFILE=display \
-	  NEMU_DEFCONFIG=riscv64-linux-gui_defconfig \
-	  NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
-	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
-	  NEMU_SIM='$(NEMU_GUI_SIM)' \
-	  NEMU_DISPLAY=1 NEMU_PERFORMANCE_REQUIRED=0 \
-	  LOG_DIR='$(NEMU_GUI_LOG_DIR)' \
-	  NEMU_RUN_ROOTFS_OVERLAY='$(NEMU_GUI_ROOTFS_OVERLAY)' \
-	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_GUI_IMAGE)' \
-	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
-	  UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
-	  UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
-	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
-	  UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
-	  UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
-	  UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+	  LINUX_RUN_MODE=gui LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run
 
 check-nemu-gui:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-gui \
@@ -732,6 +834,7 @@ check-nemu-gui:
 	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
 	  NEMU_SIM='$(NEMU_GUI_SIM)' \
 	  NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	  NEMU_ROOTFS_BOOTARGS_EXTRA=console=tty0 \
 	  NEMU_GUI_LOG_DIR='$(NEMU_GUI_CHECK_LOG_DIR)' \
 	  NEMU_GUI_ROOTFS_OVERLAY='$(NEMU_GUI_CHECK_ROOTFS_OVERLAY)' \
 	  NEMU_GUI_SCREENSHOT='$(NEMU_GUI_CHECK_SCREENSHOT)' \
@@ -759,18 +862,21 @@ check-nemu-retirement-sdtrig:
 	  NEMU_SIM='$(NEMU_RETIRE_SIM)'
 
 run-ubuntu-shell:
-	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-shell run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-shell LINUX_RUN_MODE=serial run
 
 run-ubuntu-probe:
-	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-probe run
+	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-probe LINUX_RUN_MODE=serial run
 
 run-busybox-initramfs:
-	+$(MAKE) ARCH=$(ARCH) BOOT=busybox-initramfs run
+	+$(MAKE) ARCH=$(ARCH) BOOT=busybox-initramfs LINUX_RUN_MODE=serial run
 
 run-kernel:
-	+$(MAKE) ARCH=$(ARCH) BOOT=kernel run
+	+$(MAKE) ARCH=$(ARCH) BOOT=kernel LINUX_RUN_MODE=serial run
 
-prepare: $(RUN_DEPS)
+prepare:
+	+$(MAKE) --no-print-directory $(LINUX_LAUNCH_ARGS) __prepare
+
+__prepare: $(RUN_DEPS)
 
 prepare-all: sim linux-image busybox-initramfs ubuntu-probe-initramfs ubuntu-shell-initramfs \
 	ubuntu-rootfs-image dtb initramfs-dtb ubuntu-initramfs-dtb ubuntu-shell-initramfs-dtb \
@@ -779,15 +885,93 @@ prepare-all: sim linux-image busybox-initramfs ubuntu-probe-initramfs ubuntu-she
 setup-env:
 	bash '$(SCRIPT_DIR)/setup-env.sh'
 
-$(CONF): $(KCONFIG_TOOL_INPUTS) $(NEMU_SAFE_FLOCK)
+$(CONF) $(MCONF): $(KCONFIG_TOOL_INPUTS) $(NEMU_SAFE_FLOCK)
 	@mkdir -p '$(KCONFIG_PATH)/build'
 	python3 '$(NEMU_SAFE_FLOCK)' '$(KCONFIG_PATH)/build/.build.lock' -- \
-	  $(MAKE) -s -C '$(KCONFIG_PATH)' NAME=conf BUILD_DIR='$(KCONFIG_PATH)/build'
+	  $(MAKE) -s -C '$(KCONFIG_PATH)' NAME='$(notdir $@)' BUILD_DIR='$(KCONFIG_PATH)/build'
 
 $(FIXDEP): $(FIXDEP_TOOL_INPUTS) $(NEMU_SAFE_FLOCK)
 	@mkdir -p '$(FIXDEP_PATH)/build'
 	python3 '$(NEMU_SAFE_FLOCK)' '$(FIXDEP_PATH)/build/.build.lock' -- \
 	  $(MAKE) -s -C '$(FIXDEP_PATH)' BUILD_DIR='$(FIXDEP_PATH)/build'
+
+menuconfig: $(MCONF)
+	@mkdir -p '$(dir $(LINUX_BOOT_CONFIG))' '$(LINUX_BOOT_CONFIG_OUTPUT_DIR)' '$(dir $(LINUX_BOOT_CONFIG_LOCK))'
+	@$(LINUX_BOOT_KCONFIG_ENV) \
+	  python3 '$(NEMU_SAFE_FLOCK)' '$(LINUX_BOOT_CONFIG_LOCK)' -- \
+	  '$(MCONF)' '$(LINUX_BOOT_KCONFIG)'
+	@printf '[Linux] startup config ready: %s\n' '$(LINUX_BOOT_CONFIG)'
+	@printf "[Linux] inspect it without other overrides: make LINUX_BOOT_CONFIG='%s' show-boot\n" '$(LINUX_BOOT_CONFIG)'
+
+boot-defconfig: $(CONF)
+	@mkdir -p '$(dir $(LINUX_BOOT_CONFIG))' '$(LINUX_BOOT_CONFIG_OUTPUT_DIR)' '$(dir $(LINUX_BOOT_CONFIG_LOCK))'
+	@$(LINUX_BOOT_KCONFIG_ENV) \
+	  python3 '$(NEMU_SAFE_FLOCK)' '$(LINUX_BOOT_CONFIG_LOCK)' -- \
+	  '$(CONF)' -s --defconfig='$(LINUX_BOOT_DEFCONFIG)' '$(LINUX_BOOT_KCONFIG)'
+	@printf '[Linux] startup config ready: %s\n' '$(LINUX_BOOT_CONFIG)'
+	@printf "[Linux] inspect it without other overrides: make LINUX_BOOT_CONFIG='%s' show-boot\n" '$(LINUX_BOOT_CONFIG)'
+
+boot-olddefconfig: $(CONF)
+	@mkdir -p '$(dir $(LINUX_BOOT_CONFIG))' '$(LINUX_BOOT_CONFIG_OUTPUT_DIR)' '$(dir $(LINUX_BOOT_CONFIG_LOCK))'
+	@$(LINUX_BOOT_KCONFIG_ENV) \
+	  python3 '$(NEMU_SAFE_FLOCK)' '$(LINUX_BOOT_CONFIG_LOCK)' -- \
+	  '$(CONF)' -s --olddefconfig '$(LINUX_BOOT_KCONFIG)'
+	@printf '[Linux] startup config ready: %s\n' '$(LINUX_BOOT_CONFIG)'
+	@printf "[Linux] inspect it without other overrides: make LINUX_BOOT_CONFIG='%s' show-boot\n" '$(LINUX_BOOT_CONFIG)'
+
+boot-savedefconfig: $(CONF)
+	@test -f '$(LINUX_BOOT_CONFIG)' || { \
+	  echo 'missing startup config: $(LINUX_BOOT_CONFIG); run make menuconfig first' >&2; \
+	  exit 1; \
+	}
+	@mkdir -p '$(dir $(LINUX_BOOT_DEFCONFIG))' '$(LINUX_BOOT_CONFIG_OUTPUT_DIR)' '$(dir $(LINUX_BOOT_CONFIG_LOCK))'
+	@$(LINUX_BOOT_KCONFIG_ENV) \
+	  python3 '$(NEMU_SAFE_FLOCK)' '$(LINUX_BOOT_CONFIG_LOCK)' -- \
+	  '$(CONF)' -s --savedefconfig='$(LINUX_BOOT_DEFCONFIG)' '$(LINUX_BOOT_KCONFIG)'
+	@printf '[Linux] saved startup defconfig: %s\n' '$(LINUX_BOOT_DEFCONFIG)'
+
+# 这是启动编排的稳定、只读观察接口。公开目标先应用 Kconfig/命令行选择，
+# 再进入内部目标，使 GUI profile 与 run 使用完全相同的一组派生参数。
+show-boot:
+	+@$(MAKE) -s --no-print-directory $(LINUX_LAUNCH_ARGS) __show-boot
+
+__show-boot:
+	@printf 'LINUX_BOOT_KCONFIG=%s\n' '$(LINUX_BOOT_KCONFIG)'
+	@printf 'LINUX_BOOT_CONFIG=%s\n' '$(LINUX_BOOT_CONFIG)'
+	@printf 'LINUX_BOOT_CONFIG_STATE=%s\n' '$(LINUX_BOOT_CONFIG_STATE)'
+	@printf 'ARCH=%s\n' '$(ARCH)'
+	@printf 'LINUX_PLATFORM=%s\n' '$(LINUX_PLATFORM)'
+	@printf 'BOOT=%s\n' '$(BOOT)'
+	@printf 'LINUX_RUN_MODE=%s\n' '$(LINUX_RUN_MODE)'
+	@printf 'LINUX_BOOT_PAYLOAD=%s\n' '$(LINUX_BOOT_PAYLOAD_DESC)'
+	@printf 'LINUX_GUEST_PID1=%s\n' '$(LINUX_GUEST_PID1)'
+	@printf 'LINUX_CONSOLE=%s\n' '$(LINUX_CONSOLE_DESC)'
+	@printf 'UBUNTU_ROOTFS_FLAVOR=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_FLAVOR),N/A)'
+	@printf 'UBUNTU_ROOTFS_IMAGE=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_IMAGE),N/A)'
+	@printf 'UBUNTU_ROOTFS_CPIO_IMAGE=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_CPIO_IMAGE),N/A)'
+	@printf 'UBUNTU_ROOTFS_DIR=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_DIR),N/A)'
+	@printf 'UBUNTU_ROOTFS_CHECK_TARGET=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_CHECK_TARGET),N/A)'
+	@printf 'UBUNTU_ROOTFS_VT_AUTOLOGIN=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_VT_AUTOLOGIN),N/A)'
+	@printf 'UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=%s\n' '$(if $(filter ubuntu-rootfs,$(BOOT)),$(UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN),N/A)'
+	@printf 'LINUX_FEATURE_PROFILE=%s\n' '$(LINUX_FEATURE_PROFILE)'
+	@printf 'BUILD_DIR=%s\n' '$(BUILD_DIR)'
+	@printf 'LINUX_BUILD_DIR=%s\n' '$(LINUX_BUILD_DIR)'
+	@printf 'OPENSBI_BUILD_ROOT=%s\n' '$(OPENSBI_BUILD_ROOT)'
+	@printf 'NEMU_DEFCONFIG=%s\n' '$(NEMU_DEFCONFIG)'
+	@printf 'NEMU_CONFIG_DIR=%s\n' '$(NEMU_CONFIG_DIR)'
+	@printf 'NEMU_BUILD_DIR=%s\n' '$(NEMU_BUILD_DIR)'
+	@printf 'NEMU_DISPLAY=%s\n' '$(NEMU_DISPLAY)'
+	@printf 'NEMU_VIRTIO_INPUT=%s\n' '$(NEMU_VIRTIO_INPUT)'
+	@printf 'NEMU_ROOTFS_BOOTARGS_EXTRA=%s\n' '$(NEMU_ROOTFS_BOOTARGS_EXTRA)'
+	@printf 'RUN_SIM=%s\n' '$(RUN_SIM)'
+	@printf 'RUN_FW=%s\n' '$(RUN_FW)'
+	@printf 'LINUX_IMAGE=%s\n' '$(LINUX_IMAGE)'
+	@printf 'RUN_DTB=%s\n' '$(RUN_DTB)'
+	@printf 'RUN_INITRD=%s\n' '$(RUN_INITRD)'
+	@printf 'RUN_ROOTFS=%s\n' '$(RUN_ROOTFS)'
+	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
+	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
+	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
 ifeq ($(NPC_KCONFIG_LOCK_HELD),1)
 linux-defconfig: $(CONF) $(FIXDEP)
@@ -1890,7 +2074,15 @@ smoke-virtio-blk: check-sim ubuntu-rootfs-image
 tools-clean:
 	+$(MAKE) -C '$(TOOLS_DIR)' clean
 
+check-boot-config: $(CONF)
+	$(PYTHON) '$(SCRIPT_DIR)/tests/test_linux_boot_config.py'
+
 paths:
+	+@$(MAKE) -s --no-print-directory $(LINUX_LAUNCH_ARGS) __paths
+
+__paths:
+	@printf 'LINUX_BOOT_CONFIG=%s\n' '$(LINUX_BOOT_CONFIG)'
+	@printf 'LINUX_BOOT_CONFIG_STATE=%s\n' '$(LINUX_BOOT_CONFIG_STATE)'
 	@printf 'ARCH=%s\n' '$(ARCH)'
 	@printf 'LINUX_ISA=%s\n' '$(LINUX_ISA)'
 	@printf 'LINUX_PLATFORM=%s\n' '$(LINUX_PLATFORM)'
@@ -1921,6 +2113,16 @@ paths:
 	@printf 'RUN_DTB=%s\n' '$(RUN_DTB)'
 	@printf 'RUN_INITRD=%s\n' '$(RUN_INITRD)'
 	@printf 'RUN_ROOTFS=%s\n' '$(RUN_ROOTFS)'
+	@printf 'LINUX_RUN_MODE=%s\n' '$(LINUX_RUN_MODE)'
+	@printf 'LINUX_GUEST_PID1=%s\n' '$(LINUX_GUEST_PID1)'
+	@printf 'LINUX_CONSOLE=%s\n' '$(LINUX_CONSOLE_DESC)'
+	@printf 'UBUNTU_ROOTFS_FLAVOR=%s\n' '$(UBUNTU_ROOTFS_FLAVOR)'
+	@printf 'UBUNTU_ROOTFS_IMAGE=%s\n' '$(UBUNTU_ROOTFS_IMAGE)'
+	@printf 'UBUNTU_ROOTFS_CPIO_IMAGE=%s\n' '$(UBUNTU_ROOTFS_CPIO_IMAGE)'
+	@printf 'UBUNTU_ROOTFS_DIR=%s\n' '$(UBUNTU_ROOTFS_DIR)'
+	@printf 'UBUNTU_ROOTFS_CHECK_TARGET=%s\n' '$(UBUNTU_ROOTFS_CHECK_TARGET)'
+	@printf 'UBUNTU_ROOTFS_VT_AUTOLOGIN=%s\n' '$(UBUNTU_ROOTFS_VT_AUTOLOGIN)'
+	@printf 'UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=%s\n' '$(UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN)'
 	@printf 'UBUNTU_ROOTFS_SYSTEMD_IMAGE=%s\n' '$(UBUNTU_ROOTFS_SYSTEMD_IMAGE)'
 	@printf 'UBUNTU_ROOTFS_INTERACTIVE_IMAGE=%s\n' '$(UBUNTU_ROOTFS_INTERACTIVE_IMAGE)'
 	@printf 'UBUNTU_ROOTFS_FULL_IMAGE=%s\n' '$(UBUNTU_ROOTFS_FULL_IMAGE)'
@@ -1933,6 +2135,9 @@ paths:
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
 check:
+	+@$(MAKE) --no-print-directory $(LINUX_LAUNCH_ARGS) __check
+
+__check:
 	@test -x '$(RUN_SIM)' || { echo 'missing simulator: $(RUN_SIM)'; exit 1; }
 	@test -f '$(LINUX_IMAGE)' || { echo 'missing LINUX_IMAGE: $(LINUX_IMAGE)'; exit 1; }
 	@test -f '$(RUN_FW)' || { echo 'missing firmware: $(RUN_FW)'; exit 1; }

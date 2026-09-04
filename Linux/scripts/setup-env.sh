@@ -19,7 +19,7 @@ mkdir -p \
 
 PACKAGES=(
   build-essential git make cmake ninja-build curl wget ca-certificates
-  device-tree-compiler u-boot-tools flex bison libssl-dev libelf-dev bc
+  device-tree-compiler u-boot-tools flex bison libssl-dev libelf-dev libncurses-dev bc
   cpio rsync file python3 python3-pip python3-venv
   verilator gdb-multiarch
   gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu
