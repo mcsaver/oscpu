@@ -1,0 +1,487 @@
+{
+  "candidate_dispositions": [
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.current-timing-recovery-candidate",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.owner-b-response-latency-candidate",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.owner-timing-hypothesis",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "close.current-hard-blocker",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.head0-csr-inflight-permit-block",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.hide-b-response-latency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.increase-write-concurrency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.reduce-pre-request-residency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.serialized-owner-terminal-permit",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.current-performance-baseline",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.owner-b-latency-sensitivity",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.owner-timing-causality",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "qualify.current-reference-ppa",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "reconcile.current-cpi-census",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "research.correct-head-residency-weighting",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    }
+  ],
+  "claim_boundary": {
+    "current_decision_authorizes_only_next_action": true,
+    "front_py_remains_promotion_authority": true,
+    "multiobjective_prediction_authorizes_promotion": false,
+    "selected_slice_meaning": "下一次有界工程动作，而不是 CPI/PPA 胜者",
+    "selector_authorizes_promotion": false,
+    "selector_authorizes_rtl_semantics": false,
+    "timing_is_a_hard_gate_not_a_soft_objective": true
+  },
+  "decision": "STATE_CONFLICT",
+  "deferred": [
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.current-timing-recovery-candidate",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.owner-b-response-latency-candidate",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "analyze.owner-timing-hypothesis",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "close.current-hard-blocker",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.head0-csr-inflight-permit-block",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.hide-b-response-latency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.increase-write-concurrency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.reduce-pre-request-residency",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "experiment.serialized-owner-terminal-permit",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.current-performance-baseline",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.owner-b-latency-sensitivity",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "measure.owner-timing-causality",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "qualify.current-reference-ppa",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "reconcile.current-cpi-census",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    },
+    {
+      "disposition": "INELIGIBLE_STATE_CONFLICT",
+      "id": "research.correct-head-residency-weighting",
+      "reasons": [
+        "architecture_stable:DESIGN_ID_MISMATCH",
+        "historical_defect:DESIGN_ID_MISMATCH",
+        "performance_baseline:DESIGN_ID_MISMATCH"
+      ]
+    }
+  ],
+  "eligible_front": [],
+  "inputs": {
+    "authorities": {
+      "architecture_debt": {
+        "path": "npc/rv64/eval/ppa/evidence/architecture-debt-current.json",
+        "sha256": "dc90209913ef99d6a6a446b6422c76b42ba82608b092f92905017a680eebdd13",
+        "size_bytes": 13263
+      },
+      "architecture_stable": {
+        "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+        "sha256": "a80f88a4215e34fdf2b064eae993d0242c8649339b8387007e680eb45d7a8325",
+        "size_bytes": 770977
+      },
+      "baseline_index": {
+        "path": "npc/rv64/eval/ppa/baselines/index.json",
+        "sha256": "8d60c5696d5311c952c63b3004bed7591e81dd44f463b73e5b530111770800e2",
+        "size_bytes": 1448
+      },
+      "cpi_census": {
+        "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+        "sha256": "6b0b70c1a8c7c2626aa7358036499b59d669f0b89242a50684ccd97f4c31d143",
+        "size_bytes": 15548
+      },
+      "historical_defect": {
+        "path": "npc/rv64/eval/ppa/evidence/historical-defect-current.json",
+        "sha256": "1b3ccaf816f92db7da384657c00ca46b3101dc6f61bc8bc9a5f39d5391bffdf1",
+        "size_bytes": 20690
+      },
+      "layered_system": {
+        "path": "npc/rv64/eval/ppa/evidence/layered-system-signoff-current.json",
+        "sha256": "3e9cf0e0f0c71c7d260f6dfa43191681cc0455373795ecfec8767a1b6c6d6a06",
+        "size_bytes": 16452
+      },
+      "performance_baseline": {
+        "path": "npc/rv64/eval/ppa/evidence/performance-baseline-current.json",
+        "sha256": "460fffbd42bd3824984c821120151f42a0062164475811725204d4582086ce32",
+        "size_bytes": 11729
+      }
+    },
+    "catalog": {
+      "path": "npc/rv64/eval/ppa/optimization-slices-owner-lifetime-v2.json",
+      "sha256": "803951a9e152fec1ad9a85875aa29c6113880c15d0474292f8832f2f716aae93",
+      "size_bytes": 5057
+    },
+    "decision_schema": {
+      "path": "npc/rv64/eval/ppa/schemas/optimization-slice-decision-v1.schema.json",
+      "sha256": "3531f9d64f52df663f40501aba31e873cb208e9eebb24d573d3fe4b1f9b0d573",
+      "size_bytes": 4854
+    },
+    "normative": {
+      "architecture_ppa_contract": {
+        "path": "npc/rv64/design/arch/rv64-architecture-ppa-contract.md",
+        "sha256": "8884fa871095e01f4e5bdacface70991f986d4114b73f72e9ccf10b1e2069b73",
+        "size_bytes": 19500
+      },
+      "maturity_stages": {
+        "path": "npc/rv64/design/arch/rv64-soc-maturity-stages.tsv",
+        "sha256": "71e1f2517de9ff9befec12ad64f1d7b658c3458b650fb26f5ce5397cc4bdfa2b",
+        "size_bytes": 2032
+      },
+      "ppa_policy": {
+        "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+        "sha256": "1e1cefe497e327c975229135af827afbe3cddb26efccd4fd4c1e141b774e5fce",
+        "size_bytes": 8270
+      }
+    },
+    "policy": {
+      "path": "npc/rv64/design/arch/optimization-slice-selector-policy-v2.json",
+      "sha256": "8cd841d7ab2e1fa5f09a64ca14388ff5de408cab0d9d8589b05d9573e69cb07d",
+      "size_bytes": 5310
+    },
+    "research_state": null,
+    "verification_tools": {
+      "b_latency_sensitivity": {
+        "path": "npc/rv64/eval/ppa/tools/owner_b_latency_sensitivity.py",
+        "sha256": "82bfee245424806cf0e10013371a705c013ba8b6197e93918f9040f094bd6bae",
+        "size_bytes": 33766
+      },
+      "b_response_candidate_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/owner_b_response_candidate_analysis.py",
+        "sha256": "372916c0e5ec9ceaf94eaa79de999b591bab1ada5b447979ab52e352c06190ec",
+        "size_bytes": 26072
+      },
+      "causal_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py",
+        "sha256": "902aac43ffc938bbc0f423cd3e4cc89d7f4333249ca9a9230898c56266f6944b",
+        "size_bytes": 23316
+      },
+      "current_reference_ppa": {
+        "path": "npc/rv64/eval/ppa/tools/current_reference_ppa.py",
+        "sha256": "bbc4524f31ceb402e5c026e816f313e339cedb558c7eff56952136024c51afd6",
+        "size_bytes": 22218
+      },
+      "current_timing_path_analysis": {
+        "path": "npc/rv64/eval/ppa/tools/current_timing_path_analysis.py",
+        "sha256": "36905b3e0b6b56cb35b2c2ce22e44f7664c0c85230d4fcac9d97b12be9a6a302",
+        "size_bytes": 34129
+      },
+      "owner_timing": {
+        "path": "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py",
+        "sha256": "21f6047deb34810bd2da887ab408f8070adf7c64134408f15d949c118dd62bfe",
+        "size_bytes": 71980
+      },
+      "ppa_checker": {
+        "path": "npc/rv64/eval/ppa/tools/check.py",
+        "sha256": "327ea3ad4c9d328749c0123cc614bc4bdc9769aec9f27019128e7da7ce5809a5",
+        "size_bytes": 129598
+      },
+      "serialized_drain_owner_lifetime": {
+        "path": "npc/rv64/eval/ppa/tools/serialized_drain_owner_lifetime_analysis.py",
+        "sha256": "434fc002fc22f3ed9e0dc849c84c2302b63c47b4130e87aec56ffdf8862acd56",
+        "size_bytes": 21161
+      }
+    }
+  },
+  "live_design_id": "sha256:d3f3e7ffd6a3ca9f5e4249b945f74b935cd45182f97e0e6dd3e6377eca4f52af",
+  "next_action": "STATE_RECONCILIATION",
+  "reason_codes": [
+    "AUTHORITY_STATE_CONFLICT"
+  ],
+  "schema": "npc-rv64-optimization-slice-decision-v1",
+  "selected_slice": null,
+  "snapshot_key": "sha256:9b28b76eee88aff3861403765a1d443a4aaa5ce2b14a9fd9cbeb11121fd303fb",
+  "stale_refs": [
+    {
+      "path": "npc/rv64/eval/ppa/evidence/cpi-bottleneck-census-current.json",
+      "reason": "DESIGN_ID_MISMATCH"
+    }
+  ],
+  "state": {
+    "authority_status": {
+      "architecture_debt": {
+        "schema": "npc-rv64-architecture-debt-current-v2",
+        "status_matches": true
+      },
+      "architecture_stable": {
+        "schema": "npc-rv64-arch-stable-result-v1",
+        "status_matches": true
+      },
+      "baseline_index": {
+        "schema": "npc-rv64-ppa-baseline-index-v1",
+        "status_matches": false
+      },
+      "cpi_census": {
+        "schema": "npc-rv64-cpi-bottleneck-census-v2",
+        "status_matches": true
+      },
+      "historical_defect": {
+        "schema": "npc-rv64-historical-defect-current-v1",
+        "status_matches": true
+      },
+      "layered_system": {
+        "schema": "npc-rv64-layered-system-signoff-current-v1",
+        "status_matches": true
+      },
+      "performance_baseline": {
+        "schema": "npc-rv64-performance-baseline-current-v3",
+        "status_matches": true
+      }
+    },
+    "b_latency_sensitivity_completed": false,
+    "b_latency_sensitivity_status": "UNAVAILABLE",
+    "b_response_candidate_analysis_completed": false,
+    "b_response_candidate_analysis_status": "UNAVAILABLE",
+    "causal_analysis_completed": false,
+    "causal_analysis_status": "UNAVAILABLE",
+    "causal_hypothesis": "UNRESOLVED",
+    "causal_selection_authorized": false,
+    "causal_status": "UNAVAILABLE",
+    "cpi_census_current": false,
+    "current_timing_candidate_id": "UNAVAILABLE",
+    "current_timing_path_analysis_completed": false,
+    "current_timing_path_analysis_status": "UNAVAILABLE",
+    "hard_blockers_closed": true,
+    "maturity": "ARCH_STABLE",
+    "owner_timing_measured": false,
+    "performance_anchor_floor": 0.995,
+    "performance_anchor_floor_met": false,
+    "performance_anchor_ratios": {},
+    "performance_baseline_current": false,
+    "ppa_engineering_reference_available": false,
+    "ppa_qualified": false,
+    "ppa_reference_available": false,
+    "ppa_reference_measurement_completed": false,
+    "ppa_reference_measurement_status": "UNAVAILABLE",
+    "ppa_timing_hard_gate": "UNKNOWN",
+    "production_rtl_file_count": 147,
+    "serialized_drain_candidate_id": "UNAVAILABLE",
+    "serialized_drain_experiment_authorized": false,
+    "serialized_drain_owner_lifetime_completed": false,
+    "serialized_drain_owner_lifetime_status": "UNAVAILABLE",
+    "state_conflicts": [
+      "architecture_stable:DESIGN_ID_MISMATCH",
+      "historical_defect:DESIGN_ID_MISMATCH",
+      "performance_baseline:DESIGN_ID_MISMATCH"
+    ]
+  },
+  "tradeoff_analysis": {
+    "active_mode": null,
+    "front_status": "NOT_EVALUATED"
+  }
+}

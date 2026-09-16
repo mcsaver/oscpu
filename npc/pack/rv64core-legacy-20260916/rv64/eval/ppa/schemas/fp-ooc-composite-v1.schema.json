@@ -1,0 +1,486 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-fp-ooc-composite-v1.schema.json",
+  "title": "RV64 FP OOC composite diagnostic evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "claim_scope",
+    "run_identity",
+    "projection",
+    "artifacts",
+    "children",
+    "top",
+    "area_accounting",
+    "timing_accounting",
+    "power",
+    "physical_claim"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-fp-ooc-composite-v1"},
+    "status": {"const": "PASS"},
+    "claim_scope": {"const": "DIAGNOSTIC_OOC_COMPOSITE_ONLY"},
+    "run_identity": {"$ref": "#/$defs/identity"},
+    "projection": {"type": "object"},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_manifest_before",
+        "production_manifest_after",
+        "source_manifest",
+        "tool_manifest",
+        "run_identity",
+        "registry_contract",
+        "stdlib_leaf_whitelist",
+        "top_boundary_contract_tcl"
+      ],
+      "properties": {
+        "production_manifest_before": {"$ref": "#/$defs/receipt"},
+        "production_manifest_after": {"$ref": "#/$defs/receipt"},
+        "source_manifest": {"$ref": "#/$defs/receipt"},
+        "tool_manifest": {"$ref": "#/$defs/receipt"},
+        "run_identity": {"$ref": "#/$defs/receipt"},
+        "registry_contract": {"$ref": "#/$defs/receipt"},
+        "stdlib_leaf_whitelist": {"$ref": "#/$defs/receipt"},
+        "top_boundary_contract_tcl": {"$ref": "#/$defs/receipt"}
+      }
+    },
+    "children": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "OooFpAddSubPipe",
+        "OooFpMulProductPipe",
+        "OooFpMulNormRoundPipe",
+        "OooFpFmaAlignAddPipe",
+        "OooFpFmaNormRoundPipe"
+      ],
+      "properties": {
+        "OooFpAddSubPipe": {"$ref": "#/$defs/child"},
+        "OooFpMulProductPipe": {"$ref": "#/$defs/child"},
+        "OooFpMulNormRoundPipe": {"$ref": "#/$defs/child"},
+        "OooFpFmaAlignAddPipe": {"$ref": "#/$defs/child"},
+        "OooFpFmaNormRoundPipe": {"$ref": "#/$defs/child"}
+      }
+    },
+    "top": {"$ref": "#/$defs/top"},
+    "area_accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "top_stdcell_area_um2",
+        "child_ooc_area_um2",
+        "macro_area_sum_um2",
+        "composite_area_um2",
+        "double_counted_modules",
+        "missing_modules"
+      ],
+      "properties": {
+        "method": {"const": "top_excludes_known_ooc_macro_area_plus_each_child_once"},
+        "top_stdcell_area_um2": {"type": "number", "exclusiveMinimum": 0},
+        "child_ooc_area_um2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "OooFpAddSubPipe",
+            "OooFpMulProductPipe",
+            "OooFpMulNormRoundPipe",
+            "OooFpFmaAlignAddPipe",
+            "OooFpFmaNormRoundPipe"
+          ],
+          "properties": {
+            "OooFpAddSubPipe": {"type": "number", "exclusiveMinimum": 0},
+            "OooFpMulProductPipe": {"type": "number", "exclusiveMinimum": 0},
+            "OooFpMulNormRoundPipe": {"type": "number", "exclusiveMinimum": 0},
+            "OooFpFmaAlignAddPipe": {"type": "number", "exclusiveMinimum": 0},
+            "OooFpFmaNormRoundPipe": {"type": "number", "exclusiveMinimum": 0}
+          }
+        },
+        "macro_area_sum_um2": {"type": "number", "exclusiveMinimum": 0},
+        "composite_area_um2": {"type": "number", "exclusiveMinimum": 0},
+        "double_counted_modules": {"const": []},
+        "missing_modules": {"const": []}
+      }
+    },
+    "timing_accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessment",
+        "child_negative_slack_count",
+        "top_boundary_negative_slack_count",
+        "zero_negative_slack_is_valid"
+      ],
+      "properties": {
+        "assessment": {"enum": ["CLEAN", "VIOLATED"]},
+        "child_negative_slack_count": {"type": "integer", "minimum": 0},
+        "top_boundary_negative_slack_count": {"type": "integer", "minimum": 0},
+        "zero_negative_slack_is_valid": {"const": true}
+      }
+    },
+    "power": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "complete", "children_without_power_model"],
+      "properties": {
+        "status": {"const": "INCOMPLETE_NO_OOC_POWER_MODEL"},
+        "complete": {"const": false},
+        "children_without_power_model": {
+          "const": [
+            "OooFpAddSubPipe",
+            "OooFpMulProductPipe",
+            "OooFpMulNormRoundPipe",
+            "OooFpFmaAlignAddPipe",
+            "OooFpFmaNormRoundPipe"
+          ]
+        }
+      }
+    },
+    "physical_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measurement_status", "physical_status", "canonical", "champion", "signoff"],
+      "properties": {
+        "measurement_status": {"const": "DIAGNOSTIC_ONLY"},
+        "physical_status": {"const": "GAP"},
+        "canonical": {"const": false},
+        "champion": {"const": false},
+        "signoff": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "path_scope", "sha256", "size_bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "path_scope": {"const": "evidence_relative"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "portManifestSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "raw_port_count",
+        "raw_bit_count",
+        "canonical_port_count",
+        "canonical_bit_count",
+        "mapping_count"
+      ],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-post-split-port-canonicalization-v1"},
+        "raw_port_count": {"type": "integer", "minimum": 1},
+        "raw_bit_count": {"type": "integer", "minimum": 1},
+        "canonical_port_count": {"type": "integer", "minimum": 1},
+        "canonical_bit_count": {"type": "integer", "minimum": 1},
+        "mapping_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "run_id",
+        "design_id",
+        "physical_configuration_id",
+        "physical_configuration_sha256",
+        "mapped_projection_sha256",
+        "mapped_artifact_profile",
+        "abstraction_kind",
+        "corner",
+        "source_manifest_sha256",
+        "tool_manifest_sha256",
+        "standard_cell_lib_sha256",
+        "yosys_sha256",
+        "opensta_sha256"
+      ],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-run-identity-v1"},
+        "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "design_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "physical_configuration_id": {"const": "mapped-5ns-fp-arith-production-children-ooc-boundary-v1"},
+        "physical_configuration_sha256": {"$ref": "#/$defs/sha256"},
+        "mapped_projection_sha256": {"$ref": "#/$defs/sha256"},
+        "mapped_artifact_profile": {"const": "fp-arith-ooc-composite-v1"},
+        "abstraction_kind": {"const": "OOC_STA_ABSTRACTION"},
+        "corner": {"const": "typ_tt_1p2_25"},
+        "source_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "tool_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "standard_cell_lib_sha256": {"$ref": "#/$defs/sha256"},
+        "yosys_sha256": {"$ref": "#/$defs/sha256"},
+        "opensta_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "pathRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "path_count", "negative_path_count", "worst_slack_ns", "startpoint", "endpoint", "startpoint_object_class", "endpoint_object_class", "from_objects", "to_objects"],
+      "properties": {
+        "status": {"enum": ["OBSERVED", "NOT_APPLICABLE"]},
+        "path_count": {"type": "integer", "minimum": 0},
+        "negative_path_count": {"type": "integer", "minimum": 0},
+        "worst_slack_ns": {"type": ["number", "null"]},
+        "startpoint": {"type": ["string", "null"]},
+        "endpoint": {"type": ["string", "null"]},
+        "startpoint_object_class": {"type": ["string", "null"]},
+        "endpoint_object_class": {"type": ["string", "null"]},
+        "from_objects": {"type": "array", "items": {"type": "string"}},
+        "to_objects": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "arcRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arc_class", "port_family", "path_delay", "declared_cardinality", "observed_cardinality", "path_count", "worst_path_delay_ns", "worst_slack_ns", "source_object_class", "endpoint_object_class", "object_names", "startpoint", "endpoint"],
+      "properties": {
+        "arc_class": {"enum": ["setup", "hold", "clk_to_q"]},
+        "port_family": {"type": "string"},
+        "path_delay": {"enum": ["max", "min"]},
+        "declared_cardinality": {"type": "integer", "minimum": 1},
+        "observed_cardinality": {"type": "integer", "minimum": 0},
+        "path_count": {"type": "integer", "minimum": 0},
+        "worst_path_delay_ns": {"type": ["number", "null"], "minimum": 0},
+        "worst_slack_ns": {"type": ["number", "null"]},
+        "source_object_class": {"enum": ["PORT", "REGISTER_Q"]},
+        "endpoint_object_class": {"enum": ["REGISTER_D", "PORT"]},
+        "object_names": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "startpoint": {"type": ["string", "null"]},
+        "endpoint": {"type": ["string", "null"]}
+      }
+    },
+    "outputBitTimingRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "index", "object_name", "classification", "constant_value", "path_delay", "path_count", "worst_path_delay_ns", "worst_slack_ns", "source_object_class", "endpoint_object_class", "startpoint", "endpoint", "driver_binding_sha256"],
+      "properties": {
+        "family": {"type": "string"},
+        "index": {"type": "integer", "minimum": 0},
+        "object_name": {"type": "string"},
+        "classification": {"enum": ["DYNAMIC", "CONSTANT_0", "CONSTANT_1"]},
+        "constant_value": {"type": ["integer", "null"], "enum": [null, 0, 1]},
+        "path_delay": {"enum": ["max", "min"]},
+        "path_count": {"type": "integer", "minimum": 0},
+        "worst_path_delay_ns": {"type": ["number", "null"], "minimum": 0},
+        "worst_slack_ns": {"type": ["number", "null"]},
+        "source_object_class": {"enum": ["REGISTER_Q", "STRUCTURAL_CONSTANT"]},
+        "endpoint_object_class": {"const": "PORT"},
+        "startpoint": {"type": ["string", "null"]},
+        "endpoint": {"type": ["string", "null"]},
+        "driver_binding_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "outputBitDriverRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "index", "raw_port_name", "opensta_object_name", "net", "driver_instance", "driver_cell_type", "driver_pin", "stdlib_function", "stdlib_function_sha256", "classification", "value", "driver_binding_sha256"],
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "index": {"type": "integer", "minimum": 0},
+        "raw_port_name": {"type": "string", "minLength": 1},
+        "opensta_object_name": {"type": "string", "minLength": 1, "pattern": "^[^/]+$"},
+        "net": {"type": "integer", "minimum": 0},
+        "driver_instance": {"type": "string", "minLength": 1},
+        "driver_cell_type": {"type": "string", "minLength": 1},
+        "driver_pin": {"type": "string", "minLength": 1},
+        "stdlib_function": {"type": "string", "minLength": 1},
+        "stdlib_function_sha256": {"$ref": "#/$defs/sha256"},
+        "classification": {"enum": ["DYNAMIC", "CONSTANT_0", "CONSTANT_1"]},
+        "value": {"type": ["integer", "null"], "enum": [null, 0, 1]},
+        "driver_binding_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "outputBitDriverContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "module", "run_identity", "classification_basis", "bindings", "bits", "summary", "contract_id"],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-output-bit-driver-contract-v1"},
+        "status": {"const": "PASS"},
+        "module": {"enum": ["OooFpAddSubPipe", "OooFpMulProductPipe", "OooFpMulNormRoundPipe", "OooFpFmaAlignAddPipe", "OooFpFmaNormRoundPipe"]},
+        "run_identity": {"$ref": "#/$defs/identity"},
+        "classification_basis": {"const": "retained_unique_driver_plus_bound_stdlib_output_pin_function"},
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["run_identity_sha256", "netlist_sha256", "netlist_size_bytes", "netlist_manifest", "design_json", "stdlib_whitelist", "whitelist_id", "standard_cell_lib_sha256"],
+          "properties": {
+            "run_identity_sha256": {"$ref": "#/$defs/sha256"},
+            "netlist_sha256": {"$ref": "#/$defs/sha256"},
+            "netlist_size_bytes": {"type": "integer", "minimum": 1},
+            "netlist_manifest": {"$ref": "#/$defs/receipt"},
+            "design_json": {"$ref": "#/$defs/receipt"},
+            "stdlib_whitelist": {"$ref": "#/$defs/receipt"},
+            "whitelist_id": {"$ref": "#/$defs/sha256"},
+            "standard_cell_lib_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "bits": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/outputBitDriverRecord"}},
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bit_count", "dynamic_count", "constant_0_count", "constant_1_count", "family_counts"],
+          "properties": {
+            "bit_count": {"type": "integer", "minimum": 1},
+            "dynamic_count": {"type": "integer", "minimum": 0},
+            "constant_0_count": {"type": "integer", "minimum": 0},
+            "constant_1_count": {"type": "integer", "minimum": 0},
+            "family_counts": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["CONSTANT_0", "CONSTANT_1", "DYNAMIC"],
+                "properties": {
+                  "CONSTANT_0": {"type": "integer", "minimum": 0},
+                  "CONSTANT_1": {"type": "integer", "minimum": 0},
+                  "DYNAMIC": {"type": "integer", "minimum": 0}
+                }
+              }
+            }
+          }
+        },
+        "contract_id": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "queryBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "artifact", "completion_marker", "complete", "expected_find_calls", "find_calls", "path_end_limit", "path_end_count", "validation_limit", "validation_count", "register_d_endpoints", "nonclock_input_bits", "output_bits", "dynamic_output_bits"],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-query-progress-v1"},
+        "artifact": {"$ref": "#/$defs/receipt"},
+        "completion_marker": {"const": "[FP-OOC-QUERY-BUDGET][PASS]"},
+        "complete": {"const": true},
+        "expected_find_calls": {"type": "integer", "minimum": 1},
+        "find_calls": {"type": "integer", "minimum": 1},
+        "path_end_limit": {"type": "integer", "minimum": 1},
+        "path_end_count": {"type": "integer", "minimum": 1},
+        "validation_limit": {"type": "integer", "minimum": 1},
+        "validation_count": {"type": "integer", "minimum": 1},
+        "register_d_endpoints": {"type": "integer", "minimum": 1},
+        "nonclock_input_bits": {"type": "integer", "minimum": 1},
+        "output_bits": {"type": "integer", "minimum": 1},
+        "dynamic_output_bits": {"type": "integer", "minimum": 1}
+      }
+    },
+    "childTimingMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysis", "artifact", "path_classes", "arc_inventory", "output_bit_driver_contract_id", "output_bit_inventory", "query_budget", "negative_slack_count"],
+      "properties": {
+        "analysis": {"enum": ["max", "min"]},
+        "artifact": {"$ref": "#/$defs/receipt"},
+        "negative_slack_count": {"type": "integer", "minimum": 0},
+        "arc_inventory": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/arcRecord"}},
+        "output_bit_driver_contract_id": {"$ref": "#/$defs/sha256"},
+        "output_bit_inventory": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/outputBitTimingRecord"}},
+        "query_budget": {"$ref": "#/$defs/queryBudget"},
+        "path_classes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["port_to_register", "register_to_register", "register_to_port", "synchronous_control_to_register"],
+          "properties": {
+            "port_to_register": {"$ref": "#/$defs/pathRecord"},
+            "register_to_register": {"$ref": "#/$defs/pathRecord"},
+            "register_to_port": {"$ref": "#/$defs/pathRecord"},
+            "synchronous_control_to_register": {"$ref": "#/$defs/pathRecord"}
+          }
+        }
+      }
+    },
+    "libertyRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analysis", "artifact", "metadata_sha256"],
+      "properties": {
+        "analysis": {"enum": ["max", "min"]},
+        "artifact": {"$ref": "#/$defs/receipt"},
+        "metadata_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "child": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "module", "run_identity", "source_closure_sha256", "synthesis", "timing", "liberty", "power"],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-child-result-v1"},
+        "status": {"const": "PASS"},
+        "module": {"enum": ["OooFpAddSubPipe", "OooFpMulProductPipe", "OooFpMulNormRoundPipe", "OooFpFmaAlignAddPipe", "OooFpFmaNormRoundPipe"]},
+        "run_identity": {"$ref": "#/$defs/identity"},
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "synthesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["implementation_class", "cell_count", "area_um2", "netlist_sha256", "netlist_size_bytes", "synth_stat", "census_json", "netlist_manifest", "port_manifest", "output_bit_driver_contract", "output_bit_driver_contract_value", "census"],
+          "properties": {
+            "implementation_class": {"const": "known_ooc_macro_source_mapping"},
+            "cell_count": {"type": "integer", "minimum": 1},
+            "area_um2": {"type": "number", "exclusiveMinimum": 0},
+            "netlist_sha256": {"$ref": "#/$defs/sha256"},
+            "netlist_size_bytes": {"type": "integer", "minimum": 1},
+            "synth_stat": {"$ref": "#/$defs/receipt"},
+            "census_json": {"$ref": "#/$defs/receipt"},
+            "netlist_manifest": {"$ref": "#/$defs/receipt"},
+            "port_manifest": {"$ref": "#/$defs/portManifestSummary"},
+            "output_bit_driver_contract": {"$ref": "#/$defs/receipt"},
+            "output_bit_driver_contract_value": {"$ref": "#/$defs/outputBitDriverContract"},
+            "census": {"type": "object"}
+          }
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max", "min", "assessment"],
+          "properties": {
+            "max": {"$ref": "#/$defs/childTimingMode"},
+            "min": {"$ref": "#/$defs/childTimingMode"},
+            "assessment": {"enum": ["CLEAN", "VIOLATED"]}
+          }
+        },
+        "liberty": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max", "min"],
+          "properties": {
+            "max": {"$ref": "#/$defs/libertyRecord"},
+            "min": {"$ref": "#/$defs/libertyRecord"}
+          }
+        },
+        "power": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model", "complete", "status"],
+          "properties": {
+            "model": {"const": "absent"},
+            "complete": {"const": false},
+            "status": {"const": "INCOMPLETE_NO_OOC_POWER_MODEL"}
+          }
+        }
+      }
+    },
+    "top": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "run_identity", "synthesis", "timing"],
+      "properties": {
+        "schema": {"const": "npc-rv64-fp-ooc-top-result-v1"},
+        "status": {"const": "PASS"},
+        "run_identity": {"$ref": "#/$defs/identity"},
+        "synthesis": {"type": "object"},
+        "timing": {"type": "object"}
+      }
+    }
+  }
+}

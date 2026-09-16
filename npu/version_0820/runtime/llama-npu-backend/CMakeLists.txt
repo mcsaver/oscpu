@@ -25,6 +25,12 @@ endif()
 
 find_program(VERILATOR_EXECUTABLE NAMES verilator REQUIRED)
 find_program(NPU_MAKE_EXECUTABLE NAMES gmake make REQUIRED)
+find_program(NPU_RISCV64_GCC_EXECUTABLE
+    NAMES riscv64-linux-gnu-gcc REQUIRED)
+find_program(NPU_RISCV64_OBJCOPY_EXECUTABLE
+    NAMES riscv64-linux-gnu-objcopy REQUIRED)
+find_program(NPU_RISCV64_OBJDUMP_EXECUTABLE
+    NAMES riscv64-linux-gnu-objdump REQUIRED)
 execute_process(
     COMMAND "${VERILATOR_EXECUTABLE}" --getenv VERILATOR_ROOT
     OUTPUT_VARIABLE VERILATOR_ROOT
@@ -42,6 +48,110 @@ if(NOT NPU_HOST_PROCESSORS OR NPU_HOST_PROCESSORS EQUAL 0)
 endif()
 set(NPU_VERILATOR_JOBS "${NPU_HOST_PROCESSORS}" CACHE STRING
     "Parallel jobs used to build the Verilated model")
+
+# Fixed RV64 service firmware.  The build output is an ELF for auditing, a
+# flat image for the SystemTop CPU aperture, and a deterministic C++ header for
+# the Host Runtime.  Firmware consumes only relocated 30-word records from the
+# NC mailbox; it never parses command.bin's file header.
+set(NPU_RV64_FIRMWARE_DIR "${NPU_PROJECT_ROOT}/firmware")
+set(NPU_RV64_FIRMWARE_BUILD_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/rv64-service-firmware")
+set(NPU_RV64_FIRMWARE_ELF
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}/npu-service-firmware.elf")
+set(NPU_RV64_FIRMWARE_BIN
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}/npu-service-firmware.bin")
+set(NPU_RV64_FIRMWARE_MAP
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}/npu-service-firmware.map")
+set(NPU_RV64_FIRMWARE_HEADER
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}/npu-rv64-service-firmware-image.h")
+
+add_custom_command(
+    OUTPUT
+        "${NPU_RV64_FIRMWARE_ELF}"
+        "${NPU_RV64_FIRMWARE_BIN}"
+        "${NPU_RV64_FIRMWARE_HEADER}"
+    BYPRODUCTS "${NPU_RV64_FIRMWARE_MAP}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "${NPU_RV64_FIRMWARE_BUILD_DIR}"
+    COMMAND "${NPU_RISCV64_GCC_EXECUTABLE}"
+            -march=rv64im_zicsr
+            -mabi=lp64
+            -mcmodel=medany
+            -nostdlib
+            -nostartfiles
+            -nodefaultlibs
+            -ffreestanding
+            -static
+            -Wl,--build-id=none
+            -Wl,--no-relax
+            -Wl,--gc-sections
+            "-Wl,-T,${NPU_RV64_FIRMWARE_DIR}/npu_service.ld"
+            "-Wl,-Map,${NPU_RV64_FIRMWARE_MAP}"
+            "-I${NPU_RV64_FIRMWARE_DIR}"
+            -x assembler-with-cpp
+            "${NPU_RV64_FIRMWARE_DIR}/npu_service.S"
+            -o "${NPU_RV64_FIRMWARE_ELF}"
+    COMMAND "${NPU_RISCV64_OBJCOPY_EXECUTABLE}"
+            -O binary
+            "${NPU_RV64_FIRMWARE_ELF}"
+            "${NPU_RV64_FIRMWARE_BIN}"
+    COMMAND "${Python3_EXECUTABLE}"
+            "${NPU_RV64_FIRMWARE_DIR}/bin_to_cpp_header.py"
+            --input "${NPU_RV64_FIRMWARE_BIN}"
+            --output "${NPU_RV64_FIRMWARE_HEADER}"
+            --load-address 0x80000000
+            --entry-address 0x80000000
+            --mailbox-address 0xa0000000
+            --command-address 0xa0000100
+            --completion-address 0xa0100000
+    DEPENDS
+        "${NPU_RV64_FIRMWARE_DIR}/npu_service.S"
+        "${NPU_RV64_FIRMWARE_DIR}/npu_service.ld"
+        "${NPU_RV64_FIRMWARE_DIR}/npu_service_mailbox_abi.h"
+        "${NPU_RV64_FIRMWARE_DIR}/bin_to_cpp_header.py"
+    COMMENT "Building fixed RV64 NPU service firmware"
+    VERBATIM
+)
+add_custom_target(npu-rv64-service-firmware
+    DEPENDS
+        "${NPU_RV64_FIRMWARE_ELF}"
+        "${NPU_RV64_FIRMWARE_BIN}"
+        "${NPU_RV64_FIRMWARE_HEADER}"
+)
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}")
+
+# Consumers can link this interface target to get the generated image header
+# and the mailbox ABI include path without depending on source-tree binaries.
+add_library(npu-rv64-service-firmware-image INTERFACE)
+add_dependencies(npu-rv64-service-firmware-image
+    npu-rv64-service-firmware)
+target_include_directories(npu-rv64-service-firmware-image INTERFACE
+    "${NPU_RV64_FIRMWARE_BUILD_DIR}"
+    "${NPU_RV64_FIRMWARE_DIR}"
+)
+
+add_executable(npu-rv64-service-firmware-image-test EXCLUDE_FROM_ALL
+    "${NPU_RV64_FIRMWARE_DIR}/test-firmware-image.cpp"
+    "${NPU_RV64_FIRMWARE_HEADER}"
+)
+add_dependencies(npu-rv64-service-firmware-image-test
+    npu-rv64-service-firmware)
+target_compile_features(npu-rv64-service-firmware-image-test
+    PRIVATE cxx_std_17)
+target_compile_options(npu-rv64-service-firmware-image-test PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_link_libraries(npu-rv64-service-firmware-image-test PRIVATE
+    npu-rv64-service-firmware-image)
+
+add_custom_target(test-npu-rv64-service-firmware
+    COMMAND "${NPU_RISCV64_OBJDUMP_EXECUTABLE}"
+            -f "${NPU_RV64_FIRMWARE_ELF}"
+    COMMAND $<TARGET_FILE:npu-rv64-service-firmware-image-test>
+    DEPENDS npu-rv64-service-firmware-image-test
+    COMMENT "Checking RV64 firmware entry and Tensor instruction layout"
+    VERBATIM
+)
 
 set(NPU_RTL_SOURCES
     # Frozen fpu-sp production subset and complete lzc_4 -> lzc_128 chain.
@@ -172,6 +282,32 @@ add_custom_target(npu-verilated-model DEPENDS "${NPU_VERILATED_ARCHIVE}")
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     "${NPU_VERILATED_MDIR}")
 
+add_executable(test-npu-fault-recovery EXCLUDE_FROM_ALL
+    "${NPU_PROJECT_ROOT}/tests/npu_fault_recovery_tb.cpp"
+    "${VERILATOR_ROOT}/include/verilated.cpp"
+    "${VERILATOR_ROOT}/include/verilated_threads.cpp"
+)
+add_dependencies(test-npu-fault-recovery npu-verilated-model)
+target_compile_features(test-npu-fault-recovery PRIVATE cxx_std_17)
+target_compile_options(test-npu-fault-recovery PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_include_directories(test-npu-fault-recovery SYSTEM PRIVATE
+    "${NPU_VERILATED_MDIR}"
+    "${VERILATOR_ROOT}/include"
+    "${VERILATOR_ROOT}/include/vltstd"
+)
+target_link_libraries(test-npu-fault-recovery PRIVATE
+    Threads::Threads
+    "${NPU_VERILATED_ARCHIVE}"
+)
+
+add_custom_target(check-npu-fault-recovery
+    COMMAND $<TARGET_FILE:test-npu-fault-recovery>
+    DEPENDS test-npu-fault-recovery
+    COMMENT "Checking recoverable and fatal NPU error lifecycles"
+    VERBATIM
+)
+
 # Frozen production CPU closure from the final NpcTensorNpuSystemTop build.
 # Keep this explicit: recursive globs also pull in alternate tops and checker
 # variants which are not part of the verified RV64 transport configuration.
@@ -196,165 +332,23 @@ set(NPU_SYSTEM_FPU_RTL_SOURCES
     "${NPU_PROJECT_ROOT}/third_party/fpu-sp/verilog/src/float/fp_cvt.sv"
     "${NPU_PROJECT_ROOT}/third_party/fpu-sp/verilog/src/float/fp_ext.sv"
 )
-set(NPU_NPC_RTL_SOURCES
-    "${NPU_NPC_RTL_ROOT}/pipeline/PipeStageReg.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/OooWriteback.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/OooArchRegFile.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/OooRob.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/OooCommitOutputMux.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/WBU.v"
-    "${NPU_NPC_RTL_ROOT}/writeback/OooControlCommitSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBackendDrainTracker.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchLocalPht.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooDirectBranchResolveGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooDirectControlFlowGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontendActionGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooRasUpdateGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooDirectRasCandidateGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchHeadClassifyGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontendRunGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontendUopSafety.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchAppendDispatchGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchAxiBridge.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchBranchTarget.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchPacketHeadMux.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooDirectBranchWaitBuffer.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchHeadPairGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchSpecTracker.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchPacketDecode.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchPcOutstandingSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchStaticClassify.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchFlowControl.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontend.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontendDispatchGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchRequestMux.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchBpuUpdateGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchPacketSeedMux.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooRasStack.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFrontendBackendDispatchMux.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooFetchPacketFifo.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchResolveRecoveryGate.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooTensorPairOwner.v"
-    "${NPU_NPC_RTL_ROOT}/frontend/OooBranchDirectionPredictor.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooDualMemBridgeWrapper.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooPmaChecker.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemOwnerTerminalCollector.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemAxiBridge.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooPostTranslateMemoryClass.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooDualMemAxiArbiter.v"
-    "${NPU_NPC_RTL_ROOT}/memory/LSUDataPath.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooTypedPmaChecker.v"
-    "${NPU_NPC_RTL_ROOT}/memory/LSU.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooStoreQueue.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooTypedMemoryClassifier.v"
-    "${NPU_NPC_RTL_ROOT}/memory/LSUControl.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemInflightQueue.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMmuEpochOwner.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooLoadQueue.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemoryRequestGate.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemoryAccess.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooLsuAxiLaneAdapter.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooMemOwnerTracker.v"
-    "${NPU_NPC_RTL_ROOT}/memory/PmpChecker.v"
-    "${NPU_NPC_RTL_ROOT}/memory/OooSv39Tlb.v"
-    "${NPU_NPC_RTL_ROOT}/core/OooCoreTopGlue.v"
-    "${NPU_NPC_RTL_ROOT}/core/NpcCoreTop.v"
-    "${NPU_NPC_RTL_ROOT}/core/CsrFile.v"
-    "${NPU_NPC_RTL_ROOT}/core/NpcTop.v"
-    "${NPU_NPC_RTL_ROOT}/common/OooSlotFacts.v"
-    "${NPU_NPC_RTL_ROOT}/scheduling/OooIntIssueSelect8.v"
-    "${NPU_NPC_RTL_ROOT}/scheduling/OooIntIssueQueue.v"
-    "${NPU_NPC_RTL_ROOT}/scheduling/OooFpIssueQueue.v"
-    "${NPU_NPC_RTL_ROOT}/sim/NpcSimTop.sv"
-    "${NPU_NPC_RTL_ROOT}/sim/AxiVirtioBlk.sv"
+# Use the CPU's native catalog; no historical Ooo CPU enters this model.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${NPU_NPC_RTL_ROOT}/filelist.mk" "${NPU_NPC_RTL_ROOT}/chengyue64/filelist.mk")
+execute_process(
+    COMMAND "${NPU_MAKE_EXECUTABLE}" -s -C "${NPU_WORKBENCH_ROOT}/npc/rv64" print-synth-rtl
+    OUTPUT_VARIABLE NPU_NATIVE_SOURCE_TEXT OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY)
+string(REGEX REPLACE "[ \t\r\n]+" ";" NPU_NPC_RTL_SOURCES "${NPU_NATIVE_SOURCE_TEXT}")
+list(APPEND NPU_NPC_RTL_SOURCES
     "${NPU_NPC_RTL_ROOT}/sim/AxiDpiSlave.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooFetchPacketCacheChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooDataWordCacheChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooRedirectMuxChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooRedirectSeqChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooAdUpdateChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/debug/OooBranchDirectionPredictorChecker.sv"
-    "${NPU_NPC_RTL_ROOT}/decode/OooFpDecode.v"
-    "${NPU_NPC_RTL_ROOT}/decode/DecodeStage.v"
-    "${NPU_NPC_RTL_ROOT}/decode/OooAluDecodeBackend.v"
-    "${NPU_NPC_RTL_ROOT}/decode/DecodeUnit.v"
-    "${NPU_NPC_RTL_ROOT}/decode/ImmGen.v"
-    "${NPU_NPC_RTL_ROOT}/decode/OooRvcDecompressor.v"
+    "${NPU_NPC_RTL_ROOT}/sim/R64NpuCpuSim.sv")
+file(GLOB NPU_SYSTEM_INCLUDE_DEPENDENCIES CONFIGURE_DEPENDS
+    "${NPU_NPC_RTL_ROOT}/chengyue64/backend/*.vh"
+    "${NPU_NPC_RTL_ROOT}/chengyue64/platform/*.vh")
+list(APPEND NPU_SYSTEM_INCLUDE_DEPENDENCIES
     "${NPU_NPC_RTL_ROOT}/include/define.v"
-    "${NPU_NPC_RTL_ROOT}/cache/OooDataWordCache.v"
-    "${NPU_NPC_RTL_ROOT}/cache/OooFetchPacketCache.v"
-    "${NPU_NPC_RTL_ROOT}/rename_allocate/OooFreeList.v"
-    "${NPU_NPC_RTL_ROOT}/rename_allocate/OooRenameMap.v"
-    "${NPU_NPC_RTL_ROOT}/rename_allocate/OooDispatchBackend.v"
-    "${NPU_NPC_RTL_ROOT}/rename_allocate/OooTensorRobSidecar.v"
-    "${NPU_NPC_RTL_ROOT}/rename_allocate/OooBusyTable.v"
-    "${NPU_NPC_RTL_ROOT}/bus/NpcAxiBus.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiToUart.v"
-    "${NPU_NPC_RTL_ROOT}/bus/Uart.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiClint.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiResetSyscon.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiDefaultSlave.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiPlic.v"
-    "${NPU_NPC_RTL_ROOT}/bus/AxiCrossbar.v"
-    "${NPU_NPC_RTL_ROOT}/regread_bypass/OooFpPhysRegFile.v"
-    "${NPU_NPC_RTL_ROOT}/regread_bypass/OooPendingOperandReadGate.v"
-    "${NPU_NPC_RTL_ROOT}/regread_bypass/OooFpRegFile.v"
-    "${NPU_NPC_RTL_ROOT}/regread_bypass/OooPhysRegFile.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooClmulUnit.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpLongOpGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpSgnjGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpFmaNormRoundPipe.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpDivIter.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooAluCoreSlice.v"
-    "${NPU_NPC_RTL_ROOT}/execute/ALU.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooAmoGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooMulDivUnit.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpPredicates.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpMulProductPipe.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpFmaAlignAddPipe.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpAddSubPipe.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpSqrtIter.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpConvertGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooBitmanipGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooIntBackend.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooTrapExitOutputSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpBackend.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpRound.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooSerializedMemTerminalPermit.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingSystemSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingSystemAdmissionCancelGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooCoreSliceControlGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooCoreObservableOutputGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooControlEventApplySequencer.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooCsrAccessRequestMux.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooRedirectArbiter.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingLane1CaptureGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingDispatchArbiter.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooControlFlushSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooStopPendingSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingTrapExitSequencer.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooControlPlane.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooTrapExitEventMux.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooCsrIllegalProbeGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooPendingDrainResolveGate.v"
-    "${NPU_NPC_RTL_ROOT}/control/OooCsrTrapRequestMux.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpMulNormRoundPipe.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpClassifyGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpCompareGate.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooExecuteBackend.v"
-    "${NPU_NPC_RTL_ROOT}/execute/CompareUnit.v"
-    "${NPU_NPC_RTL_ROOT}/execute/OooFpArithGate.v"
-    "${NPU_NPC_RTL_ROOT}/sram/Sram4096x199.v"
-    "${NPU_NPC_RTL_ROOT}/sram/Sram4096x113.v"
-)
-set(NPU_SYSTEM_INCLUDE_DEPENDENCIES
-    "${NPU_NPC_RTL_ROOT}/common/OooBranchDirectionPredictorFacts.vh"
-    "${NPU_NPC_RTL_ROOT}/common/OooDataWordCacheFacts.vh"
-    "${NPU_NPC_RTL_ROOT}/common/OooFetchPacketCacheFacts.vh"
-    "${NPU_NPC_RTL_ROOT}/common/OooRedirectMuxFacts.vh"
-    "${NPU_NPC_RTL_ROOT}/common/OooRedirectSeqFacts.vh"
-    "${NPU_PROJECT_ROOT}/rtl/tensor_npu_defs.vh"
-)
+    "${NPU_PROJECT_ROOT}/rtl/tensor_npu_defs.vh")
 set(NPU_SYSTEM_RTL_SOURCES
     ${NPU_SYSTEM_FPU_RTL_SOURCES}
     ${NPU_NPC_RTL_SOURCES}
@@ -370,6 +364,7 @@ foreach(NPU_DIRECT_SOURCE IN LISTS NPU_RTL_SOURCES)
     endif()
 endforeach()
 list(APPEND NPU_SYSTEM_RTL_SOURCES
+    "${NPU_PROJECT_ROOT}/rtl/TensorNpuServiceDma.v"
     "${NPU_PROJECT_ROOT}/sim/NpcTensorNpuSystemTop.sv")
 
 set(NPU_SYSTEM_VERILATED_ARCHIVE
@@ -387,7 +382,7 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E make_directory
             "${NPU_SYSTEM_VERILATED_MDIR}"
     COMMAND "${VERILATOR_EXECUTABLE}"
-            --cc -O3 --no-assert --no-trace
+            --cc -O3 --assert -DR64_ASSERT --no-trace
             --top-module NpcTensorNpuSystemTop
             -GCOMMAND_FUNCTIONAL_ENABLE=0
             -GQ8_GEMV_PORTAL_ENABLE=1
@@ -404,6 +399,8 @@ add_custom_command(
             -Wno-PINMISSING -Wno-UNOPTFLAT
             "-I${NPU_NPC_RTL_ROOT}"
             "-I${NPU_NPC_RTL_ROOT}/include"
+            "-I${NPU_NPC_RTL_ROOT}/chengyue64/backend"
+            "-I${NPU_NPC_RTL_ROOT}/chengyue64/platform"
             "-I${NPU_PROJECT_ROOT}/rtl"
             "-I${NPU_PROJECT_ROOT}/third_party/hardfloat/source/RISCV"
             "-I${NPU_PROJECT_ROOT}/third_party/hardfloat/source"
@@ -423,7 +420,7 @@ add_custom_command(
         ${NPU_SYSTEM_RTL_SOURCES}
         ${NPU_SYSTEM_INCLUDE_DEPENDENCIES}
     WORKING_DIRECTORY "${NPU_PROJECT_ROOT}"
-    COMMENT "Generating O3/no-assert/no-trace RV64 NpcTensorNpuSystemTop model"
+    COMMENT "Generating native R64 CPU + Tensor NPU model with assertions"
     VERBATIM
 )
 add_custom_target(npu-system-verilated-model
@@ -567,6 +564,98 @@ set_target_properties(ggml-pinned PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${LLAMA_SOURCE_DIR}/ggml/include"
 )
 
+add_library(npu-command-abi STATIC
+    npu-command-abi.cpp
+)
+target_compile_features(npu-command-abi PUBLIC cxx_std_17)
+target_compile_options(npu-command-abi PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_include_directories(npu-command-abi PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+set_target_properties(npu-command-abi PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
+add_library(npu-compiled-runtime STATIC
+    npu-compiled-bundle.cpp
+)
+target_compile_features(npu-compiled-runtime PUBLIC cxx_std_17)
+target_compile_options(npu-compiled-runtime PRIVATE
+    -O3 -Wall -Wextra -Wpedantic)
+target_include_directories(npu-compiled-runtime PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_include_directories(npu-compiled-runtime SYSTEM PRIVATE
+    "${LLAMA_SOURCE_DIR}/vendor"
+)
+target_link_libraries(npu-compiled-runtime PUBLIC
+    npu-command-abi
+)
+set_target_properties(npu-compiled-runtime PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# Persistent fixed-firmware execution service.  The process-global Verilator
+# DPI callbacks live in this library, so consumers must not link it together
+# with npu-verilator-runner (the legacy per-transaction harness owns the same
+# callback symbols).  A session constructs and resets one production
+# SystemTop once, then accepts strictly monotonic mailbox generations.
+add_library(npu-system-session STATIC
+    npu-system-session.cpp
+    "${VERILATOR_ROOT}/include/verilated.cpp"
+    "${VERILATOR_ROOT}/include/verilated_dpi.cpp"
+    "${VERILATOR_ROOT}/include/verilated_threads.cpp"
+)
+add_dependencies(npu-system-session
+    npu-system-verilated-model
+    npu-rv64-service-firmware
+)
+target_compile_features(npu-system-session PUBLIC cxx_std_17)
+target_compile_options(npu-system-session PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_include_directories(npu-system-session PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_include_directories(npu-system-session SYSTEM PRIVATE
+    "${NPU_SYSTEM_VERILATED_MDIR}"
+    "${VERILATOR_ROOT}/include"
+    "${VERILATOR_ROOT}/include/vltstd"
+)
+target_link_libraries(npu-system-session
+    PUBLIC
+        npu-compiled-runtime
+        npu-rv64-service-firmware-image
+    PRIVATE
+        Threads::Threads
+        "${NPU_SYSTEM_VERILATED_ARCHIVE}"
+        m
+        "${CMAKE_DL_LIBS}"
+)
+set_target_properties(npu-system-session PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# Atomic compiled-artifact execution boundary used by production backends.
+# It owns one persistent SystemTop session, constructs a private IOVA arena,
+# and exposes external outputs only after every command has completed.
+add_library(npu-host-runtime STATIC
+    npu-host-runtime.cpp
+)
+target_compile_features(npu-host-runtime PUBLIC cxx_std_17)
+target_compile_options(npu-host-runtime PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_include_directories(npu-host-runtime PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+target_link_libraries(npu-host-runtime PUBLIC
+    npu-compiled-runtime
+    npu-system-session
+)
+set_target_properties(npu-host-runtime PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
 add_library(npu-verilator-runner STATIC
     npu-verilator-runner.cpp
     npu-verilator-q8-runner.cpp
@@ -606,6 +695,7 @@ set_source_files_properties(
         "-fno-fast-math;-ffp-contract=off;-frounding-math"
 )
 target_link_libraries(npu-verilator-runner PUBLIC
+    npu-command-abi
     Threads::Threads
     "${NPU_SYSTEM_VERILATED_ARCHIVE}"
     m
@@ -613,6 +703,195 @@ target_link_libraries(npu-verilator-runner PUBLIC
 )
 set_target_properties(npu-verilator-runner PROPERTIES
     POSITION_INDEPENDENT_CODE ON
+)
+
+# Model-independent conformance suite for the one 30-word wire ABI shared by
+# the compiler, Host Runtime, fixed firmware, and the legacy exact runner.
+add_executable(test-npu-command-abi EXCLUDE_FROM_ALL
+    test-command-abi.cpp
+)
+target_compile_features(test-npu-command-abi PRIVATE cxx_std_17)
+target_compile_options(test-npu-command-abi PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_link_libraries(test-npu-command-abi PRIVATE
+    npu-command-abi
+)
+
+add_custom_target(check-npu-command-abi
+    COMMAND $<TARGET_FILE:test-npu-command-abi>
+    DEPENDS test-npu-command-abi
+    COMMENT "Checking NPU command wire ABI and fail-closed relocation"
+    VERBATIM
+)
+
+add_executable(test-npu-compiled-bundle EXCLUDE_FROM_ALL
+    test-compiled-bundle.cpp
+)
+target_compile_features(test-npu-compiled-bundle PRIVATE cxx_std_17)
+target_compile_options(test-npu-compiled-bundle PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_link_libraries(test-npu-compiled-bundle PRIVATE
+    npu-compiled-runtime
+)
+
+set(NPU_TINY_BUNDLE_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/npu-tiny-compiled-bundle")
+set(NPU_TINY_BUNDLE_COMMAND "${NPU_TINY_BUNDLE_DIR}/command.bin")
+set(NPU_TINY_BUNDLE_WEIGHTS "${NPU_TINY_BUNDLE_DIR}/weights.bin")
+set(NPU_TINY_BUNDLE_METADATA "${NPU_TINY_BUNDLE_DIR}/metadata.json")
+add_custom_command(
+    OUTPUT
+        "${NPU_TINY_BUNDLE_COMMAND}"
+        "${NPU_TINY_BUNDLE_WEIGHTS}"
+        "${NPU_TINY_BUNDLE_METADATA}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${NPU_TINY_BUNDLE_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}" -m compiler.npu_compile
+            "${NPU_PROJECT_ROOT}/compiler/fixtures/tiny_two_command_graph.json"
+            --output-dir "${NPU_TINY_BUNDLE_DIR}"
+    DEPENDS
+        "${NPU_PROJECT_ROOT}/compiler/npu_artifact.py"
+        "${NPU_PROJECT_ROOT}/compiler/npu_compile.py"
+        "${NPU_PROJECT_ROOT}/compiler/fixtures/tiny_two_command_graph.json"
+    WORKING_DIRECTORY "${NPU_PROJECT_ROOT}"
+    COMMENT "Compiling deterministic two-command NPU test bundle"
+    VERBATIM
+)
+add_custom_target(npu-tiny-compiled-bundle
+    DEPENDS
+        "${NPU_TINY_BUNDLE_COMMAND}"
+        "${NPU_TINY_BUNDLE_WEIGHTS}"
+        "${NPU_TINY_BUNDLE_METADATA}"
+)
+
+add_custom_target(check-npu-compiler-python
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}"
+            "${NPU_PROJECT_ROOT}/tests/test_npu_compiler_artifacts.py"
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}"
+            "${NPU_PROJECT_ROOT}/tests/test_qwen_graph_ir.py"
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}"
+            "${NPU_PROJECT_ROOT}/tests/test_qwen_weights.py"
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}"
+            "${NPU_PROJECT_ROOT}/tests/test_qwen_p00_lowering.py"
+    COMMAND "${CMAKE_COMMAND}" -E env
+            PYTHONDONTWRITEBYTECODE=1
+            "PYTHONPATH=${NPU_PROJECT_ROOT}"
+            "${Python3_EXECUTABLE}"
+            "${NPU_PROJECT_ROOT}/tests/test_qwen_p00_codegen.py"
+    DEPENDS
+        "${NPU_PROJECT_ROOT}/compiler/npu_artifact.py"
+        "${NPU_PROJECT_ROOT}/compiler/npu_compile.py"
+        "${NPU_PROJECT_ROOT}/compiler/qwen_graph_ir.py"
+        "${NPU_PROJECT_ROOT}/compiler/npu_ids.py"
+        "${NPU_PROJECT_ROOT}/compiler/qwen_p00_codegen.py"
+        "${NPU_PROJECT_ROOT}/compiler/qwen_p00_lowering.py"
+        "${NPU_PROJECT_ROOT}/compiler/qwen_weights.py"
+        "${NPU_PROJECT_ROOT}/tests/test_npu_compiler_artifacts.py"
+        "${NPU_PROJECT_ROOT}/tests/test_qwen_graph_ir.py"
+        "${NPU_PROJECT_ROOT}/tests/test_qwen_weights.py"
+        "${NPU_PROJECT_ROOT}/tests/test_qwen_p00_lowering.py"
+        "${NPU_PROJECT_ROOT}/tests/test_qwen_p00_codegen.py"
+    WORKING_DIRECTORY "${NPU_PROJECT_ROOT}"
+    COMMENT "Running NPU compiler artifact, GraphIR, GGUF weight, and exact P00 tests"
+    VERBATIM
+)
+
+add_custom_target(check-npu-compiled-bundle
+    COMMAND $<TARGET_FILE:test-npu-compiled-bundle>
+            "${NPU_TINY_BUNDLE_DIR}"
+    DEPENDS
+        test-npu-compiled-bundle
+        npu-tiny-compiled-bundle
+    COMMENT "Checking compiled NPU bundle loading and relocation"
+    VERBATIM
+)
+
+# Executor-injected behavioral test of provenance revalidation, private arena
+# construction, automatic generations, exact compiler-owned contracts, and
+# bundle-atomic output publication.  A trusted fake executor exercises failure
+# after private output writes without booting SystemTop.
+add_executable(test-npu-host-runtime EXCLUDE_FROM_ALL
+    test-npu-host-runtime.cpp
+)
+add_dependencies(test-npu-host-runtime
+    npu-tiny-compiled-bundle
+)
+target_compile_features(test-npu-host-runtime PRIVATE cxx_std_17)
+target_compile_options(test-npu-host-runtime PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_link_libraries(test-npu-host-runtime PRIVATE
+    npu-host-runtime
+)
+
+add_custom_target(check-npu-host-runtime
+    COMMAND $<TARGET_FILE:test-npu-host-runtime>
+            "${NPU_TINY_BUNDLE_DIR}"
+    DEPENDS test-npu-host-runtime
+    COMMENT "Checking compiled-artifact Host Runtime atomicity"
+    VERBATIM
+)
+
+# Production-path proof: the public Host Runtime API owns and reuses one real
+# SystemTop/fixed-firmware session across two compiled-bundle generations.
+# This target must not link the legacy per-transaction DPI runner.
+add_executable(test-npu-host-runtime-system EXCLUDE_FROM_ALL
+    test-npu-host-runtime-system.cpp
+)
+add_dependencies(test-npu-host-runtime-system
+    npu-tiny-compiled-bundle
+)
+target_compile_features(test-npu-host-runtime-system PRIVATE cxx_std_17)
+target_compile_options(test-npu-host-runtime-system PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_link_libraries(test-npu-host-runtime-system PRIVATE
+    npu-host-runtime
+)
+
+add_custom_target(check-npu-host-runtime-system
+    COMMAND $<TARGET_FILE:test-npu-host-runtime-system>
+            "${NPU_TINY_BUNDLE_DIR}"
+    DEPENDS test-npu-host-runtime-system
+    COMMENT "Running production Host Runtime persistent-SystemTop proof"
+    VERBATIM
+)
+
+# End-to-end architecture proof: Python compiler artifact -> strict C++ Host
+# Runtime relocation -> NC mailbox -> one fixed RV64 firmware instance ->
+# production SystemTop/NPU F32 portal.  The reusable session owns its DPI
+# callbacks, so this executable intentionally does not link npu-verilator-runner.
+add_executable(test-npu-compiled-bundle-system EXCLUDE_FROM_ALL
+    test-compiled-bundle-system.cpp
+)
+add_dependencies(test-npu-compiled-bundle-system
+    npu-tiny-compiled-bundle
+)
+target_compile_features(test-npu-compiled-bundle-system PRIVATE cxx_std_17)
+target_compile_options(test-npu-compiled-bundle-system PRIVATE
+    -O3 -DNDEBUG -Wall -Wextra -Wpedantic)
+target_link_libraries(test-npu-compiled-bundle-system PRIVATE
+    npu-system-session
+)
+
+add_custom_target(check-npu-compiled-bundle-system
+    COMMAND $<TARGET_FILE:test-npu-compiled-bundle-system>
+            "${NPU_TINY_BUNDLE_DIR}"
+    DEPENDS test-npu-compiled-bundle-system
+    COMMENT "Running fixed-firmware compiled-bundle SystemTop proof"
+    VERBATIM
 )
 
 # Fast, model-independent qualification of the command-DPI numerical and
@@ -657,6 +936,76 @@ target_link_libraries(npu-direct-selftests PRIVATE
 )
 set_target_properties(npu-direct-selftests PROPERTIES
     OUTPUT_NAME "npu-direct-selftests"
+)
+
+# Compiled-artifact production backend.  Keep this DSO separate from the
+# legacy profile-driven ggml-npu module: npu-host-runtime owns the persistent
+# fixed-firmware SystemTop DPI callbacks, while npu-verilator-runner owns the
+# incompatible per-transaction callbacks used by the legacy path.
+add_library(ggml-npu-compiled MODULE
+    ggml-npu-compiled.cpp
+    npu-ggml-manifest.cpp
+)
+target_compile_features(ggml-npu-compiled PRIVATE cxx_std_17)
+target_compile_definitions(ggml-npu-compiled PRIVATE
+    GGML_BACKEND_DL
+    GGML_BACKEND_BUILD
+    GGML_BACKEND_SHARED
+    GGML_SHARED
+)
+target_compile_options(ggml-npu-compiled PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_include_directories(ggml-npu-compiled PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${LLAMA_SOURCE_DIR}/ggml/include"
+    "${LLAMA_SOURCE_DIR}/ggml/src"
+)
+target_include_directories(ggml-npu-compiled SYSTEM PRIVATE "${LLAMA_SOURCE_DIR}/vendor")
+target_link_libraries(ggml-npu-compiled PRIVATE
+    ggml-base-pinned
+    npu-host-runtime
+)
+set_target_properties(ggml-npu-compiled PROPERTIES
+    OUTPUT_NAME "ggml-npu-compiled"
+    BUILD_RPATH "${LLAMA_BUILD_BIN}"
+)
+
+# Load the compiled backend as a real GGML plugin so the test executable has
+# no link-time access to backend/runtime implementation symbols.  The test
+# drives the public plan API against the deterministic compiler-owned bundle.
+add_executable(test-npu-compiled-backend EXCLUDE_FROM_ALL
+    test-compiled-backend.cpp
+)
+add_dependencies(test-npu-compiled-backend
+    ggml-npu-compiled
+    npu-tiny-compiled-bundle
+)
+target_compile_features(test-npu-compiled-backend PRIVATE cxx_std_17)
+target_compile_options(test-npu-compiled-backend PRIVATE
+    -Wall -Wextra -Wpedantic)
+target_include_directories(test-npu-compiled-backend PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${LLAMA_SOURCE_DIR}/ggml/include"
+)
+target_link_libraries(test-npu-compiled-backend PRIVATE
+    ggml-pinned
+    ggml-base-pinned
+)
+set_target_properties(test-npu-compiled-backend PROPERTIES
+    BUILD_RPATH "${LLAMA_BUILD_BIN}"
+)
+
+add_custom_target(check-npu-compiled-backend
+    COMMAND $<TARGET_FILE:test-npu-compiled-backend>
+            $<TARGET_FILE:ggml-npu-compiled>
+            "${NPU_TINY_BUNDLE_DIR}"
+            "${LLAMA_BUILD_BIN}"
+    DEPENDS
+        test-npu-compiled-backend
+        ggml-npu-compiled
+        npu-tiny-compiled-bundle
+    COMMENT "Checking compiled-artifact GGML backend integration"
+    VERBATIM
 )
 
 add_library(ggml-npu MODULE
@@ -779,3 +1128,94 @@ target_compile_options(test-npu-argmax PRIVATE
     -O3 -DNDEBUG -Wall -Wextra -Wpedantic
     -fno-fast-math -ffp-contract=off)
 target_link_libraries(test-npu-argmax PRIVATE npu-verilator-runner)
+
+# Exact canonical slice integration is explicit because it needs the original
+# source manifest and GGUF. The default synthetic test remains model-independent.
+set(NPU_COMPILED_CANONICAL_MANIFEST "" CACHE FILEPATH "Exact compiler source manifest")
+set(NPU_COMPILED_CANONICAL_MODEL "" CACHE FILEPATH "GGUF used by the canonical compiler")
+set(NPU_COMPILED_CANONICAL_NODE
+    "1e3dac5ab4a21eb84d4d473de864ce2aa3129e1d4f248ee44d766549a51e6f3f"
+    CACHE STRING "Canonical P00 slice to qualify")
+set(NPU_CANONICAL_BUNDLE_DIR "${CMAKE_CURRENT_BINARY_DIR}/npu-canonical-bundle")
+add_executable(test-npu-compiled-canonical EXCLUDE_FROM_ALL test-compiled-canonical.cpp)
+target_compile_features(test-npu-compiled-canonical PRIVATE cxx_std_17)
+target_compile_options(test-npu-compiled-canonical PRIVATE -Wall -Wextra -Wpedantic -ffp-contract=off)
+target_include_directories(test-npu-compiled-canonical SYSTEM PRIVATE "${LLAMA_SOURCE_DIR}/vendor")
+target_link_libraries(test-npu-compiled-canonical PRIVATE ggml-pinned ggml-base-pinned)
+add_dependencies(test-npu-compiled-canonical ggml-npu-compiled)
+set_target_properties(test-npu-compiled-canonical PROPERTIES BUILD_RPATH "${LLAMA_BUILD_BIN}")
+add_custom_target(check-npu-compiled-canonical
+    COMMAND "${CMAKE_COMMAND}" -E env PYTHONDONTWRITEBYTECODE=1
+        "PYTHONPATH=${NPU_PROJECT_ROOT}" "${Python3_EXECUTABLE}" -m compiler.npu_compile
+        --qwen-manifest "${NPU_COMPILED_CANONICAL_MANIFEST}"
+        --canonical-node "${NPU_COMPILED_CANONICAL_NODE}"
+        --model "${NPU_COMPILED_CANONICAL_MODEL}" --output-dir "${NPU_CANONICAL_BUNDLE_DIR}"
+    COMMAND $<TARGET_FILE:test-npu-compiled-canonical> $<TARGET_FILE:ggml-npu-compiled>
+        "${NPU_CANONICAL_BUNDLE_DIR}" "${NPU_COMPILED_CANONICAL_MANIFEST}"
+    WORKING_DIRECTORY "${NPU_PROJECT_ROOT}"
+    DEPENDS test-npu-compiled-canonical
+    COMMENT "Checking exact-manifest compiled subgraph on persistent RV64 firmware"
+    VERBATIM)
+
+# Full-model quasi-offline compiler frontend; no legacy execution harness is linked.
+add_library(ggml-npu-model MODULE
+    ggml-npu-model.cpp
+    npu-model-artifact.cpp
+    "${NPU_PROJECT_ROOT}/compiler/npu-model-exact-profiles.cpp"
+    "${NPU_PROJECT_ROOT}/compiler/npu-model-f32-profiles.cpp"
+    "${NPU_PROJECT_ROOT}/compiler/npu-model-q8-profiles.cpp"
+    "${NPU_PROJECT_ROOT}/compiler/npu-model-q8-gemv-profiles.cpp"
+    "${NPU_PROJECT_ROOT}/compiler/npu-model-f32-mover-profiles.cpp"
+    "${NPU_F32_ALU_GENERATED_HEADER}"
+    "${NPU_Q8_GEMV_GENERATED_HEADER}"
+    "${NPU_F32_MOVER_GENERATED_HEADER}"
+    "${NPU_REMAINING_GENERATED_HEADER}"
+    "${NPU_SAMPLER_ARGMAX_GENERATED_HEADER}")
+add_dependencies(ggml-npu-model npu-f32-alu-generated npu-q8-gemv-generated
+    npu-f32-mover-generated npu-remaining-generated npu-sampler-argmax-generated)
+target_compile_features(ggml-npu-model PRIVATE cxx_std_17)
+target_compile_definitions(ggml-npu-model PRIVATE GGML_BACKEND_DL GGML_BACKEND_BUILD GGML_BACKEND_SHARED GGML_SHARED)
+target_compile_options(ggml-npu-model PRIVATE -O3 -Wall -Wextra -Wpedantic)
+target_include_directories(ggml-npu-model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${NPU_Q8_GEMV_GENERATED_DIR}" "${LLAMA_SOURCE_DIR}/ggml/include" "${LLAMA_SOURCE_DIR}/ggml/src")
+target_include_directories(ggml-npu-model SYSTEM PRIVATE "${LLAMA_SOURCE_DIR}/vendor")
+target_link_libraries(ggml-npu-model PRIVATE ggml-base-pinned npu-system-session)
+set_target_properties(ggml-npu-model PROPERTIES OUTPUT_NAME "ggml-npu-model" BUILD_RPATH "${LLAMA_BUILD_BIN}")
+
+# The firmware's raw-copy engine: alignment, held requests, delayed responses,
+# exact byte publication, overlap rejection, and read/write fault propagation.
+find_program(NPU_IVERILOG_EXECUTABLE iverilog)
+find_program(NPU_VVP_EXECUTABLE vvp)
+if(NPU_IVERILOG_EXECUTABLE AND NPU_VVP_EXECUTABLE)
+    add_custom_target(check-npu-service-dma
+        COMMAND "${NPU_IVERILOG_EXECUTABLE}" -g2012 -s tb_service_dma
+                -o "${CMAKE_CURRENT_BINARY_DIR}/test-service-dma.vvp"
+                "${NPU_PROJECT_ROOT}/rtl/TensorNpuServiceDma.v"
+                "${NPU_PROJECT_ROOT}/tests/tb_service_dma.sv"
+        COMMAND "${NPU_VVP_EXECUTABLE}" "${CMAKE_CURRENT_BINARY_DIR}/test-service-dma.vvp"
+        DEPENDS "${NPU_PROJECT_ROOT}/rtl/TensorNpuServiceDma.v"
+                "${NPU_PROJECT_ROOT}/tests/tb_service_dma.sv"
+        COMMENT "Checking the fixed firmware raw DMA transport"
+        VERBATIM)
+endif()
+
+add_executable(test-npu-model-artifact EXCLUDE_FROM_ALL
+    test-npu-model-artifact.cpp npu-model-artifact.cpp)
+target_compile_features(test-npu-model-artifact PRIVATE cxx_std_17)
+target_compile_options(test-npu-model-artifact PRIVATE -O3 -Wall -Wextra -Wpedantic)
+target_include_directories(test-npu-model-artifact SYSTEM PRIVATE "${LLAMA_SOURCE_DIR}/vendor")
+target_link_libraries(test-npu-model-artifact PRIVATE npu-system-session)
+add_custom_target(check-npu-model-artifact
+    COMMAND $<TARGET_FILE:test-npu-model-artifact> "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS test-npu-model-artifact
+    COMMENT "Checking model artifact integrity, DMA dependencies, atomic publication and precise recovery"
+    VERBATIM)
+
+# Optional focused check of the full model compiler's final command. This is
+# component evidence only; the real token runner still requires both full graphs.
+add_executable(test-npu-model-argmax EXCLUDE_FROM_ALL
+    test-npu-model-argmax.cpp npu-model-artifact.cpp)
+target_compile_features(test-npu-model-argmax PRIVATE cxx_std_17)
+target_compile_options(test-npu-model-argmax PRIVATE -O3 -Wall -Wextra -Wpedantic)
+target_include_directories(test-npu-model-argmax SYSTEM PRIVATE "${LLAMA_SOURCE_DIR}/vendor")
+target_link_libraries(test-npu-model-argmax PRIVATE npu-system-session)

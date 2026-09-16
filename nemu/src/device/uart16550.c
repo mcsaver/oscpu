@@ -233,7 +233,9 @@ static void uart_refresh_msr(Uart16550 *uart) {
 
   if ((old_status ^ new_status) & UART16550_MSR_CTS) delta |= UART16550_MSR_DCTS;
   if ((old_status ^ new_status) & UART16550_MSR_DSR) delta |= UART16550_MSR_DDSR;
-  if ((old_status ^ new_status) & UART16550_MSR_RI)  delta |= UART16550_MSR_TERI;
+  // RI status is the complement of the pin; TERI is deassertion only.
+  if ((old_status & UART16550_MSR_RI) && !(new_status & UART16550_MSR_RI))
+    delta |= UART16550_MSR_TERI;
   if ((old_status ^ new_status) & UART16550_MSR_DCD) delta |= UART16550_MSR_DDCD;
   uart->msr = new_status | old_delta | delta;
 }

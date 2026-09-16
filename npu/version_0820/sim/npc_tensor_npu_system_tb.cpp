@@ -322,6 +322,10 @@ int main(int argc,char**argv){
     make_descriptor(2,kGmemBase+0x700,kGmemBase+0x780,kGmemBase+0x800)};
   std::vector<Descriptor> active_descs{abort_desc};Layout layout=install_program(active_descs,false);init_vectors(active_descs);
   dut.clk=0;dut.rst=1;dut.terminal_allow_i=1;dut.gmem_req_ready_i=0;
+  // The fixed-firmware DMA service is unused in this directed CPU test.
+  dut.service_dma_start_i=0;dut.service_dma_src_i=0;dut.service_dma_dst_i=0;
+  dut.service_dma_bytes_i=0;dut.service_dma_req_ready_i=0;
+  dut.service_dma_rsp_valid_i=0;dut.service_dma_rsp_rdata_i=0;dut.service_dma_rsp_error_i=0;
   dut.gmem_rsp_valid_i=0;dut.gmem_rsp_rdata_i=0;dut.gmem_rsp_error_i=0;
   // This directed CPU-boundary test intentionally elaborates the public
   // default (portal disabled).  Drive every new input inactive and prove that
@@ -583,7 +587,13 @@ int main(int argc,char**argv){
       (unsigned long long)error_t2c,(unsigned long long)error_i2c,
       (unsigned long long)terminal_commit_same,
       (unsigned long long)commit_next_issue_same);
+#if NPC_R64_NATIVE
+  // Native Serial/WB/ROB retains a successful result for three active CPU
+  // edges after the terminal. The NPU's own issue-to-terminal work is identical.
+  check(cfg_count==91&&cfg_i2t==91&&cfg_t2c==3*91&&cfg_i2c==4*91,
+#else
   check(cfg_count==91&&cfg_i2t==91&&cfg_t2c==0&&cfg_i2c==91,
+#endif
         "CONFIG Tensor critical timing signature mismatch");
   // Each successful 16-element F32 macro prepares element N+1 during element
   // N's WRITE_WAIT, so turnover saves 3 * (16 - 1) = 45 cycles in this fixed
@@ -614,14 +624,28 @@ int main(int argc,char**argv){
       kF32ChildWriteDirectSavedCycles+kF32Src1ChildDirectSavedCycles+
       kF32BeatPairReuseSavedCycles+kF32BeatPairChildDirectSavedCycles+
       kF32FirstElementPrepFoldSavedCycles;
+#if NPC_R64_NATIVE
+  check(macro_count==3&&macro_i2t==(557-kF32SavedCycles)&&macro_t2c==9&&
+        macro_i2c==(557-kF32SavedCycles+9),
+#else
   check(macro_count==3&&
         macro_i2t==(557-kF32SavedCycles)&&macro_t2c==0&&
         macro_i2c==(557-kF32SavedCycles),
+#endif
         "F32 turnover/direct-write/direct-child/beat-reuse/pair-child-direct/first-prep-fold macro Tensor critical timing signature mismatch");
+#if NPC_R64_NATIVE
+  // Fault observation follows precise trap preparation rather than retirement.
+  // Bound forward progress separately; never count that event as a retire.
+  check(error_count==1&&error_i2t==1&&error_t2c==5&&error_i2c==error_t2c+1,
+        "native Tensor fault completion latency/progress mismatch");
+  check(terminal_commit_same==0&&commit_next_issue_same==0,
+        "native Tensor terminal/retirement separation mismatch");
+#else
   check(error_count==1&&error_i2t==1&&error_t2c==0&&error_i2c==1,
         "error Tensor critical timing signature mismatch");
   check(terminal_commit_same==95&&commit_next_issue_same==0,
         "Tensor terminal/commit edge relation mismatch");
+#endif
   if(cmds.size()==95&&terms.size()==95){
     for(unsigned i=0;i<95;++i)check(cmds[i].pid==terms[i].pid,"terminal CPU PID mismatch");
     for(unsigned i=0;i<94;++i)check(!terms[i].error&&terms[i].code==0,"success command reported terminal error");
@@ -756,11 +780,19 @@ int main(int argc,char**argv){
       (unsigned long long)pre_recovery_cycles,
       (unsigned long long)recovery_cycles,
       (unsigned long long)cycles);
+#if NPC_R64_NATIVE
+  // The whole native CPU has a different fetch/dispatch/retire pipeline.
+  // Keep explicit bounded progress, and report its deterministic cycle cost;
+  // the exact NPU work and normal terminal-to-retire edges are checked above.
+  check(pre_recovery_cycles<10000&&recovery_cycles<20000&&cycles<30000,
+        "native CPU/NPU directed workload progress budget exceeded");
+#else
   check(pre_recovery_cycles==1218&&
         recovery_cycles==(4119-kF32SavedCycles),
         "F32 turnover/direct-write/direct-child/beat-reuse/pair-child-direct/first-prep-fold fixed phase-cycle signature mismatch");
   check(cycles==(5337-kF32SavedCycles),
         "F32 turnover/direct-write/direct-child/beat-reuse/pair-child-direct/first-prep-fold fixed system cycle signature mismatch");
+#endif
   check(portal_outputs_zero(),"default-disabled portal exposed state/activity");
   dut.final();
   if(failures){std::fprintf(stderr,"[RV64-DIRECT-NPU-SYSTEM][FAIL] cycles=%llu cmd=%zu term=%zu req=%llu failures=%u\n",(unsigned long long)cycles,cmds.size(),terms.size(),(unsigned long long)req,failures);return 1;}

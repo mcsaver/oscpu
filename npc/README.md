@@ -3,6 +3,7 @@
 `npc/` 保留为兼容入口，真正的平台无关仿真顶层在 `npc/sim/`。外部模块应优先和 `npc/sim` 交互；从 `npc/` 执行的常用目标会继续代理过去。
 
 - `single`: 默认后端，面向 AM / `riscv32-npc` / `NpcSimTop` 自仿真，不接入 ysyxSoCFull。
+- `rv64`: **承岳64（ChengYue64）v1.0.0**，RV64 正式主线；详见 [rv64/README.md](rv64/README.md)。
 - `soc`: 从 `single` 复制出的 ysyxSoC 接入版本，保留 `ysyx_26010035`、`NpcSoCAxiBridge` 和 `soc/soc-lint`。
 
 常用命令：
@@ -27,3 +28,8 @@ make -C npc switch BACKEND=single
 ```
 
 `BACKEND=am` 是 `single` 的别名，`BACKEND=ysyx-soc` 是 `soc` 的别名。`abstract-machine` 的 `riscv32-npc run` 入口会直接调用 `npc/sim`；默认跟随 `npc/sim/.config`，仓库默认配置为 `single`，需要临时切到 SoC 复制版时可传 `NPC_SIM_BACKEND=soc`。旧的 `NPC_PLATFORM=soc` 仍保留兼容。若要配置当前真实后端自身的 Kconfig，可从顶层使用 `make -C npc backend-menuconfig` 或 `make -C npc backend-perf_defconfig`。
+
+## RV64 正式主线与旧核归档
+
+`make -C npc BACKEND=rv64 lint` 和 `make -C npc/rv64` 使用承岳64。
+旧 rv64core 独立源码包位于 [pack/rv64core-legacy-20260916](pack/rv64core-legacy-20260916/README.md)。

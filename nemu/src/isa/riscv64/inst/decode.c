@@ -7,65 +7,81 @@
 //访存/异常收口
 //得到dnpc
 
+//RvDecodedInstruction结构体定义
+//typedef struct {
+//  uint32_t encoding;//原始机器码
+//  word_t immediate;//已经拼接、拓展好的立即数
+//  RvInstructionClass instruction_class;//指令所属的大类
+//  RvOperation operation;//具体操作
+//  RiscvSystemInstruction system;//系统指令的完整子描述符
+//  uint8_t length;//指令长度，单位为字节
+//  uint8_t rd;//目的寄存器编号
+//  uint8_t rs1;//第一源寄存器编号
+//  uint8_t rs2;//第二源寄存器编号
+//  uint8_t rs3;//第三源寄存器编号
+//  RiscvAtomicInstruction atomic;//原子指令子描述符
+//  RiscvCompressedInstruction compressed;//压缩指令子描述符
+//  RiscvFloatingInstruction floating;//浮点指令子描述符
+//} RvDecodedInstruction;
 
 static inline RvDecodedInstruction rv_decoded_instruction(uint32_t encoding) {
   return (RvDecodedInstruction) {
-    .encoding = encoding,
-    .immediate = 0,
-    .instruction_class = RV_INSTRUCTION_CLASS_ILLEGAL,
+    .encoding = encoding,//保存机器码，供给后续缓存和异常报告需要
+    .immediate = 0,//给没有显式立即数的情况提供确定初值
+    .instruction_class = RV_INSTRUCTION_CLASS_ILLEGAL,//类别、操作均设为非法，只有后续明确识别成功，才改成合法操作
     .operation = RV_OPERATION_ILLEGAL_INSTRUCTION,
-    .length = 4,
-    .rd = RD(encoding),
+    .length = 4,//默认长度设为4，普通指令为4字节，压缩路径再改为2
+    .rd = RD(encoding),//通用提取寄存器字片段
     .rs1 = RS1(encoding),
     .rs2 = RS2(encoding),
     .rs3 = RS3(encoding),
   };
 }
 
-static inline bool rv_decode_operation(
+static inline bool rv_decode_operation(//填写类别和操作
     RvDecodedInstruction *instruction,
-    RvInstructionClass instruction_class,
-    RvOperation operation) {
+    RvInstructionClass instruction_class,//填写类别
+    RvOperation operation) {//填写操作
   instruction->instruction_class = instruction_class;
   instruction->operation = operation;
   return true;
 }
 
 #ifdef CONFIG_RISCV_EXT_M
-static inline bool rv_decode_multiply_divide(
+static inline bool rv_decode_multiply_divide(//定义普通乘除法译码器
     uint32_t encoding, RvDecodedInstruction *instruction) {
   if (FUNCT7(encoding) != 0x01) return false;
 
   switch (FUNCT3(encoding)) {
     case 0x0: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_MUL);
+        RV_OPERATION_MUL);//识别MUL，乘积低64位
     case 0x1: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_MULH);
+        RV_OPERATION_MULH);//识别MULH，有符号乘有符号，取高64位
     case 0x2: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_MULHSU);
+        RV_OPERATION_MULHSU);//识别MULHSU，有符号rs1称无符号rs2，取高64位
     case 0x3: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_MULHU);
+        RV_OPERATION_MULHU);//识别MULHU，无符号乘法高64位
     case 0x4: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_DIV);
+        RV_OPERATION_DIV);//识别有符号除法DIV
     case 0x5: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_DIVU);
+        RV_OPERATION_DIVU);//识别无符号除法DIVU
     case 0x6: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_REM);
+        RV_OPERATION_REM);//识别有符号取余REM
     case 0x7: return rv_decode_operation(
         instruction, RV_INSTRUCTION_CLASS_MULTIPLY_DIVIDE,
-        RV_OPERATION_REMU);
+        RV_OPERATION_REMU);//识别无符号取余REMU
     default: return false;
   }
 }
 
-static inline bool rv_decode_multiply_divide_word(
+static inline bool rv_decode_multiply_divide_word(//定义32位word乘除法译码器
     uint32_t encoding, RvDecodedInstruction *instruction) {
   if (FUNCT7(encoding) != 0x01) return false;
 
@@ -663,6 +679,9 @@ static inline int execute_current_instruction(Decode *state) {
     rv_decode_cache_insert(state->pc, &instruction);
   }
 
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+  if (rv_trigger_memory(state, &instruction)) return 0;
+#endif
   if (!rv_execute_decoded_instruction(state, &instruction)) {
     raise_illegal_instruction_exception(state, state->isa.inst);
   }
@@ -693,6 +712,13 @@ int isa_exec_once(Decode *s) {
    * boundary is kept outside the transaction.
    */
   isa_riscv64_begin_exec();
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+  if (rv_trigger_matches(s->pc, 4)) {
+    s->isa.inst = 0;
+    s->dnpc = isa_raise_intr_with_tval(CAUSE_BREAKPOINT, s->pc, s->pc);
+    return 0;
+  }
+#endif
 #ifdef CONFIG_RISCV_EXT_C
   VaddrIfetchWideResult wide = vaddr_ifetch_wide(s->snpc);
   if (wide != VADDR_IFETCH_WIDE_MISS) {

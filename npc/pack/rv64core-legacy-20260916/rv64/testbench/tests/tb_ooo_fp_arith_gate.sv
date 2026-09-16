@@ -1,0 +1,498 @@
+`include "define.v"
+
+// OooFpArithGate production-child focused testbench：冻结 5-stage launch/out、
+// mixed kind/precision、S1-S5 kill、flush、特殊值/fflags 与 fused single-round oracle。
+// negate_product/subtract_addend：FMADD=(0,0) 算 rs1*rs2+rs3、FMSUB=(0,1) 算 rs1*rs2-rs3。
+//
+// 2026-06-29 多周期流水化后：gate 变时序(clk/rst/flush/start→done)。本 TB 用「等 done
+// 再采样」的时钟协议，与 FP_ARITH_LATENCY 解耦——后续相位加深流水深度时 TB 不用改。
+module tb_ooo_fp_arith_gate;
+  `include "tb_common.svh"
+
+  localparam ROB_INDEX_W = `OOO_ROB_INDEX_W;
+  localparam PRODUCER_GEN_W = `OOO_PRODUCER_GEN_W;
+  localparam PRODUCER_ID_W = ROB_INDEX_W + PRODUCER_GEN_W;
+
+  reg clk, rst, flush, start;
+  reg [`XLEN-1:0] frs1, frs2, frs3;
+  reg dbl, sub_op, neg_prod, sub_add;
+  reg [2:0] rm;
+  wire [`XLEN-1:0] addsub_v, mul_v, fma_v;
+  wire [4:0] addsub_f, mul_f, fma_f;
+  wire done;
+  reg launch_valid;
+  reg [PRODUCER_ID_W-1:0] launch_producer_id;
+  reg [`OOO_PHY_REG_ADDR_W-1:0] launch_pdest;
+  reg [1:0] launch_kind;
+  reg kill_valid;
+  reg [`OOO_ROB_INDEX_W-1:0] kill_rob_idx;
+  reg [`OOO_ROB_INDEX_W-1:0] rob_head_idx;
+  wire out_valid;
+  wire [PRODUCER_ID_W-1:0] out_producer_id;
+  wire [`OOO_ROB_INDEX_W-1:0] out_rob_idx;
+  wire [`OOO_PHY_REG_ADDR_W-1:0] out_pdest;
+  wire [`XLEN-1:0] out_value;
+  wire [4:0] out_fflags;
+  wire [4:0] owner_valid;
+  wire [5*PRODUCER_ID_W-1:0] owner_producer_id;
+  integer kill_guard;
+
+  // 精确 arithmetic oracle 常量；提前声明，供 module-scope tasks 使用。
+  localparam [`XLEN-1:0] D1=64'h3ff0000000000000, D2=64'h4000000000000000,
+                         D3=64'h4008000000000000, D5=64'h4014000000000000,
+                         D6=64'h4018000000000000, D7=64'h401c000000000000;
+  localparam [`XLEN-1:0] D_ZERO=64'h0000000000000000,
+                         D_MIN_SUB=64'h0000000000000001,
+                         D_POS_INF=64'h7ff0000000000000,
+                         D_NEG_INF=64'hfff0000000000000,
+                         D_QNAN=64'h7ff8000000000001,
+                         D_SNAN=64'h7ff0000000000001,
+                         D_FUSED_A=64'h3ff0000000000001,
+                         D_FUSED_B=64'h3fefffffffffffff,
+                         D_NEG_ONE=64'hbff0000000000000,
+                         D_FUSED_RESULT=64'h3c9ffffffffffffe;
+  localparam [`XLEN-1:0] S1=64'hffffffff_3f800000, S2=64'hffffffff_40000000,
+                         S3=64'hffffffff_40400000, S6=64'hffffffff_40c00000,
+                         S7=64'hffffffff_40e00000,
+                         S_QNAN=64'hffffffff_7fc00001;
+
+  OooFpArithGate #(
+    .ROB_INDEX_W(ROB_INDEX_W),
+    .PRODUCER_GEN_W(PRODUCER_GEN_W),
+    .PRODUCER_ID_W(PRODUCER_ID_W)
+  ) dut (
+    .clk(clk), .rst(rst), .flush_i(flush), .start_i(start),
+    .frs1_value_i(frs1), .frs2_value_i(frs2), .frs3_value_i(frs3),
+    .double_i(dbl), .sub_op_i(sub_op),
+    .negate_product_i(neg_prod), .subtract_addend_i(sub_add), .rm_i(rm),
+    .addsub_value_o(addsub_v), .addsub_fflags_o(addsub_f),
+    .mul_value_o(mul_v), .mul_fflags_o(mul_f),
+    .fma_value_o(fma_v), .fma_fflags_o(fma_f),
+    .done_o(done),
+    .launch_valid_i(launch_valid),
+    .launch_producer_id_i(launch_producer_id),
+    .launch_pdest_i(launch_pdest),
+    .launch_kind_i(launch_kind),
+    .kill_valid_i(kill_valid),
+    .kill_rob_idx_i(kill_rob_idx),
+    .rob_head_idx_i(rob_head_idx),
+    .out_valid_o(out_valid),
+    .out_producer_id_o(out_producer_id),
+    .out_rob_idx_o(out_rob_idx),
+    .out_pdest_o(out_pdest),
+    .out_value_o(out_value),
+    .out_fflags_o(out_fflags),
+    .owner_valid_o(owner_valid),
+    .owner_producer_id_o(owner_producer_id)
+  );
+
+  // 10ns 时钟
+  initial clk = 1'b0;
+  always #5 clk = ~clk;
+
+  // 启动一个 arith op:置 start,推进时钟直到 done_o,采样后撤 start 复位计数器。
+  // 操作数需在调用前已稳定;本 task 全程保持(由调用方在调用前设置、调用后再改)。
+  task automatic run_op;
+    integer guard;
+    begin
+      start = 1'b1;
+      @(posedge clk); #1;
+      guard = 0;
+      while ((done !== 1'b1) && (guard < 100)) begin
+        @(posedge clk); #1;
+        guard = guard + 1;
+      end
+      if (done !== 1'b1) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] arith done timeout (guard=%0d)", guard);
+      end
+      // done 这拍流水末级寄存器已就绪;撤 start 复位 done 计数器,为下一 op 备好。
+      start = 1'b0;
+      @(posedge clk); #1;
+    end
+  endtask
+
+  task automatic chk;
+    input [1023:0] what; input [`XLEN-1:0] got; input [`XLEN-1:0] exp;
+    input [4:0] gotf; input [4:0] expf;
+    begin
+      if (got !== exp) begin tb_errors=tb_errors+1; $display("[CHECK-FAIL] %0s val got=0x%016x exp=0x%016x", what, got, exp); end
+      if (gotf !== expf) begin tb_errors=tb_errors+1; $display("[CHECK-FAIL] %0s ff got=0x%02x exp=0x%02x", what, gotf, expf); end
+    end
+  endtask
+
+  task automatic launch_op;
+    input [1:0] kind;
+    input [`OOO_ROB_INDEX_W-1:0] rob_idx;
+    input [`OOO_PHY_REG_ADDR_W-1:0] pdest;
+    input is_double;
+    input is_sub;
+    input neg_product;
+    input sub_addend;
+    input [`XLEN-1:0] a;
+    input [`XLEN-1:0] b;
+    input [`XLEN-1:0] c;
+    begin
+      launch_kind = kind;
+      launch_producer_id = {4'hb, rob_idx};
+      launch_pdest = pdest;
+      dbl = is_double;
+      sub_op = is_sub;
+      neg_prod = neg_product;
+      sub_add = sub_addend;
+      frs1 = a;
+      frs2 = b;
+      frs3 = c;
+      launch_valid = 1'b1;
+      @(posedge clk); #1;
+    end
+  endtask
+
+  task automatic chk_out;
+    input [1023:0] what;
+    input exp_valid;
+    input [`OOO_ROB_INDEX_W-1:0] exp_rob_idx;
+    input [`OOO_PHY_REG_ADDR_W-1:0] exp_pdest;
+    input [`XLEN-1:0] exp_value;
+    input [4:0] exp_fflags;
+    begin
+      if (out_valid !== exp_valid) begin
+        tb_errors = tb_errors + 1;
+        $display("[CHECK-FAIL] %0s valid got=%0b exp=%0b", what, out_valid, exp_valid);
+      end
+      if (exp_valid) begin
+        if (out_rob_idx !== exp_rob_idx) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s rob got=0x%0x exp=0x%0x", what, out_rob_idx, exp_rob_idx);
+        end
+        if (out_producer_id !== {4'hb, exp_rob_idx}) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s PID got=0x%0x exp=0x%0x",
+                   what, out_producer_id, {4'hb, exp_rob_idx});
+        end
+        if (out_pdest !== exp_pdest) begin
+          tb_errors = tb_errors + 1;
+          $display("[CHECK-FAIL] %0s pdest got=0x%0x exp=0x%0x", what, out_pdest, exp_pdest);
+        end
+        chk(what, out_value, exp_value, out_fflags, exp_fflags);
+      end
+    end
+  endtask
+
+  task automatic pulse_flush;
+    begin
+      launch_valid = 1'b0;
+      kill_valid = 1'b0;
+      flush = 1'b1;
+      @(posedge clk); #1;
+      flush = 1'b0;
+      @(posedge clk); #1;
+    end
+  endtask
+
+  // launch 被第一级采样的拍计作 S1；随后逐拍 S2/S3/S4/S5，只有 S5 可 out。
+  task automatic check_exact_five_stage;
+    integer stage;
+    reg latency_marker_seen;
+    reg [4:0] expected_owner;
+    begin
+      pulse_flush;
+      latency_marker_seen = 1'b0;
+      launch_op(2'd0, 4'd12, 6'd44, 1'b1, 1'b0, 1'b0, 1'b0,
+                D1, D1, 64'b0);
+      launch_valid = 1'b0;
+      for (stage = 1; stage <= 5; stage = stage + 1) begin
+        expected_owner = 5'b00001 << (stage - 1);
+        if (((owner_valid !== expected_owner) ||
+             (out_valid !== (stage == 5))) && !latency_marker_seen) begin
+          latency_marker_seen = 1'b1;
+          tb_errors = tb_errors + 1;
+          $display("[FP-ARITH-LATENCY-5-STAGE] stage=%0d owner=%05b out=%0b",
+                   stage, owner_valid, out_valid);
+        end
+        if (stage < 5) begin
+          @(posedge clk); #1;
+        end
+      end
+      chk_out("five-stage S5 identity/value/fflags", 1'b1,
+              4'd12, 6'd44, D2, 5'b0);
+      @(posedge clk); #1;
+      chk_out("five-stage pipe drained", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+    end
+  endtask
+
+  task automatic check_kill_stage;
+    input integer target_stage;
+    integer step;
+    reg marker_seen;
+    reg [`OOO_ROB_INDEX_W-1:0] target_rob;
+    begin
+      pulse_flush;
+      marker_seen = 1'b0;
+      target_rob = target_stage + 4'd8;
+      rob_head_idx = 4'd0;
+      launch_op(2'd2, target_rob, target_stage + 6'd45,
+                1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);
+      launch_valid = 1'b0;
+      for (step = 1; step < target_stage; step = step + 1) begin
+        @(posedge clk); #1;
+      end
+      if (owner_valid[target_stage-1] !== 1'b1) begin
+        marker_seen = 1'b1;
+        tb_errors = tb_errors + 1;
+        $display("[FP-ARITH-KILL-STAGE-%0d] target never resident",
+                 target_stage);
+      end
+      @(negedge clk);
+      kill_valid = 1'b1;
+      kill_rob_idx = 4'd2;
+      #1;
+      if ((target_stage == 5) && (out_valid !== 1'b0) && !marker_seen) begin
+        marker_seen = 1'b1;
+        tb_errors = tb_errors + 1;
+        $display("[FP-ARITH-KILL-STAGE-%0d] S5 combinational kill leaked",
+                 target_stage);
+      end
+      @(posedge clk); #1;
+      kill_valid = 1'b0;
+      repeat (5) begin
+        @(posedge clk); #1;
+        if ((out_valid !== 1'b0) && !marker_seen) begin
+          marker_seen = 1'b1;
+          tb_errors = tb_errors + 1;
+          $display("[FP-ARITH-KILL-STAGE-%0d] delayed completion leaked",
+                   target_stage);
+        end
+      end
+    end
+  endtask
+
+  initial begin
+    tb_errors = 0; rm = 3'b000; neg_prod = 0; sub_add = 0;
+    flush = 1'b0; start = 1'b0;
+    launch_valid = 1'b0; launch_producer_id = {PRODUCER_ID_W{1'b0}};
+    launch_pdest = {`OOO_PHY_REG_ADDR_W{1'b0}}; launch_kind = 2'b00;
+    kill_valid = 1'b0; kill_rob_idx = {`OOO_ROB_INDEX_W{1'b0}};
+    rob_head_idx = {`OOO_ROB_INDEX_W{1'b0}};
+    frs1 = 0; frs2 = 0; frs3 = 0; dbl = 1; sub_op = 0;
+    // 复位:清流水寄存器与 done 计数器
+    rst = 1'b1; repeat (3) @(posedge clk); #1; rst = 1'b0; @(posedge clk); #1;
+
+    // ---- double ----
+    dbl = 1;
+    sub_op = 0; frs1 = D1; frs2 = D1; run_op; chk("FADD 1+1", addsub_v, D2, addsub_f, 5'b0);
+    sub_op = 1; frs1 = D2; frs2 = D1; run_op; chk("FSUB 2-1", addsub_v, D1, addsub_f, 5'b0);
+    sub_op = 0; frs1 = D2; frs2 = D3; run_op; chk("FMUL 2*3", mul_v, D6, mul_f, 5'b0);
+    // FMADD 2*3+1=7
+    frs1 = D2; frs2 = D3; frs3 = D1; neg_prod = 0; sub_add = 0; run_op; chk("FMADD 2*3+1", fma_v, D7, fma_f, 5'b0);
+    // FMSUB 2*3-1=5
+    frs1 = D2; frs2 = D3; frs3 = D1; neg_prod = 0; sub_add = 1; run_op; chk("FMSUB 2*3-1", fma_v, D5, fma_f, 5'b0);
+
+    // ---- single ----
+    dbl = 0; neg_prod = 0; sub_add = 0;
+    sub_op = 0; frs1 = S1; frs2 = S1; run_op; chk("FADD.S 1+1", addsub_v, S2, addsub_f, 5'b0);
+    frs1 = S2; frs2 = S3; run_op; chk("FMUL.S 2*3", mul_v, S6, mul_f, 5'b0);
+
+    // ---- 特殊值、subnormal、fflags 与 fused single-round ----
+    dbl = 1; rm = 3'b000; sub_op = 1'b0; neg_prod = 1'b0; sub_add = 1'b0;
+    frs1 = D_QNAN; frs2 = D1; run_op;
+    chk("special qNaN canonical", addsub_v, 64'h7ff8000000000000,
+        addsub_f, 5'b00000);
+    frs1 = D_SNAN; frs2 = D1; run_op;
+    chk("special sNaN invalid", addsub_v, 64'h7ff8000000000000,
+        addsub_f, 5'b10000);
+    frs1 = D_POS_INF; frs2 = D_NEG_INF; run_op;
+    chk("special inf plus neginf", addsub_v, 64'h7ff8000000000000,
+        addsub_f, 5'b10000);
+    frs1 = D_POS_INF; frs2 = D_ZERO; run_op;
+    chk("special mul inf zero", mul_v, 64'h7ff8000000000000,
+        mul_f, 5'b10000);
+    frs1 = D_MIN_SUB; frs2 = D_MIN_SUB; run_op;
+    chk("subnormal exact add", addsub_v, 64'h0000000000000002,
+        addsub_f, 5'b00000);
+    frs1 = D1; frs2 = D_MIN_SUB; run_op;
+    chk("round sticky add NX", addsub_v, D1, addsub_f, 5'b00001);
+    frs1 = D_POS_INF; frs2 = D_ZERO; frs3 = D1; run_op;
+    chk("special fma inf zero", fma_v, 64'h7ff8000000000000,
+        fma_f, 5'b10000);
+    // 极小乘积被 dominant addend 右移出 128-bit field；mag[0] jam 必须形成 NX。
+    frs1 = D_MIN_SUB; frs2 = D1; frs3 = D1; run_op;
+    chk("fma alignment jam NX", fma_v, D1, fma_f, 5'b00001);
+
+    // (1+2^-52)*(1-2^-53)-1：非 fused 会先舍成 1 再得 0；fused 精确结果非零。
+    frs1 = D_FUSED_A; frs2 = D_FUSED_B; frs3 = D_NEG_ONE;
+    run_op;
+    chk("fused single-round cancellation", fma_v, D_FUSED_RESULT,
+        fma_f, 5'b00000);
+
+    // 明确观察 S1→S5；这也是 extra/missing-cycle mutation 的独立 oracle。
+    check_exact_five_stage;
+
+    // same-cycle launch kill：launch meta 不得进入 S1 owner。
+    pulse_flush;
+    rob_head_idx = 4'd0; kill_valid = 1'b1; kill_rob_idx = 4'd2;
+    launch_op(2'd0, 4'd9, 6'd43, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D1, 64'b0);
+    launch_valid = 1'b0;
+    if (owner_valid[0] !== 1'b0) begin
+      tb_errors = tb_errors + 1;
+      $display("[FP-ARITH-SAME-CYCLE-LAUNCH-KILL] killed launch owns S1");
+    end
+    kill_valid = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      if (out_valid !== 1'b0) begin
+        tb_errors = tb_errors + 1;
+        $display("[FP-ARITH-SAME-CYCLE-LAUNCH-KILL] delayed output leaked");
+      end
+    end
+
+    // resident S1/S2/S3/S4/S5 kill；kill 只造 bubble，不压缩后继拍。
+    check_kill_stage(1);
+    check_kill_stage(2);
+    check_kill_stage(3);
+    check_kill_stage(4);
+    check_kill_stage(5);
+
+    // ---- B-FP 自流水 launch/out 接口 ----
+    // 连续三拍发射 add/mul/fma，检查 stage5 连续吐出 meta + value/fflags。
+    kill_valid = 1'b0; rob_head_idx = 0; start = 1'b0; dbl = 1'b1;
+    launch_op(2'd0, 4'd1, 6'd33, 1'b1, 1'b0, 1'b0, 1'b0, D1, D1, 64'b0);
+    tb_check1("V8I arith stage1 owns launched PID", owner_valid[0], 1'b1);
+    tb_check32("V8I arith stage1 full PID",
+               {24'b0, owner_producer_id[0 +: PRODUCER_ID_W]}, 32'h0000_00b1);
+    launch_op(2'd1, 4'd2, 6'd34, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, 64'b0);
+    launch_op(2'd2, 4'd3, 6'd35, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);
+    launch_valid = 1'b0;
+    repeat (2) @(posedge clk); #1;
+    chk_out("launch addsub out", 1'b1, 4'd1, 6'd33, D2, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch mul out", 1'b1, 4'd2, 6'd34, D6, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch fma out", 1'b1, 4'd3, 6'd35, D7, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch pipe drained", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+
+    // v8b-prep kill-now：先把结果 hold 在 stage5，然后在不走时钟的
+    // 同一输出窗口内只切换 cut 或 kill-valid。ambient function 若漏了
+    // 敏感依赖，out_valid 会保留旧值，直接泄漏 stale FP completion。
+    launch_op(2'd0, 4'd4, 6'd41, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D1, 64'b0);
+    launch_valid = 1'b0;
+    kill_guard = 0;
+    while ((out_valid !== 1'b1) && (kill_guard < 8)) begin
+      @(posedge clk); #1;
+      kill_guard = kill_guard + 1;
+    end
+    chk_out("kill-now held fp result", 1'b1, 4'd4, 6'd41, D2, 5'b0);
+    @(negedge clk);
+    rob_head_idx = 4'd0;
+    kill_rob_idx = 4'd6;
+    kill_valid = 1'b1;  // idx4 older than cut6: survivor
+    #1;
+    tb_check1("fp nonmatching kill preserves output", out_valid, 1'b1);
+    kill_rob_idx = 4'd2;  // 只变 cut：idx4 严格年轻
+    #1;
+    tb_check1("fp cut-only toggle masks output", out_valid, 1'b0);
+    kill_valid = 1'b0;
+    #1;
+    tb_check1("fp kill-valid low restores held output", out_valid, 1'b1);
+    kill_valid = 1'b1;
+    #1;
+    tb_check1("fp kill-valid only toggle masks output", out_valid, 1'b0);
+    @(posedge clk); #1;
+    kill_valid = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      tb_check1("fp killed result has no delayed pulse", out_valid, 1'b0);
+    end
+
+    // head-only sensitivity + wrap：idx0/head0 是 oldest，不杀；只把 head 改成14 后，
+    // idx0 age=2 而 cut15 age=1，必须立即抹掉。
+    launch_op(2'd0, 4'd0, 6'd42, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D1, 64'b0);
+    launch_valid = 1'b0;
+    kill_guard = 0;
+    while ((out_valid !== 1'b1) && (kill_guard < 8)) begin
+      @(posedge clk); #1;
+      kill_guard = kill_guard + 1;
+    end
+    chk_out("head-only held fp result", 1'b1, 4'd0, 6'd42, D2, 5'b0);
+    @(negedge clk);
+    kill_valid = 1'b1;
+    kill_rob_idx = 4'd15;
+    rob_head_idx = 4'd0;
+    #1;
+    tb_check1("fp head baseline survives", out_valid, 1'b1);
+    rob_head_idx = 4'd14;
+    #1;
+    tb_check1("fp head-only toggle masks wrap-younger output",
+              out_valid, 1'b0);
+    @(posedge clk); #1;
+    kill_valid = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      tb_check1("fp head-killed result has no delayed pulse", out_valid, 1'b0);
+    end
+
+    // younger-than-kill 的在飞 meta 必须被清 valid；数据可以继续流动，但 out_valid 不得拉高。
+    launch_op(2'd2, 4'd4, 6'd36, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);
+    launch_valid = 1'b0;
+    kill_valid = 1'b1; kill_rob_idx = 4'd2; rob_head_idx = 4'd0;
+    @(posedge clk); #1;
+    kill_valid = 1'b0;
+    repeat (3) @(posedge clk); #1;
+    chk_out("launch killed younger meta", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+
+    // flush 必须清掉在飞自流水 meta；结果数据可在内部继续变化，但 out_valid 不能泄漏。
+    launch_op(2'd2, 4'd5, 6'd37, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, D1);
+    launch_valid = 1'b0;
+    @(posedge clk); #1;
+    flush = 1'b1;
+    @(posedge clk); #1;
+    chk_out("launch flush clear meta", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+    flush = 1'b0;
+    repeat (5) begin
+      @(posedge clk); #1;
+      chk_out("launch flush drain invalid", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+    end
+
+    // 确定性混合精度 back-to-back：防止 double bit 与 value/fflags 对齐链错拍。
+    launch_op(2'd0, 4'd6, 6'd38, 1'b0, 1'b0, 1'b0, 1'b0, S1, S1, 64'b0);
+    launch_op(2'd1, 4'd7, 6'd39, 1'b1, 1'b0, 1'b0, 1'b0, D2, D3, 64'b0);
+    launch_op(2'd2, 4'd8, 6'd40, 1'b0, 1'b0, 1'b0, 1'b0, S2, S3, S1);
+    launch_valid = 1'b0;
+    repeat (2) @(posedge clk); #1;
+    chk_out("launch mixed fadd.s out", 1'b1, 4'd6, 6'd38, S2, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch mixed fmul.d out", 1'b1, 4'd7, 6'd39, D6, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch mixed fmadd.s out", 1'b1, 4'd8, 6'd40, S7, 5'b0);
+    @(posedge clk); #1;
+    chk_out("launch mixed pipe drained", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+
+    // 连续 mixed-precision/kind 且每拍 fflags 不同：证明 value/fflags 原子、
+    // double/kind 均取 resident meta，不读取 current input。
+    launch_op(2'd0, 4'd9, 6'd45, 1'b1, 1'b0, 1'b0, 1'b0,
+              D1, D_MIN_SUB, 64'b0);
+    launch_op(2'd2, 4'd10, 6'd46, 1'b0, 1'b0, 1'b0, 1'b0,
+              S_QNAN, S1, S1);
+    launch_op(2'd1, 4'd11, 6'd47, 1'b1, 1'b0, 1'b0, 1'b0,
+              D_POS_INF, D_ZERO, 64'b0);
+    launch_valid = 1'b0;
+    // 故意把 current inputs 切成相反 kind/precision，resident meta 必须隔离它们。
+    dbl = 1'b0; launch_kind = 2'd0; frs1 = S1; frs2 = S1; frs3 = S1;
+    repeat (2) @(posedge clk); #1;
+    chk_out("atomic flags add NX", 1'b1, 4'd9, 6'd45, D1, 5'b00001);
+    @(posedge clk); #1;
+    chk_out("atomic flags fma qNaN", 1'b1, 4'd10, 6'd46,
+            64'hffffffff7fc00000, 5'b00000);
+    @(posedge clk); #1;
+    chk_out("atomic flags mul invalid", 1'b1, 4'd11, 6'd47,
+            64'h7ff8000000000000, 5'b10000);
+    @(posedge clk); #1;
+    chk_out("atomic flags pipe drained", 1'b0, 4'd0, 6'd0, 64'b0, 5'b0);
+
+    tb_finish("tb_ooo_fp_arith_gate");
+  end
+endmodule

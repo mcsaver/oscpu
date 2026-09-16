@@ -1,0 +1,120 @@
+{
+  "schema": "npc-rv64-full-core-functional-run-policy-v1",
+  "policy_id": "full-core-functional-current-v1",
+  "cohort_id": "full-core-single-hart-rv64-dual-issue-ooo-v1",
+  "scope": "local RV64 dual-issue OoO full-core functional evidence",
+  "entrypoints": {
+    "current": "npc/rv64/eval/ppa/run-full-core-current.sh",
+    "legacy_v9l": "import-only; direct execution disabled"
+  },
+  "run_directory": {
+    "root": ".github/task-runs",
+    "shape": ".github/task-runs/<new-run-id>",
+    "must_not_exist_before_start": true,
+    "overwrite_or_reset_existing_run": false,
+    "path_source": "explicit --run-dir; no Git discovery",
+    "path_identity": "producer output directories and durable artifacts are checked lexically; any symlink component, including a final file alias, is rejected before hashing or creation"
+  },
+  "configuration_control": {
+    "production_rtl": "read-only during verification",
+    "npc_config": "current .config is an immutable input and must enable CONFIG_NPC_DIFFTEST=y",
+    "nemu_config": "current .config is an immutable riscv64 interpreter/system reference input",
+    "input_binding": "hash before execution and after the final cohort",
+    "design_binding": "same live RTL design_id for module and functional stages",
+    "workspace_default_defconfig_rewrite": false
+  },
+  "stage_order": [
+    "module-inventory-current",
+    "official-177-am-difftest-benchmarks",
+    "durable-result-verification",
+    "execution-status-pass",
+    "optional-current-publication",
+    "publication-status-pass"
+  ],
+  "status_contract": {
+    "helper": "scripts/task-run-status.sh",
+    "initial": "RUNNING",
+    "pass_authority": "explicit module, functional and semantic-verifier PASS markers plus evidence_complete after result verification",
+    "marker_cardinality": "module, functional, semantic-verifier and optional publication logs each contain exactly one stage PASS marker and no same-stage FAIL marker",
+    "exit_code_zero_alone_can_pass": false,
+    "signals": [
+      "HUP",
+      "INT",
+      "TERM"
+    ],
+    "signal_result": "FAIL with stage and signal"
+  },
+  "semantic_revalidation": {
+    "aggregate": "schema plus module/official-177/exact-AM/DiffTest/CoreMark/Dhrystone checks",
+    "aggregate_result": "design/cohort/status/command/count/check and artifact closure",
+    "source_run": "exact same-run result/status/module/input/artifact/retention field sets and canonical run-local paths",
+    "official_membership": "exact 177 test ids derived from the live regression suite arrays and their local .S source stems",
+    "terminal_log": "exact regeneration including F0-G1 PASS, ppa=UNQUALIFIED and promotion_eligible=false",
+    "mutations": "exact canonical 14-case inventory: 11 schema-valid rejections and 3 schema-invalid rejections, followed by read-only replay from retained mutation inputs",
+    "suite_guest_logs": "every same-run official/AM wrapper is reopened; its unique source-log section must contain exactly one architectural PASS terminal and AM must contain exactly one DiffTest-ON state with no OFF state",
+    "raw_log_provenance": "simulator-build, official, AM and benchmark wrappers bind an exact same-run raw-log path and SHA-256; consumers parse the wrapper delimiters as bytes, reopen the retained raw log and require byte equality before UTF-8 semantic parsing",
+    "benchmarks": "CoreMark iterations/CRC/PASS and Dhrystone run-count/PASS are parsed exactly once from guest output; duplicate or conflicting metric lines are rejected and never inferred from command arguments",
+    "module_binding": "same-run module result, complete PASS status, exact required-test inventory, symlink-free run-local status/log/input paths and exact nonempty RTL/header/filelist/test/workflow input groups",
+    "live_binding": "frozen pre/post inputs equal each other and, for current publication, equal recaptured live inputs"
+  },
+  "publication": {
+    "enabled_by_default": false,
+    "request": "--publish-current",
+    "precondition": "durable local result is semantically revalidated against frozen inputs and full-core-current.status is exactly PASS",
+    "execution_result_mutated_by_publication": false,
+    "status": "a separate fail-closed full-core-publication.status; canonical consumers require PASS",
+    "canonical_artifacts": [
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-current.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate-result.json",
+      "npc/rv64/eval/ppa/evidence/functional-aggregate.log"
+    ],
+    "commit_marker": "npc/rv64/eval/ppa/evidence/functional-aggregate-current.binding.json",
+    "commit_marker_order": "last among canonical evidence files, followed only by publication-status finalization",
+    "canonical_path_identity": "canonical destination and .tmp-full-core-current path components are checked lexically before open; parent, final and dangling symlinks are rejected, and temporary creation is exclusive/no-follow",
+    "interrupted_publication": "old or absent binding mismatches the data files and is rejected",
+    "downstream_f0_consumer": "requires exact binding schema/cohort/design, immutable same-run source result and module closure, live official/AM source membership, execution PASS, publication PASS, source/canonical hash equality, read-only replay of the exact 14-case mutations, guest benchmark line parsing and byte-exact terminal receipt"
+  },
+  "build_isolation": {
+    "temporary_roots": "NEMU reference, AM/klib archives, cpu-test image, CoreMark image and Dhrystone image",
+    "source_tree_observation": "known configuration is fingerprinted pre/post; AM/benchmark .result, Makefile.*, build and obj_dir secondary products must be absent both before and after the smoke",
+    "smoke_success": "reference=1, AM image/archive=1, klib archive=1, benchmark_images=2, source_tree_drift=0 and retained_temp_products=0"
+  },
+  "retention": {
+    "durable": [
+      "stage status",
+      "result and input bindings",
+      "bounded normalized logs",
+      "frozen simulator/reference/configuration",
+      "official/AM/benchmark program images"
+    ],
+    "transient": [
+      "Verilator object tree",
+      "module VVP files",
+      "compiler object files",
+      "temporary run roots"
+    ],
+    "compiled_intermediates_retained": 0
+  },
+  "reuse_and_rerun": {
+    "checker_only_change": "versioned replay is allowed when frozen inputs, terminal evidence and hashes are complete",
+    "rtl_elaboration_simulator_or_device_semantics_change": "full execution required",
+    "missing_raw_input_terminal_or_post_hash": "full execution required",
+    "historical_status_rewrite": false
+  },
+  "review": {
+    "implementation_and_evidence_review_separate": true,
+    "required_conclusion_fields": [
+      "RTL or evidence object",
+      "configuration and design identity",
+      "testbench or EDA observation",
+      "PASS/GAP scope",
+      "counterexample and unknowns"
+    ],
+    "gate_routing": "the C pointer maps the runner, all three functional schemas, architecture identity helper, official inventory runner, AM result checker and relevant build entrypoints to rv64-full-core-runner-contract"
+  },
+  "non_claims": [
+    "This policy does not by itself establish ARCH_STABLE.",
+    "This policy does not qualify synthesis, STA, power, area, CPI or PPA.",
+    "This policy adopts sign-off-grade configuration and evidence discipline; it does not claim equivalence to any proprietary vendor flow."
+  ]
+}

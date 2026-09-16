@@ -167,6 +167,22 @@ static void test_bus_profiles(Uart16550 *uart, SmokeSink *sink) {
   check_u8("32bit tx byte", sink->tx[tx_before], 'Q');
 }
 
+static void test_modem_edges(Uart16550 *uart) {
+  uart16550_reset(uart);
+  check_u8("default modem ready", uart16550_read(uart, UART16550_REG_MSR), 0xb0);
+  uart16550_write(uart, UART16550_REG_IER, UART16550_IER_MSI);
+  uart16550_write(uart, UART16550_REG_MCR, 0x1a);
+  check_u8("modem delta irq", uart16550_read(uart, UART16550_REG_IIR), 0x00);
+  check_u8("loopback RTS OUT2", uart16550_read(uart, UART16550_REG_MSR), 0x92);
+  check_u8("modem delta clears", uart16550_read(uart, UART16550_REG_MSR), 0x90);
+  uart16550_write(uart, UART16550_REG_MCR, 0x1e);
+  check_u8("RI assertion has no TERI", uart16550_read(uart, UART16550_REG_MSR), 0xd0);
+  uart16550_write(uart, UART16550_REG_MCR, 0x1a);
+  check_u8("RI deassertion has TERI", uart16550_read(uart, UART16550_REG_MSR), 0x94);
+  check_u8("TERI read clears", uart16550_read(uart, UART16550_REG_MSR), 0x90);
+  uart16550_reset(uart);
+}
+
 int main(void) {
   SmokeSink sink;
   memset(&sink, 0, sizeof(sink));
@@ -189,6 +205,7 @@ int main(void) {
   test_tx_irq(uart, &sink);
   test_rx_fifo_burst(uart);
   test_loopback(uart, &sink);
+  test_modem_edges(uart);
   test_bus_profiles(uart, &sink);
   uart16550_destroy(uart);
 

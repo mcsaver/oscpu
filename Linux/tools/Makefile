@@ -14,7 +14,9 @@ OBJCOPY := $(CROSS_COMPILE)objcopy
 DTC ?= dtc
 FDTGET ?= fdtget
 BUILD_DIR ?= build
-NPC_SIM ?= ../../npc/rv64/build/NpcSimTop
+NPC_SIM ?= ../../npc/rv64/build/chengyue64/linux-system/obj/VR64SystemTestTop
+NPC_REF ?= ../../nemu/build/rv64-rebuild-reference/riscv64-nemu-interpreter-so
+NPC_MEMORY_BYTES ?= 0x08000000
 NEMU_HOME ?= ../../nemu
 NEMU_BUILD_JOBS ?= $(shell nproc 2>/dev/null || echo 1)
 NEMU := $(abspath $(NEMU_HOME)/build/riscv64-nemu-interpreter)
@@ -278,30 +280,30 @@ check-dtb: $(DTB)
 	$(FDTGET) $(DTB) /soc/serial@10000000 compatible
 
 smoke-dtb: $(TRAMPOLINE_BIN) $(DTB) $(DTB_SMOKE_BIN)
-	$(NPC_SIM) -b --no-diff --no-progress --max=2000000 \
-	  --load=$(TRAMPOLINE_TEXT):$(TRAMPOLINE_BIN) \
+	'$(NPC_SIM)' '$(TRAMPOLINE_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000 \
 	  --load=$(NEXT_ADDR):$(DTB_SMOKE_BIN) \
 	  --load=$(DTB_ADDR):$(DTB)
 
 smoke-opensbi: $(DTB) $(MINI_LINUX_BIN)
 	test -f $(OPENSBI_FW_JUMP_BIN)
-	$(NPC_SIM) -b --no-progress --max=$(OPENSBI_MAX_CYCLES) \
-	  -i $(OPENSBI_FW_JUMP_BIN) \
+	'$(NPC_SIM)' '$(OPENSBI_FW_JUMP_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=$(OPENSBI_MAX_CYCLES) \
 	  --load=$(NEXT_ADDR):$(MINI_LINUX_BIN) \
 	  --load=$(OPENSBI_NEXT_DTB_ADDR):$(DTB)
 
 smoke-opensbi-sbi: $(DTB) $(OPENSBI_SBI_BIN)
 	test -f $(OPENSBI_FW_JUMP_BIN)
-	$(NPC_SIM) -b --no-progress --max=$(OPENSBI_SBI_MAX_CYCLES) \
-	  -i $(OPENSBI_FW_JUMP_BIN) \
+	'$(NPC_SIM)' '$(OPENSBI_FW_JUMP_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=$(OPENSBI_SBI_MAX_CYCLES) \
 	  --load=$(NEXT_ADDR):$(OPENSBI_SBI_BIN) \
 	  --load=$(OPENSBI_NEXT_DTB_ADDR):$(DTB)
 
 smoke-virtio-blk: $(VIRTIO_BLK_BIN)
 	test -f $(VIRTIO_BLK_IMAGE)
-	$(NPC_SIM) -b --no-progress --no-diff --max=$(VIRTIO_BLK_MAX_CYCLES) \
-	  --block=$(VIRTIO_BLK_IMAGE) \
-	  -i $(VIRTIO_BLK_BIN)
+	@set -e; out=$$(mktemp -d "$(BUILD_DIR)/virtio-smoke-XXXXXX"); \
+	  sha256sum "$(VIRTIO_BLK_IMAGE)" >"$$out/template.sha256"; \
+	  cp --reflink=auto "$(VIRTIO_BLK_IMAGE)" "$$out/block.ext4"; \
+	  '$(NPC_SIM)' '$(VIRTIO_BLK_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) \
+	    --maxcycles=$(VIRTIO_BLK_MAX_CYCLES) --block="$$out/block.ext4"; \
+	  sha256sum -c "$$out/template.sha256"
 
 smoke-nemu-virtio-blk-error: $(VIRTIO_BLK_ERROR_BIN)
 	test -f $(VIRTIO_BLK_IMAGE)
@@ -628,31 +630,31 @@ $(FP_SQRT_NEMU_ELF): fp-sqrt-smoke.S Makefile
 	$(OBJCOPY) -O binary $< $@
 
 smoke-jal-link: $(JAL_LINK_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(JAL_LINK_BIN)
+	'$(NPC_SIM)' '$(JAL_LINK_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-branch-raw: $(BRANCH_RAW_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(BRANCH_RAW_BIN)
+	'$(NPC_SIM)' '$(BRANCH_RAW_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-muldiv: $(MULDIV_SMOKE_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=4000000 -i $(MULDIV_SMOKE_BIN)
+	'$(NPC_SIM)' '$(MULDIV_SMOKE_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=4000000
 
 smoke-sret-user: $(SRET_USER_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_USER_BIN)
+	'$(NPC_SIM)' '$(SRET_USER_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-sret-user-pagefault: $(SRET_USER_PF_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_USER_PF_BIN)
+	'$(NPC_SIM)' '$(SRET_USER_PF_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-sret-user-sv39: $(SRET_USER_SV39_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_USER_SV39_BIN)
+	'$(NPC_SIM)' '$(SRET_USER_SV39_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-sret-user-sv39-halfword: $(SRET_USER_SV39_HALF_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_USER_SV39_HALF_BIN)
+	'$(NPC_SIM)' '$(SRET_USER_SV39_HALF_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-sret-restore: $(SRET_RESTORE_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(SRET_RESTORE_BIN)
+	'$(NPC_SIM)' '$(SRET_RESTORE_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-ras-trap-boundary: $(RAS_TRAP_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(RAS_TRAP_BIN)
+	'$(NPC_SIM)' '$(RAS_TRAP_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-nemu-pmp-access: $(PMP_ACCESS_BIN)
 	$(abspath $(NEMU_PRESERVED_RUN)) $(abspath $(NEMU_HOME)) $(NEMU_BUILD_JOBS) -- \
@@ -697,43 +699,43 @@ smoke-nemu-fp-sqrt: $(FP_SQRT_NEMU_BIN)
 	grep -q 'HIT GOOD TRAP' $(NEMU_FP_SQRT_LOG)
 
 smoke-fp-loadstore: $(FP_SMOKE_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_SMOKE_BIN)
+	'$(NPC_SIM)' '$(FP_SMOKE_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-fcsr: $(FP_FCSR_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_FCSR_BIN)
+	'$(NPC_SIM)' '$(FP_FCSR_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-fmv-fclass: $(FP_FMV_FCLASS_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_FMV_FCLASS_BIN)
+	'$(NPC_SIM)' '$(FP_FMV_FCLASS_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-convert: $(FP_CONVERT_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_CONVERT_BIN)
+	'$(NPC_SIM)' '$(FP_CONVERT_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-compare-sgnj: $(FP_COMPARE_SGNJ_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_COMPARE_SGNJ_BIN)
+	'$(NPC_SIM)' '$(FP_COMPARE_SGNJ_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-minmax: $(FP_MINMAX_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_MINMAX_BIN)
+	'$(NPC_SIM)' '$(FP_MINMAX_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-addsub: $(FP_ADDSUB_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_ADDSUB_BIN)
+	'$(NPC_SIM)' '$(FP_ADDSUB_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-mul: $(FP_MUL_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_MUL_BIN)
+	'$(NPC_SIM)' '$(FP_MUL_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-fma: $(FP_FMA_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_FMA_BIN)
+	'$(NPC_SIM)' '$(FP_FMA_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-div: $(FP_DIV_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_DIV_BIN)
+	'$(NPC_SIM)' '$(FP_DIV_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-dynrm: $(FP_DYNRM_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_DYNRM_BIN)
+	'$(NPC_SIM)' '$(FP_DYNRM_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-corner: $(FP_CORNER_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_CORNER_BIN)
+	'$(NPC_SIM)' '$(FP_CORNER_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 smoke-fp-sqrt: $(FP_SQRT_BIN)
-	$(NPC_SIM) -b --no-progress --no-diff --max=2000000 -i $(FP_SQRT_BIN)
+	'$(NPC_SIM)' '$(FP_SQRT_BIN)' '$(NPC_REF)' --memory=$(NPC_MEMORY_BYTES) --maxcycles=2000000
 
 clean:
 	rm -rf $(BUILD_DIR)

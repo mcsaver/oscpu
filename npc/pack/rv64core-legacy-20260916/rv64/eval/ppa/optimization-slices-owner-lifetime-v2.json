@@ -1,0 +1,111 @@
+{
+  "schema": "npc-rv64-optimization-slice-catalog-v1",
+  "catalog_id": "rv64-optimization-slices-v2-serialized-owner-lifetime",
+  "extends": {
+    "path": "npc/rv64/eval/ppa/optimization-slices-current.json",
+    "sha256": "dac1ac81397389ff7fb6449e7d4fcf2445bd8470b80db74f100447d4a33bfd40",
+    "size_bytes": 29536
+  },
+  "slices": [
+    {
+      "id": "experiment.serialized-owner-terminal-permit",
+      "class": "rtl_experiment",
+      "selection_mode": "information",
+      "title": "用 exact-one serialized owner permit 切断 memory-terminal 全局组合锥",
+      "domain": "RV64 serialized owner lifetime, memory terminal accounting and drain timing",
+      "action": "新增一个只服务 non-CSR system、architectural trap 与 simulation exit 的 owner-bound cancellable permit：在 backend_drained_q 与 exact current mem_owner_terminalized 同拍捕获三位 one-hot owner，消费拍比较当前 owner，所有 reset/flush/cancel/consume/handoff clear-dominant；OooPendingDrainResolveGate 继续当拍重查 raw backend drain、FENCE mem_idle 与既有 trap/exit/CSR priority。不得实现或复用无 owner 身份的一位 readiness。",
+      "scope": [
+        "npc/rv64/eval/ppa/tools/serialized_drain_owner_lifetime_analysis.py",
+        "npc/rv64/design/specs/ooo-serialized-mem-terminal-permit.md",
+        "npc/rv64/vsrc/filelist.mk",
+        "npc/rv64/vsrc/control/OooControlPlane.v",
+        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
+        "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv"
+      ],
+      "prerequisites": [
+        {
+          "fact": "current_timing_path_analysis_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "current_timing_path_analysis_status",
+          "op": "eq",
+          "value": "GAP_NO_SAFE_SERIALIZED_DRAIN_BOUNDARY"
+        },
+        {
+          "fact": "current_timing_candidate_id",
+          "op": "eq",
+          "value": "NONE_OWNER_LIFETIME_UNPROVEN"
+        },
+        {
+          "fact": "serialized_drain_owner_lifetime_completed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "serialized_drain_owner_lifetime_status",
+          "op": "eq",
+          "value": "TRACEABLE_SERIALIZED_OWNER_PERMIT_CANDIDATE_DEFINED"
+        },
+        {
+          "fact": "serialized_drain_candidate_id",
+          "op": "eq",
+          "value": "serialized-owner-terminal-permit-v2"
+        },
+        {
+          "fact": "serialized_drain_experiment_authorized",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "fact": "ppa_timing_hard_gate",
+          "op": "eq",
+          "value": "FAIL"
+        },
+        {
+          "fact": "ppa_reference_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "selector_metrics": {
+        "information_gain": 5,
+        "evidence_confidence": 4,
+        "reversibility": 5,
+        "execution_cost": 3,
+        "functional_risk": 3,
+        "scope_width": 3
+      },
+      "required_evidence": [
+        "owner-bound helper arm hold consume stop-drop and C1 no-repeat",
+        "owner A-to-B mismatch non-onehot rejection and every cancel collision",
+        "new memory birth active-holder and collector-pending exact-accounting counterexamples",
+        "raw backend drain FENCE current mem_idle and ROB-head trap priority remain live",
+        "compile-success mutations for owner compare clear priority raw drain and FENCE idle",
+        "affected L0/L1 plus same-design CoreMark Dhrystone and two fresh mapped timing runs"
+      ],
+      "success_conditions": [
+        "all candidate invariants and negative variants are observed non-vacuously",
+        "serialized system trap exit and FENCE order remain exact with no repeated terminal request",
+        "collector tracker token accounting and all ready/valid payload stability contracts remain unchanged",
+        "same-design CPI floors hold and the target mem_owner_terminalized to drain_complete family leaves mapped Top40 or the candidate is rejected",
+        "the 5 ns timing hard gate remains explicit even if WNS improves but stays negative"
+      ],
+      "rollback_conditions": [
+        "any owner can consume a permit captured by another owner or generation",
+        "flush cancel consume or owner mismatch can lose clear priority",
+        "raw backend drain FENCE current idle or ROB-head trap priority is bypassed",
+        "memory terminal token is dropped duplicated or freed by the permit",
+        "functional assertion CPI area or same-config timing evidence regresses outside the declared bound"
+      ],
+      "forbidden_claims": [
+        "authorization of serialized-mem-terminal-readiness-register-v1",
+        "production promotion from owner-lifetime analysis or directed TB alone",
+        "5 ns closure when WNS remains negative",
+        "qualified power or macro area when either remains unknown"
+      ]
+    }
+  ]
+}

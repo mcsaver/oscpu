@@ -1,0 +1,138 @@
+{
+  "authorization": {
+    "optimization_candidate_authorized": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false
+  },
+  "bridge_sample_bits": {
+    "active_epoch": [11, 12],
+    "active_kind": [4, 5],
+    "active_token": [6, 10],
+    "active_drop": [39, 39],
+    "aw_complete": [34, 34],
+    "bvalid": [36, 36],
+    "request_epoch": [32, 33],
+    "request_fire": [24, 24],
+    "request_kind": [25, 26],
+    "request_token": [27, 31],
+    "request_valid": [23, 23],
+    "response_fire": [40, 40],
+    "stage_advance": [37, 37],
+    "state": [0, 3],
+    "station_cancel": [38, 38],
+    "station_epoch": [21, 22],
+    "station_kind": [14, 15],
+    "station_token": [16, 20],
+    "station_valid": [13, 13],
+    "w_complete": [35, 35]
+  },
+  "histogram_bins_cycles": [
+    {"index": 0, "maximum": 0, "minimum": 0},
+    {"index": 1, "maximum": 1, "minimum": 1},
+    {"index": 2, "maximum": 2, "minimum": 2},
+    {"index": 3, "maximum": 4, "minimum": 3},
+    {"index": 4, "maximum": 8, "minimum": 5},
+    {"index": 5, "maximum": 16, "minimum": 9},
+    {"index": 6, "maximum": 32, "minimum": 17},
+    {"index": 7, "maximum": 64, "minimum": 33},
+    {"index": 8, "maximum": null, "minimum": 65}
+  ],
+  "hypothesis_channels": {
+    "H1_B_RESPONSE_LATENCY": ["aw_w_to_b", "write_response"],
+    "H2_WRITE_CONCURRENCY": ["admission_wait", "write_inflight_occupancy", "peer_overlap"],
+    "H3_HEAD_RESIDENCY_WEIGHTING": ["request_fire_count", "stage_duration", "rob_head_token_correlation"],
+    "H4_PRE_REQUEST_PIPELINE": ["reservation", "translation", "sq_query", "rob_head_token_correlation"]
+  },
+  "invalid_event_conservation": {
+    "formula": "invalid_events == sum(invalid_reason_counts)",
+    "required": true,
+    "reasons": [
+      "configuration",
+      "illegal_state",
+      "active_kind",
+      "station_kind",
+      "request_kind",
+      "request_fire_without_valid",
+      "stage_advance_without_station",
+      "station_cancel_without_station",
+      "active_drop_without_active",
+      "stage_identity_change",
+      "admission_identity_change",
+      "write_occupancy",
+      "boundary_order"
+    ],
+    "qualification": "Every reason count and invalid_events must be zero; reason buckets diagnose a failed run and never waive it."
+  },
+  "interval_conservation": {
+    "eligible": "eligible_started == completed + right_censored + cancelled",
+    "left_boundary": "left_censored == left_completed + left_right_censored",
+    "state_cycles": "sum(state_cycles[bridge]) == roi_cycles",
+    "write_occupancy": "sum(write_inflight_occupancy[0..2]) == roi_cycles"
+  },
+  "operation_classes": {
+    "0": "LOAD",
+    "1": "STORE",
+    "2": "ATOMIC",
+    "3": "A_D_UPDATE",
+    "4": "UNKNOWN"
+  },
+  "state_encoding": {
+    "0": "S_IDLE",
+    "1": "S_WALK_AR",
+    "2": "S_WALK_R",
+    "3": "S_READ_ADDR",
+    "4": "S_READ_DATA",
+    "5": "S_WRITE_REQ",
+    "6": "S_WRITE_RESP",
+    "7": "S_RESP",
+    "8": "S_AD_UPDATE",
+    "9": "S_LOOKUP",
+    "10": "S_DEVICE_WAIT",
+    "11": "S_OWNER_HOLD",
+    "12": "S_SQ_QUERY",
+    "illegal": [13, 14, 15]
+  },
+  "roi_contract": {
+    "boundary_reentry": "The first observed start PC and first subsequent end PC define the single ROI. Repeated start or end PC matches remain counted in start_hits/end_hits but do not open a second ROI and are not invalid events.",
+    "complete_intervals": "Only intervals that start after the start boundary and terminate no later than the end edge enter duration histograms.",
+    "cycle_window": "For start edge S and end edge E, sample the edge-old bridge image on S+1 through E, for E-S cycle samples.",
+    "left_censor": "An interval active on S is marked left_censored and excluded from complete duration histograms.",
+    "right_censor": "An eligible interval still active after the E sample is marked right_censored and excluded from complete duration histograms.",
+    "same_cycle": "A lane0 start followed by a lane1 end on the same edge has zero full-cycle samples and is not a qualified timing region.",
+    "same_edge_stage": "An A/D AW/W completion and B terminal observed on the same edge contributes a complete zero-cycle aw_w_to_b interval."
+  },
+  "schema": "npc-rv64-owner-timing-contract-v1",
+  "stages": [
+    "admission_wait",
+    "reservation",
+    "translation",
+    "write_request",
+    "write_response",
+    "aw_w_to_b",
+    "sq_query"
+  ],
+  "success_boundary": {
+    "must_preserve": [
+      "production request response and retirement semantics",
+      "OooMemAxiBridge B response as the unique write completion terminal",
+      "all existing RTL assertions",
+      "workload ROI simulator config and memory device latency for an A-B comparison"
+    ],
+    "terminal_classification": {
+      "active_drop": "cancelled; never enters a normal-completion duration bin",
+      "response_fire": "normal architectural response completion",
+      "station_cancel": "cancelled reservation; never enters a normal-completion duration bin"
+    },
+    "required_fields": [
+      "complete",
+      "available",
+      "overflow",
+      "invalid_events",
+      "invalid_conservation",
+      "state_conservation",
+      "interval_conservation",
+      "left_censored",
+      "right_censored"
+    ]
+  }
+}

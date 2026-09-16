@@ -1,0 +1,35 @@
+{
+  "candidate": {
+    "kind": "arch_stable_candidate",
+    "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/candidate.json",
+    "sha256": "697ec15673499dc7a2f8e6d07eece5b5020b0a4a5690e3885ff1646a55b6dade",
+    "size_bytes": 167392
+  },
+  "decision": "APPROVE_ARCH_STABLE",
+  "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+  "evidence": [
+    {
+      "kind": "independent_review_report",
+      "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-arch-stable-act4-rebind-review-f72e-v2.result.md",
+      "sha256": "55daea210f7e79d5b76b5580f22a80fa5675598d8c617d4949c95c9bf8a27ddf",
+      "size_bytes": 2851
+    },
+    {
+      "kind": "rtl_task_contract",
+      "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/subagent-contracts/v15z-arch-stable-act4-rebind-review-f72e-v2.json",
+      "sha256": "e9eefb5e92d5d8ccec4b2b9ccc7e2652192f59f0adb48b1e37d4402531c9c0a9",
+      "size_bytes": 4601
+    }
+  ],
+  "open_blockers": [],
+  "review_scope": {
+    "architecture_prerequisites": "PASS",
+    "ppa": "UNQUALIFIED",
+    "producer_holder_static_semantic_dynamic": "PASS",
+    "promotion_eligible": false
+  },
+  "reviewed_at_utc": "2026-08-08T06:20:10.422353+00:00",
+  "reviewer_task": "v15z-arch-stable-act4-rebind-review-f72e-v2",
+  "schema": "npc-rv64-arch-stable-independent-review-v1",
+  "unknowns": []
+}

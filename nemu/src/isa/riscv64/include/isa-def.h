@@ -64,6 +64,10 @@
 #define CSR_MCAUSE   0x342
 #define CSR_MTVAL    0x343
 #define CSR_MIP      0x344
+#define CSR_TSELECT  0x7a0
+#define CSR_TDATA1   0x7a1
+#define CSR_TDATA2   0x7a2
+#define CSR_TINFO    0x7a4
 #define CSR_MCYCLE   0xb00
 #define CSR_MINSTRET 0xb02
 #define CSR_MCYCLEH  0xb80  // RV32-only high-half CSR; RV64 译码必须视为保留地址
@@ -185,6 +189,9 @@ typedef struct {
   bool pmp_active;
   uint64_t mcycle, minstret;
   uint8_t fflags, frm;
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+  word_t tdata1, tdata2;
+#endif
 } riscv64_CSR_state;
 
 typedef struct {

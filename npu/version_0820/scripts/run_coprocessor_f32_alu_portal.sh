@@ -118,6 +118,7 @@ readonly -a SOURCES=(
     rtl/TensorNpuRegisterFile.v
     rtl/TensorNpuMm2Engine.v
     rtl/TensorNpuDmaEngine.v
+    rtl/TensorNpuServiceDma.v
     rtl/TensorNpuLocalMemory.v
     tests/tb_coprocessor_f32_alu_portal.sv
 )

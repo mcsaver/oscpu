@@ -36,6 +36,17 @@ if {[info exists env(CLK_FREQ_MHZ)]} {
 }
 set CLK_PERIOD_NS           [expr 1000.0 / $CLK_FREQ_MHZ]
 set CLK_PERIOD_PS           [expr 1000.0 * $CLK_PERIOD_NS]
+# ABC's extracted combinational network does not inherit STA's external
+# arrival/required times. A stricter mapping target can guide sizing; the
+# actual clock and every STA constraint remain independently unchanged.
+set ABC_DELAY_PS $CLK_PERIOD_PS
+if {[info exists env(SYNTH_MAP_DELAY_PS)] && $::env(SYNTH_MAP_DELAY_PS) ne ""} {
+  set ABC_DELAY_PS $::env(SYNTH_MAP_DELAY_PS)
+  if {![string is double -strict $ABC_DELAY_PS] ||
+      $ABC_DELAY_PS <= 0 || $ABC_DELAY_PS > $CLK_PERIOD_PS} {
+    error "SYNTH_MAP_DELAY_PS must be positive and no looser than the clock period"
+  }
+}
 set SYNTH_FLATTEN           1
 if {[info exists env(SYNTH_FLATTEN)]} {
   set SYNTH_FLATTEN         $::env(SYNTH_FLATTEN)
@@ -113,11 +124,24 @@ set buffering 1
 set sizing 1
 
 set driver $BUF_CELL
-# unit: pF
+# ABC -constr set_load is in femtofarads, unlike Liberty/STA pF.
+# Preserve the historical default; native callers can supply the actual load.
 set cap_load 1.6
+if {[info exists env(SYNTH_LOAD_FF)]} {
+  set cap_load $::env(SYNTH_LOAD_FF)
+  if {![string is double -strict $cap_load] || $cap_load <= 0} {
+    error "SYNTH_LOAD_FF must be a positive load in femtofarads"
+  }
+}
 
 # input pin cap of BUF
 set max_FO 24
+if {[info exists env(SYNTH_MAX_FANOUT)]} {
+  set max_FO $::env(SYNTH_MAX_FANOUT)
+  if {![string is integer -strict $max_FO] || $max_FO < 2} {
+    error "SYNTH_MAX_FANOUT must be an integer of at least two"
+  }
+}
 set max_TR 0
 
 #===========================================================
@@ -400,11 +424,11 @@ opt -undriven -purge
 
 log "\[INFO\]: USING STRATEGY $strategy_name"
 if {$strategy_type == "DELAY"} {
-  log "\[INFO\]: ABC DELAY TARGET ${CLK_PERIOD_PS}ps (injected through {D})"
+  log "\[INFO\]: ABC DELAY TARGET ${ABC_DELAY_PS}ps (STA clock ${CLK_PERIOD_PS}ps) (injected through {D})"
 }
 
 # technology mapping for cells
-abc -D "$CLK_PERIOD_PS" \
+abc -D "$ABC_DELAY_PS" \
   -constr "$sdc_file" \
   {*}$LIBS {*}$EXCLUDE_CELLS \
   -script "$strategy_script" \

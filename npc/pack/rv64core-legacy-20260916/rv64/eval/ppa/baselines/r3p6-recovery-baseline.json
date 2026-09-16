@@ -1,0 +1,173 @@
+{
+  "schema": "npc-rv64-ppa-baseline-v1",
+  "baseline_id": "r3p6-onehot-prf-recovery-20260715",
+  "status": "engineering_recovery_baseline",
+  "promotable": false,
+  "transition_role": "architecture_infeasible_measurement_anchor",
+  "claim_tier": "rtl_proxy_partial_constraints",
+  "policy": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+  "policy_id": "rv64-complete-ooo-dual-issue-proxy-200mhz-v1",
+  "cohort_id": "r3p6-bound-performance-synth-sta-20260715",
+  "design_id": "r3p6-onehot-prf",
+  "created_utc": "2026-07-15T00:00:00Z",
+  "provenance": {
+    "git_head": "31e90c679050a3a9138c967151b240f0fa2ab158",
+    "git_dirty": true,
+    "canonical_rtl": "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+    "canonical_rtl_sha256": "ecdcfa47a99c349e305da136b678d0d26496e7e8f67c3b2d95346717530956e1",
+    "simulation_binary": "tmp/2026-07-15-rv64-ppa-architecture-recovery/build-r3p6-onehot-prf/NpcSimTop",
+    "simulation_binary_sha256": "82103707db81fae9d48c67109bec21f3d9885983b991fb9c37055ff98ff55540",
+    "netlist_sha256": "2bc1376369265693d0268f93828002b9ead04a81a1d6946243d260f85d0ddf7d",
+    "synthesis_repetitions_bit_identical": true,
+    "sta_semantics_repetitions_identical": true
+  },
+  "architecture_contract": {
+    "xlen": 64,
+    "fetch_width": 2,
+    "dispatch_width": 2,
+    "issue_width": 2,
+    "memory_issue_width": 1,
+    "agu_width": 1,
+    "memory_translation_width": 1,
+    "memory_order_check_width": 1,
+    "dcache_request_width": 1,
+    "retire_width": 2,
+    "rob_entries": 16,
+    "int_iq_entries": 8,
+    "fp_iq_entries": 8,
+    "int_prf_entries": 64,
+    "fp_prf_entries": 64,
+    "lq_entries": 0,
+    "sq_entries": 4,
+    "hard_gates_all_green": false,
+    "blocking_gates": [
+      "frontend_ii1",
+      "width_continuity",
+      "pair_matrix",
+      "no_static_lane_semantics",
+      "dual_memory_issue",
+      "true_ooo_long_latency",
+      "selective_scheduling",
+      "memory_ordering",
+      "speculation_recovery"
+    ],
+    "known_structural_blockers": [
+      "one complete memory reservation/AGU owner",
+      "one complete translation/order/cache-admission/completion owner",
+      "no canonical design-bound nine-gate evidence suite"
+    ],
+    "note": "The integer terminals are dynamically capability-steered, but canonical RTL still has one complete memory reservation/AGU/translation/order/cache-admission/completion owner. Every directed gate remains fail-closed until a canonical design-bound suite is archived; this baseline is intentionally architecture-infeasible."
+  },
+  "architecture_feasible_seed_transition": {
+    "eligible_as_source_anchor": true,
+    "transition_id": "r3p6-infeasible-anchor-to-first-feasible-seed-v1",
+    "architecture_feasible": false,
+    "may_become_canonical": false,
+    "may_become_front_accepted": false,
+    "may_become_ppa_champion": false,
+    "note": "R3.6 freezes measured performance/area/timing only. Its architecture is infeasible, so the first complete architecture may use the one-time seed thresholds instead of dominance; R3.6 itself can never be promoted."
+  },
+  "functional": {
+    "module": {
+      "passed": 102,
+      "required": 102,
+      "failed": 0,
+      "summary_sha256": "e6485c73359cec68a4a2500ed4ef11d49b465f122b7a56f811e436480d7c9fea"
+    },
+    "official_same_image": null,
+    "am_same_image": null,
+    "linux_deferred": true
+  },
+  "performance": {
+    "counter_scope": "pc_bounded_region_v1",
+    "repetitions": 3,
+    "bit_exact_repetition_counters": true,
+    "benchmarks": [
+      {
+        "name": "coremark",
+        "cycles": 4904511,
+        "retired_instructions": 3183617,
+        "cpi": 1.540546805724
+      },
+      {
+        "name": "dhrystone_10000",
+        "cycles": 9481620,
+        "retired_instructions": 4250000,
+        "cpi": 2.230969411765
+      }
+    ],
+    "geometric_throughput_gain_vs_r2p5": 1.05332333
+  },
+  "timing": {
+    "tier": "rtl_proxy_partial_constraints",
+    "period_ns": 5.0,
+    "qualified_mhz": 200.0,
+    "minimum_promotion_reserve_ns": 0.1,
+    "worst_path_slack_ns": 0.131591633,
+    "tns_ns": 0.0,
+    "violated_path_count": 0,
+    "combinational_loops": 0,
+    "independent_repetitions": 2,
+    "post_route_signoff": false
+  },
+  "area": {
+    "metric_kind": "logic_area_proxy_excluding_unknown_macros",
+    "unit": "library_area_unit",
+    "logic_area": 1605803.92,
+    "sequential_area": 446433.68,
+    "total_area": null,
+    "macro_area_complete": false,
+    "independent_repetitions": 2
+  },
+  "power": {
+    "metric_kind": "unqualified_vectorless_logic_proxy",
+    "logic_proxy_w": null,
+    "total_power_w": null,
+    "activity_coverage": null,
+    "macro_power_complete": false,
+    "qualified_for_promotion": false,
+    "reason": "No workload VCD/SAIF coverage qualification and no complete SRAM/macro internal plus leakage power models."
+  },
+  "artifacts": [
+    {
+      "kind": "module_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/module-full/summary.txt",
+      "sha256": "e6485c73359cec68a4a2500ed4ef11d49b465f122b7a56f811e436480d7c9fea"
+    },
+    {
+      "kind": "performance_rep1_manifest",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/performance/SHA256SUMS",
+      "sha256": "b35780941c8769853649c5ecf9696bba024b56fc6146b9d82870ace0208512c8"
+    },
+    {
+      "kind": "performance_rep2_rep3_manifest",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/performance-repro/SHA256SUMS",
+      "sha256": "b17f2682e5f2402098805a4c15f681ec76e285fed8add73904b481642b4c5730"
+    },
+    {
+      "kind": "synthesis_run1_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/fresh-synth-run1/evidence/synthesis/summary.json",
+      "sha256": "d12801b2e0fac32cf3e05ec6ad2193e57136fbe6d0abf5b37525ff5a8feac5ba"
+    },
+    {
+      "kind": "synthesis_run2_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/fresh-synth-run2/evidence/synthesis/summary.json",
+      "sha256": "d12801b2e0fac32cf3e05ec6ad2193e57136fbe6d0abf5b37525ff5a8feac5ba"
+    },
+    {
+      "kind": "sta_run1_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/fresh-synth-run1/opensta-exact5ns/summary.json",
+      "sha256": "0c09c0b7c508c8f2c673fa8c7fa787cf09075d0c59b960fd2947a17be99a35b1"
+    },
+    {
+      "kind": "sta_run2_summary",
+      "path": ".github/task-runs/2026-07-15-rv64-ppa-architecture-recovery/evidence/ppa-r3p6-onehot-prf/fresh-synth-run2/opensta-exact5ns/summary.json",
+      "sha256": "1639e3771a7a7dcd972749584c88aec574331e06da39a6ff3f920b9b8e328aa2"
+    },
+    {
+      "kind": "onehot_prf_independent_sandbox_manifest",
+      "path": "tmp/r3p6-onehot-prf-sandbox/SHA256SUMS",
+      "sha256": "2e96dcc7ac65e1e68bfe6a1194f1045c38a4a68987b3b21bc62e4066ab5db7f5"
+    }
+  ]
+}

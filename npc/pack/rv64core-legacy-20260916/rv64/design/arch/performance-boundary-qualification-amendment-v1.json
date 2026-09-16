@@ -1,0 +1,82 @@
+{
+  "schema": "npc-rv64-performance-boundary-qualification-amendment-v1",
+  "amendment_id": "npc-rv64-pcs-v4-endpoint-qualification-erratum-20260804",
+  "state": "NORMATIVE_ERRATUM",
+  "purpose": "Qualify a committed-PC ROI by its exact lane endpoint equation instead of requiring equal start and end lanes.",
+  "bound_inputs": {
+    "measurement_contract": {
+      "path": "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+      "sha256": "61a227990663402e0909ec518980f5432a148b3a09106913e51aa5a9516cc0a4",
+      "size_bytes": 15576
+    },
+    "counter_schema": {
+      "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+      "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+      "size_bytes": 12237
+    }
+  },
+  "scope": {
+    "counter_marker_schema": "npc-rv64-performance-counter-v4",
+    "counter_scope": "pc_bounded_region_v1",
+    "start_lane_domain": [
+      0,
+      1
+    ],
+    "end_lane_domain": [
+      0,
+      1
+    ],
+    "applicability": "Only receipts that explicitly bind this amendment and satisfy every proof obligation may use endpoint-corrected baseline qualification."
+  },
+  "normative_precedence": {
+    "supersedes": [
+      {
+        "source": "performance-counter-schema-v4.json#/qualification/baseline_requires_phase_aligned_boundaries",
+        "prior_value": true,
+        "amended_value": false
+      },
+      {
+        "source": "performance-measurement-contract-v1.json#/counter_read_semantics/retire_slot_capacity",
+        "prior_rule": "baseline qualification requires start_lane == end_lane",
+        "amended_rule": "baseline qualification requires the exact endpoint-corrected capacity and does not require start_lane == end_lane"
+      }
+    ],
+    "preserves": [
+      "performance-counter-schema-v4.json#/retire_slot_partition/capacity",
+      "performance-counter-schema-v4.json#/retire_slot_partition/marker_interval",
+      "performance-counter-schema-v4.json#/boundary_sampling/slot_endpoint_correction",
+      "performance-measurement-contract-v1.json#/counter_read_semantics/same_cycle_lane_order",
+      "all cycle, slot, head, memory and request-detail conservation rules",
+      "all overflow, invalid-event, complete, available and unknown-ratio gates"
+    ],
+    "precedence_rule": "This amendment overrides only the two named phase-alignment qualification clauses; all other bound contract and schema clauses remain normative."
+  },
+  "qualification_rule": {
+    "cycles": "end_cycle - start_cycle",
+    "retired_instructions": "end_retired_before - start_retired_before",
+    "slot_capacity": "2 * cycles + end_lane - start_lane",
+    "phase_aligned": "int(start_lane == end_lane); retained as an observed diagnostic, not a qualification gate",
+    "unused_slots": "slot_capacity - retired_instructions"
+  },
+  "proof_obligations": [
+    "the BOUNDARY start/end markers are unique and bind the policy start/stop PCs",
+    "FINAL is unique, complete, successful and exactly matches both boundary deltas",
+    "COUNTERS_FINAL is unique, complete, available, non-overflowing and has zero invalid events",
+    "COUNTERS_FINAL start_lane/end_lane/phase_aligned match the boundary markers",
+    "slot_capacity equals 2 * cycles + end_lane - start_lane",
+    "retired_slots equals retired instructions and unused_slots equals slot_capacity - retired_slots",
+    "primary cycle and slot ledgers conserve exactly",
+    "head, memory and memory-request nested aggregates conserve exactly",
+    "unknown or unclassified cycle ratio remains within the bound measurement contract",
+    "all required repetitions are bit-exact without outlier removal"
+  ],
+  "rationale": {
+    "root_cause": "The v4 schema already defines and emits exact endpoint correction, while its baseline qualifier separately required equal lanes. That qualifier rejects a mathematically conserved lane1-to-lane0 committed-PC interval.",
+    "safety_property": "The amendment removes no conservation or identity check and grants no tolerance; it replaces an equality proxy with the exact two-lane interval equation.",
+    "non_claims": [
+      "no production RTL semantic change",
+      "no benchmark, ROI PC, image, simulator, configuration or latency change",
+      "no PPA qualification or promotion"
+    ]
+  }
+}

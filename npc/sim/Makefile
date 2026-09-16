@@ -59,7 +59,7 @@ help:
 	@echo 'Usage:'
 	@echo '  make -C npc/sim [target]                         # use current/default backend'
 	@echo '  make -C npc/sim BACKEND=single [target]          # AM/NpcSimTop self-simulation'
-	@echo '  make -C npc/sim BACKEND=rv64 [target]            # RV64 NpcSimTop self-simulation'
+	@echo '  make -C npc/sim BACKEND=rv64 [target]            # RV64 R64SystemTop self-simulation'
 	@echo '  make -C npc/sim BACKEND=soc [target]             # copied ysyxSoC integration tree'
 	@echo '  make -C npc/sim menuconfig                       # choose backend using Kconfig'
 	@echo '  make -C npc/sim switch BACKEND=soc               # persist selected backend in npc/sim/.config'

@@ -464,8 +464,24 @@ static void paddr_dma_coherent_copy_in(paddr_t addr, const uint8_t *src, uint32_
   for (; i < len; i++) dcache_coherent_write(addr + i, 1, src[i]);
 }
 
+#ifdef CONFIG_TARGET_SHARE
+/* A device-only instance can use an external AXI machine's physical memory.
+ * The architectural reference never installs these callbacks. */
+static bool (*difftest_device_dma)(paddr_t, void *, uint32_t, bool);
+__EXPORT void difftest_set_device_dma(
+    bool (*transfer)(paddr_t, void *, uint32_t, bool)) {
+  difftest_device_dma = transfer;
+}
+#define EXTERNAL_DEVICE_DMA(addr, buf, len, wr) do { \
+  if (difftest_device_dma) return difftest_device_dma(addr, buf, len, wr); \
+} while (0)
+#else
+#define EXTERNAL_DEVICE_DMA(addr, buf, len, wr) do {} while (0)
+#endif
+
 bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
   if (len == 0) return true;
+  EXTERNAL_DEVICE_DMA(addr, (void *)buf, len, true);
   if (!pmem_range_ok(addr, len)) return false;
   paddr_dma_coherent_copy_in(addr, buf, len);
   paddr_dma_notify_cpu(addr, len);
@@ -479,6 +495,7 @@ bool paddr_dma_write(paddr_t addr, const void *buf, uint32_t len) {
 
 bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
   assert(len >= 1 && len <= (int)sizeof(word_t));
+  EXTERNAL_DEVICE_DMA(addr, &data, (uint32_t)len, true);
   if (!pmem_range_ok(addr, (uint32_t)len)) return false;
   dcache_coherent_write(addr, len, data);
   paddr_dma_notify_cpu(addr, (uint32_t)len);
@@ -496,6 +513,12 @@ bool paddr_dma_write_value(paddr_t addr, int len, word_t data) {
 // 组合结果，不能让 8-byte DMA 读取经过 32-bit word_t 后静默截断。
 uint64_t paddr_dma_read_value(paddr_t addr, int len) {
   assert(len >= 1 && len <= 8);
+#ifdef CONFIG_TARGET_SHARE
+  if (difftest_device_dma) {
+    uint64_t result = 0;
+    return difftest_device_dma(addr, &result, (uint32_t)len, false) ? result : 0;
+  }
+#endif
   if (!pmem_range_ok(addr, (uint32_t)len)) return 0;
   uint64_t value = 0;
   for (int offset = 0; offset < len; offset += (int)sizeof(word_t)) {
@@ -509,6 +532,7 @@ uint64_t paddr_dma_read_value(paddr_t addr, int len) {
 
 bool paddr_dma_read(paddr_t addr, void *buf, uint32_t len) {
   if (len == 0) return true;
+  EXTERNAL_DEVICE_DMA(addr, buf, len, false);
   if (!pmem_range_ok(addr, len)) return false;
   uint8_t *out = buf;
   const uint32_t chunk = sizeof(word_t);

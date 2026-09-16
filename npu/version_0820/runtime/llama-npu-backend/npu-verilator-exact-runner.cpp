@@ -1,4 +1,5 @@
 #include "npu-verilator-runner.h"
+#include "npu-command-abi.h"
 #if defined(NPU_SYSTEM_FUNCTIONAL_COMMAND)
 #include "npu-functional-command-dpi.h"
 #endif
@@ -2665,56 +2666,12 @@ private:
     }
 
     bool prepare_cpu_program() {
-        if (command_.scratch_bytes >
-                std::numeric_limits<std::uint32_t>::max() ||
-            command_.src0_window_perm > 3U ||
-            command_.src1_window_perm > 3U ||
-            command_.dst_window_perm > 3U) {
+        npu_command_abi_diagnostic abi_diagnostic = {};
+        if (!npu_command_abi_pack_words(
+                &command_, &descriptor_words_, &abi_diagnostic)) {
             return false;
         }
-        const std::uint64_t packed_permissions =
-            (command_.abi_valid ? 1ULL : 0ULL) |
-            (command_.windows_generation_valid ? 2ULL : 0ULL) |
-            (static_cast<std::uint64_t>(command_.src0_window_perm) << 2U) |
-            (static_cast<std::uint64_t>(command_.src1_window_perm) << 4U) |
-            (static_cast<std::uint64_t>(command_.dst_window_perm) << 6U);
-        descriptor_words_ = {
-            (static_cast<std::uint64_t>(command_.command_flags) << 32U) |
-                command_.kernel_id,
-            (static_cast<std::uint64_t>(command_.capability_epoch) << 32U) |
-                command_.context_id,
-            command_.sequence_id,
-            command_.producer_id,
-            command_.user_tag,
-            (static_cast<std::uint64_t>(command_.vector_op) << 32U) |
-                command_.node_count,
-            command_.node_hash_lo,
-            command_.node_hash_hi,
-            command_.deadline_cycles,
-            (static_cast<std::uint64_t>(command_.outer_count) << 32U) |
-                command_.local_profile,
-            command_.src0_iova,
-            command_.src1_iova,
-            command_.src2_iova,
-            command_.dst_iova,
-            command_.scratch_iova,
-            command_.element_count,
-            (static_cast<std::uint64_t>(command_.scalar0) << 32U) |
-                command_.dtype,
-            (command_.scratch_bytes << 32U) | command_.scalar1,
-            command_.rope_position,
-            command_.src0_stride,
-            command_.src1_stride,
-            command_.src2_stride,
-            command_.dst_stride,
-            command_.src0_window_base,
-            command_.src0_window_size,
-            packed_permissions,
-            command_.src1_window_base,
-            command_.src1_window_size,
-            command_.dst_window_base,
-            command_.dst_window_size,
-        };
+        const std::uint64_t packed_permissions = descriptor_words_[25];
         // The descriptor must preserve the owner contract.  Binary owners use
         // 0x97; legacy unary F32 profiles correctly use 0x87 with an absent
         // src1 aperture.  Admission in the frozen public adapter validates
@@ -2946,6 +2903,11 @@ private:
     }
 
     void drive_idle_inputs() {
+        top_->service_dma_start_i = 0;
+        top_->service_dma_src_i = 0; top_->service_dma_dst_i = 0; top_->service_dma_bytes_i = 0;
+        top_->service_dma_req_ready_i = 0; top_->service_dma_rsp_valid_i = 0;
+        top_->service_dma_rsp_rdata_i = 0; top_->service_dma_rsp_error_i = 0;
+
         top_->clk = 0;
         top_->rst = 0;
         top_->terminal_allow_i = 1;

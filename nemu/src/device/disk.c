@@ -1974,6 +1974,12 @@ static void virtio_blk_process_queue(uint32_t queue_idx) {
   virtio_blk_poll_async();
 }
 
+#ifdef CONFIG_TARGET_SHARE
+__EXPORT bool difftest_block_irq(void) {
+  return transport.interrupt_status != 0;
+}
+#endif
+
 void virtio_blk_update(void) {
   virtio_blk_poll_async();
 }

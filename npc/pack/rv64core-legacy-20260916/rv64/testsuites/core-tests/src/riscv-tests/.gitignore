@@ -1,0 +1,16 @@
+*~
+*.riscv
+*.host
+*.o
+*.dump
+*.out
+*.hex
+.*.swp
+*.pyc
+/isa/*-p-*
+/isa/*-v-*
+/autom4te.cache
+/Makefile
+/config.log
+/config.status
+/build

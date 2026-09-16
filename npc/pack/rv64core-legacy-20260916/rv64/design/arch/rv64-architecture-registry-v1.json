@@ -1,0 +1,1220 @@
+{
+  "schema": "npc-rv64-architecture-registry-v1",
+  "single_entry": "npc/rv64/ARCHITECTURE.md",
+  "scope": {
+    "source_root": "npc/rv64/vsrc",
+    "extensions": [
+      ".v",
+      ".sv"
+    ],
+    "product": "npc-rv64-npctop-default",
+    "top_module": "NpcTop",
+    "canonical_filelist": "npc/rv64/vsrc/filelist.mk",
+    "product_config": "npc/rv64/configs/product-rtl-defaults.mk",
+    "inventory_review": {
+      "path_set_sha256": "26fc817cf30538509d1867436756dd94b6d9635a6d8f2f4a8a1f8068bd5eaf84",
+      "owner": "rv64-architecture",
+      "change_policy": "any-vsrc-path-change-requires-review"
+    }
+  },
+  "bpu_physical_experiment_state": {
+    "active_configuration": "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1",
+    "live_rtl_design_id": "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d",
+    "source_lifecycle": "development",
+    "measurement_status": "FAILED_INCOMPLETE",
+    "mapped_execution_receipt": "FAIL",
+    "frozen_experiment_verdict": "ROLLBACK",
+    "physical_status": "GAP",
+    "archive_status": "RETAIN_NONCANONICAL_NEGATIVE_RESULT",
+    "front_accepted": false,
+    "canonical": false,
+    "champion": false,
+    "sweep_status": "BPU_CLOSED_FOR_SWEEP",
+    "next_action": "STOP_BPU_PIVOT_FP",
+    "stop_condition": "TRIGGERED",
+    "failed_attempt": {
+      "physical_configuration_id": "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1",
+      "source_design_id": "sha256:f5f2a00a34a25262f9913abda384a197f751afc94cf424e896c7414a65b92eb8",
+      "result": "FAIL",
+      "status_path": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/traceable-f5f2-bpu-flat-read-view-a1.status",
+      "status_sha256": "f923a8ae87f26025bdec54301bf96013c31c323228a3c04f266705cfb5a4fe5e",
+      "command_status_path": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/command-status.txt",
+      "command_status_sha256": "7a4d2741e0ac353c60591ac54833a949b470c42b4e28affb694ecb987e2beaa8",
+      "raw_diagnostic_path": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/evidence/traceable-f5f2-bpu-flat-read-view-a1/opensta-bpu-negative-slack.tsv",
+      "raw_diagnostic_sha256": "4b56ca26b14e52415ac554e4b65e17fb746036782938ce47d13536b97dd97fb4",
+      "raw_diagnostic_qualification": "UNBOUND_DIAGNOSTIC_ONLY",
+      "adjudication_path": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/subagent-contracts/bpu-flat-read-view-ppa-f5f2-a1.result.md",
+      "adjudication_sha256": "c535a9aeb9d135ed8cb08e21100764feef35108de8a6788e4a0822a42f2d7edd",
+      "qualified_measurement": false,
+      "summary": null,
+      "architecture_registry_binding": null
+    },
+    "frozen_predecessor": {
+      "physical_configuration_id": "mapped-5ns-bpu-local-pht-banked-child-inline-v1",
+      "source_design_id": "sha256:b279d4bc209013144ea4075aa7102119a28ee2b77f797a98717401bc9272697e",
+      "mapped_summary": ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json",
+      "mapped_summary_sha256": "fc752a737d3b05edd8ff9f4fe6c94af4b324357bb2857c6c2ea8f7984b62d802",
+      "mapped_execution_receipt": "PASS",
+      "frozen_experiment_verdict": "ROLLBACK",
+      "physical_status": "GAP",
+      "archive_class": "engineering_proxy_archive",
+      "archive_status": "RETAIN_NONCANONICAL",
+      "front_accepted": false,
+      "canonical": false,
+      "champion": false
+    }
+  },
+  "owners": {
+    "rv64-architecture": {
+      "responsibility": "全核 Architecture IR、跨子系统边界、产品资格与本 registry",
+      "reviewers": [
+        "developer"
+      ]
+    },
+    "rv64-bpu": {
+      "responsibility": "分支预测、方向更新、RAS 与前端恢复事务",
+      "reviewers": [
+        "rv64-architecture",
+        "rv64-physical"
+      ]
+    },
+    "rv64-fp": {
+      "responsibility": "FP decode/rename/issue/register/execute/commit 事务",
+      "reviewers": [
+        "rv64-architecture",
+        "rv64-physical"
+      ]
+    },
+    "rv64-frontend": {
+      "responsibility": "取指、前端流控、分支恢复与 fetch AXI",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-control": {
+      "responsibility": "trap/CSR/flush/serialized owner/control-plane",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-memory": {
+      "responsibility": "LSU/LSQ/MMU/PMP/PMA/cache/memory AXI",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-core": {
+      "responsibility": "NpcTop/NpcCoreTop/glue/CSR 顶层装配",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-execute": {
+      "responsibility": "整数执行、MUL/DIV、CLMUL、AMO 与 bitmanip",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-decode": {
+      "responsibility": "整数/RVC decode 与静态指令事实",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-rename-schedule": {
+      "responsibility": "rename/free/busy/issue/regread/bypass",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-writeback": {
+      "responsibility": "ROB/commit/retire/architectural writeback",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-interconnect": {
+      "responsibility": "AXI fabric、外设与顶层总线边界",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-physical": {
+      "responsibility": "SRAM/逻辑宏、综合、STA、面积与功耗边界",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    },
+    "rv64-verification": {
+      "responsibility": "sim shell、DPI、checker 与动态证据",
+      "reviewers": [
+        "rv64-architecture"
+      ]
+    }
+  },
+  "owner_rules": [
+    {
+      "glob": "npc/rv64/vsrc/bus/*",
+      "owner": "rv64-interconnect"
+    },
+    {
+      "glob": "npc/rv64/vsrc/cache/*",
+      "owner": "rv64-memory"
+    },
+    {
+      "glob": "npc/rv64/vsrc/common/*",
+      "owner": "rv64-core"
+    },
+    {
+      "glob": "npc/rv64/vsrc/control/*",
+      "owner": "rv64-control"
+    },
+    {
+      "glob": "npc/rv64/vsrc/core/*",
+      "owner": "rv64-core"
+    },
+    {
+      "glob": "npc/rv64/vsrc/debug/*",
+      "owner": "rv64-verification"
+    },
+    {
+      "glob": "npc/rv64/vsrc/decode/*",
+      "owner": "rv64-decode"
+    },
+    {
+      "glob": "npc/rv64/vsrc/execute/*",
+      "owner": "rv64-execute"
+    },
+    {
+      "glob": "npc/rv64/vsrc/frontend/*",
+      "owner": "rv64-frontend"
+    },
+    {
+      "glob": "npc/rv64/vsrc/include/*",
+      "owner": "rv64-core"
+    },
+    {
+      "glob": "npc/rv64/vsrc/memory/*",
+      "owner": "rv64-memory"
+    },
+    {
+      "glob": "npc/rv64/vsrc/pipeline/*",
+      "owner": "rv64-core"
+    },
+    {
+      "glob": "npc/rv64/vsrc/regread_bypass/*",
+      "owner": "rv64-rename-schedule"
+    },
+    {
+      "glob": "npc/rv64/vsrc/rename_allocate/*",
+      "owner": "rv64-rename-schedule"
+    },
+    {
+      "glob": "npc/rv64/vsrc/scheduling/*",
+      "owner": "rv64-rename-schedule"
+    },
+    {
+      "glob": "npc/rv64/vsrc/sim/*",
+      "owner": "rv64-verification"
+    },
+    {
+      "glob": "npc/rv64/vsrc/sram/*",
+      "owner": "rv64-physical"
+    },
+    {
+      "glob": "npc/rv64/vsrc/writeback/*",
+      "owner": "rv64-writeback"
+    }
+  ],
+  "file_overrides": {
+    "npc/rv64/vsrc/debug/OooBranchDirectionPredictorChecker.sv": {
+      "role": "debug_only",
+      "intent": "BPU facts checker；当前由 focused TB 使用，不进入 canonical SIM_TOP_SRCS 或 synthesis。",
+      "review_expiry": "when-bpu-checker-is-attached-to-sim-top",
+      "configuration_scope": "focused_only"
+    },
+    "npc/rv64/vsrc/debug/OooDataWordCacheChecker.sv": {
+      "role": "debug_only",
+      "intent": "D-cache facts checker；当前由 focused TB 使用，不进入 canonical SIM_TOP_SRCS 或 synthesis。",
+      "review_expiry": "when-cache-checker-is-attached-to-sim-top",
+      "configuration_scope": "focused_only"
+    },
+    "npc/rv64/vsrc/debug/OooFetchPacketCacheChecker.sv": {
+      "role": "debug_only",
+      "intent": "fetch-cache facts checker；当前由 focused TB 使用，不进入 canonical SIM_TOP_SRCS 或 synthesis。",
+      "review_expiry": "when-cache-checker-is-attached-to-sim-top",
+      "configuration_scope": "focused_only"
+    },
+    "npc/rv64/vsrc/debug/OooAdUpdateChecker.sv": {
+      "role": "debug_only",
+      "intent": "A/D update assertion checker；仅旁挂 canonical SIM_TOP，不进入 synthesis。",
+      "review_expiry": "when-ad-update-observation-contract-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/debug/OooRedirectMuxChecker.sv": {
+      "role": "debug_only",
+      "intent": "redirect mux winner assertion checker；仅旁挂 canonical SIM_TOP，不进入 synthesis。",
+      "review_expiry": "when-redirect-arbitration-contract-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/debug/OooRedirectSeqChecker.sv": {
+      "role": "debug_only",
+      "intent": "redirect sequence assertion checker；仅旁挂 canonical SIM_TOP，不进入 synthesis。",
+      "review_expiry": "when-redirect-sequencing-contract-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v": {
+      "owner": "rv64-bpu"
+    },
+    "npc/rv64/vsrc/frontend/OooBranchLocalPht.v": {
+      "owner": "rv64-bpu",
+      "role": "product",
+      "intent": "OooBranchDirectionPredictor 的 production local-PHT child；固定 16×256 bank-local state/S1/S2 与 Q 端 flat read view，保持双路 0-cycle 与 read-before-write。",
+      "review_expiry": "when-flat-read-view-rtl-is-physically-reverted-or-replaced",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v": {
+      "owner": "rv64-bpu"
+    },
+    "npc/rv64/vsrc/frontend/OooBranchSpecTracker.v": {
+      "owner": "rv64-bpu"
+    },
+    "npc/rv64/vsrc/frontend/OooRasStack.v": {
+      "owner": "rv64-bpu"
+    },
+    "npc/rv64/vsrc/frontend/OooRasUpdateGate.v": {
+      "owner": "rv64-bpu"
+    },
+    "npc/rv64/vsrc/execute/OooFpAddSubPipe.v": {
+      "owner": "rv64-fp",
+      "role": "product",
+      "intent": "FP short-arithmetic production child；唯一拥有 single/double AddSub S1-S3 numeric/fflags Q。",
+      "review_expiry": "when-fp-arith-child-enters-committed-lifecycle-or-boundary-changes",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/execute/OooFpMulProductPipe.v": {
+      "owner": "rv64-fp",
+      "role": "product",
+      "intent": "FP short-arithmetic production child；唯一拥有 single/double Mul S1 product/special/exp/sign/rm Q。",
+      "review_expiry": "when-fp-arith-child-enters-committed-lifecycle-or-boundary-changes",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v": {
+      "owner": "rv64-fp",
+      "role": "product",
+      "intent": "FP short-arithmetic production child；直接消费 Mul S1 Q 并唯一拥有 S2-S3 normalize/round/value/fflags Q。",
+      "review_expiry": "when-fp-arith-child-enters-committed-lifecycle-or-boundary-changes",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v": {
+      "owner": "rv64-fp",
+      "role": "product",
+      "intent": "FP fused-arithmetic production child；唯一拥有 FMA S1-S3 product/ref/align/add Q，并原样导出 full mag[127:0] jam。",
+      "review_expiry": "when-fp-arith-child-enters-committed-lifecycle-or-boundary-changes",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v": {
+      "owner": "rv64-fp",
+      "role": "product",
+      "intent": "FP fused-arithmetic production child；直接消费完整 S3 Q 并唯一拥有 S4-S5 normalize/single-round/value/fflags Q。",
+      "review_expiry": "when-fp-arith-child-enters-committed-lifecycle-or-boundary-changes",
+      "configuration_scope": "product_core"
+    },
+    "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v": {
+      "role": "product",
+      "intent": "Canonical F2 shared miss-fabric leaf；当前 elaboration 路径为 NpcTop.u_core.u_ooo_dual_mem_bridge.u_miss_arbiter。"
+    },
+    "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v": {
+      "role": "product",
+      "intent": "Canonical dual-memory wrapper；当前 elaboration 路径为 NpcTop.u_core.u_ooo_dual_mem_bridge。"
+    },
+    "npc/rv64/vsrc/memory/OooMmuEpochOwner.v": {
+      "role": "catalog_only",
+      "intent": "Data-MMU context/epoch owner leaf；当前仅编译与 focused 验证，尚未进入 canonical NpcTop",
+      "review_expiry": "next-mmu-epoch-integration-slice",
+      "configuration_scope": "catalog_compiled"
+    },
+    "npc/rv64/vsrc/memory/OooPmaChecker.v": {
+      "role": "catalog_only",
+      "intent": "旧单输出 PMA checker；live bridge 已迁移到 OooTypedPmaChecker，保留作兼容/focused 对照",
+      "review_expiry": "typed-memory-legacy-retirement-review",
+      "configuration_scope": "catalog_compiled"
+    },
+    "npc/rv64/vsrc/memory/OooPostTranslateMemoryClass.v": {
+      "role": "catalog_only",
+      "intent": "旧 post-translate classifier；live bridge 已迁移到 OooTypedMemoryClassifier，保留作 focused 对照",
+      "review_expiry": "typed-memory-legacy-retirement-review",
+      "configuration_scope": "catalog_compiled"
+    },
+    "npc/rv64/vsrc/sim/AxiDpiSlave.sv": {
+      "role": "sim_only",
+      "intent": "DPI-backed AXI simulation slave；进入 canonical SIM_TOP_SRCS，不进入 synthesis。",
+      "review_expiry": "when-simulation-axi-boundary-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/sim/AxiVirtioBlk.sv": {
+      "role": "sim_only",
+      "intent": "VirtIO block simulation model；进入 canonical SIM_TOP_SRCS，不进入 synthesis。",
+      "review_expiry": "when-simulation-virtio-boundary-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/sim/NpcSimTop.sv": {
+      "role": "sim_only",
+      "intent": "NpcTop 的 canonical simulation wrapper；进入 SIM_TOP_SRCS，不进入 synthesis。",
+      "review_expiry": "when-product-simulation-topology-changes",
+      "configuration_scope": "sim_top"
+    },
+    "npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v": {
+      "role": "product",
+      "intent": "Serialized memory terminal permit 的 live product leaf；当前为开发态并由 OooControlPlane 实例化。",
+      "review_expiry": "when-file-enters-committed-lifecycle",
+      "configuration_scope": "product_core"
+    }
+  },
+  "owner_globs": {
+    "rv64-fp": [
+      "npc/rv64/vsrc/decode/OooFpDecode.v",
+      "npc/rv64/vsrc/execute/OooFp*.v",
+      "npc/rv64/vsrc/regread_bypass/OooFp*.v",
+      "npc/rv64/vsrc/scheduling/OooFp*.v"
+    ]
+  },
+  "capabilities": {
+    "bpu": {
+      "label": "Branch Prediction Unit",
+      "owner": "rv64-bpu",
+      "files": [
+        "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+        "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+        "npc/rv64/vsrc/frontend/OooBranchBpuUpdateGate.v",
+        "npc/rv64/vsrc/frontend/OooBranchSpecTracker.v",
+        "npc/rv64/vsrc/frontend/OooDirectControlFlowGate.v",
+        "npc/rv64/vsrc/frontend/OooFetchBranchTarget.v",
+        "npc/rv64/vsrc/frontend/OooRasStack.v",
+        "npc/rv64/vsrc/frontend/OooRasUpdateGate.v",
+        "npc/rv64/vsrc/frontend/OooFrontend.v",
+        "npc/rv64/vsrc/core/OooCoreTopGlue.v"
+      ],
+      "dynamic_evidence": [
+        {
+          "kind": "module_test",
+          "module": "OooBranchDirectionPredictor",
+          "result": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/module/result.json"
+        },
+        {
+          "kind": "log_regex",
+          "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1/lightweight-linux/console.log",
+          "design_receipt": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1/lightweight-linux/summary.json",
+          "design_field": "rtl_design_id",
+          "regex": "branch accuracy\\s*= [0-9]+/[0-9]+ correct, [0-9]+ mispredict"
+        }
+      ],
+      "transaction_ir": {
+        "configuration": "1024-entry gshare BHT + 10-bit GHR + 256x8 local history + 16×256 write-banked/read-flat-view local PHT；逻辑状态下界 17674 bit；lookup 同周期，update 两级。",
+        "nodes": [
+          {"id": "fetch", "label": "fetch PC / static direction"},
+          {"id": "lookup", "label": "predictor dual lookup"},
+          {"id": "fifo", "label": "fetch packet FIFO metadata"},
+          {"id": "issue", "label": "branch issue / resolve"},
+          {"id": "update_gate", "label": "BPU update gate"},
+          {"id": "update_s1", "label": "update S1: capture + GHR"},
+          {"id": "update_s2", "label": "update S2: BHT/local write"},
+          {"id": "recovery", "label": "redirect / ROB squash"}
+        ],
+        "edges": [
+          {"from": "fetch", "to": "lookup", "relation": "lookup", "latency": "0-cycle"},
+          {"from": "lookup", "to": "fifo", "relation": "pred metadata", "latency": "same fetch transaction"},
+          {"from": "fifo", "to": "issue", "relation": "dispatch/issue", "latency": "pipeline"},
+          {"from": "issue", "to": "update_gate", "relation": "resolved outcome", "latency": "resolve cycle"},
+          {"from": "update_gate", "to": "update_s1", "relation": "authorized train", "latency": "stage 1"},
+          {"from": "update_s1", "to": "update_s2", "relation": "counter/history write", "latency": "stage 2"},
+          {"from": "issue", "to": "recovery", "relation": "mispredict", "latency": "resolve cycle"}
+        ],
+        "invariants": [
+          "无效 entry 使用静态方向；lookup 保持双路同周期语义。",
+          "只有 issue 后真实 resolve 才训练，issue 前被 kill 的 wrong-path 不得训练。",
+          "clear/reset 优先；不得无意改变同 entry 背靠背 update 的既有 RAW 行为。",
+          "local-PHT 固定 bank=index[11:8]=PC[4:1]、row=index[7:0]=local_history；bank 只导出 Q view，wrapper 两路各以完整 index flat read且无仲裁。",
+          "16 个 bank 是 local-PHT valid/counter 与 counter_train/S2 write 的唯一 owner；wrapper 不得恢复公共 4096-entry write cone。",
+          "mispredict 仍训练 actual outcome，redirect/ROB walk 不 restore predictor。",
+          "预测错误只影响性能；redirect、ROB walk 与 squash 保持 architectural correctness。"
+        ],
+        "unknowns": [
+          "lookup/update/mispredict-recovery 逐边非零计数尚未形成同身份证据。",
+          "f5f2 raw timing/area 诊断未获 parser/binding；qualified inline/OOC input-to-output timing、area 与 power 仍未知。"
+        ]
+      },
+      "physical_strategy": {
+        "decision": "production_write_banked_flat_read_view_rollback_archive",
+        "next_slice": "f5f2 exactly-once 5 ns mapped attempt 已失败且证据不完整；BPU sweep 关闭，保持 live development source 不作物理回退，下一架构动作转向 FP。",
+        "rollback": "f5f2 execution FAIL 已冻结为 ROLLBACK/GAP noncanonical negative result；b279 execution PASS 仍仅为 ROLLBACK/GAP noncanonical archive，二者均不得进入 Pareto front。"
+      },
+      "closure_condition": "OooBranchDirectionPredictor 必须进入真实 stdcell 映射，或提供与 RTL/config 同身份的 signoff OOC Liberty/LEF 与约束；内部面积、功耗和 input-to-output timing 可归因后才能关闭。"
+    },
+    "fp": {
+      "label": "Floating Point",
+      "owner": "rv64-fp",
+      "files": [
+        "npc/rv64/vsrc/decode/OooFpDecode.v",
+        "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
+        "npc/rv64/vsrc/regread_bypass/OooFpRegFile.v",
+        "npc/rv64/vsrc/regread_bypass/OooFpPhysRegFile.v",
+        "npc/rv64/vsrc/execute/OooFpBackend.v",
+        "npc/rv64/vsrc/execute/OooFpClassifyGate.v",
+        "npc/rv64/vsrc/execute/OooFpSgnjGate.v",
+        "npc/rv64/vsrc/execute/OooFpCompareGate.v",
+        "npc/rv64/vsrc/execute/OooFpConvertGate.v",
+        "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+        "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+        "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+        "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+        "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+        "npc/rv64/vsrc/execute/OooFpLongOpGate.v",
+        "npc/rv64/vsrc/execute/OooFpDivIter.v",
+        "npc/rv64/vsrc/execute/OooFpSqrtIter.v",
+        "npc/rv64/vsrc/execute/OooFpPredicates.v",
+        "npc/rv64/vsrc/execute/OooFpRound.v",
+        "npc/rv64/vsrc/writeback/OooWriteback.v",
+        "npc/rv64/vsrc/core/OooCoreTopGlue.v"
+      ],
+      "dynamic_evidence": [
+        {
+          "kind": "module_test",
+          "module": "OooFpArithGate",
+          "result": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/module-result.json"
+        },
+        {
+          "kind": "log_regex",
+          "path": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/raw/official-run.log",
+          "design_receipt": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/functional-aggregate-result.json",
+          "design_field": "design_id",
+          "regex": "rv64u[fd]"
+        }
+      ],
+      "transaction_ir": {
+        "configuration": "OooFpArithGate meta wrapper + AddSub S1-S3 / Mul S1+S2-S3 / FMA S1-S3+S4-S5 五 production children；固定 5-cycle execute latency，launch throughput 1/cycle。",
+        "nodes": [
+          {"id": "decode", "label": "FP decode"},
+          {"id": "rename", "label": "FP rename / busy / free"},
+          {"id": "issue", "label": "FP issue queue"},
+          {"id": "issue_stage", "label": "u_fp_issue_stage"},
+          {"id": "arith", "label": "OooFpArithGate meta/kill/align S1-S5"},
+          {"id": "addsub", "label": "OooFpAddSubPipe S1-S3"},
+          {"id": "mul_product", "label": "OooFpMulProductPipe S1"},
+          {"id": "mul_norm", "label": "OooFpMulNormRoundPipe S2-S3"},
+          {"id": "fma_align", "label": "OooFpFmaAlignAddPipe S1-S3"},
+          {"id": "fma_norm", "label": "OooFpFmaNormRoundPipe S4-S5"},
+          {"id": "completion", "label": "completion arbitration / PRF wakeup"},
+          {"id": "done_fifo", "label": "FP done FIFO"},
+          {"id": "rob", "label": "WB mux / ROB done + fflags"},
+          {"id": "commit", "label": "committed FPR / CSR fflags"}
+        ],
+        "edges": [
+          {"from": "decode", "to": "rename", "relation": "decoded FP uop", "latency": "pipeline"},
+          {"from": "rename", "to": "issue", "relation": "renamed producer", "latency": "queue"},
+          {"from": "issue", "to": "issue_stage", "relation": "issue_fire && op_arith", "latency": "1 stage"},
+          {"from": "issue_stage", "to": "arith", "relation": "launch + resident meta", "latency": "S1"},
+          {"from": "arith", "to": "addsub", "relation": "sample add/sub numeric inputs", "latency": "S1-S3"},
+          {"from": "arith", "to": "mul_product", "relation": "sample mul numeric inputs", "latency": "S1"},
+          {"from": "mul_product", "to": "mul_norm", "relation": "direct S1 Q to S2 comb", "latency": "zero added boundary cycle"},
+          {"from": "arith", "to": "fma_align", "relation": "sample fused numeric inputs", "latency": "S1-S3"},
+          {"from": "fma_align", "to": "fma_norm", "relation": "full mag/ref/sign/rm/special Q to S4 comb", "latency": "zero added boundary cycle"},
+          {"from": "addsub", "to": "arith", "relation": "atomic value/fflags align", "latency": "S4-S5"},
+          {"from": "mul_norm", "to": "arith", "relation": "atomic value/fflags align", "latency": "S4-S5"},
+          {"from": "fma_norm", "to": "arith", "relation": "fused value/fflags resident mux", "latency": "S5"},
+          {"from": "arith", "to": "completion", "relation": "value/meta/fflags", "latency": "stage 5"},
+          {"from": "completion", "to": "done_fifo", "relation": "authorized completion", "latency": "arbitrated"},
+          {"from": "done_fifo", "to": "rob", "relation": "writeback", "latency": "pipeline"},
+          {"from": "rob", "to": "commit", "relation": "non-exception commit", "latency": "retire"}
+        ],
+        "invariants": [
+          "ProducerId、pdest、kind、double、value 与 fflags 跨五级严格对齐。",
+          "branch kill/flush 同周期阻断 launch，并按 ROB age 清除在途项。",
+          "Wrapper 是 valid/ProducerId/pdest/kind/double/kill/owner 唯一 owner；children 不拥有 valid/ROB/commit。",
+          "Mul S1 Q->S2 comb 与 FMA S3 Q->S4 comb 不增加拍；AddSub/Mul S4-S5 以 69-bit value/fflags 原子 bundle 对齐。",
+          "FMA full mag[127:0] 跨 child 边界，mag[0] jam 不丢且只在 S5 做一次 fused rounding。",
+          "completion 必须受 result_authorized 约束；speculative PRF/wakeup 不等于 architectural visibility。",
+          "FP load/store、div/sqrt、convert 等其它路径不得误归入 OooFpArithGate。"
+        ],
+        "unknowns": [
+          "launch/kill/stage5/commit 逐边非零计数尚未形成同身份证据。",
+          "production child split 的定量 PPA 收益尚未测量。"
+        ]
+      },
+      "physical_strategy": {
+        "decision": "production_child_ooc_composite_diagnostic_tool_unmeasured",
+        "next_slice": "整核全内联在 ABC 5400 秒窗口未完成；下一新 run-id 只允许 mapped-5ns-fp-arith-production-children-ooc-boundary-v1：wrapper inline，五 child 逐个真实 OOC 映射并以 OOC_STA_ABSTRACTION 顺序 Liberty 回接，同一 NpcTop/5.0ns 图核对 child 内部与 top boundary。当前仍不得宣称 PPA。",
+        "rollback": "任一 child cells/area、max/min path class、五条 top boundary、identity/manifest、面积单计或 cleanup 不闭合即回滚该 run；诊断 Liberty 无 power/signoff 模型，不能成为 canonical/champion。"
+      },
+      "closure_condition": "OooFpArithGate 必须进入真实 stdcell 映射，或提供与 RTL/config 同身份的 signoff OOC Liberty/LEF 与多周期/流水约束；FP 内部面积、功耗和路径可归因后才能关闭。"
+    }
+  },
+  "physical_boundaries": {
+    "Sram4096x199": {
+      "rtl": "npc/rv64/vsrc/sram/Sram4096x199.v",
+      "liberty": "npc/rv64/syn/macro-lib/Sram4096x199.lib",
+      "model": "placeholder_non_signoff",
+      "blackbox_in_mapped_flow": true,
+      "netlist_representation": "single_blackbox_cell",
+      "timing_model_kind": "placeholder_non_signoff_boundary",
+      "internal_path_evidence": "absent",
+      "area_basis": "unknown_excluded_from_logic_area_proxy",
+      "power_basis": "unqualified_fixed_toggle_or_absent",
+      "closure_state": "GAP",
+      "capability": "fetch-cache-storage"
+    },
+    "Sram4096x113": {
+      "rtl": "npc/rv64/vsrc/sram/Sram4096x113.v",
+      "liberty": "npc/rv64/syn/macro-lib/Sram4096x113.lib",
+      "model": "placeholder_non_signoff",
+      "blackbox_in_mapped_flow": true,
+      "netlist_representation": "single_blackbox_cell",
+      "timing_model_kind": "placeholder_non_signoff_boundary",
+      "internal_path_evidence": "absent",
+      "area_basis": "unknown_excluded_from_logic_area_proxy",
+      "power_basis": "unqualified_fixed_toggle_or_absent",
+      "closure_state": "GAP",
+      "capability": "data-cache-storage"
+    },
+    "OooFpArithGate": {
+      "rtl": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+      "liberty": "npc/rv64/syn/macro-lib/OooFpArithGate.lib",
+      "model": "placeholder_non_signoff",
+      "blackbox_in_mapped_flow": true,
+      "netlist_representation": "single_blackbox_cell",
+      "timing_model_kind": "placeholder_non_signoff_boundary",
+      "internal_path_evidence": "absent",
+      "area_basis": "unknown_excluded_from_logic_area_proxy",
+      "power_basis": "unqualified_fixed_toggle_or_absent",
+      "closure_state": "GAP",
+      "capability": "fp"
+    },
+    "OooBranchDirectionPredictor": {
+      "rtl": "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+      "liberty": "npc/rv64/syn/macro-lib/OooBranchDirectionPredictor.lib",
+      "model": "placeholder_non_signoff",
+      "blackbox_in_mapped_flow": true,
+      "netlist_representation": "single_blackbox_cell",
+      "timing_model_kind": "placeholder_missing_real_input_to_output_arcs",
+      "internal_path_evidence": "absent",
+      "area_basis": "unknown_excluded_from_logic_area_proxy",
+      "power_basis": "unqualified_fixed_toggle_or_absent",
+      "closure_state": "GAP",
+      "capability": "bpu"
+    }
+  },
+  "run_parameter_contract": {
+    "id": "npctop-traceable-mapped-5ns-v1",
+    "expected_rtl_design_id": "sha256:9d8bb6af7534717f6ed4b9f93b14f63aef407f5b2bc57feb43aef37ccbfbef5d",
+    "mode": "candidate",
+    "diagnostic": "traceable-public-autoname",
+    "design": "NpcTop",
+    "period_ns": 5.0,
+    "clock_port": "clk",
+    "clock_name": "core_clock",
+    "defines": [],
+    "synthesis": {
+      "flatten": 0,
+      "share": 0,
+      "stop_after_coarse": 0,
+      "public_autoname": 1,
+      "dff_autoname": 0,
+      "sta_flatten_export": 1
+    },
+    "sta": {
+      "stage_scc": 0
+    },
+    "keep_hierarchy_modules": [
+      "OooIntBackend",
+      "OooFpBackend",
+      "OooFrontend",
+      "OooFetchAxiBridge",
+      "OooMemAxiBridge",
+      "OooRob",
+      "OooIntIssueQueue"
+    ],
+    "sdc_file": "yosys-sta/scripts/default.sdc",
+    "standard_cell_lib": "yosys-sta/pdk/icsprout55/IP/STD_cell/ics55_LLSC_H7C_V1p10C100/ics55_LLSC_H7CL/liberty/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib",
+    "opensta_binary": "/home/lyg/tools/OpenSTA/build/sta"
+  },
+  "physical_configurations": {
+    "mapped-5ns-four-placeholder-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": null,
+      "mapped_artifact_profile": "none",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "placeholder_blackbox",
+        "OooBranchDirectionPredictor": "placeholder_blackbox"
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooFpArithGate": 1,
+        "OooBranchDirectionPredictor": 1
+      }
+    },
+    "mapped-5ns-bpu-inline-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": "mapped-5ns-four-placeholder-v1",
+      "mapped_artifact_profile": "none",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "placeholder_blackbox",
+        "OooBranchDirectionPredictor": "inline_rtl"
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooFpArithGate": 1
+      }
+    },
+    "mapped-5ns-bpu-local-pht-banked-child-inline-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": "mapped-5ns-bpu-inline-v1",
+      "mapped_artifact_profile": "bpu-local-pht-v1",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "placeholder_blackbox",
+        "OooBranchDirectionPredictor": "inline_rtl"
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooFpArithGate": 1
+      },
+      "archive_class": "engineering_proxy_archive",
+      "canonical": false,
+      "champion": false,
+      "inline_modules": [
+        "OooBranchDirectionPredictor",
+        "OooBranchLocalPht",
+        "OooBranchLocalPhtBank"
+      ],
+      "keep_hierarchy_additions": [
+        "OooBranchDirectionPredictor",
+        "OooBranchLocalPht",
+        "OooBranchLocalPhtBank"
+      ]
+    },
+    "mapped-5ns-bpu-local-pht-write-banked-flat-read-view-inline-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": "mapped-5ns-bpu-local-pht-banked-child-inline-v1",
+      "mapped_artifact_profile": "bpu-local-pht-v1",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "placeholder_blackbox",
+        "OooBranchDirectionPredictor": "inline_rtl"
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooFpArithGate": 1
+      },
+      "archive_class": "engineering_proxy_negative_result_archive",
+      "canonical": false,
+      "champion": false,
+      "inline_modules": [
+        "OooBranchDirectionPredictor",
+        "OooBranchLocalPht",
+        "OooBranchLocalPhtBank"
+      ],
+      "keep_hierarchy_additions": [
+        "OooBranchDirectionPredictor",
+        "OooBranchLocalPht",
+        "OooBranchLocalPhtBank"
+      ]
+    },
+    "mapped-5ns-fp-arith-production-children-inline-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": "mapped-5ns-four-placeholder-v1",
+      "mapped_artifact_profile": "fp-arith-children-v1",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "inline_rtl",
+        "OooBranchDirectionPredictor": "placeholder_blackbox"
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooBranchDirectionPredictor": 1
+      },
+      "archive_class": "engineering_proxy_development",
+      "source_lifecycle": "development",
+      "measurement_status": "UNMEASURED",
+      "physical_status": "GAP",
+      "canonical": false,
+      "champion": false,
+      "inline_modules": [
+        "OooFpArithGate",
+        "OooFpAddSubPipe",
+        "OooFpMulProductPipe",
+        "OooFpMulNormRoundPipe",
+        "OooFpFmaAlignAddPipe",
+        "OooFpFmaNormRoundPipe"
+      ],
+      "keep_hierarchy_additions": [
+        "OooFpArithGate",
+        "OooFpAddSubPipe",
+        "OooFpMulProductPipe",
+        "OooFpMulNormRoundPipe",
+        "OooFpFmaAlignAddPipe",
+        "OooFpFmaNormRoundPipe"
+      ]
+    },
+    "mapped-5ns-fp-arith-production-children-ooc-boundary-v1": {
+      "run_parameter_contract": "npctop-traceable-mapped-5ns-v1",
+      "comparison_parent": "mapped-5ns-fp-arith-production-children-inline-v1",
+      "mapped_artifact_profile": "fp-arith-ooc-composite-v1",
+      "abstraction_kind": "OOC_STA_ABSTRACTION",
+      "boundary_modes": {
+        "Sram4096x199": "placeholder_blackbox",
+        "Sram4096x113": "placeholder_blackbox",
+        "OooFpArithGate": "inline_rtl",
+        "OooBranchDirectionPredictor": "placeholder_blackbox"
+      },
+      "implementation_classes": {
+        "inline_rtl": [
+          "OooFpArithGate"
+        ],
+        "known_ooc_macro": [
+          "OooFpAddSubPipe",
+          "OooFpMulProductPipe",
+          "OooFpMulNormRoundPipe",
+          "OooFpFmaAlignAddPipe",
+          "OooFpFmaNormRoundPipe"
+        ],
+        "unknown_placeholder": [
+          "Sram4096x199",
+          "Sram4096x113",
+          "OooBranchDirectionPredictor"
+        ]
+      },
+      "expected_unknown_macro_instances": {
+        "Sram4096x199": 1,
+        "Sram4096x113": 2,
+        "OooBranchDirectionPredictor": 1
+      },
+      "expected_known_ooc_macro_instances": {
+        "OooFpAddSubPipe": 1,
+        "OooFpMulProductPipe": 1,
+        "OooFpMulNormRoundPipe": 1,
+        "OooFpFmaAlignAddPipe": 1,
+        "OooFpFmaNormRoundPipe": 1
+      },
+      "archive_class": "engineering_proxy_development",
+      "source_lifecycle": "development",
+      "measurement_status": "UNMEASURED",
+      "physical_status": "GAP",
+      "canonical": false,
+      "champion": false,
+      "inline_modules": [
+        "OooFpArithGate"
+      ],
+      "known_ooc_macro_modules": [
+        "OooFpAddSubPipe",
+        "OooFpMulProductPipe",
+        "OooFpMulNormRoundPipe",
+        "OooFpFmaAlignAddPipe",
+        "OooFpFmaNormRoundPipe"
+      ],
+      "keep_hierarchy_additions": [
+        "OooFpArithGate",
+        "OooFpAddSubPipe",
+        "OooFpMulProductPipe",
+        "OooFpMulNormRoundPipe",
+        "OooFpFmaAlignAddPipe",
+        "OooFpFmaNormRoundPipe"
+      ],
+      "ooc_model_contract": {
+        "corner": "typ_tt_1p2_25",
+        "time_unit": "1ns",
+        "capacitive_load_unit": "1pf",
+        "voltage_v": 1.2,
+        "temperature_c": 25.0,
+        "slew_ns": [0.02, 0.10, 0.50],
+        "load_pf": [0.01, 0.10, 0.50],
+        "power_model": "absent",
+        "path_exceptions": "forbidden",
+        "clock_period_ns": 5.0,
+        "input_delay_ns": 0.0,
+        "timing_derivation": {
+          "setup": "max(0,period_ns-input_delay_ns-worst_slack_ns)",
+          "hold": "max(0,input_delay_ns-worst_slack_ns)",
+          "clk_to_q": "max(0.001,worst_path_delay_ns)"
+        },
+        "path_measurement_basis": {
+          "path_object": "PathEnd_points_Path_arrival",
+          "unit_domain": "OpenSTA_PropertyValue_UI_nanoseconds",
+          "input_to_register_d": "endpoint_arrival_ns-minus-first_arrival_ns_with_zero_input_seed",
+          "register_q_to_output": "endpoint_cumulative_arrival_ns_from_zero_rising_ideal_clock",
+          "clock_origin_ns": 0.0,
+          "clock_source_latency_ns": 0.0,
+          "clock_network_latency_ns": 0.0,
+          "clock_insertion_ns": 0.0,
+          "clock_propagation": "ideal_unpropagated",
+          "path_end_validation": "constrained_min_max_check_role_startpoint_endpoint_points_first_last"
+        },
+        "mapped_leaf_policy": "bound_stdlib_whitelist_no_dollar_generic",
+        "retained_netlist_manifest": "complete_ports_leaf_cells_instances",
+        "output_bit_classification_source": "retained_unique_driver_plus_bound_stdlib_output_pin_function",
+        "output_bit_classes": ["DYNAMIC", "CONSTANT_0", "CONSTANT_1"],
+        "dynamic_output_path_policy": "real_register_q_path_required",
+        "constant_output_path_policy": "zero_register_q_paths_required",
+        "constant_inference_from_missing_path": "forbidden",
+        "literal_output_timing_group_policy": "none_or_isolated_tied_off_true_without_ordinary_timing",
+        "focused_generated_macro_oracle": "nested_literal_and_top_propagated_constant_no_sdc_seed_dynamic_reg_clk_to_q",
+        "liberty_output_member_policy": "dynamic_state_function_rising_edge_xor_literal_constant_function",
+        "family_timing_summary_policy": "derived_from_dynamic_bits_only",
+        "child_query_budget": {
+          "progress_schema": "npc-rv64-fp-ooc-query-progress-v1",
+          "completion_marker": "[FP-OOC-QUERY-BUDGET][PASS]",
+          "path_class_endpoint_path_count": 1,
+          "path_class_group_cap": "exact_target_endpoint_cardinality",
+          "input_query_policy": "per_source_bit_setup_max_hold_min",
+          "input_endpoint_path_count": 1,
+          "input_group_path_count": 1,
+          "output_query_policy": "one_bulk_query_per_analysis_join_by_endpoint",
+          "output_endpoint_path_count": 1,
+          "output_group_cap": "sum_registered_output_widths",
+          "pathend_lifetime": "materialize_once_before_next_search",
+          "current_addsub": {
+            "register_d_endpoints": 608,
+            "nonclock_input_bits": 134,
+            "output_bits": 138,
+            "dynamic_output_bits": 136,
+            "find_calls": 273,
+            "path_end_limit": 2364,
+            "validation_limit": 2364
+          }
+        },
+        "tcl_row_projection_contract": {
+          "encoding": "outer_list_of_brace_quoted_row_lists",
+          "atom_policy": "nonempty_ascii_safe_no_brace_or_backslash",
+          "child_output_bit_driver": {
+            "fields": ["family", "index", "opensta_object_name", "classification", "constant_value", "driver_binding_sha256"],
+            "row_count": "sum_registered_output_widths"
+          },
+          "top_boundary": {
+            "fields": ["path_class", "source_instance_path", "source_object_class", "source_port_family_widths", "endpoint_kind", "endpoint_instance_path", "endpoint_object_class", "endpoint_family_widths"],
+            "row_count": 5
+          }
+        }
+      },
+      "child_contracts": {
+        "OooFpAddSubPipe": {
+          "rtl": "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+          "source_closure": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+            "npc/rv64/vsrc/filelist.mk"
+          ],
+          "compile_sources": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpAddSubPipe.v"
+          ],
+          "top_instance": "u_addsub_pipe",
+          "clock_port": "clk",
+          "synchronous_controls": ["rst", "flush_i"],
+          "input_ports": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64, "frs2_value_i": 64, "sub_op_i": 1, "rm_i": 3},
+          "output_ports": {"addsub_d_value_q_o": 64, "addsub_d_fflags_q_o": 5, "addsub_s_value_q_o": 64, "addsub_s_fflags_q_o": 5},
+          "path_classes": {"port_to_register": "required", "register_to_register": "required", "register_to_port": "required", "synchronous_control_to_register": "required", "top_boundary": "addsub_s3_q_to_wrapper_s4_d"},
+          "top_boundary_contract": {
+            "source_instance_path": "u_fp_arith/u_addsub_pipe",
+            "source_object_class": "MACRO_PIN_OUTPUT",
+            "source_port_families": ["addsub_d_fflags_q_o", "addsub_d_value_q_o", "addsub_s_fflags_q_o", "addsub_s_value_q_o"],
+            "endpoint": {"kind": "wrapper_register_d", "object_class": "REGISTER_D", "register_families": {"addsub_s4_result_q": 69}}
+          },
+          "forbidden_timing_exceptions": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        },
+        "OooFpMulProductPipe": {
+          "rtl": "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+          "source_closure": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+            "npc/rv64/vsrc/filelist.mk"
+          ],
+          "compile_sources": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpMulProductPipe.v"
+          ],
+          "top_instance": "u_mul_product_pipe",
+          "clock_port": "clk",
+          "synchronous_controls": ["rst", "flush_i"],
+          "input_ports": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64, "frs2_value_i": 64, "rm_i": 3},
+          "output_ports": {"mul_d_special_q_o": 1, "mul_d_spval_q_o": 64, "mul_d_spff_q_o": 5, "mul_d_product_q_o": 106, "mul_d_expz_q_o": 14, "mul_d_signz_q_o": 1, "mul_d_rm_q_o": 3, "mul_s_special_q_o": 1, "mul_s_spval_q_o": 64, "mul_s_spff_q_o": 5, "mul_s_product_q_o": 48, "mul_s_expz_q_o": 14, "mul_s_signz_q_o": 1, "mul_s_rm_q_o": 3},
+          "path_classes": {"port_to_register": "required", "register_to_register": "not_applicable_single_stage", "register_to_port": "required", "synchronous_control_to_register": "required", "top_boundary": "mul_product_s1_q_to_mul_norm_s2_d"},
+          "top_boundary_contract": {
+            "source_instance_path": "u_fp_arith/u_mul_product_pipe",
+            "source_object_class": "MACRO_PIN_OUTPUT",
+            "source_port_families": ["mul_d_expz_q_o", "mul_d_product_q_o", "mul_d_rm_q_o", "mul_d_signz_q_o", "mul_d_special_q_o", "mul_d_spff_q_o", "mul_d_spval_q_o", "mul_s_expz_q_o", "mul_s_product_q_o", "mul_s_rm_q_o", "mul_s_signz_q_o", "mul_s_special_q_o", "mul_s_spff_q_o", "mul_s_spval_q_o"],
+            "endpoint": {"kind": "known_ooc_macro_input", "object_class": "MACRO_PIN_INPUT", "instance_path": "u_fp_arith/u_mul_norm_round_pipe", "port_families": ["mul_d_expz_q_i", "mul_d_product_q_i", "mul_d_rm_q_i", "mul_d_signz_q_i", "mul_d_special_q_i", "mul_d_spff_q_i", "mul_d_spval_q_i", "mul_s_expz_q_i", "mul_s_product_q_i", "mul_s_rm_q_i", "mul_s_signz_q_i", "mul_s_special_q_i", "mul_s_spff_q_i", "mul_s_spval_q_i"]}
+          },
+          "forbidden_timing_exceptions": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        },
+        "OooFpMulNormRoundPipe": {
+          "rtl": "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+          "source_closure": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+            "npc/rv64/vsrc/filelist.mk"
+          ],
+          "compile_sources": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v"
+          ],
+          "top_instance": "u_mul_norm_round_pipe",
+          "clock_port": "clk",
+          "synchronous_controls": ["rst", "flush_i"],
+          "input_ports": {"clk": 1, "rst": 1, "flush_i": 1, "mul_d_special_q_i": 1, "mul_d_spval_q_i": 64, "mul_d_spff_q_i": 5, "mul_d_product_q_i": 106, "mul_d_expz_q_i": 14, "mul_d_signz_q_i": 1, "mul_d_rm_q_i": 3, "mul_s_special_q_i": 1, "mul_s_spval_q_i": 64, "mul_s_spff_q_i": 5, "mul_s_product_q_i": 48, "mul_s_expz_q_i": 14, "mul_s_signz_q_i": 1, "mul_s_rm_q_i": 3},
+          "output_ports": {"mul_d_value_q_o": 64, "mul_d_fflags_q_o": 5, "mul_s_value_q_o": 64, "mul_s_fflags_q_o": 5},
+          "path_classes": {"port_to_register": "required", "register_to_register": "required", "register_to_port": "required", "synchronous_control_to_register": "required", "top_boundary": "mul_norm_s3_q_to_wrapper_s4_d"},
+          "top_boundary_contract": {
+            "source_instance_path": "u_fp_arith/u_mul_norm_round_pipe",
+            "source_object_class": "MACRO_PIN_OUTPUT",
+            "source_port_families": ["mul_d_fflags_q_o", "mul_d_value_q_o", "mul_s_fflags_q_o", "mul_s_value_q_o"],
+            "endpoint": {"kind": "wrapper_register_d", "object_class": "REGISTER_D", "register_families": {"mul_s4_result_q": 69}}
+          },
+          "forbidden_timing_exceptions": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        },
+        "OooFpFmaAlignAddPipe": {
+          "rtl": "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+          "source_closure": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+            "npc/rv64/vsrc/filelist.mk"
+          ],
+          "compile_sources": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpPredicates.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v"
+          ],
+          "top_instance": "u_fma_align_add_pipe",
+          "clock_port": "clk",
+          "synchronous_controls": ["rst", "flush_i"],
+          "input_ports": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64, "frs2_value_i": 64, "frs3_value_i": 64, "negate_product_i": 1, "subtract_addend_i": 1, "rm_i": 3},
+          "output_ports": {"fma_d_special_q_o": 1, "fma_d_spval_q_o": 64, "fma_d_spff_q_o": 5, "fma_d_mag_q_o": 128, "fma_d_ressign_q_o": 1, "fma_d_refw_q_o": 32, "fma_d_rm_q_o": 3, "fma_s_special_q_o": 1, "fma_s_spval_q_o": 64, "fma_s_spff_q_o": 5, "fma_s_mag_q_o": 128, "fma_s_ressign_q_o": 1, "fma_s_refw_q_o": 32, "fma_s_rm_q_o": 3},
+          "path_classes": {"port_to_register": "required", "register_to_register": "required", "register_to_port": "required", "synchronous_control_to_register": "required", "top_boundary": "fma_align_s3_q_to_fma_norm_s4_d"},
+          "top_boundary_contract": {
+            "source_instance_path": "u_fp_arith/u_fma_align_add_pipe",
+            "source_object_class": "MACRO_PIN_OUTPUT",
+            "source_port_families": ["fma_d_mag_q_o", "fma_d_refw_q_o", "fma_d_ressign_q_o", "fma_d_rm_q_o", "fma_d_special_q_o", "fma_d_spff_q_o", "fma_d_spval_q_o", "fma_s_mag_q_o", "fma_s_refw_q_o", "fma_s_ressign_q_o", "fma_s_rm_q_o", "fma_s_special_q_o", "fma_s_spff_q_o", "fma_s_spval_q_o"],
+            "endpoint": {"kind": "known_ooc_macro_input", "object_class": "MACRO_PIN_INPUT", "instance_path": "u_fp_arith/u_fma_norm_round_pipe", "port_families": ["fma_d_mag_q_i", "fma_d_refw_q_i", "fma_d_ressign_q_i", "fma_d_rm_q_i", "fma_d_special_q_i", "fma_d_spff_q_i", "fma_d_spval_q_i", "fma_s_mag_q_i", "fma_s_refw_q_i", "fma_s_ressign_q_i", "fma_s_rm_q_i", "fma_s_special_q_i", "fma_s_spff_q_i", "fma_s_spval_q_i"]}
+          },
+          "forbidden_timing_exceptions": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        },
+        "OooFpFmaNormRoundPipe": {
+          "rtl": "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+          "source_closure": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+            "npc/rv64/vsrc/filelist.mk"
+          ],
+          "compile_sources": [
+            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/vsrc/execute/OooFpRound.v",
+            "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v"
+          ],
+          "top_instance": "u_fma_norm_round_pipe",
+          "clock_port": "clk",
+          "synchronous_controls": ["rst", "flush_i"],
+          "input_ports": {"clk": 1, "rst": 1, "flush_i": 1, "fma_d_special_q_i": 1, "fma_d_spval_q_i": 64, "fma_d_spff_q_i": 5, "fma_d_mag_q_i": 128, "fma_d_ressign_q_i": 1, "fma_d_refw_q_i": 32, "fma_d_rm_q_i": 3, "fma_s_special_q_i": 1, "fma_s_spval_q_i": 64, "fma_s_spff_q_i": 5, "fma_s_mag_q_i": 128, "fma_s_ressign_q_i": 1, "fma_s_refw_q_i": 32, "fma_s_rm_q_i": 3},
+          "output_ports": {"fma_d_value_q_o": 64, "fma_d_fflags_q_o": 5, "fma_s_value_q_o": 64, "fma_s_fflags_q_o": 5},
+          "path_classes": {"port_to_register": "required", "register_to_register": "required", "register_to_port": "required", "synchronous_control_to_register": "required", "top_boundary": "fma_norm_s5_q_to_wrapper_result_completion_d"},
+          "top_boundary_contract": {
+            "source_instance_path": "u_fp_arith/u_fma_norm_round_pipe",
+            "source_object_class": "MACRO_PIN_OUTPUT",
+            "source_port_families": ["fma_d_fflags_q_o", "fma_d_value_q_o", "fma_s_fflags_q_o", "fma_s_value_q_o"],
+            "endpoint": {
+              "kind": "backend_completion_register_d",
+              "object_class": "REGISTER_D",
+              "instance_path": "u_core/u_ooo_core/u_execute_backend/u_core_slice/u_decode_backend/u_int_backend/u_fp_backend",
+              "register_families": {"df_fflags_q": 40, "df_value_q": 512}
+            }
+          },
+          "forbidden_timing_exceptions": ["false_path", "multicycle_path", "recovery", "removal", "pi_to_po"]
+        }
+      }
+    }
+  },
+  "evidence": {
+    "elaboration_receipt": "npc/rv64/eval/ppa/evidence/architecture-registry-elaboration-current.json",
+    "functional_result": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l1-a1/evidence/functional/functional-aggregate-result.json",
+    "module_result": ".github/task-runs/2026-08-09-rv64-bpu-inline-ppa-d3f3-a1/evidence/fp-arith-functional-evidence-closure-v1/module-result.json",
+    "l3_result": ".github/task-runs/2026-08-09-rv64-v16b-cancel-cycle-d3f3-l3-a1/lightweight-linux/summary.json",
+    "mapped_summary": ".github/task-runs/2026-08-10-rv64-bpu-local-pht-banked-child-ppa-b279-a1/evidence/traceable-b279-bpu-local-pht-banked-child-a1/summary.json",
+    "latest_mapped_attempt": ".github/task-runs/2026-08-10-rv64-bpu-flat-read-view-ppa-f5f2-a1/traceable-f5f2-bpu-flat-read-view-a1.status"
+  },
+  "architecture_nodes": [
+    {
+      "id": "sim",
+      "label": "NpcSimTop / DPI",
+      "kind": "simulation"
+    },
+    {
+      "id": "soc",
+      "label": "NpcTop",
+      "kind": "product"
+    },
+    {
+      "id": "core",
+      "label": "NpcCoreTop + OooCoreTopGlue",
+      "kind": "core"
+    },
+    {
+      "id": "frontend",
+      "label": "Frontend / Fetch",
+      "kind": "subsystem"
+    },
+    {
+      "id": "bpu",
+      "label": "BPU / RAS / Recovery",
+      "kind": "capability"
+    },
+    {
+      "id": "rename",
+      "label": "Rename / Schedule / PRF",
+      "kind": "subsystem"
+    },
+    {
+      "id": "execute",
+      "label": "Integer Execute",
+      "kind": "subsystem"
+    },
+    {
+      "id": "fp",
+      "label": "FP Backend",
+      "kind": "capability"
+    },
+    {
+      "id": "memory",
+      "label": "LSQ / MMU / Cache",
+      "kind": "subsystem"
+    },
+    {
+      "id": "control",
+      "label": "Control / Trap / CSR",
+      "kind": "subsystem"
+    },
+    {
+      "id": "commit",
+      "label": "ROB / Writeback / Commit",
+      "kind": "subsystem"
+    },
+    {
+      "id": "axi",
+      "label": "AXI Fabric / Devices",
+      "kind": "interconnect"
+    },
+    {
+      "id": "physical",
+      "label": "Synthesis / STA / PPA",
+      "kind": "physical"
+    }
+  ],
+  "architecture_edges": [
+    {
+      "from": "sim",
+      "to": "soc",
+      "relation": "wraps"
+    },
+    {
+      "from": "soc",
+      "to": "core",
+      "relation": "instantiates"
+    },
+    {
+      "from": "soc",
+      "to": "axi",
+      "relation": "connects"
+    },
+    {
+      "from": "core",
+      "to": "frontend",
+      "relation": "dispatch"
+    },
+    {
+      "from": "frontend",
+      "to": "bpu",
+      "relation": "predict-update-recover"
+    },
+    {
+      "from": "frontend",
+      "to": "rename",
+      "relation": "uop"
+    },
+    {
+      "from": "rename",
+      "to": "execute",
+      "relation": "issue"
+    },
+    {
+      "from": "rename",
+      "to": "fp",
+      "relation": "fp-issue"
+    },
+    {
+      "from": "execute",
+      "to": "memory",
+      "relation": "load-store-amo"
+    },
+    {
+      "from": "execute",
+      "to": "commit",
+      "relation": "completion"
+    },
+    {
+      "from": "fp",
+      "to": "commit",
+      "relation": "fp-completion"
+    },
+    {
+      "from": "memory",
+      "to": "commit",
+      "relation": "memory-completion"
+    },
+    {
+      "from": "control",
+      "to": "frontend",
+      "relation": "flush-redirect"
+    },
+    {
+      "from": "commit",
+      "to": "control",
+      "relation": "trap-retire"
+    },
+    {
+      "from": "memory",
+      "to": "axi",
+      "relation": "transactions"
+    },
+    {
+      "from": "bpu",
+      "to": "physical",
+      "relation": "must-be-visible"
+    },
+    {
+      "from": "fp",
+      "to": "physical",
+      "relation": "must-be-visible"
+    }
+  ]
+}

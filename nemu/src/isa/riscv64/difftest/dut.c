@@ -68,6 +68,14 @@ void isa_difftest_csr_snapshot(uint64_t *buf) {
   buf[20] = cpu.csr.minstret;
   buf[21] = cpu.csr.fflags;
   buf[22] = cpu.csr.frm;
+  buf[23] = 0;
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+  buf[24] = cpu.csr.tdata1;
+  buf[25] = cpu.csr.tdata2;
+  buf[26] = UINT64_C(0x01008044);
+#else
+  buf[24] = buf[25] = buf[26] = 0;
+#endif
 }
 
 void isa_difftest_fpr_snapshot(uint64_t *buf) {

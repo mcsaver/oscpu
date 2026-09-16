@@ -1,0 +1,161 @@
+{
+  "schema": "npc-rv64-performance-counter-schema-v2",
+  "performance_counter_schema_id": "npc-rv64-pcs-v2-head-lifecycle-20260801",
+  "marker_schema": "npc-rv64-performance-counter-v2",
+  "contract_state": "PARTIAL_CONSERVING_HEAD_LIFECYCLE_V2",
+  "scope": "committed-PC bounded region on the single configured RV64 hart",
+  "instrumentation_boundary": {
+    "rtl_observer": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+    "host_accumulator": "npc/rv64/csrc/cpu/cpu-exec.cpp",
+    "dut_feedback": false,
+    "synthesis_scope": "simulation-only; excluded from production core synthesis and STA"
+  },
+  "identity": {
+    "key": "full ProducerId",
+    "rob_head0": "OooRob.head0_producer_id_o",
+    "rob_head1": "OooRob.commit1_producer_id_o evaluated for the physical second entry",
+    "integer_iq": "OooDispatchBackend.int_iq_producer_live_mask_w plus resident sticky source-ready bits",
+    "fp_iq": "OooFpBackend.fp_iq_producer_live_mask_w plus resident enabled-source sticky-ready bits",
+    "memory_residency": [
+      "OooIntBackend.mem_owner_producer_live_mask_w",
+      "OooIntBackend.mem_res_producer_live_mask_w",
+      "OooIntBackend.lq_producer_live_mask_w"
+    ],
+    "execution_residency": [
+      "OooIntBackend.ex0_producer_live_mask_w",
+      "OooIntBackend.ex1_producer_live_mask_w",
+      "OooIntBackend.branch_producer_live_mask_w",
+      "OooIntBackend.muldiv_owner_producer_live_mask_w",
+      "OooIntBackend.clmul_owner_producer_live_mask_w",
+      "OooIntBackend.fp_producer_live_mask_w",
+      "OooIntBackend.pending_system_producer_live_mask_w",
+      "OooIntBackend.checkpoint_irrevocable_write_live_mask_w"
+    ]
+  },
+  "retire_width": 2,
+  "reason_encoding": [
+    {
+      "code": 0,
+      "name": "retired",
+      "meaning": "one non-exception architectural instruction retired on this physical lane"
+    },
+    {
+      "code": 1,
+      "name": "rob_empty",
+      "meaning": "the corresponding oldest ROB entry does not exist"
+    },
+    {
+      "code": 2,
+      "name": "dependency",
+      "meaning": "the full-ProducerId head is resident in an integer or FP IQ and at least one enabled sticky source-ready bit is clear"
+    },
+    {
+      "code": 3,
+      "name": "issue_terminal",
+      "meaning": "the full-ProducerId head is resident in an integer or FP IQ and all enabled sticky source-ready bits are set; selector, terminal, owner, or downstream admission still bounds issue"
+    },
+    {
+      "code": 4,
+      "name": "execution_latency",
+      "meaning": "the full-ProducerId head has left both IQ domains and is resident in a non-memory execution, completion, or system-owner mask"
+    },
+    {
+      "code": 5,
+      "name": "memory_latency",
+      "meaning": "the full-ProducerId head has left both IQ domains and is resident in a memory owner, memory reservation, or load-queue mask"
+    },
+    {
+      "code": 6,
+      "name": "head_lifecycle_unknown",
+      "meaning": "the corresponding ROB head is edge-old incomplete but no versioned full-ProducerId IQ, memory, or execution residency predicate explains it"
+    },
+    {
+      "code": 7,
+      "name": "exception_redirect",
+      "meaning": "precise exception, flush, branch recovery, or checkpoint restore prevents architectural retirement"
+    },
+    {
+      "code": 8,
+      "name": "memory_commit",
+      "meaning": "LQ release permission or CSR memory-quiet retirement permission is closed after completion"
+    },
+    {
+      "code": 9,
+      "name": "serialization",
+      "meaning": "context, fence.i, control-plane commit, CSR single-retire, or lane1 serialization permission is closed after completion"
+    },
+    {
+      "code": 10,
+      "name": "unknown",
+      "meaning": "no earlier versioned retirement-observation predicate explains the unused slot"
+    }
+  ],
+  "priority_version": "rob-head-lifecycle-priority-v2",
+  "head_not_complete_priority": [
+    "integer_or_fp_iq_dependency",
+    "integer_or_fp_iq_ready_at_issue_terminal",
+    "memory_resident",
+    "execution_resident",
+    "head_lifecycle_unknown"
+  ],
+  "lane0_priority": [
+    "retired",
+    "exception_redirect",
+    "rob_empty",
+    "head_not_complete_priority",
+    "exception_redirect_at_head",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "lane1_priority": [
+    "inherit_lane0_when_lane0_did_not_retire",
+    "retired",
+    "rob_empty",
+    "head_not_complete_priority",
+    "exception_redirect",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "aggregate_binding": {
+    "cycle_head_not_complete": "cycle_dependency + cycle_issue_terminal + cycle_execution_latency + cycle_memory_latency + cycle_head_lifecycle_unknown",
+    "slot_head_not_complete": "slot_dependency + slot_issue_terminal + slot_execution_latency + slot_memory_latency + slot_head_lifecycle_unknown"
+  },
+  "cycle_partition": {
+    "rule": "a cycle is useful when at least one architectural instruction retires; otherwise it takes lane0's exclusive reason",
+    "conservation": "cycle_useful + cycle_rob_empty + cycle_dependency + cycle_issue_terminal + cycle_execution_latency + cycle_memory_latency + cycle_head_lifecycle_unknown + cycle_exception_redirect + cycle_memory_commit + cycle_serialization + cycle_unknown == cycles"
+  },
+  "retire_slot_partition": {
+    "capacity": "2 * cycles + end_lane - start_lane",
+    "marker_interval": "[before start committed lane, before end committed lane)",
+    "conservation": "retired_slots + slot_rob_empty + slot_dependency + slot_issue_terminal + slot_execution_latency + slot_memory_latency + slot_head_lifecycle_unknown + slot_exception_redirect + slot_memory_commit + slot_serialization + slot_unknown == slot_capacity",
+    "retired_binding": "retired_slots == end_retired_before - start_retired_before"
+  },
+  "boundary_sampling": {
+    "cycle_delta": "inclusive cumulative counter at end minus inclusive cumulative counter at start, covering full cycles S+1..E",
+    "slot_endpoint_correction": "add start-cycle lanes start_lane..1 and subtract end-cycle lanes end_lane..1",
+    "same_cycle_lane0_to_lane1": "one slot of capacity and one retired instruction when lane0 is the start marker and lane1 is the end marker"
+  },
+  "qualification": {
+    "baseline_requires_phase_aligned_boundaries": true,
+    "phase_aligned_definition": "start_lane == end_lane",
+    "phase_aligned_capacity": "2 * cycles",
+    "unknown_or_unclassified_cycle_ratio": "(cycle_head_lifecycle_unknown + cycle_unknown) / cycles",
+    "unknown_or_unclassified_cycle_ratio_max": 0.01,
+    "requires_complete": true,
+    "requires_available": true,
+    "requires_zero_overflow": true,
+    "requires_zero_invalid_events": true,
+    "requires_aggregate_binding": true,
+    "requires_conservation": true
+  },
+  "known_gaps": [
+    "rob_empty is not yet split into frontend supply and downstream ROB-capacity feedback causes",
+    "issue_terminal combines selector, physical terminal, universal-owner, memory-pair, and downstream admission causes",
+    "the two integer issue terminals and independent FP issue terminal are not yet reconciled to one global issue-slot ledger",
+    "region-bound ROB, IQ, LQ, SQ, MSHR, and memory-station occupancy histograms are not yet emitted",
+    "an instrumentation-on versus instrumentation-off cycle-equivalence cohort is not yet archived",
+    "this schema is a conserving ROB-head lifecycle stack, not the final full-core causal CPI stack"
+  ]
+}

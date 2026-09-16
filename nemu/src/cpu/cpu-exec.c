@@ -992,12 +992,21 @@ static void execute(uint64_t n) {
 
     //若此时存在中断，isa_query_intr找到中断原因，isa_query_intr更新mepc/mcause/mstatus/priv等状态
     //并将cpu.pc改为trap vector，随后同一轮开始执行异常处理程序的第一条指令
+#ifdef CONFIG_TARGET_SHARE
+    extern bool difftest_external_interrupt_control;
+    // A cycle-accurate DUT may explicitly own interrupt delivery boundaries.
+    // Pending CSR state remains modeled; only autonomous entry is disabled.
+    if (!difftest_external_interrupt_control) {
+#endif
 #ifdef CONFIG_INTERPRETER_INTR_FAST_FLAG
     if (isa_riscv_intr_pending_fast()) {
       intr = isa_query_intr();
     }
 #else
     intr = isa_query_intr();
+#endif
+#ifdef CONFIG_TARGET_SHARE
+    }
 #endif
     if (intr != INTR_EMPTY) {
       // 异步中断在 TB 边界进入；先重定向到 trap handler，再尝试执行 handler 的第一条指令。

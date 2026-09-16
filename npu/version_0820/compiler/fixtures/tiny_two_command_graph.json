@@ -1,0 +1,341 @@
+{
+  "buffers": [
+    {
+      "alignment": 64,
+      "id": "input0",
+      "kind": "input",
+      "permissions": "r",
+      "size": 64
+    },
+    {
+      "alignment": 64,
+      "id": "input1",
+      "kind": "input",
+      "permissions": "r",
+      "size": 64
+    },
+    {
+      "alignment": 64,
+      "id": "intermediate",
+      "kind": "transient",
+      "permissions": "rw",
+      "size": 64
+    },
+    {
+      "alignment": 64,
+      "data_hex": "0000803f0100803f0200803f0300803f0400803f0500803f0600803f0700803f0800803f0900803f0a00803f0b00803f0c00803f0d00803f0e00803f0f00803f",
+      "id": "bias",
+      "kind": "weight",
+      "permissions": "r"
+    },
+    {
+      "alignment": 64,
+      "id": "output",
+      "kind": "output",
+      "permissions": "w",
+      "size": 64
+    }
+  ],
+  "commands": [
+    {
+      "cycle_upper_bound": 100000,
+      "descriptor_words": [
+        74378510352,
+        4294967303,
+        1,
+        8193,
+        12289,
+        4294967297,
+        0,
+        0,
+        0,
+        4294967296,
+        0,
+        0,
+        0,
+        0,
+        0,
+        16,
+        1,
+        0,
+        0,
+        64,
+        64,
+        0,
+        64,
+        0,
+        64,
+        151,
+        0,
+        64,
+        0,
+        64
+      ],
+      "name": "add-inputs",
+      "node_ids": [
+        4097
+      ],
+      "owner": "f32_alu",
+      "relocations": [
+        {
+          "addend": 0,
+          "buffer_id": "input0",
+          "kind": "iova64",
+          "word_index": 10
+        },
+        {
+          "addend": 0,
+          "buffer_id": "input1",
+          "kind": "iova64",
+          "word_index": 11
+        },
+        {
+          "addend": 0,
+          "buffer_id": "intermediate",
+          "kind": "iova64",
+          "word_index": 13
+        },
+        {
+          "addend": 0,
+          "buffer_id": "input0",
+          "kind": "window_base64",
+          "word_index": 23
+        },
+        {
+          "addend": 0,
+          "buffer_id": "input1",
+          "kind": "window_base64",
+          "word_index": 26
+        },
+        {
+          "addend": 0,
+          "buffer_id": "intermediate",
+          "kind": "window_base64",
+          "word_index": 28
+        }
+      ],
+      "workload": {
+        "completion_vector_elements": 16,
+        "expected_starts": 1,
+        "input_words": 32,
+        "output_words": 16,
+        "read_bytes": 128,
+        "read_groups": 2,
+        "request_groups": 4,
+        "response_groups": 4,
+        "schema": "f32-alu-v1",
+        "write_bytes": 64,
+        "write_groups": 2
+      }
+    },
+    {
+      "cycle_upper_bound": 100000,
+      "descriptor_words": [
+        74378510352,
+        4294967303,
+        2,
+        8194,
+        12290,
+        4294967297,
+        0,
+        0,
+        0,
+        4294967296,
+        0,
+        0,
+        0,
+        0,
+        0,
+        16,
+        1,
+        0,
+        0,
+        64,
+        64,
+        0,
+        64,
+        0,
+        64,
+        151,
+        0,
+        64,
+        0,
+        64
+      ],
+      "name": "add-bias",
+      "node_ids": [
+        4098
+      ],
+      "owner": "f32_alu",
+      "relocations": [
+        {
+          "addend": 0,
+          "buffer_id": "intermediate",
+          "kind": "iova64",
+          "word_index": 10
+        },
+        {
+          "addend": 0,
+          "buffer_id": "bias",
+          "kind": "iova64",
+          "word_index": 11
+        },
+        {
+          "addend": 0,
+          "buffer_id": "output",
+          "kind": "iova64",
+          "word_index": 13
+        },
+        {
+          "addend": 0,
+          "buffer_id": "intermediate",
+          "kind": "window_base64",
+          "word_index": 23
+        },
+        {
+          "addend": 0,
+          "buffer_id": "bias",
+          "kind": "window_base64",
+          "word_index": 26
+        },
+        {
+          "addend": 0,
+          "buffer_id": "output",
+          "kind": "window_base64",
+          "word_index": 28
+        }
+      ],
+      "workload": {
+        "completion_vector_elements": 16,
+        "expected_starts": 1,
+        "input_words": 32,
+        "output_words": 16,
+        "read_bytes": 128,
+        "read_groups": 2,
+        "request_groups": 4,
+        "response_groups": 4,
+        "schema": "f32-alu-v1",
+        "write_bytes": 64,
+        "write_groups": 2
+      }
+    }
+  ],
+  "name": "tiny-two-vector-add",
+  "publications": [
+    {
+      "buffer_id": "output",
+      "bytes": 64,
+      "source_offset": 0,
+      "target_offset": 0
+    }
+  ],
+  "provenance": {
+    "buffer_bindings": [
+      {
+        "alias_offset": 0,
+        "buffer_id": "bias",
+        "canonical_id": "synthetic:tiny/tensor/bias",
+        "logical_size": 64,
+        "origin_index": 0,
+        "origin_kind": "constant",
+        "storage_canonical_id": "synthetic:tiny/tensor/bias",
+        "storage_origin_index": 0,
+        "storage_origin_kind": "constant",
+        "storage_size": 64,
+        "storage_tensor_descriptor_sha256": "fdeefb9108c637f2bb702303b9b203daae10d745dd5b57b43cfb35010363ad1b",
+        "tensor_descriptor_sha256": "fdeefb9108c637f2bb702303b9b203daae10d745dd5b57b43cfb35010363ad1b"
+      },
+      {
+        "alias_offset": 0,
+        "buffer_id": "input0",
+        "canonical_id": "synthetic:tiny/tensor/input0",
+        "logical_size": 64,
+        "origin_index": 0,
+        "origin_kind": "graph_input",
+        "storage_canonical_id": "synthetic:tiny/tensor/input0",
+        "storage_origin_index": 0,
+        "storage_origin_kind": "graph_input",
+        "storage_size": 64,
+        "storage_tensor_descriptor_sha256": "52e98a139df862fbb5c1d601164d4413f2820e2566ef2712aafd23042099dcbc",
+        "tensor_descriptor_sha256": "52e98a139df862fbb5c1d601164d4413f2820e2566ef2712aafd23042099dcbc"
+      },
+      {
+        "alias_offset": 0,
+        "buffer_id": "input1",
+        "canonical_id": "synthetic:tiny/tensor/input1",
+        "logical_size": 64,
+        "origin_index": 1,
+        "origin_kind": "graph_input",
+        "storage_canonical_id": "synthetic:tiny/tensor/input1",
+        "storage_origin_index": 1,
+        "storage_origin_kind": "graph_input",
+        "storage_size": 64,
+        "storage_tensor_descriptor_sha256": "c7d063c86dae31c49c74b9194a13e538ca8b1f1e00fdb2dd2298875d5d79bed4",
+        "tensor_descriptor_sha256": "c7d063c86dae31c49c74b9194a13e538ca8b1f1e00fdb2dd2298875d5d79bed4"
+      },
+      {
+        "alias_offset": 0,
+        "buffer_id": "intermediate",
+        "canonical_id": "synthetic:tiny/tensor/intermediate",
+        "logical_size": 64,
+        "origin_index": 0,
+        "origin_kind": "graph_node",
+        "storage_canonical_id": "synthetic:tiny/tensor/intermediate",
+        "storage_origin_index": 0,
+        "storage_origin_kind": "graph_node",
+        "storage_size": 64,
+        "storage_tensor_descriptor_sha256": "df035b79a300f25f8b54d42ca4d7c6feda10ba6d5eefc540b2b6f1ac795d1bc0",
+        "tensor_descriptor_sha256": "df035b79a300f25f8b54d42ca4d7c6feda10ba6d5eefc540b2b6f1ac795d1bc0"
+      },
+      {
+        "alias_offset": 0,
+        "buffer_id": "output",
+        "canonical_id": "synthetic:tiny/tensor/output",
+        "logical_size": 64,
+        "origin_index": 0,
+        "origin_kind": "graph_output",
+        "storage_canonical_id": "synthetic:tiny/tensor/output",
+        "storage_origin_index": 0,
+        "storage_origin_kind": "graph_output",
+        "storage_size": 64,
+        "storage_tensor_descriptor_sha256": "d17bdf66539eb4324118cc3dbd470695fb9e482b7aec61ad21c6515b58dd5e90",
+        "tensor_descriptor_sha256": "d17bdf66539eb4324118cc3dbd470695fb9e482b7aec61ad21c6515b58dd5e90"
+      }
+    ],
+    "node_bindings": [
+      {
+        "artifact_node_id": 4097,
+        "artifact_schedule_position": 0,
+        "canonical_id": "synthetic:tiny/node/add-inputs",
+        "command_descriptor_sha256": "cb894735d903b17c2e93b0c61b503f87e37b77f0f8b165e113a63884ef2d66df",
+        "manifest_graph_index": 0,
+        "profile_family": "vector_f32",
+        "profile_id": "p00",
+        "source_descriptor_sha256": "0ac080e5ea95662dfdb885073277cd19533e15c0b42f14deb9985d1242d8504e",
+        "source_schedule_position": 0
+      },
+      {
+        "artifact_node_id": 4098,
+        "artifact_schedule_position": 1,
+        "canonical_id": "synthetic:tiny/node/add-bias",
+        "command_descriptor_sha256": "0c96846681e1de92f84946c62eb190db99cfda1e604c82e2bb821844d704e612",
+        "manifest_graph_index": 1,
+        "profile_family": "vector_f32",
+        "profile_id": "p00",
+        "source_descriptor_sha256": "1f39ec3225f96487a40d2cf38e05fe77c87b924aa428f59feec96f93d31be29b",
+        "source_schedule_position": 1
+      }
+    ],
+    "source": {
+      "graph_scope": "synthetic:tiny-two-vector-add",
+      "graph_ir_schema": "synthetic-npu-graph-ir-v1",
+      "graph_ir_sha256": "0185828e65721597d86909ac3c81ef579f3ca14616f64c7565761280f5397a17",
+      "manifest_sha256": "e064a5c1c85d195bca914da016e97bd6bf0a8c73990b7160f0ab94be7419f866",
+      "profile": "synthetic:p00-dense-add",
+      "raw_sha256": "2ab13c5b1a75c8fdcb828f2b0e5d92d47445a393b902cc72d31bc2783b80dc09",
+      "schema": "synthetic-graph-manifest-v1",
+      "source_commit": null
+    }
+  },
+  "schema": "npu-compiler-graph-v3"
+}

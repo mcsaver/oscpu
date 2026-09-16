@@ -1,0 +1,19 @@
+--- run-focused.sh
++++ run-focused-current.sh
+@@ -4,1 +4,1 @@
+-RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
++RUN_DIR=${V8S_ASSET_DIR:?}
+@@ -9,9 +9,10 @@
+ CONTROL_GATE="$NPC_HOME/vsrc/control/OooCoreSliceControlGate.v"
+ GLUE_TB="$NPC_HOME/testbench/tests/tb_ooo_core_top_glue.sv"
+ SPEC="$NPC_HOME/design/specs/ooo-dual-memory-datapath.md"
+-CHECKER="$RUN_DIR/check-v8s-dual-memory-core.py"
+-CHECKER_TEST="$RUN_DIR/test_check_v8s_dual_memory_core.py"
+-MUTATOR="$RUN_DIR/mutate-v8s-dual-memory-core.py"
++CURRENT_ADAPTER_PATCH=${V8S_CURRENT_ADAPTER_PATCH:?}
++CHECKER=${V8S_CURRENT_CHECKER:?}
++CHECKER_TEST=${V8S_CURRENT_CHECKER_TEST:?}
++MUTATOR=${V8S_CURRENT_MUTATOR:?}
+ F1_RUN_DIR="$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper"
+ F1_RUNNER="$F1_RUN_DIR/run-focused.sh"
+ F1_RESULT="$F1_RUN_DIR/evidence/focused/result.json"

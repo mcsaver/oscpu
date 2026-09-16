@@ -5,5 +5,11 @@
         "locale": "cpp",
         "select.h": "c"
     },
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "C_Cpp.files.exclude": {
+        "**/tmp/**": true,
+        "**/build/**": true,
+        "**/obj_dir/**": true,
+        "**/.github/task-runs/**": true
+    }
 }

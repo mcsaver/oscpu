@@ -1,0 +1,148 @@
+{
+  "core-system-lint": {
+    "command": [
+      "make",
+      "-C",
+      "npc/rv64",
+      "lint"
+    ],
+    "returncode": 0,
+    "seconds": 31.17,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/core-system-lint.log"
+  },
+  "tensor-lint": {
+    "command": [
+      "make",
+      "-C",
+      "npc/rv64/testbench/chengyue64",
+      "tensor-lint"
+    ],
+    "returncode": 0,
+    "seconds": 23.45,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/tensor-lint.log"
+  },
+  "legacy-checksums": {
+    "command": [
+      "make",
+      "-C",
+      "npc/pack/rv64core-legacy-20260916",
+      "verify"
+    ],
+    "returncode": 0,
+    "seconds": 0.07,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/legacy-checksums.log"
+  },
+  "native-targeted": {
+    "command": [
+      "make",
+      "-C",
+      "npc/rv64/testbench/chengyue64",
+      "-j3",
+      "TESTS=tb_r64_decode tb_r64_csr tb_r64_rvc tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_service_bank_pair",
+      "run"
+    ],
+    "returncode": 0,
+    "seconds": 16.69,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/native-targeted.log"
+  },
+  "official-build-and-core-test": {
+    "command": [
+      "make",
+      "-C",
+      "npc/rv64",
+      "all",
+      "core-test",
+      "CORE_JOBS=6"
+    ],
+    "returncode": 0,
+    "seconds": 207.01,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/official-build-and-core-test.log"
+  },
+  "npu-cmake-configure": {
+    "command": [
+      "/home/lyg/PA/ysyx-workbench/npu/version_0820/tmp/tools/cmake-3.31.12/bin/cmake",
+      "-S",
+      "npu/version_0820/runtime/llama-npu-backend",
+      "-B",
+      "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npu-cmake",
+      "-DNPU_VERILATED_MDIR=/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npu-direct-obj",
+      "-DNPU_SYSTEM_VERILATED_MDIR=/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npu-system-obj"
+    ],
+    "returncode": 0,
+    "seconds": 1.7,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npu-cmake-configure.log"
+  },
+  "linux-sim-dry-run": {
+    "command": [
+      "make",
+      "-n",
+      "-C",
+      "Linux",
+      "ARCH=riscv64-npc",
+      "sim"
+    ],
+    "returncode": 0,
+    "seconds": 0.02,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/linux-sim-dry-run.log"
+  },
+  "npu-script-syntax": {
+    "command": [
+      "bash",
+      "-n",
+      "npu/version_0820/scripts/run_rv64_direct_npu_system.sh"
+    ],
+    "returncode": 0,
+    "seconds": 0.0,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npu-script-syntax.log"
+  },
+  "npc-backend-entry": {
+    "command": [
+      "make",
+      "-n",
+      "-C",
+      "npc",
+      "BACKEND=rv64",
+      "lint"
+    ],
+    "returncode": 0,
+    "seconds": 0.01,
+    "log": "/home/lyg/PA/ysyx-workbench/tmp/chengyue64-release-20260916/npc-backend-entry.log"
+  },
+  "directed_program_runs": 20,
+  "poweroff_runs": 4,
+  "ideal_throughput_windows": 7,
+  "source_preservation": {
+    "native_rtl_headers_identical": 85,
+    "formal_catalog_sources": 87,
+    "legacy_catalog_sources": 138,
+    "legacy_sources_all_within_archive": true,
+    "shared_bus_identical_to_before": true
+  },
+  "archive": {
+    "archive": "npc/pack/rv64core-legacy-20260916/rv64core-legacy-20260916.tar.gz",
+    "source_entries": 2747,
+    "archive_members": 2751,
+    "archive_bytes": 19742660,
+    "sha256": "469cb8ef7b627fb43d53de99574db95219f722e9af6e30dc27078fb4f559e1da",
+    "all_source_and_tar_members_verified": true
+  },
+  "legacy_lint": {
+    "returncode": 2,
+    "warnings_match_original": true,
+    "diagnostics": [
+      "%Warning-PINMISSING: <RV64>/vsrc/core/NpcTop.v:598:5: Cell has missing pin: 'timer_wait_o'",
+      "%Warning-PINMISSING: <RV64>/vsrc/core/NpcTop.v:635:5: Cell has missing pin: 'machine_irq_o'",
+      "%Warning-PINMISSING: <RV64>/vsrc/core/NpcTop.v:635:5: Cell has missing pin: 'supervisor_irq_o'",
+      "%Warning-GENUNNAMED: <RV64>/vsrc/bus/AxiPlic.v:219:42: Unnamed generate block 'genblk1' (IEEE 1800-2017 27.6)",
+      "%Warning-BLKSEQ: <RV64>/vsrc/bus/AxiPlic.v:332:14: Blocking assignment '=' in sequential logic process",
+      "%Error: Exiting due to 5 warning(s)"
+    ]
+  },
+  "scope": {
+    "rtl_changed": false,
+    "linux_full_boot_rerun": false,
+    "full_npu_workloads_rerun": false,
+    "sta_rerun": false,
+    "previous_same_rtl_sta_1ns_status": "FAIL"
+  }
+}

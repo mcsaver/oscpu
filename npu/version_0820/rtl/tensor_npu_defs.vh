@@ -29,6 +29,12 @@
 `define NPU_OP_UNSUPPORTED       6'd63
 
 `define NPU_ERROR_W              8
+// Architectural terminal-error byte.  Bit 7 is a lifecycle tag, not part of
+// the base error enumeration: 0 means the terminal is recoverable through the
+// explicit clear protocol; 1 means reset is required.  Base codes therefore
+// remain confined to [6:0].
+`define NPU_ERROR_FATAL_MASK     8'h80
+`define NPU_ERROR_BASE_MASK      8'h7f
 `define NPU_ERR_NONE             8'd0
 `define NPU_ERR_ILLEGAL_ENCODING 8'd1
 `define NPU_ERR_UNSUPPORTED      8'd2

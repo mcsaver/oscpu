@@ -1,0 +1,40 @@
+--- run-focused.sh
++++ run-focused.sh
+@@ -1,8 +1,10 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+-RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
++RUN_DIR=$(realpath -m -- "${V8V_ASSET_DIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}")
+ REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
++CURRENT_ADAPTER_PATCH=$(realpath -- "${V8V_CURRENT_ADAPTER_PATCH:?current adapter patch is required}")
++CURRENT_F2_MUTATOR=$(realpath -- "${V8V_CURRENT_F2_MUTATOR:?current F2 mutator is required}")
+ NPC_HOME="$REPO_ROOT/npc/rv64"
+ TB_HOME="$NPC_HOME/testbench"
+ ARCH_BUILDER="$NPC_HOME/eval/ppa/tools/memory_ordering_evidence.py"
+@@ -180,6 +182,8 @@
+   "$RUN_DIR/rtl-derivation.md"
+   "$RUN_DIR/run-lq-mutations.py"
+   "$RUN_DIR/run-focused.sh"
++  "$CURRENT_ADAPTER_PATCH"
++  "$CURRENT_F2_MUTATOR"
+   "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py"
+   "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/run-focused.sh"
+   "$NPC_HOME/Makefile"
+@@ -235,6 +239,8 @@
+ run_tb lq tb_ooo_load_queue
+ run_tb sq tb_ooo_store_queue
+ run_tb backend tb_ooo_int_backend
+-run_tb backend-dual tb_ooo_int_backend '-DV8S_DUAL_MEMORY_FOCUSED'
++run_tb backend-dual tb_ooo_int_backend_v8s_dual_memory ''
++cp -- "$EVIDENCE_DIR/backend-dual/logs/tb_ooo_int_backend_v8s_dual_memory.log" \
++  "$EVIDENCE_DIR/backend-dual/logs/tb_ooo_int_backend.log"
+ run_tb glue tb_ooo_core_top_glue
+ run_tb sustained tb_ooo_dual_memory_sustained_issue
+@@ -309,5 +315,5 @@
+   --f2-result "$F2_EVIDENCE_DIR/result.json" \
+   --f2-mutation-summary "$F2_EVIDENCE_DIR/mutation-summary.log" \
+-  --f2-mutator "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py" \
++  --f2-mutator "$CURRENT_F2_MUTATOR" \
+   --f2-control-gate-log "$F2_EVIDENCE_DIR/mutations/raw_checkpoint_local_flush_bypass.run.log" \
+   --run-id "$RUN_ID" \

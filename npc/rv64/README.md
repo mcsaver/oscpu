@@ -1,138 +1,170 @@
-# NPC RV64 使用说明
+# 承岳64（ChengYue64）v1.0.0
 
-`npc/rv64` 是从 `npc/single` 派生的 RV64 基础核心后端，用于通过 `npc/sim BACKEND=rv64` 运行 `ARCH=riscv64-npc` 的 Abstract Machine 镜像。
+2026-09-16 起，原 `rebuildcore` 正式命名为 **承岳64（ChengYue64）**，作为本目录的默认 RV64 主线。
+“承”表示承接旧核积累，“岳”表示建立可持续演进的稳固基础。
 
-## 当前定位
+- 正式 RTL：[`vsrc/chengyue64/`](vsrc/chengyue64/)；测试：[`testbench/chengyue64/`](testbench/chengyue64/)。
+- 版本信息：[`core-version.mk`](core-version.mk)，执行 `make version` 查询。
+- 默认产物：`build/chengyue64/`；Linux、NPU 的活动源码引用已同步。
+- 旧核源码包：[`../pack/rv64core-legacy-20260916/`](../pack/rv64core-legacy-20260916/README.md)。
+- 版本说明、CPI/时序数据和验证范围：[v1.0.0 说明](releases/chengyue64-v1.0.0/README.md)。
 
-- ISA 目标：当前活动 OoO 核已实现 RV64IMAFDC + `Zba/Zbb/Zbc/Zbs` + Zicsr，
-  M/S/U 三特权级 + Sv39 虚存（硬件 PTW + I/D TLB）+ PMP×16；更细的实现边界
-  （能力、限制与开放合同）以 `design/arch/rtl-ground-truth-2026-07-11.md`
-  （CURRENT snapshot）、`design/arch/ooo-core-architecture.md` 和 `vsrc/README.md` 为准。
-- 数据宽度：`XLEN=64`，PC/GPR/CSR/AXI data/DPI payload 均按 64 位处理。
-- 访存宽度：LSU 使用 8-byte bus word 和 `WSTRB[7:0]`，支持 byte/half/word/dword load/store。
-- 运行入口：外部请优先使用 `npc/sim` 或 AM 的 `ARCH=riscv64-npc`，不要直接把上层脚本绑到 `npc/rv64` 私有路径。
-- Linux/Ubuntu 启动入口：OpenSBI、Linux kernel、DTB、initramfs/rootfs、QEMU reference、focused bring-up tools 和日志套件统一在仓库根目录 `Linux/` 下维护；`npc/rv64` 只保留 core RTL、testbench、Kconfig 和 Verilator 仿真本体。
+本次正式化保持 RTL 内容、`R64CoreTop` / `R64SystemTop` / `R64TensorSystemTop` 模块接口不变。
+`rebuild` 目录保留为兼容链接；旧核独有 RTL 已移入归档，原路径通过链接兼容历史工具和测试 oracle。
+正式主线继续以时序和 CPI 为优化重点。当前实测 1 ns STA 仍为 **FAIL**，正式命名不改变这一结论。
 
-## 快速命令
+## 此前系统替换与架构记录
 
-```bash
-make -C npc/sim rv64_defconfig
-make -C npc/sim BACKEND=rv64 lint
-make -C npc/sim BACKEND=rv64 -j4
+> 2026-09-15：用户已恢复完整替换范围（包含 Linux 与 NPU）。当前任务与缺口见[完整替换记录](design/arch/rv64-replacement.md)。下文此前的暂停/CPU-only 范围属于历史记录。
+
+## 原生双发射乱序核
+
+## 原生系统与旧核消费者替换（2026-09-15）
+
+默认 CPU 为 R64CoreTop，平台为 R64SystemTop；Linux 主入口和完整 NPU runtime/standalone
+现已接到新核。旧 PPA runner 的 NpcSimTop 证据格式不适用于这条入口。
+2026-09-15 完整功能替换验收已取得 L2 all、Linux 6.6 + PID1 L3 all、NPU 主工作流的通过结果；
+L3 完成 23,863,944 次退休、75,766,731 周期及一次自然关机，全程逐退休对拍。
+实现取舍、详细验证结果与 Ubuntu/PPA 范围边界见 [完整替换记录](design/arch/rv64-replacement.md)。
+
+系统仿真保持逐退休 PC/GPR/FPR/CSR DiffTest：
+
+```sh
+make all difftest-ref
+make device-test
+make l2-test SYSTEM_CASE=all CORE_THREADS=2
+make l3-test SYSTEM_CASE=all CORE_THREADS=2
+# 复用已有标准 L2/L3 镜像目录：
+make l3-test SYSTEM_IMAGES=/absolute/l3-images SYSTEM_CASE=all CORE_THREADS=2
 ```
 
-核级轻量回归入口：
+CORE_THREADS 控制宿主 Verilator 线程数，不改变 RTL 时钟或流水拍数。
+Linux/Makefile 的 sim/run 默认使用两个线程；核心短回归默认一个线程。
 
-```bash
-make -C npc/rv64 core-regress
+每次 L2/L3 执行保存独立日志、实际命令、模型副本与结果 summary。
+仅 all 表示相应层的完整 guest 场景；运行中、超时和缺少终态都不计通过。
+
+直接运行多镜像系统：
+
+```sh
+make run IMG=/absolute/fw_jump.bin \
+  RUN_ARGS="--system --memory=0x08000000 --load=0x80400000:/absolute/Image --load=0x82300000:/absolute/guest.dtb --load=0x84000000:/absolute/initramfs.cpio --uart-stdin --maxcycles=1500000000 --progress"
 ```
 
-该入口会依次运行 `npc/rv64/testbench` 模块测试、Verilator lint、NPC
-仿真器构建、AM cpu-tests，以及官方 `riscv-tests` 的 RV64 p-mode
-用例。外部 `riscv-tests` 源码默认放在
-`npc/rv64/testsuites/core-tests/src/riscv-tests/`，这是 ignored testsuite
-artifact，不随仓库提交；缺失时可用脚本的 `--fetch-riscv-tests` 拉取。
-外部 riscv-tests 收敛在 `npc/rv64/testsuites/`;ACT4(riscv-arch-test 源/工具链/ELF 基线)已整体迁至 `am-kernels/arch-test/`(2026-07-02,详见其 README)。
-脚本也支持 `--riscv-privileged` 追加 `rv64mi/rv64si`，以及
-`--riscv-filter REGEX` 对单项失败做快速复现。
+- --system 让 EBREAK 进入正常异常处理，并以真实 syscon 关机结束。
+- --uart-input=MARKER:BYTES 支持按 guest 输出触发测试输入；--uart-stdin 接收真实标准输入。
+  实际 UART RTL 支持 8250 的 MCR/MSR/SCR、16 字节 RX FIFO、回环和中断读确认；
+  接口传送完整字符，不包含串行位线和波特率时间模型。
+- --expect=TEXT 要求关机前出现该输出；它本身不会提前结束仿真。
+- --block=/absolute/writable-run.ext4 连接 virtio-mmio IRQ2；直接调用者应传运行副本。
+  Linux/Makefile 会自动从模板创建独立副本，参考侧另用独立快照。
+- 宿主 block 模型复用 NEMU 的设备代码，但以独立实例运行；ISA 参考的内存、设备、
+  磁盘与执行状态独立，完整寄存器/CSR 比较保留。
 
-> **当前结果判读（2026-07-11，F0 收口后）**：module runner 与 AM 聚合器已上传真实
-> 子层退出码，并拒绝 failure marker、缺项、重复项或外层 PASS 冒充测试成功。新鲜证据为
-> module 86/86、AM 59/59（`fp-difftest-probe` 明确 Difftest ON）和 official
-> riscv-tests 177/177；core-regress 的 module/lint/build/AM 子层与 `overall_rc=0` 一致。
-> 证据入口：`.github/task-runs/2026-07-11-rv64-f0-truthful-regression/`。
+NPU 主命令保持原入口：
 
-RISC-V Architecture Tests / ACT4(已迁至 am-kernels/arch-test，2026-07-02)：
-
-```bash
-# 生成/环境准备(原 npc-rv64-act4-preflight.sh)
-am-kernels/arch-test/scripts/act4-preflight.sh --final-elfs --extensions I
-# 跑 NPC 目标(原 npc-rv64-act4-run.sh; 统一 runner 见 make -C am-kernels/arch-test help)
-am-kernels/arch-test/scripts/act4-npc-run.sh --suites rv64i/I,rv64i/M
-make -C am-kernels/arch-test run-npc ACT4_SUITES="rv64i/I,rv64i/M,priv/Sv"
+```sh
+bash ../../npu/version_0820/scripts/run_rv64_direct_npu_system.sh
 ```
 
-要点(详见 am-kernels/arch-test/README.md)：NPC 执行用 `elfs/.../*.elf` final
-self-checking ELF(不是 `build/.../*.sig.elf` 参考模型中间 ELF)；privileged Sv
-应使用与实现边界匹配的 `sail-RVA22S64` 配置(当前核未实现 V/VS，不用 `sail-rv64-max`)；
-`C`/`A` extension 生成会返回成功但不产出可执行 suite。NPC 结果仍写
-`npc/rv64/perf/results/act4-run/`。
+该顶层内部现为原生 CPU。旧 OoO 内部统计请求不适用，新路径报告实际事务时序。
+完整 Linux/PID1、rootfs mount、Ubuntu 和 1 GHz PPA 必须分别依据结果判断，不能相互替代。
 
-AM/cpu-tests 回归：
+本任务从取指到 AXI、提交与异常重写 RV64 RTL，借鉴用户 IFU 的清晰代码风格。
+当前默认实现位于 [vsrc/chengyue64](vsrc/chengyue64/)，架构和验证状态见
+[架构入口](ARCHITECTURE.md) 与 [详细说明](design/arch/rv64-rebuild.md)。
+
+保留 RV64IMAFDC、Zba/Zbb/Zbc/Zbs、Zicsr/Zifencei、M/S/U、Sv39、PMP×16、
+原子操作及 Tensor 命令接口。
+Sdtrig 地址触发器及官方 `rv64mi-p-breakpoint` 纳入必过回归。
+当前范围包含 OS 和完整 Tensor/NPU 系统验证，实际源码包含 09-08 全核拓扑反馈版。
+
+### 早期冻结版本记录
+
+以下是此前暂停时保留的比较数据，不是当前默认源码的测量结果。
+冻结28：112项主模块、全部相关矩阵、352项软件、8项整机定向、
+两个完整基准和7个CPI 0.5理想窗口通过。默认仿真／综合入口与85份冻结源一致，严格lint通过。
+同源1ns布局前单元优化及hold修复后的setup为−1.543375254ns、hold为+0.005088600ns，
+单元面积为3,615,844.96µm²；**1GHz尚未闭合**，默认入口不代表最优PPA版本。
+
+后续联合候选保存在独立快照：31已完成全部CPU回归与整核布局前PPA，
+最终setup−1.882808447ns、hold+0.005088600ns、面积3,605,016.80µm²；
+32a已全CPU通过并完成整核原始映射，后续单元优化按用户暂停指示未运行；
+33已通过146项主模块及矩阵、352项软件、8项整机定向、7个CPI 0.5窗口和两个完整基准，
+CoreMark／Dhrystone周期相对32a下降3.2768%／5.9410%。
+33 的整核综合在该次暂停时尚未运行；已启动的局部综合对比与报告当时已收尾。
+各版本的功能、实际周期、整核时序与暂缓工作见[架构入口](ARCHITECTURE.md)和
+[本轮暂停记录](design/arch/rv64-rebuild-pause.md)。
+
+## 当前工程命令
+
+从工作区根运行：
 
 ```bash
-export AM_HOME=/home/lyg/PA/ysyx-workbench/abstract-machine
-export NPC_HOME=/home/lyg/PA/ysyx-workbench/npc
-make -C am-kernels/tests/cpu-tests ARCH=riscv64-npc run \
-  NPC_RUN_ARGS="--no-progress --max-cycles 20000000"
+make -C npc/rv64
+make -C npc/rv64 lint
+make -C npc/rv64 test
+make -C npc/rv64 core-test
+make -C npc/rv64 tensor-test    # 原生 Tensor 系统对拍
+make -C npc/rv64 software-test  # AM + official ISA + ACT4，全量非 OS 软件
+make -C npc/rv64 regression     # CPU 模块、整核、软件、设备及 lint
+make -C npc/rv64 run IMG=/absolute/guest.bin RUN_ARGS="--maxcycles=20000000 --progress"
 ```
 
-当前核级验证裁决（2026-07-11，F0 收口后）：official `riscv-tests` 默认+特权组合
-177/177、AM 59/59、module 86/86 均为真实退出码通过；三个 sequencer TB 已按 current
-接口刷新，FP GPR-destination completion 已从 FPR busy/bypass/wakeup/write 域隔离。
-完整范围与仍开放的 F1-F3 合同见 `design/arch/rtl-ground-truth-2026-07-11.md` §5/§6 和
-`design/arch/rv64-200mhz-completion-design.md`。
+`npc/sim BACKEND=rv64` 的 default/lint/run 继续转发到此入口。测试程序以 EBREAK 的 a0=0，
+或 ELF 给出的 tohost=1 完成；`--tohost=0x...` 显式传入该地址。
+AM、官方 ISA 和 ACT4 均从当前测试源码及明确的 hart 配置构建；不依赖历史 build 目录。
+系统仿真保留 RTL 断言、逐指令 GPR/FPR、CSR、真实 UART 字节和参考内存比较。
+`core-test` 包含真实整核理想吞吐回归：I-cache自然预热后，7个稳态窗口均需达到768条／384拍（CPI=0.5）；完整NEMU检查仍执行。
+外部 AXI-Lite 端点提供 RAM 及已有 legacy RTC/VGA/framebuffer 仿真设备。
 
-以下为历史验证记录。ACT4 目前已完成 framework
-生成 smoke、xPack GCC 15.2.0-1 compiler gate、testsuite artifact 内 Ruby
-headers gate、RV64I/RV64M final self-checking ELF 生成与 NPC 执行；ACT4
-`rv64i/I` suite `51/51 PASS`，`rv64i/M` suite `13/13 PASS`。2026-06-27
-在 `stop_pending` 拆分后复跑 final ELF：`rv64i/I` 51/51 PASS，证据
-`npc/rv64/perf/results/20260627-act4-final-rv64i/20260627-074515-1515239/`；
-`rv64i/M` 13/13 PASS，证据
-`npc/rv64/perf/results/20260627-act4-final-rv64m/20260627-074811-1517820/`；
-combined `rv64i/I,rv64i/M` 64/64 PASS，证据
-`npc/rv64/perf/results/20260627-act4-final-rv64im/20260627-075540-1520228/`。
-ACT4 privileged `Sv` final ELF 生成 485 项成功；smoke `priv/Sv --limit 5`
-为 3/5 PASS，证据
-`npc/rv64/perf/results/20260627-act4-final-priv-sv-smoke/20260627-075821-1523834/`；
-`sv39_canonical_Smode` 放大到 300s/200M cycles 仍 host timeout，但日志显示
-持续推进且无 `TOHOST FAIL`/BAD TRAP，证据
-`npc/rv64/perf/results/20260627-act4-final-priv-sv-canonical-smode/20260627-080043-1524561/`。
-后续确认 timeout 根因是 `sail-rv64-max` 的 V/VS profile mismatch；切换到
-`sail-RVA22S64` 并修复 PTE reserved/non-leaf D/A/U、`mstatus/sstatus.SD`
-派生、`menvcfg.PBMTE`/Svpbmt PTE policy 和 Svinval supervisor fence 特权/TVM
-decode 后，ACT4 `priv/Sv` 33/33 PASS，`priv/Svpbmt` 4/4 PASS，
-`priv/Svinval` 2/2 PASS，当前已生成的 Sv 族 combined
-`priv/ExceptionsSv,priv/Sv,priv/Svade,priv/Svbare,priv/Svpbmt,priv/Svinval`
-为 48/48 PASS，
-证据分别在
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-sv-full-after-sd/20260627-085153-1553580/`、
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-svpbmt-after-fix/20260627-091809-1584945/`、
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-svinval-after-fix/20260627-093545-1614756/` 和
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-sv-combined-after-svinval/20260627-093604-1614913/`。
-同轮验证还包括 focused PTE set 5/5 PASS、`sv_mstatus_tvm_test` PASS、
-`make -C npc/rv64 -j2` PASS、`make -C npc/rv64 lint` PASS、focused module TB
-和 Svinval focused TB PASS，以及 official default+FP+A+privileged `riscv-tests` test-only sweep
-177/177 PASS，证据分别在
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-sv-pte-reserved-fix2/20260627-084640-1550329/`、
-`npc/rv64/perf/results/20260627-act4-rva22s64-priv-sv-tvm-sd-fix/20260627-085144-1553449/`、
-`npc/rv64/perf/results/20260627-act4-rva22s64-svpbmt/module-focused-after-whitebox/`、
-`npc/rv64/perf/results/20260627-act4-rva22s64-svinval/module-focused/` 和
-`npc/rv64/perf/results/20260627-act4-rva22s64-svinval/core-regress-official/20260627-093617-1616308/`。
-边界：当前闭合 ACT4 I/M final ELF 和 `sail-RVA22S64` Sv39/Svpbmt/Svinval 核级 gate；
-这仍不是 ACT4 全配置、精确 NPC UDB 全覆盖、Linux/full-system、formal/PPA/timing/CDC/reset/物理签核或工业 CPU signoff。
+```bash
+make -C npc/rv64 syn
+make -C npc/rv64 sta
+```
 
-## Difftest 状态
+综合默认 R64CoreTop、icsprout55、1 GHz，全部 CPU 算术和存储数组可见，不使用占位黑盒。
+SDC 包含 1 ns 时钟、50 ps uncertainty、400 ps I/O 延迟和 20 fF 输出负载。
+1 GHz 是用户指定的新里程碑，当前尚未闭合；500 MHz 结果仅作历史基线。
+当前 iEDA 必须用四条显式 edge/check-type 命令才能实际启用50 ps；主 SDC 和报告检查已修正，历史省略flag的报告不具备该余量资格。
+这些是布局前约束；没有寄生提取结果时不声称物理签核或合格功耗。
 
-difftest 以本仓库 NEMU 为参考模型（`nemu/src/isa/riscv64` 已完整可用），
-`make -C npc/rv64 difftest-ref` 构建参考 `.so`（NEMU
-`riscv64-npc_defconfig` + `SHARE=1`）；该目标会切换 NEMU 配置，调用者若要保持自定义
-NEMU `.config`，须在 wrapper 中显式备份/恢复。
-`configs/default_defconfig` 默认打开 `CONFIG_NPC_DIFFTEST=y`；Kconfig 裸默认与
-`rv64_perf_defconfig` 为 n（perf 构建编译期剔除 difftest 运行时）。当前实现可比较
-PC/GPR、FPR、确定性 CSR、privilege、fflags/frm，并对异常/中断/counter 做现有同步或
-掩码处理；MMIO load 在 commit 拍按指令解码 EA 判定 skip。当前工作区 `.config` 仍未开启
-Difftest，因此常规 current-config core-regress 不能冒充逐退休全状态对拍；F0 另用
-`default_defconfig` 构建并取得 `Difftest: ON` 的 AM 59/59 证据，随后按哈希恢复配置。详见
-`design/arch/rtl-ground-truth-2026-07-11.md` §6.3。
 
-## 生成物
+旧优化方向已退出主线。旧用法、自动生成架构记录和构建配方分别保存在
+[README.legacy.md](README.legacy.md)、[ARCHITECTURE.legacy.md](ARCHITECTURE.legacy.md)、
+[Makefile.legacy](Makefile.legacy)；历史结果不代表新核通过。
 
-以下路径为生成物，已在仓库 `.gitignore` 中忽略：
 
-- `npc/rv64/.config`
-- `npc/rv64/build/`
-- `npc/rv64/include/config/`
-- `npc/rv64/include/generated/`
-- `npc/rv64/testbench/build/`
+真实时序主入口为 OpenSTA（`make sta` / `make sta-opensta`），可通过
+`OPENSTA=/absolute/path/to/sta` 指定工具。当前本地构建在
+`../../tmp/rv64-opensta/build/sta`。原 iEDA 留在 `make sta-ieda` 用于诊断；
+其 ICG path group 漏扣 uncertainty，不能用于含 ICG 设计的时序通过判定。
+主入口保持 1 ns、50 ps uncertainty、400 ps I/O、20 fF 输出，setup/hold 任意负值均失败。
+`SYNTH_MAX_FANOUT` 控制真实 ABC 缓冲树的扇出目标，默认 8；
+`SYNTH_MAP_DELAY_PS` 默认为600，与当前完整组合测量一致；这不是把时钟约束改为600ps。
+改变这些值会重新综合，不能复用旧映射结果。
+
+
+可对原始映射执行真实输入 hold 缓冲修复：
+
+```bash
+make -C npc/rv64 sta-hold STA_HOLD_ARGS=--through-logic
+```
+
+该入口生成独立的 hold-repaired 网表，验证所插 Liberty 单元是正向缓冲，
+校验原有单元类型与收缩缓冲后的连接图，并统计真实新增面积。
+默认只处理直接输入到 D 的负 hold 路径；through-logic 也处理输入经过组合逻辑到 D 的路径。
+显式增加 --clock-enable 可处理 Liberty 标记的 ICG enable 数据端，默认不处理；时钟引脚始终禁止修改。
+对复位等同时进入许多寄存器、又与正常数据路径汇合的短输入，可使用
+STA_HOLD_ARGS="--source-branches --clock-enable"：根据实际 min 路径在输入的首个负载前
+共享缓冲，避免给正常提交路径的最终 D 端一起补延迟。--source-fanout（默认8）
+限制每条缓冲链的负载数量。若短路径终止于数据输出（例如reset到VALID），可再加
+--output-branches；仍只在实际输入首个负载前插入正向单元，不改输出逻辑或正常数据分支。
+Liberty标记的时钟网络及其经缓冲连接的输入根均排除。工具支持重复 --checks 合并同一逻辑图的 min 报告；
+同一 endpoint 的其它短输入在初次修复后可能暴露，仍须完整 STA 判定，不能因已插缓冲就算通过。
+它不修改时钟约束、I/O、load 或 uncertainty，也不改变 RTL 拍数；
+修复后使用同一 SDC 重新检查全部 setup 与 hold，剩余任意负值仍报失败。
+面积比较应使用 sta_area.txt 或 cell-changes.json 中实际参与 STA 的网表面积；
+synth_stat.txt 是层次映射结果，可能还含 flatten/opt_clean 删除的冗余单元。
+
+输入 hold 修复可用 `--output-stages 1` 为仅通向顶层数据输出的输入分支指定较短的真实 buffer 链，寄存器分支仍使用 `--stages`。同一首级输入引脚同时通向输出和寄存器时取两者较大值；修复后仍必须按原 SDC 完整检查 setup 和 hold。

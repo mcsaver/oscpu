@@ -18,6 +18,15 @@ module NpcTensorNpuSystemTop #(
   parameter integer COMMAND_FUNCTIONAL_ENABLE = 0
 ) (
   input logic clk, input logic rst,
+  // Raw MMIO bridge driven solely by architectural firmware load/store DPI.
+  input logic service_dma_start_i,
+  input logic [63:0] service_dma_src_i, service_dma_dst_i, service_dma_bytes_i,
+  output logic service_dma_busy_o, service_dma_done_o, service_dma_error_o,
+  output logic service_dma_req_valid_o, input logic service_dma_req_ready_i,
+  output logic service_dma_req_write_o, output logic [63:0] service_dma_req_addr_o,
+  output logic [63:0] service_dma_req_wdata_o, output logic [7:0] service_dma_req_wstrb_o,
+  input logic service_dma_rsp_valid_i, output logic service_dma_rsp_ready_o,
+  input logic [63:0] service_dma_rsp_rdata_i, input logic service_dma_rsp_error_i,
   output logic gmem_req_valid_o, input logic gmem_req_ready_i,
   output logic gmem_req_write_o, output logic [63:0] gmem_req_addr_o,
   output logic [63:0] gmem_req_wdata_o, output logic [7:0] gmem_req_wstrb_o,
@@ -101,6 +110,10 @@ module NpcTensorNpuSystemTop #(
   output logic [7:0] npu_terminal_producer_id_o,
   output logic npu_terminal_error_o,
   output logic [7:0] npu_terminal_error_code_o,
+  output logic npu_error_o,
+  output logic [7:0] npu_error_code_o,
+  output logic npu_error_clear_ready_o,
+  output logic npu_error_clear_pulse_o,
   output logic npu_identity_match_o, output logic [7:0] launch_cpu_pid_o,
   output logic macro_completion_valid_o,
   output logic [31:0] macro_completion_status_o,
@@ -134,6 +147,16 @@ module NpcTensorNpuSystemTop #(
   output logic [63:0] npu_macro_f32_start_count_o,
   output logic [63:0] npu_macro_completion_count_o
 );
+  TensorNpuServiceDma service_dma(
+    .clk(clk),.rst(rst),.start_i(service_dma_start_i),
+    .src_i(service_dma_src_i),.dst_i(service_dma_dst_i),.bytes_i(service_dma_bytes_i),
+    .busy_o(service_dma_busy_o),.done_o(service_dma_done_o),.error_o(service_dma_error_o),
+    .req_valid_o(service_dma_req_valid_o),.req_ready_i(service_dma_req_ready_i),
+    .req_write_o(service_dma_req_write_o),.req_addr_o(service_dma_req_addr_o),
+    .req_wdata_o(service_dma_req_wdata_o),.req_wstrb_o(service_dma_req_wstrb_o),
+    .rsp_valid_i(service_dma_rsp_valid_i),.rsp_ready_o(service_dma_rsp_ready_o),
+    .rsp_rdata_i(service_dma_rsp_rdata_i),.rsp_error_i(service_dma_rsp_error_i));
+
   localparam [63:0] DIRECT_MACRO_BITS = 64'h0bf0305b0220305b;
   localparam [2:0] DESC_EMPTY=3'd0, DESC_BUILD=3'd1,
       DESC_RESIDENT=3'd2, DESC_POISON=3'd3, DESC_INFLIGHT=3'd4;
@@ -146,6 +169,8 @@ module NpcTensorNpuSystemTop #(
   logic npu_completion_valid_w, npu_completion_ready_w;
   logic [7:0] npu_completion_pid_w, npu_completion_error_code_w;
   logic npu_completion_error_w, npu_completion_is_macro_w;
+  logic npu_error_w, npu_error_clear_ready_w;
+  logic [7:0] npu_error_code_w;
   logic npu_completion_required_unused_w;
   logic [7:0] npu_completion_opclass_unused_w;
   logic [31:0] nc_status_w, nc_error_class_w;
@@ -245,7 +270,14 @@ module NpcTensorNpuSystemTop #(
   wire identity_error_w = inflight_w && !identity_match_w;
   wire selected_npu_error_w = npu_completion_error_w || identity_error_w;
   wire [7:0] selected_npu_code_w = identity_error_w ?
-      `NPU_ERR_MACRO_PROTOCOL : npu_completion_error_code_w;
+      (`NPU_ERROR_FATAL_MASK | `NPU_ERR_MACRO_PROTOCOL) :
+      npu_completion_error_code_w;
+  // CONFIG index 30 is the only architectural recovery operation.  The
+  // descriptor controller already refuses every CONFIG while INFLIGHT;
+  // pulse the NPU clear on the same accepted edge that clears the descriptor,
+  // and only when the frozen NPU terminal classified itself recoverable.
+  wire npu_error_clear_w = cfg_fire_w && (cfg_index_w == 5'd30) &&
+                           npu_error_clear_ready_w;
 
   assign direct_f32_desc_resident_o=resident_w;
   assign descriptor_inflight_o=inflight_w;
@@ -281,6 +313,10 @@ module NpcTensorNpuSystemTop #(
   assign npu_terminal_error_o=local_valid_q ? local_error_q : selected_npu_error_w;
   assign npu_terminal_error_code_o=local_valid_q ? local_error_code_q :
       selected_npu_code_w;
+  assign npu_error_o=npu_error_w;
+  assign npu_error_code_o=npu_error_code_w;
+  assign npu_error_clear_ready_o=npu_error_clear_ready_w;
+  assign npu_error_clear_pulse_o=npu_error_clear_w;
 
   wire cpu_terminal_valid_w=(local_valid_q || npu_completion_valid_w) &&
       terminal_allow_i;
@@ -312,21 +348,41 @@ module NpcTensorNpuSystemTop #(
       if (cfg_fire_w) begin
         local_valid_q<=1; local_pid_q<=cpu_tensor_cmd_producer_id_o;
         local_error_q<=0; local_error_code_q<=`NPU_ERR_NONE;
-        if (cfg_index_w==5'd30) begin
-          desc_state_q<=DESC_EMPTY; desc_expected_q<=0;
-          d_kernel_q<=0; d_flags_q<=0; d_context_q<=0; d_epoch_q<=0;
-          d_sequence_q<=0; d_producer_q<=0; d_user_tag_q<=0;
-          d_node_count_q<=0; d_vector_op_q<=0; d_hash_lo_q<=0; d_hash_hi_q<=0;
-          d_deadline_q<=0; d_vector_flags_q<=0; d_outer_q<=0;
-          d_src0_q<=0; d_src1_q<=0; d_src2_q<=0; d_dst_q<=0; d_scratch_q<=0;
-          d_elements_q<=0; d_dtype_q<=0; d_scalar0_q<=0; d_scalar1_q<=0;
-          d_scratch_bytes_q<=0; d_rope_position_q<=0;
-          d_src0_stride_q<=0; d_src1_stride_q<=0; d_src2_stride_q<=0;
-          d_dst_stride_q<=0; d_src0_base_q<=0; d_src0_size_q<=0;
-          d_src1_base_q<=0; d_src1_size_q<=0; d_dst_base_q<=0; d_dst_size_q<=0;
-          d_abi_valid_q<=0; d_windows_valid_q<=0;
-          d_src0_perm_q<=0; d_src1_perm_q<=0; d_dst_perm_q<=0;
-          launch_cpu_pid_q<=0;
+        if (npu_error_w && (cfg_index_w != 5'd30)) begin
+          // Once the NPU has frozen an error lifecycle, CONFIG30 is the only
+          // descriptor-side operation allowed to change state.  Still accept
+          // every other CONFIG and return the current tagged error so the CPU
+          // receives a precise terminal instead of silently deadlocking; the
+          // descriptor and NPU ERROR_HOLD state remain untouched.
+          local_error_q<=1'b1;
+          local_error_code_q<=npu_error_code_w;
+        end else if (cfg_index_w==5'd30) begin
+          if (npu_error_w && !npu_error_clear_ready_w) begin
+            // A fatal/reset-required terminal can be reported precisely, but
+            // firmware must not turn it into a fresh IDLE lifecycle.  Keep
+            // both NPU and descriptor state fail-closed.
+            local_error_q<=1'b1;
+            local_error_code_q<=npu_error_code_w |
+                                `NPU_ERROR_FATAL_MASK;
+          end else begin
+            // With no NPU error this is the historical descriptor reset.  In
+            // recoverable ERROR_HOLD, npu_error_clear_w is asserted on this
+            // same edge, making the two state domains clear atomically.
+            desc_state_q<=DESC_EMPTY; desc_expected_q<=0;
+            d_kernel_q<=0; d_flags_q<=0; d_context_q<=0; d_epoch_q<=0;
+            d_sequence_q<=0; d_producer_q<=0; d_user_tag_q<=0;
+            d_node_count_q<=0; d_vector_op_q<=0; d_hash_lo_q<=0; d_hash_hi_q<=0;
+            d_deadline_q<=0; d_vector_flags_q<=0; d_outer_q<=0;
+            d_src0_q<=0; d_src1_q<=0; d_src2_q<=0; d_dst_q<=0; d_scratch_q<=0;
+            d_elements_q<=0; d_dtype_q<=0; d_scalar0_q<=0; d_scalar1_q<=0;
+            d_scratch_bytes_q<=0; d_rope_position_q<=0;
+            d_src0_stride_q<=0; d_src1_stride_q<=0; d_src2_stride_q<=0;
+            d_dst_stride_q<=0; d_src0_base_q<=0; d_src0_size_q<=0;
+            d_src1_base_q<=0; d_src1_size_q<=0; d_dst_base_q<=0; d_dst_size_q<=0;
+            d_abi_valid_q<=0; d_windows_valid_q<=0;
+            d_src0_perm_q<=0; d_src1_perm_q<=0; d_dst_perm_q<=0;
+            launch_cpu_pid_q<=0;
+          end
         end else if (cfg_index_w==5'd31) begin
           desc_state_q<=DESC_POISON; desc_expected_q<=0;
           local_error_q<=1; local_error_code_q<=`NPU_ERR_MACRO_PROTOCOL;
@@ -404,13 +460,7 @@ module NpcTensorNpuSystemTop #(
     end
   end
 
-  assign cpu_commit0_valid_o=u_cpu.core_commit0_valid_w;
-  assign cpu_commit0_pc_o=u_cpu.core_commit0_pc_w;
-  assign cpu_commit0_inst_o=u_cpu.core_commit0_inst_w;
-  assign cpu_commit0_rd_en_o=u_cpu.core_commit0_rd_en_w;
-  assign cpu_commit0_exception_o=u_cpu.core_commit0_exception_w;
-
-  NpcSimTop u_cpu (
+  R64NpuCpuSim u_cpu (
     .clk(cpu_clk_w),.rst(rst),.tensor_cmd_valid_o(cpu_cmd_valid_w),
     .tensor_cmd_ready_i(cpu_cmd_ready_w),.tensor_cmd_bits_o(cpu_tensor_cmd_bits_o),
     .tensor_cmd_rs_value_o(cpu_cmd_rs_value_w),
@@ -423,10 +473,9 @@ module NpcTensorNpuSystemTop #(
     .tensor_terminal_error_i(cpu_terminal_error_w),
     .tensor_terminal_error_code_i(cpu_terminal_code_w),
     .tensor_serialize_o(cpu_tensor_serialize_o),.debug_pc_o(cpu_debug_pc_o),
-    .debug_state_o(),.debug_ooo_flags_o(),.debug_ooo_satp_o(),
-    .debug_bus_flags_o(),.debug_bus2_flags_o(),.debug_fetch_addr_o(),
-    .debug_mem_addr_o(),.debug_mem_diag_o(),.debug_fetch_pte_addr_o(),
-    .debug_fetch_pte_o(),.debug_fetch_pte_meta_o(),.debug_clint_mtime_o()
+    .commit0_valid_o(cpu_commit0_valid_o),.commit0_pc_o(cpu_commit0_pc_o),
+    .commit0_inst_o(cpu_commit0_inst_o),.commit0_rd_en_o(cpu_commit0_rd_en_o),
+    .commit0_exception_o(cpu_commit0_exception_o)
   );
 
   TensorNpuCoprocessor #(
@@ -567,7 +616,9 @@ module NpcTensorNpuSystemTop #(
     .f32_mover_portal_write_bytes_o(f32_mover_portal_write_bytes_o),
     .f32_mover_portal_outstanding_o(f32_mover_portal_outstanding_o),
     .sync_tag_ack_i(1'b1),.sync_tag_o(),.sync_tag_valid_o(),
-    .error_clear_i(1'b0),.busy_o(),.error_o(),.error_code_o(),
+    .error_clear_i(npu_error_clear_w),
+    .error_clear_ready_o(npu_error_clear_ready_w),
+    .busy_o(),.error_o(npu_error_w),.error_code_o(npu_error_code_w),
     .command_count_o(npu_command_count_o),.completion_count_o(npu_completion_count_o),
     .error_count_o(npu_error_count_o),
     .npu_required_issued_o(npu_required_issued_o),
@@ -577,4 +628,42 @@ module NpcTensorNpuSystemTop #(
     .macro_f32_start_count_o(npu_macro_f32_start_count_o),
     .macro_completion_count_o(npu_macro_completion_count_o)
   );
+
+  // A quarantined CONFIG is accepted only to produce a precise local
+  // terminal.  Check the following cycle, before NBA updates, that neither
+  // descriptor progress nor the sticky NPU lifecycle moved.
+  logic cfg_error_quarantine_q;
+  logic [1:0] quarantine_desc_state_q;
+  logic [5:0] quarantine_desc_expected_q;
+  logic [7:0] quarantine_error_code_q;
+  always @(posedge clk) begin
+    if (rst) begin
+      cfg_error_quarantine_q <= 1'b0;
+      quarantine_desc_state_q <= DESC_EMPTY;
+      quarantine_desc_expected_q <= 6'd0;
+      quarantine_error_code_q <= `NPU_ERR_NONE;
+    end else begin
+      if (cfg_error_quarantine_q) begin
+        if ((desc_state_q != quarantine_desc_state_q) ||
+            (desc_expected_q != quarantine_desc_expected_q))
+          $error("NPU error quarantine mutated descriptor progress");
+        if (!npu_error_w ||
+            (npu_error_code_w != quarantine_error_code_q))
+          $error("NPU error quarantine changed sticky error lifecycle");
+        if (!local_valid_q || !local_error_q ||
+            (local_error_code_q != quarantine_error_code_q))
+          $error("NPU error quarantine lost precise local terminal");
+      end
+      if (cfg_fire_w && npu_error_w && (cfg_index_w != 5'd30) &&
+          npu_error_clear_w)
+        $error("non-CLEAR CONFIG pulsed NPU error clear");
+      cfg_error_quarantine_q <= cfg_fire_w && npu_error_w &&
+                                (cfg_index_w != 5'd30);
+      if (cfg_fire_w && npu_error_w && (cfg_index_w != 5'd30)) begin
+        quarantine_desc_state_q <= desc_state_q;
+        quarantine_desc_expected_q <= desc_expected_q;
+        quarantine_error_code_q <= npu_error_code_w;
+      end
+    end
+  end
 endmodule

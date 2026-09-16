@@ -91,6 +91,15 @@ config RISCV_EXT_C
     控制 NEMU 是否按 16/32 位可变长度取指并执行压缩整数指令；
     AM guest 编译参数同步追加 c。
 
+config RISCV_EXT_SDTRIG
+  depends on RV64
+  bool "Enable Sdtrig native address triggers"
+  default n
+  help
+    One native type 2/type 6 execute/load/store address trigger, before
+    retirement, with exact virtual address matching and action 0.
+    MIE/SIE suppress recursive traps; optional debug-mode entry is absent.
+
 config SOC_SIM
   depends on ISA_riscv && !RV64 && !TARGET_AM
   bool "Use the ysyxSoC platform profile"

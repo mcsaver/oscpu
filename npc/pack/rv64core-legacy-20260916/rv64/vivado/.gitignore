@@ -1,0 +1,5 @@
+out/
+*.jou
+*.log
+.Xil/
+vivado*.backup*

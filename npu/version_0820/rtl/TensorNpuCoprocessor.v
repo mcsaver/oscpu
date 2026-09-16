@@ -238,6 +238,7 @@ module TensorNpuCoprocessor #(
   output wire [63:0]                  sync_tag_o,
   output wire                         sync_tag_valid_o,
   input  wire                         error_clear_i,
+  output wire                         error_clear_ready_o,
   output wire                         busy_o,
   output wire                         error_o,
   output wire [`NPU_ERROR_W-1:0]      error_code_o,
@@ -391,8 +392,13 @@ module TensorNpuCoprocessor #(
 
   reg terminal_error_q;
   reg [`NPU_ERROR_W-1:0] terminal_error_code_q;
+  // Recoverability is a property of this exact terminal lifecycle, not a
+  // lookup by error code.  Freeze it beside the terminal payload so the
+  // completion can be held under backpressure without classification drift.
+  reg terminal_error_recoverable_q;
   reg sticky_error_q;
   reg [`NPU_ERROR_W-1:0] sticky_error_code_q;
+  reg sticky_error_recoverable_q;
 
   reg [63:0] command_count_q;
   reg [63:0] completion_count_q;
@@ -420,7 +426,9 @@ module TensorNpuCoprocessor #(
   assign completion_opclass_o = macro_transaction_q ?
                                 {OPCLASS_W{1'b0}} : cmd_opclass_q;
   assign completion_error_o = terminal_error_q;
-  assign completion_error_code_o = terminal_error_code_q;
+  assign completion_error_code_o = terminal_error_q ?
+      {~terminal_error_recoverable_q, terminal_error_code_q[6:0]} :
+      `NPU_ERR_NONE;
   wire macro_completion_active_w;
   assign macro_completion_active_w = completion_valid_o &&
                                      macro_transaction_q;
@@ -466,7 +474,15 @@ module TensorNpuCoprocessor #(
   assign completion_macro_state_update_count_o = 64'd0;
   assign busy_o = (state_q != ST_IDLE) && (state_q != ST_ERROR_HOLD);
   assign error_o = sticky_error_q;
-  assign error_code_o = sticky_error_code_q;
+  assign error_code_o = sticky_error_q ?
+      {~sticky_error_recoverable_q, sticky_error_code_q[6:0]} :
+      `NPU_ERR_NONE;
+  // A clear is legal only after the failing terminal has been accepted and
+  // only for an error whose source proved that no child/portal transaction
+  // could still arrive.  Fatal errors remain sticky until reset.
+  assign error_clear_ready_o = (state_q == ST_ERROR_HOLD) &&
+                               sticky_error_q &&
+                               sticky_error_recoverable_q;
   assign command_count_o = command_count_q;
   assign completion_count_o = completion_count_q;
   assign error_count_o = error_count_q;
@@ -6895,8 +6911,10 @@ module TensorNpuCoprocessor #(
       functional_completion_baseline_q <= 64'd0;
       terminal_error_q <= 1'b0;
       terminal_error_code_q <= `NPU_ERR_NONE;
+      terminal_error_recoverable_q <= 1'b0;
       sticky_error_q <= 1'b0;
       sticky_error_code_q <= `NPU_ERR_NONE;
+      sticky_error_recoverable_q <= 1'b0;
       command_count_q <= 64'd0;
       completion_count_q <= 64'd0;
       error_count_q <= 64'd0;
@@ -6913,6 +6931,8 @@ module TensorNpuCoprocessor #(
         ST_IDLE: begin
           terminal_error_q <= 1'b0;
           terminal_error_code_q <= `NPU_ERR_NONE;
+          terminal_error_recoverable_q <= 1'b0;
+          sticky_error_recoverable_q <= 1'b0;
           if (cmd_valid_i && cmd_ready_o) begin
             macro_transaction_q <= 1'b0;
             cmd_is_64_q <= cmd_is_64_i;
@@ -6985,6 +7005,10 @@ module TensorNpuCoprocessor #(
         end
 
         ST_DECODE: begin
+          // Decoder/config/sync rejection precedes every engine start.  No
+          // request owner exists yet, so these terminals are clearable.
+          terminal_error_recoverable_q <= 1'b1;
+          sticky_error_recoverable_q <= 1'b1;
           if (!dec_legal_w) begin
             terminal_error_q <= 1'b1;
             terminal_error_code_q <= `NPU_ERR_ILLEGAL_ENCODING;
@@ -7047,6 +7071,10 @@ module TensorNpuCoprocessor #(
         end
 
         ST_TIU_RUN: begin
+          // Once an engine has started, this top does not yet carry a proof
+          // that every possible child transaction is silent at failure.
+          terminal_error_recoverable_q <= 1'b0;
+          sticky_error_recoverable_q <= 1'b0;
           if (mm2_done_w) begin
             terminal_error_q <= 1'b0;
             terminal_error_code_q <= `NPU_ERR_NONE;
@@ -7067,6 +7095,8 @@ module TensorNpuCoprocessor #(
         end
 
         ST_DMA_RUN: begin
+          terminal_error_recoverable_q <= 1'b0;
+          sticky_error_recoverable_q <= 1'b0;
           if (dma_done_w) begin
             terminal_error_q <= 1'b0;
             terminal_error_code_q <= `NPU_ERR_NONE;
@@ -7089,6 +7119,11 @@ module TensorNpuCoprocessor #(
         end
 
         ST_MACRO_START: begin
+          // All reject branches below are static descriptor/ABI/capability/
+          // layout/IOVA checks.  They run before any selected child receives
+          // a start handshake and are therefore recoverable.
+          terminal_error_recoverable_q <= 1'b1;
+          sticky_error_recoverable_q <= 1'b1;
           macro_cycles_q <= macro_cycles_q + 64'd1;
           if (!macro_select_vector_w && !macro_select_q8_w &&
               !macro_select_gemv_w && !macro_select_f32_move_w &&
@@ -7461,6 +7496,11 @@ module TensorNpuCoprocessor #(
         end
 
         ST_MACRO_RUN: begin
+          // Runtime adapter failures remain conservatively fatal.  Even when
+          // one selected adapter reports zero GMEM outstanding, the complete
+          // cross-portal late-response silence proof is not yet exported.
+          terminal_error_recoverable_q <= 1'b0;
+          sticky_error_recoverable_q <= 1'b0;
           macro_cycles_q <= macro_cycles_q + 64'd1;
           if (macro_adapter_f32_start_pulse_w)
             macro_f32_start_count_q <=
@@ -7559,16 +7599,19 @@ module TensorNpuCoprocessor #(
         end
 
         ST_ERROR_HOLD: begin
-          if (error_clear_i) begin
+          if (error_clear_i && error_clear_ready_o) begin
             sticky_error_q <= 1'b0;
             sticky_error_code_q <= `NPU_ERR_NONE;
+            sticky_error_recoverable_q <= 1'b0;
             state_q <= ST_IDLE;
           end
         end
 
         default: begin
           terminal_error_q <= 1'b1;
+          terminal_error_recoverable_q <= 1'b0;
           sticky_error_q <= 1'b1;
+          sticky_error_recoverable_q <= 1'b0;
           if (macro_transaction_q) begin
             terminal_error_code_q <= `NPU_ERR_MACRO_PROTOCOL;
             sticky_error_code_q <= `NPU_ERR_MACRO_PROTOCOL;
@@ -7604,6 +7647,19 @@ module TensorNpuCoprocessor #(
     if (!rst && completion_valid_o && completion_error_o &&
         (completion_error_code_o == `NPU_ERR_NONE))
       $error("NPU error completion carried NONE code");
+    if (!rst && completion_valid_o && completion_error_o &&
+        terminal_error_recoverable_q &&
+        (mm2_busy_w || dma_busy_w || selected_macro_busy_w ||
+         gmem_req_valid_o ||
+         q8_portal_req_valid_o || q8_portal_outstanding_o ||
+         f32_alu_portal_req_valid_o || f32_alu_portal_outstanding_o ||
+         f32_mover_portal_req_valid_o ||
+         f32_mover_portal_outstanding_o))
+      $error("recoverable NPU terminal retained an active/outstanding child");
+    if (!rst && error_clear_ready_o &&
+        ((state_q != ST_ERROR_HOLD) || !sticky_error_q ||
+         !sticky_error_recoverable_q))
+      $error("NPU error clear advertised outside recoverable ERROR_HOLD");
     if (!rst && (state_q == ST_TIU_RUN) && dma_busy_w)
       $error("NPU DMA became busy under TIU owner");
     if (!rst && (state_q == ST_DMA_RUN) && mm2_busy_w)

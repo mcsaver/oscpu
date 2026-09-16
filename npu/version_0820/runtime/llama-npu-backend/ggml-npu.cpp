@@ -7,6 +7,14 @@
 #include "qwen-remaining-manifest.generated.h"
 #include "qwen-sampler-argmax-profile.generated.h"
 
+#if defined(NPU_COMPILED_MODEL)
+#include "npu-model-artifact.h"
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <algorithm>
+#endif
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -110,6 +118,11 @@ struct system_transport_ledger {
 };
 
 struct npu_backend_context {
+#if defined(NPU_COMPILED_MODEL)
+    std::unique_ptr<npu_system_session> model_session;
+    std::uint64_t model_generation = 0;
+    bool model_dispatch_passed = false;
+#endif
     audit_generation active_audit = audit_generation::none;
     ggml_npu_audit_snapshot_v1 audit_v1 = {};
     ggml_npu_audit_snapshot_v2 audit_v2 = {};
@@ -2300,6 +2313,7 @@ static void npu_note_runner_result(
     }
 }
 
+#if !defined(NPU_COMPILED_MODEL)
 static bool npu_execute_exact_f32_alu(
         npu_backend_context * context,
         ggml_tensor * node,
@@ -3502,6 +3516,7 @@ static bool npu_execute_exact_remaining(
     return true;
 }
 
+#endif
 extern "C" bool ggml_backend_npu_audit_begin_v1(
         ggml_backend_t backend,
         uint64_t dispatch_id,
@@ -3628,6 +3643,17 @@ extern "C" bool ggml_backend_npu_audit_end_v2(
            snapshot->rtl_failures == 0 &&
            snapshot->gmem_errors == 0 &&
            snapshot->timeout_errors == 0;
+#if defined(NPU_COMPILED_MODEL)
+    const bool compiled_ok = context->model_dispatch_passed && context->model_session &&
+        context->model_session->ready() &&
+        context->model_session->status().constructor_count == 1 &&
+        context->model_session->status().reset_release_count == 1 &&
+        context->model_session->status().boot_count == 1;
+    context->active_audit = audit_generation::none;
+    context->model_dispatch_passed = false;
+    npu_clear_canonical_binding(context);
+    return audit_ok && compiled_ok;
+#else
     const bool products_safe =
         snapshot->required_seen <=
             std::numeric_limits<std::uint64_t>::max() / 31U;
@@ -3994,8 +4020,10 @@ extern "C" bool ggml_backend_npu_audit_end_v2(
     context->system_ledger = {};
     npu_clear_canonical_binding(context);
     return audit_ok && system_ok;
+#endif
 }
 
+#if !defined(NPU_COMPILED_MODEL)
 extern "C" bool ggml_backend_npu_representative_audit_begin_v4(
         ggml_backend_t backend,
         uint64_t dispatch_id,
@@ -4238,6 +4266,12 @@ extern "C" bool ggml_backend_npu_f32_alu_self_test_v4(
     return returned && runner_result.passed;
 }
 
+#endif
+#if defined(NPU_COMPILED_MODEL)
+#include "../../compiler/npu-model-compiler.inc"
+#include "npu-model-frontend.inc"
+#endif
+
 static const char * npu_backend_name(ggml_backend_t) {
     return "NPU";
 }
@@ -4255,6 +4289,9 @@ static ggml_status npu_backend_graph_compute(
         return GGML_STATUS_FAILED;
     }
 
+#if defined(NPU_COMPILED_MODEL)
+    return npu_model_graph_compute(context, graph);
+#else
     const int node_count = ggml_graph_n_nodes(graph);
     for (int index = 0; index < node_count; ++index) {
         ggml_tensor * node = ggml_graph_node(graph, index);
@@ -4351,6 +4388,7 @@ static ggml_status npu_backend_graph_compute(
     }
 
     return GGML_STATUS_SUCCESS;
+#endif
 }
 
 static const ggml_backend_i npu_backend_interface = {
@@ -4528,6 +4566,7 @@ static void * npu_registry_proc_address(ggml_backend_reg_t, const char * name) {
         return reinterpret_cast<void *>(
             ggml_backend_npu_canonical_binding_seal_v1);
     }
+#if !defined(NPU_COMPILED_MODEL)
     if (std::strcmp(
             name, GGML_NPU_REPRESENTATIVE_AUDIT_BEGIN_V4_PROC) == 0) {
         return reinterpret_cast<void *>(
@@ -4558,6 +4597,7 @@ static void * npu_registry_proc_address(ggml_backend_reg_t, const char * name) {
         return reinterpret_cast<void *>(
             ggml_backend_npu_f32_alu_self_test_v4);
     }
+#endif
     return nullptr;
 }
 

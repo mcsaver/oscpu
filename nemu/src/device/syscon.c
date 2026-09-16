@@ -13,6 +13,13 @@
 #define SYSCON_RESET_CONTROL_OFFSET 0x0u
 
 static uint32_t syscon_reset_reg;
+#ifdef CONFIG_TARGET_SHARE
+// Read-only terminal observation after the reference executes its own store.
+__EXPORT uint32_t difftest_syscon_value(void) {
+  return syscon_reset_reg;
+}
+#endif
+
 
 /*
  * The parent "syscon" node is a register map, not a write-only test finisher.

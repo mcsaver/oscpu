@@ -1,0 +1,143 @@
+{
+  "schema": "npc-rv64-performance-baseline-contract-v3",
+  "performance_baseline_contract_id": "npc-rv64-perf-baseline-v3-f72e-fresh-direct-20260808",
+  "contract_state": "FROZEN_CURRENT_ARCH_STABLE_FRESH_EXECUTION_CONTRACT",
+  "performance_baseline_eligible": true,
+  "current_arch_stable_binding": {
+    "design_id": "sha256:f72e1fb439364378649b7b03db5cb7a52cf42367022cb0c6e07348a0e3659a42",
+    "result": {
+      "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "sha256": "a80f88a4215e34fdf2b064eae993d0242c8649339b8387007e680eb45d7a8325",
+      "size_bytes": 770977
+    },
+    "candidate": {
+      "path": ".github/task-runs/2026-08-08-rv64-v15z-arch-stable-act4-rebind-f72e-a1/evidence/arch-stable-candidate-f72e-v5/candidate.json",
+      "sha256": "697ec15673499dc7a2f8e6d07eece5b5020b0a4a5690e3885ff1646a55b6dade",
+      "size_bytes": 167392
+    },
+    "functional_inputs_pre": {
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/inputs.pre.json",
+      "sha256": "50bea73b215602885379c2fde12169533c88d02eab0564ec59445deac4899afd",
+      "size_bytes": 315876
+    },
+    "functional_inputs_post": {
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/inputs.post.json",
+      "sha256": "50bea73b215602885379c2fde12169533c88d02eab0564ec59445deac4899afd",
+      "size_bytes": 315876
+    },
+    "simulator": {
+      "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/frozen/NpcSimTop",
+      "sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
+      "size_bytes": 3246944
+    },
+    "simulator_sha256": "8e426a6863652fd42f195d000e56e4626e918a9abac4ae7c30cde9549308fd2e",
+    "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+  },
+  "measurement_contract": {
+    "path": "npc/rv64/design/arch/performance-measurement-contract-v2.json",
+    "sha256": "3ecc2155fdcc7161ca2c0069bb621a05e28ce15f906b54b608a295bfc5fa7fb8",
+    "size_bytes": 5883
+  },
+  "counter_schema": {
+    "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+    "size_bytes": 12237
+  },
+  "boundary_qualification_amendment": {
+    "path": "npc/rv64/design/arch/performance-boundary-qualification-amendment-v2.json",
+    "sha256": "7e790d29a389aea310770ec768027aa47866b43ce8e59940c8817945ba48ffac",
+    "size_bytes": 3783
+  },
+  "workload_matrix": {
+    "path": "npc/rv64/design/arch/performance-workload-matrix-v1.json",
+    "sha256": "e8318d66756ff71751ba2af8f3faa82dce42154590f5982b510816feac4a883e",
+    "size_bytes": 3311
+  },
+  "policy": {
+    "path": "npc/rv64/eval/ppa/policies/performance-baseline-f7-v1.json",
+    "sha256": "1a6f2012f9ad9cf519147ff4ccd57fa569f85716c6e615357b49424d1c026f17",
+    "size_bytes": 2398
+  },
+  "workloads": {
+    "coremark": {
+      "input": "ITERATIONS=10",
+      "image": {
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/images/benchmarks/coremark.bin",
+        "sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+        "size_bytes": 1068536
+      },
+      "image_sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+      "start_pc": "0x00000000800017a8",
+      "stop_pc": "0x00000000800017b0",
+      "required_start_hits": 1,
+      "required_stop_hits": 1
+    },
+    "dhrystone_10000": {
+      "input": "mainargs=10000",
+      "image": {
+        "path": ".github/task-runs/2026-08-08-rv64-v15x-trap-c0-dispatch-closure-f72e-l1-a1/evidence/functional/images/benchmarks/dhrystone.bin",
+        "sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+        "size_bytes": 1073376
+      },
+      "image_sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+      "start_pc": "0x0000000080000334",
+      "stop_pc": "0x000000008000047c",
+      "required_start_hits": 10000,
+      "required_stop_hits": 1
+    }
+  },
+  "preflight_requirements": {
+    "timing": "before the first benchmark simulation",
+    "arch_stable": "exact current result, candidate and design-id",
+    "simulator": "exact current executable ELF with COUNTERS_FINAL and v4 marker strings",
+    "configuration": "exact current hash with CONFIG_NPC_OOO_STATS=y",
+    "workloads": "exact current CoreMark and Dhrystone images and ROI contracts",
+    "contracts": "measurement, counter, endpoint amendment, workload matrix and policy exact hashes"
+  },
+  "execution_requirements": {
+    "mode": "FRESH_CURRENT_DESIGN_DIRECT",
+    "stats_on_repetitions_per_workload": 3,
+    "stats_on_simulator_builds": 0,
+    "stats_on_simulator_policy": "reuse one immutable current ARCH_STABLE executable for all six runs",
+    "stats_off_builds": 1,
+    "stats_off_repetitions_per_workload": 1,
+    "stats_off_mode": "CONFIG_NPC_OOO_STATS=n",
+    "ordering": "all executions are sequential under the RV64 single-flight lane",
+    "timeout_is_failure": true,
+    "outlier_removal": false,
+    "historical_counter_reuse": false
+  },
+  "acceptance": {
+    "stats_on": "each raw log independently passes unique FINAL and COUNTERS_FINAL parsing, exact endpoint correction and all nested conservation checks",
+    "repeatability": "cycles, retired instructions and the complete counter stack are bit-exact across three repetitions",
+    "instrumentation_non_interference": "stats-off cycles and retired instructions exactly match stats-on for both workloads",
+    "identity": "all artifacts bind repository-relative path, byte size and SHA-256",
+    "postflight": "fresh ARCH_STABLE verification is mandatory after execution",
+    "independent_review": "canonical publication requires a versioned direct-execution review receipt",
+    "unknown_ratio_max": 0.01
+  },
+  "claim_boundary": {
+    "maturity_stage": "PERF_BASELINE",
+    "scope": "two deterministic current-design bare-metal PC-bounded workloads",
+    "global_workload_representativeness": false,
+    "full_causal_cpi_stack": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "not_claimed": [
+      "qualified frequency, area or power",
+      "global integer and FP physical issue-slot capacity",
+      "region-bound queue occupancy closure",
+      "complete causal CPI attribution",
+      "system performance recertification",
+      "PPA Pareto promotion"
+    ]
+  },
+  "refresh_triggers": [
+    "ARCH_STABLE result, candidate or design-id changes",
+    "production or elaborated RTL changes",
+    "simulator executable, host harness or device execution semantics change",
+    "config, workload image, ROI marker, counter schema, measurement contract, endpoint amendment, workload matrix, policy or checker change",
+    "memory or device latency semantics change",
+    "any raw log, postflight, review or frozen artifact drifts"
+  ]
+}

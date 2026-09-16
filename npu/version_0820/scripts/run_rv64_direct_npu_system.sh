@@ -10,17 +10,15 @@ NPU_TMP_DIR="${NPU_ROOT}/tmp/${RUN_ID}"
 OBJ_DIR="${NPU_TMP_DIR}/obj"
 COMPILER_TMP_DIR="${NPU_ROOT}/tmp/compiler/${RUN_ID}"
 LOG_FILE="${NPU_TMP_DIR}/run.log"
-NPC_OOO_STATS="${NPC_OOO_STATS:-1}"
+NPC_OOO_STATS="${NPC_OOO_STATS:-0}"
 
 case "${NPC_OOO_STATS}" in
   0)
     NPC_OOO_STATS_ARGS=()
     ;;
   1)
-    # Keep the implication explicit at this standalone build boundary even
-    # though NpcSimTop also provides an OOO=>SIM source-level closure.  Both
-    # defines are read-only instrumentation and leave synthesized RTL intact.
-    NPC_OOO_STATS_ARGS=(-DCONFIG_NPC_SIM_STATS -DCONFIG_NPC_OOO_STATS)
+    printf 'NPC_OOO_STATS is an old-core observer; native command/terminal/retire timing is reported by this test. Use NPC_OOO_STATS=0.\n' >&2
+    exit 2
     ;;
   *)
     printf 'NPC_OOO_STATS must be 0 or 1 (got %s)\n' "${NPC_OOO_STATS}" >&2
@@ -33,7 +31,9 @@ export TMPDIR="${COMPILER_TMP_DIR}"
 export TMP="${COMPILER_TMP_DIR}"
 export TEMP="${COMPILER_TMP_DIR}"
 unset MAKEFLAGS MFLAGS
-mapfile -t NPC_RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/vsrc" -g '*.v' -g '*.sv')
+read -r -a NPC_RTL_SRCS <<< "$(make -s -C "${NPC_RV64_DIR}" print-synth-rtl)"
+NPC_RTL_SRCS+=("${NPC_RV64_DIR}/vsrc/sim/AxiDpiSlave.sv"
+               "${NPC_RV64_DIR}/vsrc/sim/R64NpuCpuSim.sv")
 NPU_RTL_SRCS=(
   "${NPU_ROOT}/third_party/hardfloat/source/RISCV/HardFloat_specialize.v"
   "${NPU_ROOT}/third_party/hardfloat/source/HardFloat_primitives.v"
@@ -103,6 +103,7 @@ NPU_RTL_SRCS=(
   "${NPU_ROOT}/rtl/TensorNpuRegisterFile.v"
   "${NPU_ROOT}/rtl/TensorNpuMm2Engine.v"
   "${NPU_ROOT}/rtl/TensorNpuDmaEngine.v"
+  "${NPU_ROOT}/rtl/TensorNpuServiceDma.v"
   "${NPU_ROOT}/rtl/TensorNpuLocalMemory.v"
 )
 mapfile -t LZC_SRCS < <(
@@ -115,9 +116,9 @@ mapfile -t FP_SRCS < <(
 )
 
 {
-  verilator --cc --exe --build -j 0 -O3 --no-assert --no-trace \
+  verilator --cc --exe --build -j "${NPU_VERILATOR_JOBS:-6}" -O3 --assert -DR64_ASSERT --no-trace \
     "${NPC_OOO_STATS_ARGS[@]}" \
-    -CFLAGS "-O3 -DNDEBUG -march=native -DNPC_DIRECT_NPU_SYSTEM_OOO_STATS=${NPC_OOO_STATS}" \
+    -CFLAGS "-O3 -DNDEBUG -march=native -DNPC_R64_NATIVE=1 -DNPC_DIRECT_NPU_SYSTEM_OOO_STATS=${NPC_OOO_STATS}" \
     -MAKEFLAGS "OPT_FAST=-O3 OPT_SLOW=-O3 OPT_GLOBAL=-O3" \
     --top-module NpcTensorNpuSystemTop \
     -Wno-fatal \
@@ -130,6 +131,8 @@ mapfile -t FP_SRCS < <(
     -Wno-UNOPTFLAT \
     -I"${NPC_RV64_DIR}/vsrc" \
     -I"${NPC_RV64_DIR}/vsrc/include" \
+    -I"${NPC_RV64_DIR}/vsrc/chengyue64/backend" \
+    -I"${NPC_RV64_DIR}/vsrc/chengyue64/platform" \
     -I"${NPU_ROOT}/rtl" \
     -I"${NPU_ROOT}/third_party/hardfloat/source/RISCV" \
     -I"${NPU_ROOT}/third_party/hardfloat/source" \

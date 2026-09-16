@@ -197,3 +197,17 @@ eight-token RTL run has already occurred.
 then exits before RTL compute. Interactive mode defaults to two generated
 tokens; override it explicitly with
 `NPU_STRICT_INTERACTIVE_MAX_TOKENS=<N>` when a longer manual run is intended.
+
+
+## 真实 Qwen compiled-model 验收
+
+`run_qwen_compiled_model.sh [NEW_RUN_DIRECTORY]` 使用 `libggml-npu-model.so` 执行真实
+Qwen3.5-0.8B-Q8_0 两 token 生成。它检查模型 SHA-256，构建固定 Firmware/backend，捕获
+实际 token IDs，保留每代 command/weights/metadata、运行命令、输入二进制哈希和完整日志。
+输出目录必须是新的目录；完整生成和证据校验结束后才写 STATUS=PASS。
+
+`qwen_compiled_model_validate.py RUN_DIRECTORY` 可独立复核真实 tokens [283, 220]、
+两代各 1080 required command、每条有序 launch/terminal、单次 constructor/reset/boot、
+零 CPU tensor fallback 和完整 artifact hash。前缀命令、admission 或 manifest 回放均不能
+作为真实模型通过证据。构建前提和实现范围见
+[完整模型路径](../docs/NPU_COMPILED_MODEL.md)。

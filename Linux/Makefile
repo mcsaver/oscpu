@@ -51,35 +51,12 @@ endif
 include $(PLATFORM_MK)
 
 NPC_RV64 := $(REPO_ROOT)/npc/rv64
-NPC_OOO_CSR_QUEUE_HEAD ?= 0
-NPC_OOO_TERMINAL_HOLDER_ASSERT ?= 0
-NPC_SIM_BUILD_DIR := $(NPC_RV64)/build$(if $(filter 1 y,$(NPC_OOO_CSR_QUEUE_HEAD)),-csrqh,)
-NPC_SIM ?= $(NPC_SIM_BUILD_DIR)/NpcSimTop
-NPC_FAST_SIM ?= 1
-NPC_FAST_NATIVE ?= 1
-NPC_FAST_CXX_AUTO := $(shell \
-	for cxx in /usr/bin/clang++ clang++; do \
-	  if command -v "$$cxx" >/dev/null 2>&1; then \
-	    out="$${TMPDIR:-/tmp}/npc-fast-cxx-test-$$$$"; \
-	    if printf 'int main() { return 0; }\n' | "$$cxx" -x c++ - -o "$$out" >/dev/null 2>&1; then \
-	      rm -f "$$out"; \
-	      echo "$$cxx"; \
-	      break; \
-	    fi; \
-	    rm -f "$$out"; \
-	  fi; \
-	done)
-NPC_SIM_CXX ?= $(if $(filter command line environment override,$(origin CXX)),$(CXX),$(NPC_FAST_CXX_AUTO))
-NPC_SIM_OPT_FAST ?= $(if $(filter undefined,$(origin VERILATOR_OPT_FAST)),$(if $(filter 1,$(NPC_FAST_SIM)),-O3$(if $(filter 1,$(NPC_FAST_NATIVE)), -march=native,),),$(VERILATOR_OPT_FAST))
-NPC_SIM_OPT_GLOBAL ?= $(if $(filter undefined,$(origin VERILATOR_OPT_GLOBAL)),$(NPC_SIM_OPT_FAST),$(VERILATOR_OPT_GLOBAL))
-NPC_SIM_MAKE_ARGS :=
-ifeq ($(NPC_FAST_SIM),1)
-NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_CXX)),CXX='$(NPC_SIM_CXX)' LINK='$(NPC_SIM_CXX)',)
-NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_FAST)),VERILATOR_OPT_FAST='$(NPC_SIM_OPT_FAST)',)
-NPC_SIM_MAKE_ARGS += $(if $(strip $(NPC_SIM_OPT_GLOBAL)),VERILATOR_OPT_GLOBAL='$(NPC_SIM_OPT_GLOBAL)',)
-endif
-NPC_SIM_MAKE_ARGS += OOO_CSR_QUEUE_HEAD='$(NPC_OOO_CSR_QUEUE_HEAD)'
-NPC_SIM_MAKE_ARGS += OOO_TERMINAL_HOLDER_ASSERT='$(NPC_OOO_TERMINAL_HOLDER_ASSERT)'
+NPC_SIM_BUILD_DIR ?= $(NPC_RV64)/build/chengyue64/linux-system
+NPC_SIM ?= $(NPC_SIM_BUILD_DIR)/obj/VR64SystemTestTop
+NPC_REF ?= $(REPO_ROOT)/nemu/build/rv64-rebuild-reference/riscv64-nemu-interpreter-so
+NPC_MEMORY_BYTES ?= 0x40000000
+NPC_SIM_THREADS ?= 2
+NPC_UART_ARGS ?= --uart-stdin
 NEMU_HOME := $(REPO_ROOT)/nemu
 NEMU_BUILD_DIR ?= $(NEMU_HOME)/build
 NEMU_CONFIG_DIR ?= $(NEMU_HOME)
@@ -803,14 +780,27 @@ ifeq ($(ARCH),riscv64-nemu)
 	  $(ROOTFS_OVERLAY) \
 	  $(EXTRA_ARGS) 2>&1 | tee '$(CONSOLE_LOG)'
 else
-	$(EXPECT_ENV) '$(NPC_SIM)' -b $(PROGRESS_OPT) --no-diff --max=$(MAX_CYCLES) \
-	  --log='$(LOG_FILE)' \
-	  -i '$(RUN_FW)' \
+	@set -o pipefail; \
+	block_args=(); run_dir=; \
+	if [ -n '$(RUN_ROOTFS)' ]; then \
+	  run_dir=$$(mktemp -d '$(LOG_DIR)/block-run-XXXXXX'); \
+	  bash '$(SCRIPT_DIR)/prepare-npc-rootfs-run-image.sh' \
+	    --template '$(RUN_ROOTFS)' --run-image "$$run_dir/rootfs.ext4" \
+	    --binding-out "$$run_dir/binding.txt" || exit $$?; \
+	  sha256sum '$(RUN_ROOTFS)' >"$$run_dir/template.sha256" || exit $$?; \
+	  block_args=(--block="$$run_dir/rootfs.ext4"); \
+	fi; \
+	'$(NPC_SIM)' '$(RUN_FW)' '$(NPC_REF)' --system --memory=$(NPC_MEMORY_BYTES) \
+	  $(PROGRESS_OPT) --maxcycles=$(MAX_CYCLES) $(NPC_UART_ARGS) \
+	  $(if $(strip $(RUN_EXPECT)),--expect='$(RUN_EXPECT)',) \
 	  --load=$(NEXT_ADDR):'$(LINUX_IMAGE)' \
 	  --load=$(DTB_ADDR):'$(RUN_DTB)' \
-	  $(INITRD_LOAD) \
-	  $(ROOTFS_BLOCK) \
-	  $(EXTRA_ARGS) 2>&1 | tee '$(CONSOLE_LOG)'
+	  $(INITRD_LOAD) "$${block_args[@]}" \
+	  $(EXTRA_ARGS) 2>&1 | tee '$(CONSOLE_LOG)' '$(LOG_FILE)' ; \
+	statuses=("$${PIPESTATUS[@]}"); \
+	if [ -n "$$run_dir" ]; then sha256sum -c "$$run_dir/template.sha256" || exit $$?; fi; \
+	if [ "$${statuses[0]}" -ne 0 ]; then exit "$${statuses[0]}"; fi; \
+	exit "$${statuses[1]}"
 endif
 
 run-ubuntu-rootfs:
@@ -973,54 +963,10 @@ __show-boot:
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
-ifeq ($(NPC_KCONFIG_LOCK_HELD),1)
-linux-defconfig: $(CONF) $(FIXDEP)
-	@set -e; \
-	need=0; \
-	profile_hash=$$(sha256sum '$(LINUX_CONFIG)' | cut -d ' ' -f1); \
-	config_hash=$$(if [ -f '$(NPC_RV64)/.config' ]; then sha256sum '$(NPC_RV64)/.config' | cut -d ' ' -f1; else echo missing; fi); \
-	stamp_profile=$$(sed -n '1p' '$(LINUX_CONFIG_STAMP)' 2>/dev/null || true); \
-	stamp_config=$$(sed -n '2p' '$(LINUX_CONFIG_STAMP)' 2>/dev/null || true); \
-	if [ '$(FORCE_CONFIG)' = '1' ]; then need=1; fi; \
-	if [ "$$profile_hash" != "$$stamp_profile" ]; then need=1; fi; \
-	if [ "$$config_hash" != "$$stamp_config" ]; then need=1; fi; \
-	if [ "$$need" = 1 ]; then \
-	  cd '$(NPC_RV64)' && '$(CONF)' -s --defconfig='$(LINUX_CONFIG)' Kconfig; \
-	  cd '$(NPC_RV64)' && '$(CONF)' -s --syncconfig Kconfig; \
-	  config_hash=$$(sha256sum '$(NPC_RV64)/.config' | cut -d ' ' -f1); \
-	  printf '%s\n%s\n' "$$profile_hash" "$$config_hash" > '$(LINUX_CONFIG_STAMP)'; \
-	else \
-	  echo '[Linux] rv64 linux defconfig up to date'; \
-	fi
-
-linux-trace-defconfig: $(CONF) $(FIXDEP)
-	@set -e; \
-	need=0; \
-	profile_hash=$$(sha256sum '$(TRACE_CONFIG)' | cut -d ' ' -f1); \
-	config_hash=$$(if [ -f '$(NPC_RV64)/.config' ]; then sha256sum '$(NPC_RV64)/.config' | cut -d ' ' -f1; else echo missing; fi); \
-	stamp_profile=$$(sed -n '1p' '$(TRACE_CONFIG_STAMP)' 2>/dev/null || true); \
-	stamp_config=$$(sed -n '2p' '$(TRACE_CONFIG_STAMP)' 2>/dev/null || true); \
-	if [ '$(FORCE_CONFIG)' = '1' ]; then need=1; fi; \
-	if [ "$$profile_hash" != "$$stamp_profile" ]; then need=1; fi; \
-	if [ "$$config_hash" != "$$stamp_config" ]; then need=1; fi; \
-	if [ "$$need" = 1 ]; then \
-	  cd '$(NPC_RV64)' && '$(CONF)' -s --defconfig='$(TRACE_CONFIG)' Kconfig; \
-	  cd '$(NPC_RV64)' && '$(CONF)' -s --syncconfig Kconfig; \
-	  config_hash=$$(sha256sum '$(NPC_RV64)/.config' | cut -d ' ' -f1); \
-	  printf '%s\n%s\n' "$$profile_hash" "$$config_hash" > '$(TRACE_CONFIG_STAMP)'; \
-	else \
-	  echo '[Linux] rv64 trace defconfig up to date'; \
-	fi
-else
-# The NPC configuration, generated headers, profile stamps and the simulator
-# that consumes them form one mutable transaction.  Keep the lock outside all
-# build*/ directories so clean cannot replace its inode, then re-enter make
-# with the lock descriptor inherited for the complete writer/build graph.
-linux-defconfig linux-trace-defconfig: $(CONF) $(FIXDEP)
-	@mkdir -p '$(dir $(NPC_KCONFIG_LOCK))'
-	@python3 '$(NEMU_SAFE_FLOCK)' '$(NPC_KCONFIG_LOCK)' -- \
-	  $(MAKE) --no-print-directory NPC_KCONFIG_LOCK_HELD=1 '$@'
-endif
+# The native core is defined by vsrc/chengyue64/filelist.mk, not the old OoO
+# Kconfig switches. These compatibility names no longer rewrite old headers.
+linux-defconfig linux-trace-defconfig:
+	@printf '%s\n' '[Linux] native R64SystemTop; full ISA/privileged hardware and assertions enabled'
 
 ifeq ($(ARCH),riscv64-nemu)
 nemu-linux-defconfig:
@@ -1161,18 +1107,12 @@ nemu-rootfs-machine-info:
 nemu-rootfs-overlay-machine-info:
 	@echo '[Linux] skip NEMU rootfs overlay machine info for ARCH=$(ARCH)'
 
-ifeq ($(NPC_KCONFIG_LOCK_HELD),1)
-sim: linux-defconfig
-	+$(MAKE) -C '$(NPC_RV64)' -j'$(JOBS)' $(NPC_SIM_MAKE_ARGS)
+sim:
+	+$(MAKE) -C '$(NPC_RV64)' all difftest-ref SYSTEM_BUILD_DIR='$(NPC_SIM_BUILD_DIR)' CORE_REF='$(NPC_REF)' CORE_JOBS='$(JOBS)' CORE_THREADS='$(NPC_SIM_THREADS)'
 
 check-sim: sim
-	@test -x '$(NPC_SIM)'
-else
-sim check-sim: $(CONF) $(FIXDEP)
-	@mkdir -p '$(dir $(NPC_KCONFIG_LOCK))'
-	@python3 '$(NEMU_SAFE_FLOCK)' '$(NPC_KCONFIG_LOCK)' -- \
-	  $(MAKE) --no-print-directory NPC_KCONFIG_LOCK_HELD=1 '$@'
-endif
+	@test -x '$(NPC_SIM)' -a -f '$(NPC_REF)'
+
 endif
 
 linux-image: $(LINUX_IMAGE)
@@ -2057,19 +1997,19 @@ boot-tools:
 	+$(MAKE) -C '$(TOOLS_DIR)' boot-tools
 
 tools-smoke: check-sim
-	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $(TOOL_SMOKES)
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' NPC_REF='$(NPC_REF)' $(TOOL_SMOKES)
 
 $(TOOL_SMOKES): check-sim
-	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' NPC_REF='$(NPC_REF)' $@
 
 smoke-dtb: check-sim
-	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' NPC_REF='$(NPC_REF)' $@
 
 smoke-opensbi smoke-opensbi-sbi: check-sim opensbi
-	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' NPC_REF='$(NPC_REF)' $@
 
 smoke-virtio-blk: check-sim ubuntu-rootfs-image
-	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' VIRTIO_BLK_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' $@
+	+$(MAKE) -C '$(TOOLS_DIR)' NPC_SIM='$(NPC_SIM)' NPC_REF='$(NPC_REF)' VIRTIO_BLK_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' $@
 
 tools-clean:
 	+$(MAKE) -C '$(TOOLS_DIR)' clean

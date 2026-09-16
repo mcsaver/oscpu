@@ -167,19 +167,19 @@ static int csr_intr_log_budget = 128;
 #endif
 
 #ifdef CONFIG_RISCV_SYSCALL_DEBUG_LOG
-static int syscall_debug_budget = CONFIG_RISCV_SYSCALL_DEBUG_BUDGET;
-static bool syscall_return_pending = false;
-static word_t syscall_return_nr = 0;
-static vaddr_t syscall_return_epc = 0;
-static int post_exec_pc_log_budget = 64;
-static uint64_t post_exec_uinst_seen = 0;
+static int syscall_debug_budget = CONFIG_RISCV_SYSCALL_DEBUG_BUDGET;//还允许多少个syscall入口
+static bool syscall_return_pending = false;//当前是否等待一个syscall返回
+static word_t syscall_return_nr = 0;//保存syscall编号
+static vaddr_t syscall_return_epc = 0;//保存执行ECALL的PC
+static int post_exec_pc_log_budget = 64;//U-mode PC日志最多再打印多少条，初始64
+static uint64_t post_exec_uinst_seen = 0;//已观察到的U-mode指令数
 
-static inline void syscall_debug_log_enter(vaddr_t pc) {
-  if (cpu.priv != PRIV_U || syscall_debug_budget <= 0) return;
-  syscall_debug_budget--;
-  syscall_return_pending = true;
-  syscall_return_nr = R(17);
-  syscall_return_epc = pc;
+static inline void syscall_debug_log_enter(vaddr_t pc) {//定义syscall入口日志函数，它在U-mode ECALL的执行路径被调用
+  if (cpu.priv != PRIV_U || syscall_debug_budget <= 0) return;//只记录：1.来自U-mode的ECALL，且入口日志预算仍大于0，S-mode和M-mode ECALL不记录
+  syscall_debug_budget--;//消耗一个syscall入口预算
+  syscall_return_pending = true;//设置等待syscall返回标志
+  syscall_return_nr = R(17);//RISCV Linux ABI中 x17=a7=syscall number
+  syscall_return_epc = pc;//保存ECALL指令的地址
   Log("[Strace] enter pc=" FMT_WORD " nr=%" PRIu64
       " a0=" FMT_WORD " a1=" FMT_WORD " a2=" FMT_WORD
       " a3=" FMT_WORD " a4=" FMT_WORD " a5=" FMT_WORD
@@ -187,52 +187,53 @@ static inline void syscall_debug_log_enter(vaddr_t pc) {
       pc, (uint64_t)R(17), R(10), R(11), R(12), R(13), R(14), R(15), R(2));
 }
 
-static inline void syscall_debug_log_return(vaddr_t target) {
-  if (!syscall_return_pending || cpu.priv != PRIV_U) return;
-  word_t nr = syscall_return_nr;
+static inline void syscall_debug_log_return(vaddr_t target) {//定义syscall返回日志函数，参数target是trap return的目标PC
+  if (!syscall_return_pending || cpu.priv != PRIV_U) return;//只有满足以下条件才记录：1.之前确实记录过一个syscall入口。2.当前已经回复到U-mode
+  word_t nr = syscall_return_nr;//把之前全局保存的syscall number和ECALL PC复制到全局变量
   vaddr_t epc = syscall_return_epc;
-  syscall_return_pending = false;
+  syscall_return_pending = false;//清除pending标志，避免重复输出同一次返回
   Log("[Strace] return pc=" FMT_WORD " nr=%" PRIu64
       " ret=" FMT_WORD " target=" FMT_WORD,
-      epc, (uint64_t)nr, R(10), target);
-  if (nr == 221 && target != epc + 4) {
+      epc, (uint64_t)nr, R(10), target);//打印：原ECALL PC, syscall nember, 返回值a0=x10, SRET目标地址
+  if (nr == 221 && target != epc + 4) {//RISC-V Linux中syscall 221是execve
     post_exec_uinst_seen = 0;
     Log("[Strace] execve switched image target=" FMT_WORD " sp=" FMT_WORD,
         target, R(2));
   }
 }
 
-static inline void syscall_debug_log_user_pc(vaddr_t pc, uint32_t inst) {
-  if (post_exec_pc_log_budget <= 0 || cpu.priv != PRIV_U) return;
-  post_exec_uinst_seen++;
-  if (post_exec_uinst_seen <= 16 || post_exec_uinst_seen % 1000000 == 0) {
-    post_exec_pc_log_budget--;
+static inline void syscall_debug_log_user_pc(vaddr_t pc, uint32_t inst) {//定义U-mode指令PC日志函数
+  if (post_exec_pc_log_budget <= 0 || cpu.priv != PRIV_U) return;//耗尽预算或者当前不是U-mode的时候直接返回
+  post_exec_uinst_seen++;//没看到一条U-mode指令就增加计数
+  if (post_exec_uinst_seen <= 16 || post_exec_uinst_seen % 1000000 == 0) {//只在两种情况下打印：1.前16条指令。2.之后每1000000条指令
+    post_exec_pc_log_budget--;//只有真正打印时才消耗一条日志预算
     Log("[Utrace] after-exec seen=%" PRIu64 " pc=" FMT_WORD
         " inst=0x%08x ra=" FMT_WORD " sp=" FMT_WORD,
         post_exec_uinst_seen, pc, inst, R(1), R(2));
   }
 }
 #else
+//如果syscall debug没有启用，就定义三个空宏
 #define syscall_debug_log_enter(pc) ((void)0)
 #define syscall_debug_log_return(target) ((void)0)
 #define syscall_debug_log_user_pc(pc, inst) ((void)0)
 #endif
 
-static inline word_t sext32(uint32_t value) {
+static inline word_t sext32(uint32_t value) {//32位符号拓展
   return (word_t)SEXT(value, 32);
 }
 
-static inline word_t rol_xlen(word_t value, word_t shamt) {
+static inline word_t rol_xlen(word_t value, word_t shamt) {//XLEN位左旋
   shamt = SHAMT_XLEN(shamt);
   return shamt == 0 ? value : (word_t)((value << shamt) | (value >> (XLEN_BITS - shamt)));
 }
 
-static inline word_t ror_xlen(word_t value, word_t shamt) {
+static inline word_t ror_xlen(word_t value, word_t shamt) {//XLEN位右旋
   shamt = SHAMT_XLEN(shamt);
   return shamt == 0 ? value : (word_t)((value >> shamt) | (value << (XLEN_BITS - shamt)));
 }
 
-static inline word_t clz_xlen(word_t value) {
+static inline word_t clz_xlen(word_t value) {//count leading zeros，计算最高一侧连续0的数量
   if (value == 0) return XLEN_BITS;
 #ifdef CONFIG_ISA64
   return (word_t)__builtin_clzll(value);
@@ -241,7 +242,7 @@ static inline word_t clz_xlen(word_t value) {
 #endif
 }
 
-static inline word_t ctz_xlen(word_t value) {
+static inline word_t ctz_xlen(word_t value) {//count trailing zeros，计算最低位一侧连续0的数量
   if (value == 0) return XLEN_BITS;
 #ifdef CONFIG_ISA64
   return (word_t)__builtin_ctzll(value);
@@ -250,7 +251,7 @@ static inline word_t ctz_xlen(word_t value) {
 #endif
 }
 
-static inline word_t cpop_xlen(word_t value) {
+static inline word_t cpop_xlen(word_t value) {//population count，即统计有多少位为1
 #ifdef CONFIG_ISA64
   return (word_t)__builtin_popcountll(value);
 #else
@@ -258,15 +259,15 @@ static inline word_t cpop_xlen(word_t value) {
 #endif
 }
 
-static inline word_t sext_b_xlen(word_t value) {
+static inline word_t sext_b_xlen(word_t value) {//低字节/半字符号拓展
   return SEXT(BITS(value, 7, 0), 8);
 }
 
-static inline word_t sext_h_xlen(word_t value) {
+static inline word_t sext_h_xlen(word_t value) {//取低16位，按bit15符号拓展
   return SEXT(BITS(value, 15, 0), 16);
 }
 
-static inline word_t orc_b_xlen(word_t value) {
+static inline word_t orc_b_xlen(word_t value) {//输入字节==0，输出0x00，输入字节！=0，输出0xff
   word_t r = 0;
   for (int i = 0; i < (int)(XLEN_BITS / 8); i++) {
     word_t b = (value >> (i * 8)) & 0xffu;
@@ -275,7 +276,7 @@ static inline word_t orc_b_xlen(word_t value) {
   return r;
 }
 
-static inline word_t rev8_xlen(word_t value) {
+static inline word_t rev8_xlen(word_t value) {//rev8反转整个XLEN中的字节顺序，不会反转每个字节内部的bit
   word_t r = 0;
   for (int i = 0; i < (int)(XLEN_BITS / 8); i++) {
     r |= ((value >> (i * 8)) & 0xffu) << ((XLEN_BITS / 8 - 1 - i) * 8);
@@ -283,7 +284,7 @@ static inline word_t rev8_xlen(word_t value) {
   return r;
 }
 
-static inline word_t clmul_xlen(word_t src1, word_t src2) {
+static inline word_t clmul_xlen(word_t src1, word_t src2) {//carry-less multiplication，无进位乘法
   word_t r = 0;
   for (int i = 0; i < (int)XLEN_BITS; i++) {
     if ((src2 >> i) & 1u) r ^= src1 << i;
@@ -291,7 +292,7 @@ static inline word_t clmul_xlen(word_t src1, word_t src2) {
   return r;
 }
 
-static inline word_t clmulh_xlen(word_t src1, word_t src2) {
+static inline word_t clmulh_xlen(word_t src1, word_t src2) {//clmulh：返回完整无进位乘积的高XLEN位
   word_t r = 0;
   for (int i = 1; i < (int)XLEN_BITS; i++) {
     if ((src2 >> i) & 1u) r ^= src1 >> (XLEN_BITS - i);
@@ -299,7 +300,7 @@ static inline word_t clmulh_xlen(word_t src1, word_t src2) {
   return r;
 }
 
-static inline word_t clmulr_xlen(word_t src1, word_t src2) {
+static inline word_t clmulr_xlen(word_t src1, word_t src2) {//clmulr：返回完整无进位乘积中右对其的一段
   word_t r = 0;
   for (int i = 0; i < (int)XLEN_BITS; i++) {
     if ((src2 >> i) & 1u) r ^= src1 >> (XLEN_BITS - 1 - i);

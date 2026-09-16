@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-arch-stable-candidate-v1.schema.json",
+  "title": "NPC RV64 ARCH_STABLE declaration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "design_id", "scope", "artifacts", "freeze_inputs",
+    "run_parameters", "claim"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-arch-stable-candidate-v1"},
+    "design_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cohort_id", "product", "excluded_debt_ids"],
+      "properties": {
+        "cohort_id": {"type": "string", "minLength": 1},
+        "product": {"type": "string", "minLength": 1},
+        "excluded_debt_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "debt_ledger", "architecture_evidence", "architecture_result",
+        "holder_census", "functional_aggregate", "cohort_inventory"
+      ],
+      "properties": {
+        "debt_ledger": {"type": "string", "minLength": 1},
+        "architecture_evidence": {"type": "string", "minLength": 1},
+        "architecture_result": {"type": "string", "minLength": 1},
+        "holder_census": {"type": "string", "minLength": 1},
+        "functional_aggregate": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "null"}
+          ]
+        },
+        "cohort_inventory": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "freeze_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config", "generated_headers", "filelists", "specifications",
+        "test_sources", "tool_versions", "liberty", "macros",
+        "constraints", "images", "binaries", "workflow"
+      ],
+      "properties": {
+        "config": {"$ref": "#/$defs/artifactList"},
+        "generated_headers": {"$ref": "#/$defs/artifactList"},
+        "filelists": {"$ref": "#/$defs/artifactList"},
+        "specifications": {"$ref": "#/$defs/artifactList"},
+        "test_sources": {"$ref": "#/$defs/artifactList"},
+        "tool_versions": {"$ref": "#/$defs/artifactList"},
+        "liberty": {"$ref": "#/$defs/artifactList"},
+        "macros": {"$ref": "#/$defs/artifactList"},
+        "constraints": {"$ref": "#/$defs/artifactList"},
+        "images": {"$ref": "#/$defs/artifactList"},
+        "binaries": {"$ref": "#/$defs/artifactList"},
+        "workflow": {"$ref": "#/$defs/artifactList"}
+      }
+    },
+    "run_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "clock_port", "period_ns", "synthesis_seed", "threads"],
+      "properties": {
+        "top": {"type": "string", "minLength": 1},
+        "clock_port": {"type": "string", "minLength": 1},
+        "period_ns": {"type": "number", "exclusiveMinimum": 0},
+        "synthesis_seed": {"type": "integer"},
+        "threads": {"type": "integer", "minimum": 1}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "architecture_freeze", "ppa", "promotion_eligible", "canonical",
+        "architecture_feasible_seed"
+      ],
+      "properties": {
+        "architecture_freeze": {"enum": ["GAP", "ARCH_STABLE"]},
+        "ppa": {"const": "UNQUALIFIED"},
+        "promotion_eligible": {"const": false},
+        "canonical": {"type": "null"},
+        "architecture_feasible_seed": {"type": "null"}
+      }
+    }
+  },
+  "$defs": {
+    "artifactList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

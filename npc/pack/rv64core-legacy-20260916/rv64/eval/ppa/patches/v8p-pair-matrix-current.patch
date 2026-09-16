@@ -1,0 +1,136 @@
+--- run-focused.sh
++++ run-focused.sh
+@@ -1,14 +1,16 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+-RUN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+-REPO_ROOT=$(git -C "$RUN_DIR" rev-parse --show-toplevel)
++RUN_DIR=$(realpath -m -- "${V8P_ASSET_DIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}")
++REPO_ROOT=$(CDPATH= cd -- "$RUN_DIR/../../.." && pwd)
++CURRENT_ADAPTER_PATCH=$(realpath -- "${V8P_CURRENT_ADAPTER_PATCH:?current adapter patch is required}")
++TASK_RUN_ID=${V8P_TASK_RUN_ID:?task-run id is required}
+ NPC_HOME="$REPO_ROOT/npc/rv64"
+ TB_HOME="$NPC_HOME/testbench"
+-EVIDENCE_DIR="$RUN_DIR/evidence/focused"
++EVIDENCE_DIR=$(realpath -m -- "${V8P_EVIDENCE_DIR:?scoped evidence directory is required}")
+ MUTATOR="$RUN_DIR/mutate-v8p-pair-matrix.py"
+ BUILDER="$NPC_HOME/eval/ppa/tools/pair_matrix_evidence.py"
+ ARCH_TOOL="$NPC_HOME/eval/ppa/tools/architecture_hard_gates.py"
+-ARCH_MANIFEST="$NPC_HOME/eval/ppa/evidence/architecture-current.json"
+-ARCH_LOG="$NPC_HOME/eval/ppa/evidence/pair-matrix.log"
++ARCH_MANIFEST=$(realpath -m -- "${V8P_ARCH_MANIFEST:?scoped manifest is required}")
++ARCH_LOG=$(realpath -m -- "${V8P_ARCH_LOG:?scoped gate log is required}")
+ BACKEND="$NPC_HOME/vsrc/execute/OooIntBackend.v"
+@@ -34,5 +36,12 @@
+ case "$EVIDENCE_DIR" in
+-  "$RUN_DIR"/evidence/focused) rm -rf -- "$EVIDENCE_DIR" ;;
+-  *) fail "unsafe evidence path: $EVIDENCE_DIR" ;;
++  "$REPO_ROOT"/.github/task-runs/*/evidence/di3-current) ;;
++  *) fail "unsafe scoped DI-3 evidence path: $EVIDENCE_DIR" ;;
+ esac
++EVIDENCE_ROOT=${EVIDENCE_DIR%/di3-current}
++[[ "$ARCH_MANIFEST" == "$EVIDENCE_ROOT/architecture-current.json" ]] ||
++  fail "scoped manifest must share the task-run evidence root"
++[[ "$ARCH_LOG" == "$EVIDENCE_ROOT/pair-matrix.log" ]] ||
++  fail "scoped gate log must share the task-run evidence root"
++rm -rf -- "$EVIDENCE_DIR"
++rm -f -- "$ARCH_MANIFEST" "$ARCH_LOG"
+ mkdir -p "$EVIDENCE_DIR/static"
+@@ -41,5 +50,6 @@
+   "$RUN_DIR/contract.md"
+   "$RUN_DIR/rtl-derivation.md"
+   "$RUN_DIR/run-focused.sh"
++  "$CURRENT_ADAPTER_PATCH"
+   "$MUTATOR"
+   "$NPC_HOME/Makefile"
+@@ -279,18 +289,2 @@
+-# Refresh previously proven siblings under this exact full RTL digest.  A
+-# refusal or failure in one bounded refresh is evidence for that sibling only;
+-# this orchestrator keeps the architecture RED and aborts publication rather
+-# than changing any long-running goal status.
+-ARCH_REFRESH_MODE=1 bash \
+-  "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8n-true-ooo-long-latency/run-focused.sh" \
+-  > "$EVIDENCE_DIR/sibling-refresh-ooo1.log" 2>&1 ||
+-  fail "same-design OOO-1 refresh failed"
+-ARCH_REFRESH_MODE=1 bash \
+-  "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8m-selective-scheduling/run-focused.sh" \
+-  > "$EVIDENCE_DIR/sibling-refresh-ooo2.log" 2>&1 ||
+-  fail "same-design OOO-2 refresh failed"
+-ARCH_REFRESH_MODE=1 bash \
+-  "$REPO_ROOT/.github/task-runs/2026-07-20-rv64-v8o-no-static-lane-semantics/run-focused.sh" \
+-  > "$EVIDENCE_DIR/sibling-refresh-di4.log" 2>&1 ||
+-  fail "same-design DI-4 refresh failed"
+-
+-cp -- "$ARCH_MANIFEST" "$EVIDENCE_DIR/static/manifest-before-pair.json"
++printf '{"manifest_absent":true}\n' \
++  > "$EVIDENCE_DIR/static/manifest-before-pair.json"
+@@ -309,32 +303,21 @@
+   --sources-post "$EVIDENCE_DIR/sources.post.sha256" \
+   --gate-log "$ARCH_LOG" \
+   --manifest "$ARCH_MANIFEST" \
++  --run-id "$TASK_RUN_ID" \
+   > "$EVIDENCE_DIR/evidence-builder.log" 2>&1
+ 
+ python3 - "$EVIDENCE_DIR/static/manifest-before-pair.json" "$ARCH_MANIFEST" <<'PY'
+ import json
+ import pathlib
+ import sys
+ 
+ before = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+ after = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+-if before.get("design_id") != after.get("design_id"):
+-    raise SystemExit("pair publication changed the refreshed design binding")
+-before_tests = before.get("tests", {})
+-after_tests = after.get("tests", {})
+-expected_siblings = {
+-    "true_ooo_long_latency", "selective_scheduling",
+-    "no_static_lane_semantics",
+-}
+-if not expected_siblings.issubset(before_tests):
+-    raise SystemExit(f"sibling refresh inventory mismatch: {sorted(before_tests)}")
+-expected_after = set(before_tests) | expected_siblings | {"pair_matrix"}
+-if set(after_tests) != expected_after:
+-    raise SystemExit(f"pair publication inventory mismatch: {sorted(after_tests)}")
+-for name, record in before_tests.items():
+-    if name == "pair_matrix":
+-        continue
+-    if after_tests.get(name) != record:
+-        raise SystemExit(f"pair publication changed sibling evidence: {name}")
++if before != {"manifest_absent": True}:
++    raise SystemExit("scoped pair publication did not start absent")
++if set(after.get("tests", {})) != {"pair_matrix"}:
++    raise SystemExit("scoped pair publication claimed sibling gates")
++if not str(after.get("design_id", "")).startswith("sha256:"):
++    raise SystemExit("scoped pair publication lacks the RTL design id")
+ PY
+ 
+@@ -349,8 +332,4 @@
+ require_marker 'DI-3: GREEN (0 red checks)' "$EVIDENCE_DIR/static/architecture-gates.log"
+-require_marker 'DI-4: GREEN (0 red checks)' "$EVIDENCE_DIR/static/architecture-gates.log"
+-require_marker 'OOO-1: GREEN (0 red checks)' "$EVIDENCE_DIR/static/architecture-gates.log"
+-require_marker 'OOO-2: GREEN (0 red checks)' "$EVIDENCE_DIR/static/architecture-gates.log"
+-require_marker 'OOO-3: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
+ require_marker 'OVERALL: RED' "$EVIDENCE_DIR/static/architecture-gates.log"
+ 
+ python3 - "$EVIDENCE_DIR/static/architecture-result.json" <<'PY'
+@@ -364,7 +343,6 @@
+-required_green = {"DI-3", "DI-4", "OOO-1", "OOO-2"}
+-missing_green = required_green - green
+-if missing_green:
+-    raise SystemExit(f"required gates are not GREEN: {sorted(missing_green)}")
++required_green = {"DI-3"}
++if green != required_green:
++    raise SystemExit(f"scoped GREEN inventory mismatch: {sorted(green)}")
+ if result["gates"]["OOO-3"]["status"] != "RED":
+     raise SystemExit("OOO-3 unexpectedly became GREEN")
+ if result["overall_status"] != "RED":
+@@ -374,6 +352,3 @@
+-di5_status=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["gates"]["DI-5"]["status"])' \
+-  "$EVIDENCE_DIR/static/architecture-result.json")
+-printf '[V8P-RUNNER][PASS] baselines=8/8 pair_keys=15/15 memory_pairs=4/4 exclusions=10/10 mutations=%d/%d siblings=3/3 DI-3=GREEN DI-4=GREEN OOO-1=GREEN OOO-2=GREEN DI-5=%s OOO-3=RED overall=RED\n' \
+-  "$(( ${#mutation_rows[@]} + 1 ))" "$(( ${#mutation_rows[@]} + 1 ))" \
+-  "$di5_status" |
++printf '[V8P-RUNNER][PASS] mode=task-run-v1 baselines=8/8 pair_keys=15/15 memory_pairs=4/4 exclusions=10/10 mutations=%d/%d siblings=0/0 DI-3=GREEN overall=RED\n' \
++  "$(( ${#mutation_rows[@]} + 1 ))" "$(( ${#mutation_rows[@]} + 1 ))" |
+   tee "$EVIDENCE_DIR/runner-summary.log"

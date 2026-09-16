@@ -170,13 +170,22 @@ static inline void csr_profile_sstatus_write_delta(word_t old_status,
   }
 }
 
+#ifdef CONFIG_TARGET_SHARE
+/* The default reference keeps its general-purpose VM capabilities. A CPU
+ * integration may select its actual WARL MODE set before executing guests. */
+uint16_t difftest_satp_mode_mask = (1u << 0) | (1u << 8) | (1u << 9) | (1u << 10);
+#endif
 static inline word_t csr_sanitize_satp(word_t value) {
 #ifdef CONFIG_ISA64
   word_t mode = value >> 60;
   // satp.MODE 是 WARL 字段，NEMU 支持 Bare(0)/Sv39(8)/Sv48(9)/Sv57(10)。写入不支持的 MODE 时，
   // 按 RISC-V 特权规范"整个 satp 写不生效"——保持旧值，而不是清成 Bare(0)。
   // 清 0 会丢掉正在生效的映射、让后续访存把 VA 当 PA 落到越界物理地址, 并破坏分页模式探测语义。
+#ifdef CONFIG_TARGET_SHARE
+  if (!(difftest_satp_mode_mask & (1u << mode))) return cpu.csr.satp;
+#else
   if (mode != 0 && mode != 8 && mode != 9 && mode != 10) return cpu.csr.satp;
+#endif
   return value;
 #else
   return value;
@@ -201,6 +210,12 @@ static inline bool csr_is_implemented(uint32_t csr) {
   if (csr >= CSR_PMPADDR0 && csr <= CSR_PMPADDR15) return true;
 
   switch (csr) {
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+    case CSR_TSELECT:
+    case CSR_TDATA1:
+    case CSR_TDATA2:
+    case CSR_TINFO:
+#endif
     case CSR_MVENDORID:
     case CSR_MARCHID:
     case CSR_MIMPID:
@@ -318,6 +333,12 @@ static inline bool csr_read(uint32_t csr, word_t *value) {
   }
 
   switch (csr) {
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+    case CSR_TSELECT: *value = 0; return true;
+    case CSR_TDATA1: *value = cpu.csr.tdata1; return true;
+    case CSR_TDATA2: *value = cpu.csr.tdata2; return true;
+    case CSR_TINFO: *value = UINT64_C(0x01008044); return true;
+#endif
     // 身份与计数器 CSR 对齐 NPC，避免 guest 在 difftest 下读到 reference illegal trap。
     case CSR_MVENDORID: *value = 0x79737978u; return true;
     case CSR_MARCHID:   *value = 26010035u; return true;
@@ -384,6 +405,21 @@ static inline bool csr_write(uint32_t csr, word_t value) {
   }
 
   switch (csr) {
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+    case CSR_TSELECT:
+    case CSR_TINFO:
+      return true;
+    case CSR_TDATA1: {
+      const unsigned type = value >> 60;
+      cpu.csr.tdata1 = (type == 2 || type == 6)
+          ? ((word_t)type << 60) | (value & 0x5f)
+          : (word_t)15 << 60;
+      return true;
+    }
+    case CSR_TDATA2:
+      cpu.csr.tdata2 = value;
+      return true;
+#endif
 #ifdef CONFIG_RISCV_EXT_F
     case CSR_FFLAGS:
       if (!fp_state_enabled()) return false;

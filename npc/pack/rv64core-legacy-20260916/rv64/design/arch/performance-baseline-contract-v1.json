@@ -1,0 +1,94 @@
+{
+  "schema": "npc-rv64-performance-baseline-contract-v1",
+  "performance_baseline_contract_id": "npc-rv64-perf-baseline-v1-v14n-20260804",
+  "contract_state": "FROZEN_CURRENT_ARCH_STABLE_EXECUTION_CONTRACT",
+  "performance_baseline_eligible": true,
+  "current_arch_stable_binding": {
+    "design_id": "sha256:093c2380b997029944aa4462015d83711d7c5f1d52b15b4803c4515a581a7488",
+    "result": {
+      "path": "npc/rv64/eval/ppa/evidence/arch-stable-current.json",
+      "sha256": "6e2804f35fcf30b9663f7cb134a9f690303b367116c5ba0a9d6f0bb1d86e731c",
+      "size_bytes": 762060
+    },
+    "candidate": {
+      "path": "npc/rv64/eval/ppa/arch-stable/full-core-current.json",
+      "sha256": "636f9c8935557444dc6d2e9fa180bb8c3f980f7cdeb5d97a10f855f17f8d4c37",
+      "size_bytes": 164916
+    },
+    "simulator_sha256": "c7c9d9184560fc8d8d7b82fccb9d0a5567e37aac1837500add1d3357a1e01e33",
+    "config_sha256": "63ecfda4b377430c468116a77efb77345705c3fcf9aca499b641b287cc6da5ce"
+  },
+  "measurement_contract": {
+    "path": "npc/rv64/design/arch/performance-measurement-contract-v1.json",
+    "sha256": "61a227990663402e0909ec518980f5432a148b3a09106913e51aa5a9516cc0a4",
+    "size_bytes": 15576
+  },
+  "counter_schema": {
+    "path": "npc/rv64/design/arch/performance-counter-schema-v4.json",
+    "sha256": "2bd5b7b65e3b3576e2c7c636693366180f0ae25caa7597ec3eeb94d2428cf128",
+    "size_bytes": 12237
+  },
+  "policy": {
+    "path": "npc/rv64/eval/ppa/policies/proxy-200mhz-v1.json",
+    "sha256": "1e1cefe497e327c975229135af827afbe3cddb26efccd4fd4c1e141b774e5fce",
+    "size_bytes": 8270
+  },
+  "workloads": {
+    "coremark": {
+      "input": "ITERATIONS=10",
+      "image_sha256": "a7117f7490f6ff0e23008f631f2f0977b9d0e269380931e2079ae5c1e0cb238b",
+      "start_pc": "0x00000000800017a8",
+      "stop_pc": "0x00000000800017b0",
+      "required_start_hits": 1,
+      "required_stop_hits": 1
+    },
+    "dhrystone_10000": {
+      "input": "mainargs=10000",
+      "image_sha256": "56c6f0200041085498b2f18264a394a8ccf036b5146187f757bb22e28a878e41",
+      "start_pc": "0x0000000080000334",
+      "stop_pc": "0x000000008000047c",
+      "required_start_hits": 10000,
+      "required_stop_hits": 1
+    }
+  },
+  "execution_requirements": {
+    "stats_on_repetitions_per_workload": 3,
+    "stats_on_simulator_builds": 0,
+    "stats_on_simulator_policy": "reuse one immutable ARCH_STABLE frozen executable for all six runs",
+    "stats_off_builds": 1,
+    "stats_off_repetitions_per_workload": 1,
+    "stats_off_mode": "CONFIG_NPC_OOO_STATS=n",
+    "ordering": "all executions are sequential under one Windows-to-WSL shell owner",
+    "timeout_is_failure": true,
+    "outlier_removal": false
+  },
+  "acceptance": {
+    "stats_on": "each raw log independently passes v8 FINAL and v4 COUNTERS_FINAL parsing",
+    "repeatability": "cycles, retired instructions, complete counter stack and two-lane lost-slot ledger are bit-exact across three repetitions",
+    "instrumentation_non_interference": "stats-off cycles and retired instructions exactly match the stats-on baseline for both workloads",
+    "identity": "all artifacts bind repository-relative path, byte size and SHA-256; current ARCH_STABLE verifies before and after execution",
+    "unknown_ratio_max": 0.01
+  },
+  "claim_boundary": {
+    "maturity_stage": "PERF_BASELINE",
+    "full_causal_cpi_stack": false,
+    "ppa": "UNQUALIFIED",
+    "promotion_eligible": false,
+    "not_claimed": [
+      "qualified frequency",
+      "area",
+      "power",
+      "global integer and FP physical issue-slot capacity",
+      "complete causal CPI attribution",
+      "system performance recertification",
+      "PPA Pareto promotion"
+    ]
+  },
+  "refresh_triggers": [
+    "ARCH_STABLE result or candidate change",
+    "production or elaborated RTL change",
+    "simulator executable or host harness semantic change",
+    "config, workload image, ROI marker, counter schema, measurement contract, policy or checker change",
+    "memory or device latency semantic change"
+  ]
+}

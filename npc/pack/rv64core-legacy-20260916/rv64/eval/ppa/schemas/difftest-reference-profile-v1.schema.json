@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-difftest-reference-profile-v1.schema.json",
+  "title": "NPC RV64 local DiffTest reference execution profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "reference_sha256", "isa", "reset_pc", "program_load_address",
+    "memory_map", "comparison_policy", "source_artifacts"
+  ],
+  "properties": {
+    "schema": {"const": "npc-rv64-difftest-reference-profile-v1"},
+    "reference_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "isa": {"type": "string", "minLength": 1},
+    "reset_pc": {"const": "0x0000000080000000"},
+    "program_load_address": {"const": "0x0000000080000000"},
+    "memory_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pmem_base", "pmem_size", "mmio_model"],
+      "properties": {
+        "pmem_base": {"const": "0x0000000080000000"},
+        "pmem_size": {"type": "string", "minLength": 1},
+        "mmio_model": {"type": "string", "minLength": 1}
+      }
+    },
+    "comparison_policy": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "source_artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "reference_config", "reference_model_source", "comparison_policy_source"
+          ]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

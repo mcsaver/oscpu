@@ -1,0 +1,387 @@
+{
+  "name": "ChengYue64",
+  "name_zh": "承岳64",
+  "version": "1.0.0",
+  "date": "2026-09-16",
+  "rtl_content_change": false,
+  "native_rtl_headers_identical": 85,
+  "synthesis_sources": 87,
+  "files": [
+    {
+      "path": "core-version.mk",
+      "sha256": "d0ff1c475909b2956eefdb55e9395f0b48583c4d100da626aaf7b5f7d4364e39"
+    },
+    {
+      "path": "syn/chengyue64.sdc",
+      "sha256": "ec6de0aab3758128a8bf3f68f0ecfb5757934252801fc6a96123f20e0b7ca1d7"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/AxiClint.v",
+      "sha256": "5e42add23bfce00e8bb7050e169bcbc65ad28c72d559b21a73167eb695be6c13"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/AxiDefaultSlave.v",
+      "sha256": "aea1c8d1637d436efe9b7af5b875a72915d8e0887d39d612585f5fd9f768041e"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/AxiPlic.v",
+      "sha256": "00ffb2d5aeb609ff522275833df575ab94fe5366880d515cd7588171283d0284"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/AxiResetSyscon.v",
+      "sha256": "321f48d4d07c08d17e44228df4562c52a9d3095fd3282a46e74ea0dd1bdc428d"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/AxiToUart.v",
+      "sha256": "6820fa5b056bda1772d79d5452a4d87490be83d75350b31160b56ec442d51136"
+    },
+    {
+      "path": "vsrc/chengyue64/../bus/Uart.v",
+      "sha256": "dc84398f9edaf88551268921ad9cd79d172eedeeeb12a37b29b5ad0161281f6a"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Alu.v",
+      "sha256": "e695f8adf1ecb1d6f945daba9295194c56120556a7c4a28f2e8550bb74d8bf22"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Backend.v",
+      "sha256": "5001244278461c40d8426ac6b8df5ee8a1f675698fb92811d2fea126b9f301b7"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64CarryStages.v",
+      "sha256": "ec946ac9bfd2677b1d6d57b67ab452b98ab72caba9e4dc8a4838a6b616f853de"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Clmul.v",
+      "sha256": "d3dca54211d8b7fd6690fce882fad11ff2fc07b5cd191cf3cc7ecb7843fba3dc"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Decode.v",
+      "sha256": "40acaeb143d3351f73fa9702a55b01ab366a725ca595ec3c610372fb2e81b5d5"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64DecodeControl.v",
+      "sha256": "ca4cf8ebcfeb690664245449ad32c33ce3062bf499d80b6904781e415ee958d3"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64DecodeStage.v",
+      "sha256": "4c30eb08172ec90fc43d2311bf9c29b1854449de9135ef0be8ce26cf6991e366"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Divide.v",
+      "sha256": "cbb8721a885503f4fca4bb2f9a43fa515456181c018af0d6e477fefacc3e183a"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Execute.v",
+      "sha256": "988671339b330183d52f89547c43712386c06a46bdae49f5c2090383996afbd9"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64FpReadPlan.v",
+      "sha256": "f34a62ec862ee719274e168be3a279da386586ebc63f434372eb2f1cdbab85db"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64FreeSelect.v",
+      "sha256": "8299401709f93fefbd886dc95f1bc260342e577dad7a5e4760913956bf4ca5a7"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Issue.v",
+      "sha256": "76e6442bd6158ccea16304bc7adb5c14f4d5a7220db849c7ea0efc3358bf13a7"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Multiply.v",
+      "sha256": "5d6558ef73872c6e4506daaf88626def3a232fe7f7d32f68f19d16bd95c239be"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64NumericOwner.v",
+      "sha256": "3e3bfcae20aec135e61f415019b1635246d2dd7343c56cc45c90ce54bffbcb06"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64ProductTree.v",
+      "sha256": "85c6da13f84857cab85f23cf9c8e3a7e21a2f04c67390b7f8fd2e93c210301a6"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64RegRead.v",
+      "sha256": "e1aab01a8656a9759af83b91efd2a566781ebc876a5bd316bbac869082c61742"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Rename.v",
+      "sha256": "1907266e83c2a5fea8b025fe9313b6441b9f56114bed45420164cc6b020fb6d6"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Rob.v",
+      "sha256": "61f2b4166e7cda83113b9cfd48f844fd8c5663fa50a01ebc0e57b86566dbee4a"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Uop.vh",
+      "sha256": "cb65bbbff27eee95e4065120efa82d5da409182883dcb9a2b2f8b75732c5432c"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64WideAdd.v",
+      "sha256": "2e5ae29b64740c83f5dc7b17c834f8520ed7ad078a7ac16f730b0e70943bbe73"
+    },
+    {
+      "path": "vsrc/chengyue64/backend/R64Writeback.v",
+      "sha256": "da1d01151ede612dad9951351e61aa9ab71df41a3d090053427a6153b1e6c8bb"
+    },
+    {
+      "path": "vsrc/chengyue64/bus/R64AxiRead.v",
+      "sha256": "df49af74cc246ddcd3470daf5a0b44bb5026ad3244a18a118635419474363cce"
+    },
+    {
+      "path": "vsrc/chengyue64/bus/R64AxiWrite.v",
+      "sha256": "ace3eeb52f02c947f61ba6a55019fda3e1e51c24f41728bf1ce769a910543bb2"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64Commit.v",
+      "sha256": "a470c65cd600dc33f079ca90a5bed2cc7a9eb8e3dddd287e2751fd84cf128ab3"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64Counter.v",
+      "sha256": "79b39af757527dddf3339494b4e074e99899957bd08b6da219bd23fd55af83da"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64CounterNear.v",
+      "sha256": "86f01a2c27877ca614d15519de48949879b55f6c0c76ceac2ba1c83058e6e2ef"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64Csr.v",
+      "sha256": "db3254f9b6f57cbb98a6ae99d63733ad532220baa7abb463ffed88890740de39"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64CsrDecode.v",
+      "sha256": "8c48d8677d93a0fd38092ff58528bc56ff5ca4709c835d002cabdba9bd842295"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64Serial.v",
+      "sha256": "b749e0ca129b2367a53b8b760b8781cf7b50dd7bd83ac33d5ff7f266dc536768"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64TrapVector.v",
+      "sha256": "9bd0c376706bd1ceacf8a587e5108bd7c4692091436eef38a2295122ea21c03a"
+    },
+    {
+      "path": "vsrc/chengyue64/control/R64Trigger.v",
+      "sha256": "9f216f0c3beeda6626e62fe5caa3f0042da64471a33e4b3f6138bb5e794316ac"
+    },
+    {
+      "path": "vsrc/chengyue64/core/R64CoreTop.v",
+      "sha256": "88a43145470472c3d569fe2f9eebc291081a490a98ff305cc4b35c5bc7300a34"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpCompletion.v",
+      "sha256": "16d59f3af9c0d6584d39b0a323d90d9f3856aae63b6cdf55dbd57d5b201319f0"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpExecute.v",
+      "sha256": "c1a1fd353dddd492f5e38b3b9dac45cccdc17b919c70fc9687d2781cf3b6d5f0"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpFast.v",
+      "sha256": "de1d85298fb9037e96fcaf0d7018b553d0af376e6ea650fd89c88934ce7d9ca9"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpFma.v",
+      "sha256": "39768524fd056ee352ee243fff80cb7a82b014e7d538a42555bd132149fd6c4a"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpLong.v",
+      "sha256": "4a833e73c78577fe66862aa1b442954d37b6c93961285318e20b7462a705c662"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpOperand.v",
+      "sha256": "8bc20b3c0a8a5f10a455d9e1b77dd25c6fb7f0dd7bd880841ab10f1c616e4ad7"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpProductPipe.v",
+      "sha256": "296d22d05f0e61e39df9a29e79b1c1997c78734337deee51ff7c15fbc161ab0c"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpRound.v",
+      "sha256": "121ccc9c0c1304086031a855b2423e0a6404db182cb6199a19591f8615e5bbc6"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpRoundStages.v",
+      "sha256": "81fa930bd39afd0380ae4166d477e1863df18f081b798cc5dad64f75ce86fdf7"
+    },
+    {
+      "path": "vsrc/chengyue64/fp/R64FpUnpack.v",
+      "sha256": "bd73040a2a30289fa7318ec16839e7f6171fd7c96773457107f3aab5deb14562"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64Align.v",
+      "sha256": "4d7f640bfe611899a9bc05c14ae1de2a0e4fe166dee0faeffb491d653f7159ad"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64FetchStream.v",
+      "sha256": "3e66070b16a823b5a1589f3f323770e2779eded65221f6e395aea891dd1284e7"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64Frontend.v",
+      "sha256": "741a4c1ca7496f4a9b37ecb420349cb886061c70bfcc0af23c2319e6888d71ea"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64PacketParse.v",
+      "sha256": "f9a9bb14ee110ecf93b0a303422c0fc9589017dfbd28e465260fe840010a885c"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64Predictor.v",
+      "sha256": "f905551dbb6080d43f4117651bd2d69ec90f6451819ebcfadc98ff22c25cccf3"
+    },
+    {
+      "path": "vsrc/chengyue64/frontend/R64Rvc.v",
+      "sha256": "1669574632aee83a99ecfab2f79a93c88fe09c846e6735e52c99c608951d8130"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64Dcache.v",
+      "sha256": "ecd8e75435b1c55de1d83bce055043060e441a8e8b2d5b8ced9fb3a7f5d7a78d"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64DcacheAmoParts.v",
+      "sha256": "9cfb1c08537918c1ec3878eaf620950d1f2d6f79667f101af4914c60e54c85d3"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LoadStore.v",
+      "sha256": "88918488faf27316c17630ac320baf1cab2e37e1b28df6667a2b735b4121a1d4"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64Lsu.v",
+      "sha256": "e019527a849f7345d9fcaadc414ee563e5b9e7834a071f60a117d2a3a67decf7"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuCompletion.v",
+      "sha256": "44dd153806e1e44398c7c9a1a73a4b24755902f3ba26dac369c17b447d67f382"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuForwardByte.v",
+      "sha256": "61010b951b9aa247a6a5041bb66cc3b2e6e19ff43ecafca8ae16f2b3aed9da8e"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuMetaRead.v",
+      "sha256": "ee30cc8074a9c7456118694074c3694c3c7c89d8a2aa32cbcddc4807491395fd"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuOrderSelect.v",
+      "sha256": "76eaecea7344963f82be931d0002b4db6a9c903b8c0738614f4246f469e18b1d"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuRequestQueue.v",
+      "sha256": "a1a34602d007fbc1543a1af66ff6a8c9bee36f3386be23ce091bfc943cd9469e"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuSelect.v",
+      "sha256": "89b6b555644957b3294b90788b3ebd1938928dc74be29710c275a951fd09c1fe"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64LsuYoungestByte.v",
+      "sha256": "1e2ef52be18e553b7a8f60168c46b7cbd94e3dd8c47ac30984a96c2eee5d478a"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64MemoryService.v",
+      "sha256": "d2588c0bbbf82486f783d08235a6e99758d5c9a5f2bd0103e7cbbbb4d3a212b7"
+    },
+    {
+      "path": "vsrc/chengyue64/lsu/R64MemorySplit.v",
+      "sha256": "75ea5502b9e3f339c63199576da7c0c6dadaf171444a9eb3acc5631274ff856a"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64DataProtection.v",
+      "sha256": "67dddaa0f8ca48d44e1eb1994f2dda85c08a0b080417d982c961e54029c035b2"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64DataTranslation.v",
+      "sha256": "b7e7e74ba06de02624ec0d876846deba6cd5227b442bd5aaa2d66471c3759734"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64FetchProtection.v",
+      "sha256": "9a1116ffef657495c2af1e06ccfdc2f4c56618b8cc5441ae04590e114125362a"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64FetchTranslation.v",
+      "sha256": "eff7aa12f44d85ec3ce37a603bc85c285a6421cd548f405b605c68f82b63d6b4"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64ICache.v",
+      "sha256": "694d75cfc41f1d7c594ae82e31224f99367047b5710665b25a107dfaf05e5468"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64Memory.v",
+      "sha256": "3db655b93a9cf8bf8e5aa0097c83e4dce6194276bcd93e3cab1de1819361b33b"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64PageWalk.v",
+      "sha256": "0166955bfdf21dafa93ee841337d03b3e938abf595549d262cb05d25c53f8558"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64Pma.v",
+      "sha256": "7ee3e4ad7306ae696c1102577febfe68d733592446e293f3f26303b681618c9c"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64PmaRange.v",
+      "sha256": "4ad8c642ca98398e9f50853bc39523f9f293178cdca4d6d05c28f8cc97cd9332"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64PmpCheck.v",
+      "sha256": "5c3e412e736ffb91449ceaee3a1a9c9bdc44789237c828c6d3755d7eb2ffa320"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64PmpDecode.v",
+      "sha256": "15c9af7860b07f7e2c099cb6704928e5a563eaabf2d89a8aa6ed3e5f18b55bc7"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64PtePort.v",
+      "sha256": "86b80c3d5de2c86f690ee806655fbd1b03fa9a429f42e687dbbda1ba3be95a7f"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64Tlb.v",
+      "sha256": "984e2424093688b988ab01e0a6e43e030e6aa3dd941ea069c67198ba4e97ca2c"
+    },
+    {
+      "path": "vsrc/chengyue64/memory/R64Translation.v",
+      "sha256": "c5685a6e4dcbfa17ce83eaa3e297df12e3b00bfc0eeea309069150bcbf6122c1"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64AxiFabric.v",
+      "sha256": "3359cf3a34029149c5529d9117fbcd11b5e1bcb51541ff5dd5a52f4f4b74a4a9"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64AxiPlatform.v",
+      "sha256": "7577c7dfb4d2e7ae6e6383eeaf6e14de88f393b87f9226f78146d79dc4be453f"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64AxiReadService.v",
+      "sha256": "1c431e14b3c00169547b84c97fa62901c0586ea334c83be1c8361c46e55481fb"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64AxiRegisterPort.v",
+      "sha256": "51d7564337ba3e2be7a69f84d272beb0a21cecf9a0419e2ca14e4156d5d4908f"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64AxiRtc.v",
+      "sha256": "e05306df49169b752ff14f32c26d648b60a2405a90194cda15bbd8c11a60f0e0"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64PlatformMap.vh",
+      "sha256": "d30f4724ee208f2fc68a006ab8ca68fbf45bc8ecae577b8d29ea32ac77993f2a"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64SystemTop.v",
+      "sha256": "34b400e4078d8471207f380b2ebace7029ffb04e3e0d12eac80599a88e088f9f"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64TensorLink.v",
+      "sha256": "112b698540ab74fddc850590a9a498c94f24ddada8c0324d042bafdb2cd55819"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64TensorMemory.v",
+      "sha256": "087410a46d0a4d0acf6b92f11b3b6285efeb9c0a58d6343ce9bb258660378fcc"
+    },
+    {
+      "path": "vsrc/chengyue64/platform/R64TensorSystemTop.v",
+      "sha256": "74e03d8c63f2a008b022cfd34b6d2c5baf3fbd4af68a467c0953b91a430cdf01"
+    },
+    {
+      "path": "vsrc/include/define.v",
+      "sha256": "451d51b8e8b360e1a992809178c0e69dac29c9c956cef4ac5a7d1866f27fc70b"
+    }
+  ]
+}

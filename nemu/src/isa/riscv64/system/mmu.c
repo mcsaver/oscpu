@@ -384,6 +384,10 @@ static inline void sv39_tlb_fill(vaddr_t vaddr, paddr_t paddr,
   nemu_profile_count_if(NEMU_PROFILE_MMU_TLB_FILLS, 1);
 }
 
+#ifdef CONFIG_TARGET_SHARE
+/* Extra reserved PTE bits for a concrete hart without Svrsw60t59b. */
+uint64_t difftest_pte_reserved_extra = 0;
+#endif
 static inline bool pte_invalid(word_t pte) {
   if (riscv_pte_has_invalid_permissions(pte)) return true;
   // 未实现 Svpbmt(PBMT) 及保留位[58:54]非0 → 非法(bits[60:59]=RSW via Svrsw60t59b 须忽略)。
@@ -391,6 +395,9 @@ static inline bool pte_invalid(word_t pte) {
   // 注意: N(Svnapot) 不在此判断——金标准 sail-rv64-max 启用 Svnapot 1.0.0,
   // 叶 PTE 的 N 位需按 NAPOT 翻译而非一律 fault; 见 sv39_translate 叶分支。
   if (pte & (PTE_PBMT | PTE_RSVD)) return true;
+#ifdef CONFIG_TARGET_SHARE
+  if (pte & difftest_pte_reserved_extra) return true;
+#endif
   return false;
 }
 

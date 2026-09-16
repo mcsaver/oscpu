@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc-rv64-performance-baseline-independent-review-v2.schema.json",
+  "title": "NPC RV64 direct PERF_BASELINE independent review receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision",
+    "design_id",
+    "result",
+    "final_manifest",
+    "reviewer_contract",
+    "review_report",
+    "task_run_status",
+    "command_status",
+    "checker_regression",
+    "cleanup_receipt",
+    "workflow_artifacts",
+    "approval_marker",
+    "review_scope",
+    "open_blockers",
+    "unknowns",
+    "reviewed_at_utc"
+  ],
+  "properties": {
+    "schema": {
+      "const": "npc-rv64-performance-baseline-independent-review-v2"
+    },
+    "decision": {
+      "const": "APPROVE_PERF_BASELINE"
+    },
+    "design_id": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "result": {"$ref": "#/$defs/artifact"},
+    "final_manifest": {"$ref": "#/$defs/artifact"},
+    "reviewer_contract": {"$ref": "#/$defs/artifact"},
+    "review_report": {"$ref": "#/$defs/artifact"},
+    "task_run_status": {"$ref": "#/$defs/artifact"},
+    "command_status": {"$ref": "#/$defs/artifact"},
+    "checker_regression": {"$ref": "#/$defs/artifact"},
+    "cleanup_receipt": {"$ref": "#/$defs/artifact"},
+    "workflow_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checker",
+        "checker_helper",
+        "runner",
+        "status_helper",
+        "current_tests",
+        "direct_tests",
+        "review_tests",
+        "result_schema",
+        "review_schema"
+      ],
+      "properties": {
+        "checker": {"$ref": "#/$defs/artifact"},
+        "checker_helper": {"$ref": "#/$defs/artifact"},
+        "runner": {"$ref": "#/$defs/artifact"},
+        "status_helper": {"$ref": "#/$defs/artifact"},
+        "current_tests": {"$ref": "#/$defs/artifact"},
+        "direct_tests": {"$ref": "#/$defs/artifact"},
+        "review_tests": {"$ref": "#/$defs/artifact"},
+        "result_schema": {"$ref": "#/$defs/artifact"},
+        "review_schema": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "approval_marker": {
+      "type": "string",
+      "pattern": "^\\[PERFORMANCE-BASELINE-INDEPENDENT-REVIEW\\]\\[APPROVE_PERF_BASELINE\\] design_id=sha256:[0-9a-f]{64} result_sha256=[0-9a-f]{64}$"
+    },
+    "review_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_design_identity",
+        "input_preflight_before_first_simulation",
+        "committed_pc_boundaries",
+        "cycle_and_slot_conservation",
+        "bit_exact_repetitions",
+        "instrumentation_noninterference",
+        "fail_closed_status",
+        "cleanup_receipt",
+        "negative_mutations",
+        "historical_result_non_rebinding",
+        "canonical_build_and_verify",
+        "scoped_workloads",
+        "global_workload_representativeness",
+        "full_causal_cpi_stack",
+        "ppa",
+        "promotion_eligible"
+      ],
+      "properties": {
+        "current_design_identity": {"const": "PASS"},
+        "input_preflight_before_first_simulation": {"const": "PASS"},
+        "committed_pc_boundaries": {"const": "PASS"},
+        "cycle_and_slot_conservation": {"const": "PASS"},
+        "bit_exact_repetitions": {"const": "PASS"},
+        "instrumentation_noninterference": {"const": "PASS"},
+        "fail_closed_status": {"const": "PASS"},
+        "cleanup_receipt": {"const": "PASS"},
+        "negative_mutations": {"const": "PASS"},
+        "historical_result_non_rebinding": {"const": "PASS"},
+        "canonical_build_and_verify": {"const": "PASS"},
+        "scoped_workloads": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "coremark"},
+            {"const": "dhrystone_10000"}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "global_workload_representativeness": {"const": false},
+        "full_causal_cpi_stack": {"const": false},
+        "ppa": {"const": "UNQUALIFIED"},
+        "promotion_eligible": {"const": false}
+      }
+    },
+    "open_blockers": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "reviewed_at_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$"
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "size_bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

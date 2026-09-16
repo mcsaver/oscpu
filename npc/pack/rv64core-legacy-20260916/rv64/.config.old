@@ -1,0 +1,48 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# NPC RV64 Configuration Menu
+#
+
+#
+# Build Options
+#
+CONFIG_CC_GPP=y
+# CONFIG_CC_CLANGPP is not set
+CONFIG_CC="g++"
+# CONFIG_CC_O0 is not set
+# CONFIG_CC_O1 is not set
+# CONFIG_CC_O2 is not set
+CONFIG_CC_O3=y
+CONFIG_CC_OPT="-O3"
+# CONFIG_CC_DEBUG is not set
+CONFIG_NPC_DEFAULT_MAX_CYCLES=100000000
+CONFIG_NPC_DEFAULT_LOG_PATH="build/linux-logs/npc-linux.log"
+CONFIG_NPC_BATCH_MODE=y
+# CONFIG_NPC_STDIN_KEYBOARD is not set
+# CONFIG_NPC_HAS_VGA is not set
+# CONFIG_NPC_TRACE_BY_DEFAULT is not set
+# end of Build Options
+
+#
+# Monitor and Debugging
+#
+CONFIG_NPC_COLORED_LOG=y
+CONFIG_NPC_LOG_FILE=y
+CONFIG_NPC_PROGRESS_BY_DEFAULT=y
+CONFIG_NPC_DEFAULT_PROGRESS_INTERVAL=10000000
+# CONFIG_NPC_DIFFTEST is not set
+# CONFIG_NPC_SDB is not set
+# CONFIG_NPC_TEXT_TRACE is not set
+# end of Monitor and Debugging
+
+#
+# Statistics and Profiling
+#
+# CONFIG_NPC_PERF_MODE is not set
+CONFIG_NPC_SUMMARY_STATS=y
+CONFIG_NPC_SIM_STATS=y
+CONFIG_NPC_BRANCH_STATS=y
+CONFIG_NPC_CACHE_STATS=y
+CONFIG_NPC_OOO_STATS=y
+# CONFIG_NPC_DEBUG_PORTS is not set
+# end of Statistics and Profiling

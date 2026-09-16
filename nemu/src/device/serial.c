@@ -505,7 +505,21 @@ void serial_dump_machine_info(FILE *out) {
 }
 #endif
 
+#ifdef CONFIG_TARGET_SHARE
+/* Optional reference observation sink. UART state and guest transactions are
+ * unchanged; the integration checker compares bytes instead of printing twice. */
+void (*difftest_serial_sink)(uint8_t) = NULL;
+// Deliver the same accepted external byte to the independent UART model.
+// This does not alter architectural registers or replay a guest MMIO access.
+__EXPORT bool difftest_serial_receive(uint8_t ch) {
+  return serial0.uart != NULL && uart16550_receive(serial0.uart, &ch, 1) == 1;
+}
+
+#endif
 static void serial_port_tx(void *opaque, uint8_t ch) {
+#ifdef CONFIG_TARGET_SHARE
+  if (difftest_serial_sink != NULL) { difftest_serial_sink(ch); return; }
+#endif
   SerialPort *port = (SerialPort *)opaque;
 #ifdef CONFIG_TARGET_AM
   (void)port;

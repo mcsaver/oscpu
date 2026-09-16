@@ -1,0 +1,193 @@
+{
+  "schema": "npc-rv64-performance-counter-schema-v3",
+  "performance_counter_schema_id": "npc-rv64-pcs-v3-memory-lifecycle-20260801",
+  "marker_schema": "npc-rv64-performance-counter-v3",
+  "contract_state": "PARTIAL_CONSERVING_MEMORY_LIFECYCLE_V3",
+  "scope": "committed-PC bounded region on the single configured RV64 hart",
+  "instrumentation_boundary": {
+    "rtl_observer": "npc/rv64/vsrc/sim/NpcSimTop.sv",
+    "host_accumulator": "npc/rv64/csrc/cpu/cpu-exec.cpp",
+    "dut_feedback": false,
+    "synthesis_scope": "simulation-only; excluded from production core synthesis and STA"
+  },
+  "identity": {
+    "rob_and_iq_key": "full ProducerId",
+    "memory_owner_key": "OooMemOwnerTracker live token whose producer_id_table entry exactly equals the full ROB-head ProducerId",
+    "memory_owner_onehot_requirement": "zero or one live token may match one ROB-head ProducerId",
+    "memory_holder_sources": [
+      "OooIntBackend memory reservation, buffer, retry, MIQ, SQ-owner, AMO-pending, request-fire, birth, terminal-pending, and terminal-accept masks",
+      "OooMemAxiBridge lane0/lane1 registered station token, active token, and state_q",
+      "OooLoadQueue full-ProducerId residency and terminal_seen_q"
+    ],
+    "bridge_state_binding": "OooMemAxiBridge localparam encoding frozen by this schema; an unrecognized active state is memory_lifecycle_unknown"
+  },
+  "retire_width": 2,
+  "reason_encoding": [
+    {
+      "code": 0,
+      "name": "retired",
+      "meaning": "one non-exception architectural instruction retired on this physical lane"
+    },
+    {
+      "code": 1,
+      "name": "rob_empty",
+      "meaning": "the corresponding oldest ROB entry does not exist"
+    },
+    {
+      "code": 2,
+      "name": "dependency",
+      "meaning": "the full-ProducerId head is resident in an integer or FP IQ and at least one enabled sticky source-ready bit is clear"
+    },
+    {
+      "code": 3,
+      "name": "issue_terminal",
+      "meaning": "the full-ProducerId head is resident in an integer or FP IQ and all enabled sticky source-ready bits are set"
+    },
+    {
+      "code": 4,
+      "name": "execution_latency",
+      "meaning": "the full-ProducerId head has left both IQ domains and is resident in a non-memory execution, completion, or system-owner mask"
+    },
+    {
+      "code": 5,
+      "name": "memory_reservation_queue",
+      "meaning": "after higher-priority memory states, the head is in a registered reservation, buffer, MIQ, bridge station, SQ owner, AMO-pending, request-fire/birth holder, or pre-owner LQ/reservation residency"
+    },
+    {
+      "code": 6,
+      "name": "memory_translation_order",
+      "meaning": "the exact head token is active in bridge S_WALK_AR, S_WALK_R, S_AD_UPDATE, or S_SQ_QUERY"
+    },
+    {
+      "code": 7,
+      "name": "memory_request_outstanding",
+      "meaning": "the exact head token is active in bridge S_LOOKUP, S_DEVICE_WAIT, S_READ_ADDR, S_READ_DATA, S_WRITE_REQ, or S_WRITE_RESP"
+    },
+    {
+      "code": 8,
+      "name": "memory_response_terminal",
+      "meaning": "the exact head token is in bridge S_RESP, accepted/pending terminal collection, or its exact LQ entry has terminal_seen_q"
+    },
+    {
+      "code": 9,
+      "name": "memory_retry",
+      "meaning": "the exact head token is resident in a registered retry0 or retry1 holder"
+    },
+    {
+      "code": 10,
+      "name": "memory_lifecycle_unknown",
+      "meaning": "the head is memory-resident but no versioned exact-token lifecycle predicate explains it, including an unrecognized active bridge state"
+    },
+    {
+      "code": 11,
+      "name": "head_lifecycle_unknown",
+      "meaning": "the corresponding ROB head is edge-old incomplete but no versioned full-ProducerId IQ, memory, or execution residency predicate explains it"
+    },
+    {
+      "code": 12,
+      "name": "exception_redirect",
+      "meaning": "precise exception, flush, branch recovery, or checkpoint restore prevents architectural retirement"
+    },
+    {
+      "code": 13,
+      "name": "memory_commit",
+      "meaning": "LQ release permission or CSR memory-quiet retirement permission is closed after completion"
+    },
+    {
+      "code": 14,
+      "name": "serialization",
+      "meaning": "context, fence.i, control-plane commit, CSR single-retire, or lane1 serialization permission is closed after completion"
+    },
+    {
+      "code": 15,
+      "name": "unknown",
+      "meaning": "no earlier versioned retirement-observation predicate explains the unused slot"
+    }
+  ],
+  "priority_version": "rob-head-memory-lifecycle-priority-v3",
+  "memory_lifecycle_priority": [
+    "response_or_terminal_handoff",
+    "translation_or_store_ordering_bridge_state",
+    "cache_device_or_axi_request_bridge_state",
+    "unrecognized_active_bridge_state_to_memory_lifecycle_unknown",
+    "registered_retry_holder",
+    "registered_reservation_or_queue_holder",
+    "memory_lifecycle_unknown"
+  ],
+  "head_not_complete_priority": [
+    "integer_or_fp_iq_dependency",
+    "integer_or_fp_iq_ready_at_issue_terminal",
+    "memory_resident_using_memory_lifecycle_priority",
+    "execution_resident",
+    "head_lifecycle_unknown"
+  ],
+  "lane0_priority": [
+    "retired",
+    "exception_redirect",
+    "rob_empty",
+    "head_not_complete_priority",
+    "exception_redirect_at_head",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "lane1_priority": [
+    "inherit_lane0_when_lane0_did_not_retire",
+    "retired",
+    "rob_empty",
+    "head_not_complete_priority",
+    "exception_redirect",
+    "memory_commit",
+    "serialization",
+    "unknown"
+  ],
+  "aggregate_binding": {
+    "cycle_memory_latency": "cycle_memory_reservation_queue + cycle_memory_translation_order + cycle_memory_request_outstanding + cycle_memory_response_terminal + cycle_memory_retry + cycle_memory_lifecycle_unknown",
+    "slot_memory_latency": "slot_memory_reservation_queue + slot_memory_translation_order + slot_memory_request_outstanding + slot_memory_response_terminal + slot_memory_retry + slot_memory_lifecycle_unknown",
+    "cycle_head_not_complete": "cycle_dependency + cycle_issue_terminal + cycle_execution_latency + cycle_memory_latency + cycle_head_lifecycle_unknown",
+    "slot_head_not_complete": "slot_dependency + slot_issue_terminal + slot_execution_latency + slot_memory_latency + slot_head_lifecycle_unknown"
+  },
+  "cycle_partition": {
+    "rule": "a cycle is useful when at least one architectural instruction retires; otherwise it takes lane0's exclusive reason",
+    "conservation": "cycle_useful + cycle_rob_empty + cycle_dependency + cycle_issue_terminal + cycle_execution_latency + cycle_memory_latency + cycle_head_lifecycle_unknown + cycle_exception_redirect + cycle_memory_commit + cycle_serialization + cycle_unknown == cycles"
+  },
+  "retire_slot_partition": {
+    "capacity": "2 * cycles + end_lane - start_lane",
+    "marker_interval": "[before start committed lane, before end committed lane)",
+    "conservation": "retired_slots + slot_rob_empty + slot_dependency + slot_issue_terminal + slot_execution_latency + slot_memory_latency + slot_head_lifecycle_unknown + slot_exception_redirect + slot_memory_commit + slot_serialization + slot_unknown == slot_capacity",
+    "retired_binding": "retired_slots == end_retired_before - start_retired_before"
+  },
+  "boundary_sampling": {
+    "cycle_delta": "inclusive cumulative counter at end minus inclusive cumulative counter at start, covering full cycles S+1..E",
+    "slot_endpoint_correction": "add start-cycle lanes start_lane..1 and subtract end-cycle lanes end_lane..1",
+    "same_cycle_lane0_to_lane1": "one slot of capacity and one retired instruction when lane0 is the start marker and lane1 is the end marker"
+  },
+  "qualification": {
+    "baseline_requires_phase_aligned_boundaries": true,
+    "phase_aligned_definition": "start_lane == end_lane",
+    "phase_aligned_capacity": "2 * cycles",
+    "unknown_or_unclassified_cycle_ratio": "(cycle_memory_lifecycle_unknown + cycle_head_lifecycle_unknown + cycle_unknown) / cycles",
+    "unknown_or_unclassified_cycle_ratio_max": 0.01,
+    "requires_complete": true,
+    "requires_available": true,
+    "requires_zero_overflow": true,
+    "requires_zero_invalid_events": true,
+    "requires_memory_aggregate_binding": true,
+    "requires_head_aggregate_binding": true,
+    "requires_conservation": true
+  },
+  "interpretation_boundary": {
+    "classification_kind": "edge-old holder-residency lifecycle, not exclusive causal latency",
+    "overlap_resolution": "the documented priority selects one reason when a token appears in more than one legal holder during a same-edge transfer",
+    "forbidden_inference": "a bucket count alone does not prove that the named holder caused every cycle attributed to it"
+  },
+  "known_gaps": [
+    "memory_request_outstanding combines cache lookup, device admission, AXI address/data, and AXI response wait states",
+    "memory_reservation_queue combines backend reservations, MIQ admission wait, bridge station wait, and architectural queue fallback",
+    "rob_empty is not yet split into frontend supply and downstream ROB-capacity feedback causes",
+    "issue_terminal combines selector, physical terminal, universal-owner, memory-pair, and downstream admission causes",
+    "region-bound ROB, IQ, LQ, SQ, MSHR, and memory-station occupancy histograms are not yet emitted",
+    "an instrumentation-on versus instrumentation-off cycle-equivalence cohort is not yet archived",
+    "this schema is a conserving ROB-head holder lifecycle stack, not the final full-core causal CPI stack"
+  ]
+}

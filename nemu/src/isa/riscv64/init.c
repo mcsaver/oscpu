@@ -37,6 +37,9 @@ void isa_riscv64_restart(void) {
   cpu.pc = RESET_VECTOR;
   cpu.priv = PRIV_M;
   cpu.csr.mstatus = MSTATUS_SXL_UXL;
+#ifdef CONFIG_RISCV_EXT_SDTRIG
+  cpu.csr.tdata1 = UINT64_C(15) << 60;
+#endif
 
   /* The zero register is always 0. */
   cpu.gpr[0] = 0;

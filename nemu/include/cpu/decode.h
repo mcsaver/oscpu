@@ -19,7 +19,7 @@
 #include <isa.h>
 
 typedef struct Decode {
-  vaddr_t pc;
+  vaddr_t pc;//当前指令的起始地址
   vaddr_t snpc; // static next pc
   vaddr_t dnpc; // dynamic next pc
   ISADecodeInfo isa;//typedef concat(__GUEST_ISA__, _ISADecodeInfo) ISADecodeInfo;
