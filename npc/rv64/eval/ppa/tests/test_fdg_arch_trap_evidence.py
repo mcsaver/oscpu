@@ -116,13 +116,13 @@ class FdgArchTrapEvidenceTests(unittest.TestCase):
         original = (
             f"[COMPILE] -o {temp}/build/test.vvp "
             f"{temp}/OooFrontendDispatchGate.v\n"
-            "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/DecodeUnit.v\n"
+            "/home/lyg/PA/ysyx-workbench/npc/rv64/legacy/rtl/vsrc/DecodeUnit.v\n"
         )
         normalized = runner.normalize_transient_paths(original, temp)
         self.assertNotIn(str(temp), normalized)
         self.assertEqual(normalized.count(runner.TRANSIENT_DIR_TOKEN), 2)
         self.assertIn(
-            "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/DecodeUnit.v",
+            "/home/lyg/PA/ysyx-workbench/npc/rv64/legacy/rtl/vsrc/DecodeUnit.v",
             normalized,
         )
 
@@ -137,7 +137,7 @@ class FdgArchTrapEvidenceTests(unittest.TestCase):
 
     def test_live_module_logs_have_no_random_temp_suffix(self) -> None:
         tests = evidence.required_module_tests(
-            REPO / "npc/rv64/testbench/Makefile")
+            REPO / "npc/rv64/testbench/Makefile.legacy")
         log_dir = MODULE_SUMMARY.parent / "logs"
         for test_name in tests:
             log = log_dir / f"{test_name}.log"
@@ -177,7 +177,7 @@ class FdgArchTrapEvidenceTests(unittest.TestCase):
     def test_live_module_aggregate_is_exact(self) -> None:
         aggregate = evidence.parse_module_aggregate(REPO, MODULE_SUMMARY)
         required = len(evidence.required_module_tests(
-            REPO / "npc/rv64/testbench/Makefile"))
+            REPO / "npc/rv64/testbench/Makefile.legacy"))
         self.assertEqual(aggregate["required"], required)
         self.assertEqual(aggregate["passed"], required)
         self.assertEqual(aggregate["failed"], 0)

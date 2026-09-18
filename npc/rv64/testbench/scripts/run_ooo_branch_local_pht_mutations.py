@@ -408,7 +408,7 @@ def run_one(
         else f"RTL_OOO_BRANCH_DIRECTION_PREDICTOR={mutant_path}"
     )
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-B",
         f"BUILD_DIR={build_dir}",
         f"RESULT_DIR={run_dir}",
@@ -492,8 +492,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     testbench_dir = repo_root / "npc/rv64/testbench"
     sources = {
-        "child": repo_root / "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
-        "parent": repo_root / "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+        "child": repo_root / "npc/rv64/legacy/rtl/vsrc/frontend/OooBranchLocalPht.v",
+        "parent": repo_root / "npc/rv64/legacy/rtl/vsrc/frontend/OooBranchDirectionPredictor.v",
     }
     before = {name: path.read_bytes() for name, path in sources.items()}
     source_text = {name: data.decode("utf-8") for name, data in before.items()}

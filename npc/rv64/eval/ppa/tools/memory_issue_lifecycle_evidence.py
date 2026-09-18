@@ -242,7 +242,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -379,13 +379,13 @@ def validate_drain_birth_topology(root: pathlib.Path) -> dict[str, bool]:
     """Check request-owner and DRAIN handshakes independently of the TB."""
 
     backend = safe_file(
-        root, root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
     ).read_text(encoding="utf-8")
     store_queue = safe_file(
-        root, root / "npc/rv64/vsrc/memory/OooStoreQueue.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v"
     ).read_text(encoding="utf-8")
     miq = safe_file(
-        root, root / "npc/rv64/vsrc/memory/OooMemInflightQueue.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v"
     ).read_text(encoding="utf-8")
     int_tb = safe_file(
         root, root / "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
@@ -469,14 +469,14 @@ def validate_drain_birth_topology(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
-    "npc/rv64/vsrc/memory/OooStoreQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v",
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/run-focused.sh",

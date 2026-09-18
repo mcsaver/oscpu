@@ -17,7 +17,7 @@ import run_v12c_serialize_qh_current as common
 
 SCHEMA = "npc-rv64-v12c-serialize-system-current-evidence-v1"
 TESTBENCH_DIR_REL = "npc/rv64/testbench"
-VSRCDIR_REL = "npc/rv64/vsrc"
+VSRCDIR_REL = "npc/rv64/legacy/rtl/vsrc"
 
 TESTBENCH_PATHS = {
     "tb_ooo_priv_system":
@@ -303,7 +303,7 @@ def run_case(
     build_dir = profile_dir / "build"
     log = profile_dir / "logs" / f"{test}.log"
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-C",
         str(testbench_dir),
         f"RESULT_DIR={profile_dir}",

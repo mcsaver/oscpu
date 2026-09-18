@@ -219,7 +219,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -366,23 +366,23 @@ def validate_mutations(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/common/OooSlotFacts.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
-    "npc/rv64/vsrc/control/OooControlPlane.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/core/CsrFile.v",
+    "npc/rv64/legacy/rtl/vsrc/common/OooSlotFacts.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_head_classify_gate.sv",
     "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/run-focused.sh",

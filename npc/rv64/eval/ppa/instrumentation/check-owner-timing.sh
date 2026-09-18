@@ -133,7 +133,7 @@ validate_source_abi() {
 
 validate_config_fail_closed() {
   local log="${runtime_dir}/config-negative-inner.log"
-  if make -s -C "${repo_root}/npc/rv64" -f Makefile \
+  if make -s -C "${repo_root}/npc/rv64" -f Makefile.legacy \
       -f eval/ppa/instrumentation/owner-timing.mk owner-timing-lint \
       CONFIG_NPC_OOO_STATS=n >"${log}" 2>&1; then
     return 1
@@ -150,7 +150,7 @@ validate_script_syntax() {
 }
 
 production_identity() {
-  find "${repo_root}/npc/rv64/vsrc" -type f \
+  find -H "${repo_root}/npc/rv64/legacy/rtl/vsrc" -type f \
     \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o \
        -name '*.svh' -o -name '*.mk' \) -print0 |
     sort -z | xargs -0 sha256sum
@@ -195,13 +195,13 @@ if [[ "${#unit_case_markers[@]}" -ne 1 ]]; then
 fi
 unit_case_count=${unit_case_markers[0]}
 run_step sv-lint \
-  make -s -C "${repo_root}/npc/rv64" -f Makefile \
+  make -s -C "${repo_root}/npc/rv64" -f Makefile.legacy \
   -f eval/ppa/instrumentation/owner-timing.mk owner-timing-lint \
   CONFIG_NPC_OOO_STATS=y || exit $?
 
 if [[ "${tier}" == "link" ]]; then
   run_step full-dpi-link \
-    make -s -C "${repo_root}/npc/rv64" -f Makefile \
+    make -s -C "${repo_root}/npc/rv64" -f Makefile.legacy \
     -f eval/ppa/instrumentation/owner-timing.mk \
     CONFIG_NPC_OOO_STATS=y BUILD_DIR="${runtime_dir}/build" || exit $?
   sha256sum "${runtime_dir}/build/NpcSimTop" |

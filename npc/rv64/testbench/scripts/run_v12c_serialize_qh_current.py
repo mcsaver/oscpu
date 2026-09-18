@@ -19,13 +19,13 @@ SCHEMA = "npc-rv64-v12c-serialize-qh-current-evidence-v1"
 TEST = "tb_ooo_core_top_glue_v9o_csr_qh"
 TEST_TOP = "tb_ooo_core_top_glue"
 TB_REL = "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv"
-APPLY_REL = "npc/rv64/vsrc/control/OooControlEventApplySequencer.v"
-ROB_REL = "npc/rv64/vsrc/writeback/OooRob.v"
+APPLY_REL = "npc/rv64/legacy/rtl/vsrc/control/OooControlEventApplySequencer.v"
+ROB_REL = "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v"
 CSR_GLUE_REL = "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh"
-DEFINE_REL = "npc/rv64/vsrc/include/define.v"
+DEFINE_REL = "npc/rv64/legacy/rtl/vsrc/include/define.v"
 PRODUCT_MANIFEST_REL = "npc/rv64/configs/product-rtl-defaults.mk"
-MAKEFILE_REL = "npc/rv64/testbench/Makefile"
-FILELIST_REL = "npc/rv64/vsrc/filelist.mk"
+MAKEFILE_REL = "npc/rv64/testbench/Makefile.legacy"
+FILELIST_REL = "npc/rv64/legacy/rtl/filelist.mk"
 
 COMMITTED_LABELS = (
     "ecall handler queue-head CSR",
@@ -415,8 +415,8 @@ def base_ivflags(root: Path, assertions: bool, extra_include: Path | None) -> st
     values = [
         "-g2012",
         "-Wall",
-        f"-I{root / 'npc/rv64/vsrc'}",
-        f"-I{root / 'npc/rv64/vsrc/include'}",
+        f"-I{root / 'npc/rv64/legacy/rtl/vsrc'}",
+        f"-I{root / 'npc/rv64/legacy/rtl/vsrc/include'}",
     ]
     if extra_include is not None:
         values.append(f"-I{extra_include}")
@@ -447,7 +447,7 @@ def run_profile(
     result_dir = profile_dir
     log = profile_dir / "logs" / f"{TEST}.log"
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-C",
         str(testbench_dir),
         f"RESULT_DIR={result_dir}",

@@ -329,7 +329,7 @@ class LayeredSystemSignoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="rv64-layered-signoff-") as raw:
             root = pathlib.Path(raw)
             evidence = root / ".github/task-runs/a/evidence"
-            payload = root / "npc/rv64/vsrc/core/OooCoreTop.v"
+            payload = root / "npc/rv64/legacy/rtl/vsrc/core/OooCoreTop.v"
             evidence.mkdir(parents=True)
             payload.parent.mkdir(parents=True)
             payload.write_text("current RTL\n", encoding="utf-8")

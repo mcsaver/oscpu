@@ -159,7 +159,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     expected_count = len(tests)
     markers = (
@@ -281,16 +281,16 @@ def build(
     rtl_sha, rtl_files = arch.rtl_binding(root)
 
     source_paths = (
-        "npc/rv64/vsrc/writeback/OooCommitOutputMux.v",
-        "npc/rv64/vsrc/writeback/OooWriteback.v",
-        "npc/rv64/vsrc/core/NpcCoreTop.v",
-        "npc/rv64/vsrc/core/CsrFile.v",
+        "npc/rv64/legacy/rtl/vsrc/writeback/OooCommitOutputMux.v",
+        "npc/rv64/legacy/rtl/vsrc/writeback/OooWriteback.v",
+        "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+        "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v",
         "npc/rv64/testbench/tests/tb_ooo_sv39_boot.sv",
         "npc/rv64/testbench/tests/tb_ooo_commit_output_mux.sv",
         "npc/rv64/testbench/tests/tb_ooo_alu_core_slice.sv",
         "npc/rv64/testbench/tests/tb_csr_file.sv",
-        "npc/rv64/Makefile",
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/Makefile.legacy",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/check_tb_result.py",
         "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
         ".github/task-runs/2026-07-21-rv64-v9c-instret-retirement/contract.md",

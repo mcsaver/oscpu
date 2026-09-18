@@ -58,11 +58,11 @@ MUTATION_RESULT_KEYS = {
 FAIL_MARKERS = ("[RESULT] FAIL", "[CHECK-FAIL]", "[TIMEOUT]", "FATAL:")
 
 BASE_SOURCE_PATHS = {
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/common/rv32_encode.svh",
-    "npc/rv64/vsrc/include/define.v",
+    "npc/rv64/legacy/rtl/vsrc/include/define.v",
     "npc/rv64/design/specs/ooo-control-event-apply-sequencer.md",
     "npc/rv64/design/specs/ooo-core-top-glue.md",
     "npc/rv64/design/specs/ooo-flush-redirect-contract.md",

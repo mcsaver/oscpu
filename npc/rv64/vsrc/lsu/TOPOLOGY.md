@@ -115,7 +115,7 @@ R64CoreTop
 LSQ entry 阵列、older_q、mholder、prepared holder、translation owner FIFO、
 physical_hold 与 store_done 是 R64Lsu 内部寄存逻辑；full-forward 结果现在由 forwarding_results 双槽队列保存。
 
-目录里的 R64LsuSelect.v 和 R64LsuYoungestByte.v 仍列在 rebuild filelist，
+目录里的 R64LsuSelect.v 和 R64LsuYoungestByte.v 仍列在主线 filelist，
 但当前 R64Lsu 没有实例化它们。当前选择网络使用 R64LsuOrderSelect，
 逐字节 youngest 判定使用 R64LsuForwardByte；不能由“文件在目录/filelist 中”
 推断它是当前实例拓扑的一部分。
@@ -382,7 +382,7 @@ LR reservation、SC最终检查、CAS/AMO排他性均在这个物理owner内维�
 同bank的R/B真实写事件仍以B为先，只在发生实际冲突的那一拍阻塞R；不会在等待B期间预约整个bank写口。
 invalidate清valid并poison在途owner，待写数据不能重新建立valid；reset清pending valid。
 这次重组针对真实STA定位到的DCache写数据512扇出路径；最终时序与CPI结论见
-[全核迭代结果](../../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+[全核迭代结果](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
 
 
 **7. 控制、信用与所有权网络**
@@ -435,7 +435,7 @@ DONE是本地/翻译异常待捕获；普通load在有效raw response或full-for
   年轻query发布与物理接受均已由1次降为0。同拍成功RAM响应仍允许双load直入。
 - 本文已随query出口缓冲、转发快照、dead排空、轮转仲裁及受限hit-under-miss更新。
   本轮同源功能、CoreMark/CPI、综合和STA见
-  [综合评估](../../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
+  [综合评估](../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
 
 | 后续逐模块阅读对象 | 源码入口 | 关注连接 |
 | --- | --- | --- |
@@ -450,7 +450,7 @@ DONE是本地/翻译异常待捕获；普通load在有效raw response或full-for
 
 ## 全核 STA 反馈后的转发与状态更新
 
-完整 SystemTop 的 DCache 写数据瓶颈消除后，IQ32 最差端点转到 forward_q，IQ16 最差端点转到 state_q。本轮最终实现同时处理两条路径；完整测量与选择见[本轮结果](../../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+完整 SystemTop 的 DCache 写数据瓶颈消除后，IQ32 最差端点转到 forward_q，IQ16 最差端点转到 state_q。本轮最终实现同时处理两条路径；完整测量与选择见[本轮结果](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
 
 ```mermaid
 flowchart LR
@@ -478,7 +478,7 @@ LSQ 在普通 load 被选择、成功翻译直入、或 prepared 授权时已经
 prepared owner 与完整描述符同拍捕获；CQ 接受新结果时提前申请下一拍 WB 端口。
 完成数量与 owner 选择并行，bind 宽元数据改为按行接受位写入。真实副作用授权、
 kill/flush、来源 pin 与 AXI B 完成契约保持。完整 A/B、CPI 和同约束 STA 见
-[本轮报告](../../../../../tmp/rv64-cpi-timing-20260916/REPORT.md)。
+[本轮报告](../../../../tmp/rv64-cpi-timing-20260916/REPORT.md)。
 
 
 ## physical holder 的 query ready 化简

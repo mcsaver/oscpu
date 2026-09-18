@@ -963,7 +963,7 @@ __show-boot:
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
-# The native core is defined by vsrc/chengyue64/filelist.mk, not the old OoO
+# The native core is defined by vsrc/filelist.mk, not the old OoO
 # Kconfig switches. These compatibility names no longer rewrite old headers.
 linux-defconfig linux-trace-defconfig:
 	@printf '%s\n' '[Linux] native R64SystemTop; full ISA/privileged hardware and assertions enabled'

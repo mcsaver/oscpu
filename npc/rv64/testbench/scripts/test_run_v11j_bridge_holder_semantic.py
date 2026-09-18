@@ -28,7 +28,7 @@ class MutationTests(unittest.TestCase):
                 repo_root
                 / "npc"
                 / "rv64"
-                / "vsrc"
+                / "legacy" / "rtl" / "vsrc"
                 / "memory"
                 / "OooMemAxiBridge.v"
             ).read_text(encoding="utf-8"),
@@ -36,7 +36,7 @@ class MutationTests(unittest.TestCase):
                 repo_root
                 / "npc"
                 / "rv64"
-                / "vsrc"
+                / "legacy" / "rtl" / "vsrc"
                 / "memory"
                 / "OooDualMemBridgeWrapper.v"
             ).read_text(encoding="utf-8"),

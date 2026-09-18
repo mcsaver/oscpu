@@ -44,7 +44,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_product_parameter_disabled(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/core/NpcCoreTop.v",
+            "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
             ".ENABLE_DUAL_MEM(1)",
             ".ENABLE_DUAL_MEM(0)",
         )
@@ -53,7 +53,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_broken_parameter_pass_through(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
             ".ENABLE_DUAL_MEM(ENABLE_DUAL_MEM)",
             ".ENABLE_DUAL_MEM(0)",
         )
@@ -62,7 +62,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_lane0_birth_gate_inversion(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "assign issue0_mem_buffer_fire_w =\n"
             "      !ENABLE_DUAL_MEM &&",
             "assign issue0_mem_buffer_fire_w =\n"
@@ -73,7 +73,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_product_request_gate_inversion(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "wire mem_buffer_req_valid_w =\n"
             "      !ENABLE_DUAL_MEM &&",
             "wire mem_buffer_req_valid_w =\n"
@@ -84,7 +84,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_extra_valid_set_path(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "mem_store_wstrb_q <= {`STRB_W{1'b0}};\n"
             "      mem_buffer_valid_q <= 1'b0;",
             "mem_store_wstrb_q <= {`STRB_W{1'b0}};\n"
@@ -95,7 +95,7 @@ class MemoryBufferProductReachabilityTest(unittest.TestCase):
 
     def test_rejects_lane1_token_truncation(self) -> None:
         sources = self.mutate(
-            "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "mem_buffer_owner_token_q <= mem_issue1_res_owner_token_q;",
             "mem_buffer_owner_token_q <= "
             "{3'b000, mem_issue1_res_owner_token_q[1:0]};",

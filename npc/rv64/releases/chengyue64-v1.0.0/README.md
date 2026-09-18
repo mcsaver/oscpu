@@ -10,7 +10,7 @@
 | 项目 | 入口 |
 | --- | --- |
 | 版本真源 | [../../core-version.mk](../../core-version.mk) |
-| RTL | [../../vsrc/chengyue64/](../../vsrc/chengyue64/) |
+| RTL | [../../vsrc/](../../vsrc/) |
 | CPU / 系统 / 可选 NPU 顶层 | `R64CoreTop` / `R64SystemTop` / `R64TensorSystemTop` |
 | 模块与系统测试 | [../../testbench/chengyue64/](../../testbench/chengyue64/) |
 | 默认构建输出 | `npc/rv64/build/chengyue64/` |

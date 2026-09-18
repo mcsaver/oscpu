@@ -31,7 +31,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         )
         paths = sorted(
             path.relative_to(registry.REPO_ROOT).as_posix()
-            for path in (registry.REPO_ROOT / "npc/rv64/vsrc").rglob("*")
+            for path in (registry.REPO_ROOT / "npc/rv64/legacy/rtl/vsrc").rglob("*")
             if path.is_file() and path.suffix.lower() in registry.SOURCE_SUFFIXES
         )
         self.assertEqual(
@@ -55,7 +55,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "rv64-bpu",
             registry.owner_for(
-                "npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+                "npc/rv64/legacy/rtl/vsrc/frontend/OooBranchDirectionPredictor.v",
                 self.catalog,
                 errors,
             ),
@@ -63,7 +63,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "rv64-bpu",
             registry.owner_for(
-                "npc/rv64/vsrc/frontend/OooBranchLocalPht.v",
+                "npc/rv64/legacy/rtl/vsrc/frontend/OooBranchLocalPht.v",
                 self.catalog,
                 errors,
             ),
@@ -71,7 +71,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "rv64-fp",
             registry.owner_for(
-                "npc/rv64/vsrc/execute/OooFpArithGate.v",
+                "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v",
                 self.catalog,
                 errors,
             ),
@@ -86,18 +86,18 @@ class ArchitectureRegistryTests(unittest.TestCase):
             self.assertEqual(
                 "rv64-fp",
                 registry.owner_for(
-                    f"npc/rv64/vsrc/execute/{child}", self.catalog, errors
+                    f"npc/rv64/legacy/rtl/vsrc/execute/{child}", self.catalog, errors
                 ),
             )
         lists = {
-            "core": {"npc/rv64/vsrc/memory/OooMmuEpochOwner.v"},
+            "core": {"npc/rv64/legacy/rtl/vsrc/memory/OooMmuEpochOwner.v"},
             "header": set(),
             "sim": set(),
         }
         self.assertEqual(
             "catalog_only",
             registry.role_for(
-                "npc/rv64/vsrc/memory/OooMmuEpochOwner.v",
+                "npc/rv64/legacy/rtl/vsrc/memory/OooMmuEpochOwner.v",
                 lists,
                 self.catalog,
             ),
@@ -105,7 +105,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "unclassified",
             registry.role_for(
-                "npc/rv64/vsrc/debug/NewUnreviewedChecker.sv",
+                "npc/rv64/legacy/rtl/vsrc/debug/NewUnreviewedChecker.sv",
                 lists,
                 self.catalog,
             ),
@@ -114,12 +114,12 @@ class ArchitectureRegistryTests(unittest.TestCase):
 
     def test_non_product_and_development_sources_require_explicit_intent(self) -> None:
         lists = {
-            "core": {"npc/rv64/vsrc/control/NewProduct.v"},
+            "core": {"npc/rv64/legacy/rtl/vsrc/control/NewProduct.v"},
             "header": set(),
             "sim": {"npc/rv64/sim/vsrc/NewModel.sv"},
         }
         development_errors = registry.file_registration_errors(
-            "npc/rv64/vsrc/control/NewProduct.v",
+            "npc/rv64/legacy/rtl/vsrc/control/NewProduct.v",
             role="product",
             lifecycle="development",
             lists=lists,
@@ -140,20 +140,20 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "unclassified",
             registry.role_for(
-                "npc/rv64/vsrc/debug/NewChecker.sv",
+                "npc/rv64/legacy/rtl/vsrc/debug/NewChecker.sv",
                 lists,
                 self.catalog,
             ),
         )
         missing_intent = copy.deepcopy(self.catalog)
         del missing_intent["file_overrides"][
-            "npc/rv64/vsrc/sim/AxiDpiSlave.sv"
+            "npc/rv64/legacy/rtl/vsrc/sim/AxiDpiSlave.sv"
         ]["intent"]
         errors = registry.validate_catalog(missing_intent)
         self.assertTrue(any("lacks explicit" in error for error in errors), errors)
         missing_scope = copy.deepcopy(self.catalog)
         del missing_scope["file_overrides"][
-            "npc/rv64/vsrc/debug/OooRedirectMuxChecker.sv"
+            "npc/rv64/legacy/rtl/vsrc/debug/OooRedirectMuxChecker.sv"
         ]["configuration_scope"]
         errors = registry.validate_catalog(missing_scope)
         self.assertTrue(any("lacks explicit" in error for error in errors), errors)
@@ -161,7 +161,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
     def test_inventory_acknowledgement_mutation_fails_closed(self) -> None:
         paths = sorted(
             path.relative_to(registry.REPO_ROOT).as_posix()
-            for path in (registry.REPO_ROOT / "npc/rv64/vsrc").rglob("*")
+            for path in (registry.REPO_ROOT / "npc/rv64/legacy/rtl/vsrc").rglob("*")
             if path.is_file() and path.suffix.lower() in registry.SOURCE_SUFFIXES
         )
         catalog = copy.deepcopy(self.catalog)
@@ -170,7 +170,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertTrue(any("without architecture review" in error for error in errors))
 
     def test_catalog_only_must_remain_compiled(self) -> None:
-        path = "npc/rv64/vsrc/memory/OooMmuEpochOwner.v"
+        path = "npc/rv64/legacy/rtl/vsrc/memory/OooMmuEpochOwner.v"
         errors = registry.file_registration_errors(
             path,
             role="catalog_only",
@@ -324,13 +324,13 @@ class ArchitectureRegistryTests(unittest.TestCase):
         files = {row["path"]: row for row in snapshot["files"]}
         self.assertEqual(
             "FOCUSED_PASS",
-            files["npc/rv64/vsrc/execute/OooFpArithGate.v"]["dynamic"],
+            files["npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v"]["dynamic"],
         )
         other_product_dynamic = {
             row["dynamic"]
             for row in snapshot["files"]
             if row["role"] == "product"
-            and row["path"] != "npc/rv64/vsrc/execute/OooFpArithGate.v"
+            and row["path"] != "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v"
         }
         self.assertEqual({"SYSTEM_BOUND_NO_NODE_COUNTER"}, other_product_dynamic)
 
@@ -540,7 +540,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
             '--expected-unknown-macro-modules "${blackbox_modules}"',
             '--mapped-artifact-profile "${mapped_artifact_profile}"',
             'runner_path="$(realpath -e -- "${BASH_SOURCE[0]}")"',
-            '! -path "${repo_root}/npc/rv64/vsrc/filelist.mk"',
+            '! -path "${repo_root}/npc/rv64/legacy/rtl/filelist.mk"',
             '"${architecture_registry}" "${runner_path}"',
         ):
             mutated = runner.replace(marker, "MUTATED")
@@ -895,18 +895,18 @@ class ArchitectureRegistryTests(unittest.TestCase):
         # edge.  This is deliberately source based: no guessed top port or
         # loose u_fp_arith wildcard may substitute for the completion FIFO D.
         rtl_chain = (
-            ("npc/rv64/vsrc/core/NpcTop.v", "NpcCoreTop u_core"),
-            ("npc/rv64/vsrc/core/NpcCoreTop.v", "u_ooo_core ("),
-            ("npc/rv64/vsrc/core/OooCoreTopGlue.v", "u_execute_backend ("),
-            ("npc/rv64/vsrc/execute/OooExecuteBackend.v", "u_core_slice ("),
-            ("npc/rv64/vsrc/execute/OooAluCoreSlice.v", "u_decode_backend ("),
-            ("npc/rv64/vsrc/decode/OooAluDecodeBackend.v", "u_int_backend ("),
-            ("npc/rv64/vsrc/execute/OooIntBackend.v", "u_fp_backend ("),
+            ("npc/rv64/legacy/rtl/vsrc/core/NpcTop.v", "NpcCoreTop u_core"),
+            ("npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v", "u_ooo_core ("),
+            ("npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v", "u_execute_backend ("),
+            ("npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v", "u_core_slice ("),
+            ("npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v", "u_decode_backend ("),
+            ("npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v", "u_int_backend ("),
+            ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "u_fp_backend ("),
         )
         for relative, marker in rtl_chain:
             text = (registry.REPO_ROOT / relative).read_text(encoding="utf-8")
             self.assertIn(marker, text, relative)
-        fp_backend = (registry.REPO_ROOT / "npc/rv64/vsrc/execute/OooFpBackend.v").read_text(
+        fp_backend = (registry.REPO_ROOT / "npc/rv64/legacy/rtl/vsrc/execute/OooFpBackend.v").read_text(
             encoding="utf-8"
         )
         for marker in (
@@ -1263,7 +1263,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
             registry.FP_ARITH_PRODUCTION_CHILDREN_OOC_BOUNDARY_CONFIGURATION
         )
         projection = registry.mapped_projection(self.catalog, configuration_id)
-        filelist = "npc/rv64/vsrc/filelist.mk"
+        filelist = "npc/rv64/legacy/rtl/filelist.mk"
         for module, contract in projection["child_contracts"].items():
             closure = contract["source_closure"]
             compile_sources = contract["compile_sources"]
@@ -1282,7 +1282,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(1, compile_schema["minItems"])
         self.assertTrue(compile_schema["uniqueItems"])
         self.assertEqual(
-            "^npc/rv64/vsrc/.+\\.(v|sv)$",
+            "^npc/rv64/legacy/rtl/vsrc/.+\\.(v|sv)$",
             compile_schema["items"]["pattern"],
         )
 
@@ -1304,7 +1304,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         not_subset = copy.deepcopy(self.catalog)
         not_subset["physical_configurations"][configuration_id]["child_contracts"][
             module
-        ]["compile_sources"][1] = "npc/rv64/vsrc/execute/OooFpArithGate.v"
+        ]["compile_sources"][1] = "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v"
         mutations.append(("not-closure-subset", not_subset, "not a source_closure subset"))
         outside = copy.deepcopy(self.catalog)
         outside["physical_configurations"][configuration_id]["child_contracts"][
@@ -1496,7 +1496,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
 
         late_create = runner.replace(create_line, "", 1)
         synthesis_end = (
-            '    "${repo_root}/npc/rv64/vsrc ${repo_root}/npc/rv64/vsrc/include" "" \\\n'
+            '    "${repo_root}/npc/rv64/legacy/rtl/vsrc ${repo_root}/npc/rv64/legacy/rtl/vsrc/include" "" \\\n'
             '    || fail $?\n'
         )
         self.assertEqual(1, late_create.count(synthesis_end))
@@ -1772,7 +1772,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
             )
 
     def test_mapped_binding_rejects_missing_identity_and_projection_drift(self) -> None:
-        sources = {"npc/rv64/vsrc/core/NpcTop.v": "a" * 64}
+        sources = {"npc/rv64/legacy/rtl/vsrc/core/NpcTop.v": "a" * 64}
         configuration_id = registry.BPU_INLINE_CONFIGURATION
         configuration = self.catalog["physical_configurations"][configuration_id]
         projection = registry.mapped_projection(self.catalog, configuration_id)
@@ -1885,7 +1885,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         )
         stale_sources = copy.deepcopy(summary)
         stale_sources["actual_synthesis_source_sha256"] = {
-            "npc/rv64/vsrc/core/NpcTop.v": "f" * 64
+            "npc/rv64/legacy/rtl/vsrc/core/NpcTop.v": "f" * 64
         }
         errors = registry.mapped_binding_errors(stale_sources, **common)
         self.assertTrue(any("source set is stale" in error for error in errors), errors)

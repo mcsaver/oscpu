@@ -135,7 +135,7 @@ def validate_mutations(
     if set(payload) != expected_top_keys or payload.get("schema_version") != 1:
         raise ValueError("mutation manifest schema or key set drifted")
 
-    csr_path = root / "npc/rv64/vsrc/core/CsrFile.v"
+    csr_path = root / "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v"
     csr_sha = sha256_file(csr_path)
     expected_source_set = {
         "design_id": design_id,

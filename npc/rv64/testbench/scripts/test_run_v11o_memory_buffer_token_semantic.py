@@ -24,7 +24,7 @@ class V11OMemoryBufferTokenRunnerTest(unittest.TestCase):
     def test_every_mutation_changes_one_exact_anchor(self) -> None:
         rtl = (
             runner.Path(__file__).resolve().parents[2]
-            / "vsrc/execute/OooIntBackend.v"
+            / "legacy/rtl/vsrc/execute/OooIntBackend.v"
         ).read_text(encoding="utf-8")
         for mutation in runner.MUTATIONS:
             mutated, receipts = runner.apply_mutation(

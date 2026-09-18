@@ -364,7 +364,7 @@ def required_module_tests(makefile: pathlib.Path) -> list[str]:
 
 
 def parse_module_aggregate(root: pathlib.Path, summary: pathlib.Path) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     for marker in (
@@ -485,9 +485,9 @@ def validate_variants(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
 
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     paths = {
-        "ifu": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-        "lsu": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "pmp": "npc/rv64/vsrc/memory/PmpChecker.v",
+        "ifu": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+        "lsu": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+        "pmp": "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
         "ifu_tb": "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
         "lsu_tb": "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
     }
@@ -579,15 +579,15 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-    "npc/rv64/vsrc/memory/PmpChecker.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/run-focused.sh",
@@ -609,7 +609,7 @@ def build(
     static = validate_static_contract(root)
     lsu_deny_quiet_structure = validate_lsu_unbounded_deny_quiet_structure(
         safe_file(
-            root, root / "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+            root, root / "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
         ).read_text(encoding="utf-8"))
     rtl_sha, rtl_files = arch.rtl_binding(root)
     source_bindings = {

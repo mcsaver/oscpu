@@ -20,7 +20,7 @@ from typing import Any
 SCHEMA = "rv64-v11h-load-queue-producer-semantic-evidence-v2"
 MUTANT_SCHEMA = "rv64-v11h-load-queue-producer-mutant-v1"
 TEST = "tb_ooo_load_queue_producer_semantic"
-RTL_PATH = "npc/rv64/vsrc/memory/OooLoadQueue.v"
+RTL_PATH = "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v"
 TB_PATH = (
     "npc/rv64/testbench/tests/"
     "tb_ooo_load_queue_producer_semantic.sv"

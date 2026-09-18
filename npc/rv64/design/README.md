@@ -1,8 +1,8 @@
 # RV64 设计文档导航
 
 当前主线为承岳64（ChengYue64）。从 [架构入口](../ARCHITECTURE.md) 了解系统组成与
-当前源码，从 [模块拓扑](../vsrc/chengyue64/TOPOLOGY.md) 和
-[模块说明](../vsrc/chengyue64/MODULES.md) 了解核内职责。
+当前源码，从 [模块拓扑](../vsrc/TOPOLOGY.md) 和
+[模块说明](../vsrc/MODULES.md) 了解核内职责。
 
 本目录按设计说明、模块规范、参考资料和历史记录分类。测试操作见
 [testbench](../testbench/README.md)，仿真平台见 [sim](../sim/README.md)，差分接口与比较策略见

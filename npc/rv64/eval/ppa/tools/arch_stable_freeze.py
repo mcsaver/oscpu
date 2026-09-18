@@ -362,11 +362,11 @@ V9R_SQ_RETRY_SOURCE_PATHS = {
     f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/"
     "close-control-event-current-design.py",
     f".github/task-runs/{V9R_SQ_RETRY_RUN_ID}/contract.md",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
     "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
     "npc/rv64/design/specs/ooo-memory-producer-lease.md",
     "npc/rv64/design/specs/ooo-dual-memory-datapath.md",
@@ -386,7 +386,7 @@ V9R_SQ_RETRY_BASELINE_MARKERS = {
 }
 V9R_SQ_RETRY_VARIANTS = {
     "backend-bank0-ready-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
         "mutated_rtl": "OooIntBackend.v",
         "assertion_marker": (
@@ -395,7 +395,7 @@ V9R_SQ_RETRY_VARIANTS = {
         ),
     },
     "backend-bank1-ready-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
         "mutated_rtl": "OooIntBackend.v",
         "assertion_marker": (
@@ -404,7 +404,7 @@ V9R_SQ_RETRY_VARIANTS = {
         ),
     },
     "bridge-retry-fire-open": {
-        "production_source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0",
         "mutated_rtl": "OooMemAxiBridge.v",
         "assertion_marker": (
@@ -445,7 +445,7 @@ CONTROL_EVENT_MUTATIONS = {
 }
 CONTROL_EVENT_MUTATION_CONTRACTS = {
     "strict_younger_changed_to_greater_equal": {
-        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
         "test_name": "tb_ooo_rob",
         "make_variable": "RTL_OOO_ROB",
         "rejection_mode": "dynamic",
@@ -458,7 +458,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "c0_request_does_not_reach_c1": {
-        "source": "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooControlEventApplySequencer.v",
         "test_name": "tb_ooo_control_event_apply_sequencer",
         "make_variable": "RTL_OOO_CONTROL_EVENT_APPLY_SEQUENCER",
         "rejection_mode": "dynamic",
@@ -467,7 +467,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         "expected_markers": ("trap apply C1 valid got=0 exp=1",),
     },
     "typed_reason_is_not_latched": {
-        "source": "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooControlEventApplySequencer.v",
         "test_name": "tb_ooo_control_event_apply_sequencer",
         "make_variable": "RTL_OOO_CONTROL_EVENT_APPLY_SEQUENCER",
         "rejection_mode": "dynamic",
@@ -476,7 +476,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         "expected_markers": ("trap apply C1 reason got=0 exp=3",),
     },
     "c0_request_is_reconstructed_from_trap_pulse": {
-        "source": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
         "test_name": "tb_ooo_core_top_glue_v9o_csr_qh",
         "make_variable": "RTL_OOO_CORE_TOP_GLUE",
         "rejection_mode": "dynamic",
@@ -487,7 +487,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "pending_csr_owner_ignores_producer_id": {
-        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
         "test_name": "tb_ooo_rob",
         "make_variable": "RTL_OOO_ROB",
         "rejection_mode": "dynamic",
@@ -498,7 +498,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "head0_pregrant_does_not_mask_branch_event": {
-        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
         "make_variable": "RTL_OOO_INT_BACKEND",
         "rejection_mode": "dynamic",
@@ -510,7 +510,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "head0_pregrant_does_not_mask_branch_recovery": {
-        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend",
         "make_variable": "RTL_OOO_INT_BACKEND",
         "rejection_mode": "dynamic",
@@ -522,7 +522,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "queue_head_mode_requires_both_memory_pair_ids_at_head": {
-        "source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_core_top_glue",
         "make_variable": "RTL_OOO_INT_BACKEND",
         "rejection_mode": "dynamic",
@@ -533,7 +533,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         ),
     },
     "registered_read_address_valid_is_barrier_gated": {
-        "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "rejection_mode": "dynamic",
@@ -542,7 +542,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         "expected_markers": ("V9O C0 keeps registered ARVALID",),
     },
     "registered_write_valids_are_barrier_gated": {
-        "source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge",
         "make_variable": "RTL_OOO_MEM_AXI_BRIDGE",
         "rejection_mode": "dynamic",
@@ -551,7 +551,7 @@ CONTROL_EVENT_MUTATION_CONTRACTS = {
         "expected_markers": ("V9O C0 keeps registered AWVALID",),
     },
     "pregrant_reads_current_completion_ready": {
-        "source": "npc/rv64/vsrc/writeback/OooRob.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
         "test_name": "tb_ooo_rob",
         "make_variable": "RTL_OOO_ROB",
         "rejection_mode": "lint-unoptflat",
@@ -1174,9 +1174,9 @@ def validate_store_bresp_debt(
         ".github/task-runs/2026-07-23-rv64-v9n-"
         "irrevocable-write-owner-residency/"
         "run-owner-residency-rtl-variants.py",
-        "npc/rv64/vsrc/memory/OooStoreQueue.v",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
     }
     if (
         not isinstance(owner_files, dict)
@@ -1192,7 +1192,7 @@ def validate_store_bresp_debt(
     elif owner_provenance.get("sha256") != canonical_sha256(owner_files):
         errors.append("STORE-BRESP-G1 owner-residency provenance digest is stale")
 
-    top_path, top_error = safe_regular_file(root, "npc/rv64/vsrc/core/NpcCoreTop.v")
+    top_path, top_error = safe_regular_file(root, "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v")
     top_binding = (
         "  ) u_ooo_core (\n"
         "    .clk(clk),\n"
@@ -1249,7 +1249,7 @@ FDG_PROGRAM_RE = re.compile(
 )
 FDG_MUTATION_SPECS = {
     "ordinary_arch_trap_exclusion_removed": {
-        "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
         "make_variable": "RTL_OOO_FRONTEND_DISPATCH_GATE",
         "test_name": "tb_ooo_fp_legality_dispatch_path",
         "old": (
@@ -1259,7 +1259,7 @@ FDG_MUTATION_SPECS = {
         "marker": "blocked before backend got=1 expected=0",
     },
     "lane1_arch_trap_exclusion_removed": {
-        "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
         "make_variable": "RTL_OOO_FRONTEND_DISPATCH_GATE",
         "test_name": "tb_ooo_frontend_dispatch_gate",
         "old": (
@@ -1274,7 +1274,7 @@ FDG_MUTATION_SPECS = {
         "marker": "head0 arch trap blocks dual dispatch got=1 expected=0",
     },
     "ordinary_admission_forced_closed": {
-        "source": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
         "make_variable": "RTL_OOO_FRONTEND_DISPATCH_GATE",
         "test_name": "tb_ooo_fp_legality_dispatch_path",
         "old": (
@@ -1286,7 +1286,7 @@ FDG_MUTATION_SPECS = {
         "marker": "legal FADD.S reaches backend got=0 expected=1",
     },
     "final_backend_arch_trap_leak": {
-        "source": "npc/rv64/vsrc/frontend/OooFrontend.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
         "make_variable": "RTL_OOO_FRONTEND",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1299,7 +1299,7 @@ FDG_MUTATION_SPECS = {
         "marker": "[INT-DISPATCH-PACKET-PACKED] lane1 valid without lane0",
     },
     "trap_ex_pc_corrupted": {
-        "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
         "make_variable": "RTL_OOO_CSR_TRAP_REQUEST_MUX",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1313,7 +1313,7 @@ FDG_MUTATION_SPECS = {
         "marker": "FDG illegal FP mepc got=",
     },
     "trap_ex_tval_forced_zero": {
-        "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
         "make_variable": "RTL_OOO_CSR_TRAP_REQUEST_MUX",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1335,20 +1335,20 @@ FDG_ORACLE_PROBE_SPECS = {
     },
 }
 FDG_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooControlPlane.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
     "npc/rv64/testbench/tests/tb_ooo_fp_legality_dispatch_path.sv",
     "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/contract.md",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/rtl-derivation.md",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/run-focused.sh",
@@ -1565,7 +1565,7 @@ def validate_fdg_debt(
 
     try:
         module_tests = fdg_required_module_tests(
-            root / "npc/rv64/testbench/Makefile")
+            root / "npc/rv64/testbench/Makefile.legacy")
     except (OSError, ValueError) as exc:
         errors.append(f"FDG-G1 cannot parse module inventory: {exc}")
         module_tests = []
@@ -1757,7 +1757,7 @@ XRET_PROGRAM_RES = (
 )
 XRET_MUTATION_SPECS = {
     "mret_mode_legality_removed": {
-        "source": "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
         "make_variable": "RTL_OOO_FETCH_HEAD_CLASSIFY_GATE",
         "test_name": "tb_ooo_fetch_head_classify_gate",
         "old": (
@@ -1767,7 +1767,7 @@ XRET_MUTATION_SPECS = {
         "marker": "mret in S-mode illegal got=0 expected=1",
     },
     "sret_u_mode_legality_removed": {
-        "source": "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
         "make_variable": "RTL_OOO_FETCH_HEAD_CLASSIFY_GATE",
         "test_name": "tb_ooo_fetch_head_classify_gate",
         "old": (
@@ -1777,7 +1777,7 @@ XRET_MUTATION_SPECS = {
         "marker": "sret in U-mode illegal got=0 expected=1",
     },
     "sret_tsr_legality_removed": {
-        "source": "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
         "make_variable": "RTL_OOO_FETCH_HEAD_CLASSIFY_GATE",
         "test_name": "tb_ooo_fetch_head_classify_gate",
         "old": (
@@ -1788,7 +1788,7 @@ XRET_MUTATION_SPECS = {
         "marker": "sret under tsr illegal got=0 expected=1",
     },
     "legal_mret_overgated": {
-        "source": "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
         "make_variable": "RTL_OOO_FETCH_HEAD_CLASSIFY_GATE",
         "test_name": "tb_ooo_fetch_head_classify_gate",
         "old": (
@@ -1798,7 +1798,7 @@ XRET_MUTATION_SPECS = {
         "marker": "mret in M-mode legal got=1 expected=0",
     },
     "head0_arch_trap_system_exclusion_removed": {
-        "source": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
         "make_variable": "RTL_OOO_PENDING_DISPATCH_ARBITER",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1821,7 +1821,7 @@ XRET_MUTATION_SPECS = {
         "marker": "[FLUSH-CONTRACT INV-7]",
     },
     "lane1_arch_trap_system_exclusion_removed": {
-        "source": "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
         "make_variable": "RTL_OOO_PENDING_LANE1_CAPTURE_GATE",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1835,7 +1835,7 @@ XRET_MUTATION_SPECS = {
             "[V10A-SERIAL-OWNER-ONEHOT] arch and system holders overlap"),
     },
     "precise_trap_pc_offset": {
-        "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
         "make_variable": "RTL_OOO_CSR_TRAP_REQUEST_MUX",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1849,7 +1849,7 @@ XRET_MUTATION_SPECS = {
         "marker": "s-mode mret mepc got=",
     },
     "precise_trap_tval_forced_zero": {
-        "source": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
         "make_variable": "RTL_OOO_CSR_TRAP_REQUEST_MUX",
         "test_name": "tb_ooo_priv_system",
         "old": (
@@ -1880,23 +1880,23 @@ XRET_ORACLE_PROBE_SPECS = {
     },
 }
 XRET_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/common/OooSlotFacts.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
-    "npc/rv64/vsrc/control/OooControlPlane.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/core/CsrFile.v",
+    "npc/rv64/legacy/rtl/vsrc/common/OooSlotFacts.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_head_classify_gate.sv",
     "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{XRET_RUN_ID}/contract.md",
     f".github/task-runs/{XRET_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{XRET_RUN_ID}/run-focused.sh",
@@ -2102,7 +2102,7 @@ def validate_xret_debt(
 
     try:
         module_tests = fdg_required_module_tests(
-            root / "npc/rv64/testbench/Makefile")
+            root / "npc/rv64/testbench/Makefile.legacy")
     except (OSError, ValueError) as exc:
         errors.append(f"XRET-G1 cannot parse module inventory: {exc}")
         module_tests = []
@@ -2264,7 +2264,7 @@ INSTRET_PROGRAM_RE = re.compile(
 )
 INSTRET_MUTATION_SPECS = {
     "exception_filter_removed": {
-        "source": "npc/rv64/vsrc/writeback/OooCommitOutputMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/writeback/OooCommitOutputMux.v",
         "make_variable": "RTL_OOO_COMMIT_OUTPUT_MUX",
         "old": (
             "wire commit0_isa_retire_w = "
@@ -2273,7 +2273,7 @@ INSTRET_MUTATION_SPECS = {
         "marker": "[INSTRET-G1-FINAL-EQ]",
     },
     "final_control_source_removed": {
-        "source": "npc/rv64/vsrc/writeback/OooCommitOutputMux.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/writeback/OooCommitOutputMux.v",
         "make_variable": "RTL_OOO_COMMIT_OUTPUT_MUX",
         "old": (
             "wire commit0_isa_retire_w = "
@@ -2284,7 +2284,7 @@ INSTRET_MUTATION_SPECS = {
         "marker": "[INSTRET-G1-FINAL-EQ]",
     },
     "csr_uses_core_count": {
-        "source": "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
         "make_variable": "RTL_NPC_CORE_TOP",
         "old": ".instret_inc_i(retire_count_o),",
         "new": ".instret_inc_i(ooo_core_retire_count_w),",
@@ -2292,16 +2292,16 @@ INSTRET_MUTATION_SPECS = {
     },
 }
 INSTRET_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/writeback/OooCommitOutputMux.v",
-    "npc/rv64/vsrc/writeback/OooWriteback.v",
-    "npc/rv64/vsrc/core/NpcCoreTop.v",
-    "npc/rv64/vsrc/core/CsrFile.v",
+    "npc/rv64/legacy/rtl/vsrc/writeback/OooCommitOutputMux.v",
+    "npc/rv64/legacy/rtl/vsrc/writeback/OooWriteback.v",
+    "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v",
     "npc/rv64/testbench/tests/tb_ooo_sv39_boot.sv",
     "npc/rv64/testbench/tests/tb_ooo_commit_output_mux.sv",
     "npc/rv64/testbench/tests/tb_ooo_alu_core_slice.sv",
     "npc/rv64/testbench/tests/tb_csr_file.sv",
-    "npc/rv64/Makefile",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/Makefile.legacy",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
     ".github/task-runs/2026-07-21-rv64-v9c-instret-retirement/contract.md",
@@ -2500,7 +2500,7 @@ def validate_instret_debt(
     }
     try:
         makefile_path, makefile_error = safe_regular_file(
-            root, "npc/rv64/testbench/Makefile")
+            root, "npc/rv64/testbench/Makefile.legacy")
         if makefile_error or makefile_path is None:
             raise ValueError(makefile_error or "module Makefile is missing")
         required_tests, inventory_errors = parse_required_tests(
@@ -2707,7 +2707,7 @@ FENCE_INVARIANTS = {
 }
 FENCE_VARIANT_SPECS = {
     "fence_full_memory_idle_removed": {
-        "source": "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
         "make_variable": "RTL_OOO_PENDING_DRAIN_RESOLVE_GATE",
         "test_name": "tb_ooo_pending_drain_resolve_gate",
         "old": (
@@ -2719,7 +2719,7 @@ FENCE_VARIANT_SPECS = {
             "got=1 expected=0"),
     },
     "core_glue_fence_mem_idle_binding_constantized": {
-        "source": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "source": "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
         "make_variable": "RTL_OOO_CORE_TOP_GLUE",
         "test_name": "tb_ooo_priv_system",
         "old": ".mem_idle_i(core_mem_idle_w),",
@@ -2730,23 +2730,23 @@ FENCE_VARIANT_SPECS = {
     },
 }
 FENCE_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-    "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
-    "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-    "npc/rv64/vsrc/control/OooControlPlane.v",
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-    "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-    "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+    "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
     "npc/rv64/sim/vsrc/NpcSimTop.sv",
     "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
     "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
     "npc/rv64/testbench/common/tb_common.svh",
-    "npc/rv64/Makefile",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/Makefile.legacy",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     f".github/task-runs/{FENCE_RUN_ID}/completion-definition.md",
     f".github/task-runs/{FENCE_RUN_ID}/contract.md",
@@ -2955,7 +2955,7 @@ def validate_fence_debt(
     }
     try:
         makefile_path, makefile_error = safe_regular_file(
-            root, "npc/rv64/testbench/Makefile")
+            root, "npc/rv64/testbench/Makefile.legacy")
         if makefile_error or makefile_path is None:
             raise ValueError(makefile_error or "module Makefile is missing")
         required_tests, inventory_errors = parse_required_tests(
@@ -3168,14 +3168,14 @@ MEMORY_LIFECYCLE_RESULT_SCHEMA = (
 MEMORY_LIFECYCLE_COMMAND = "make -C npc/rv64 check-memory-issue-lifecycle"
 MEMORY_LIFECYCLE_RUN_ID = "2026-07-22-rv64-v9f-memory-issue-lifecycle"
 MEMORY_LIFECYCLE_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
-    "npc/rv64/vsrc/memory/OooStoreQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v",
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_inflight_queue.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{MEMORY_LIFECYCLE_RUN_ID}/contract.md",
     f".github/task-runs/{MEMORY_LIFECYCLE_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{MEMORY_LIFECYCLE_RUN_ID}/run-focused.sh",
@@ -3549,13 +3549,13 @@ IFU_AXI_COMMAND = (
 )
 IFU_AXI_RUN_ID = "2026-07-22-rv64-v9g-ifu-axi-current-design"
 IFU_AXI_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
     "npc/rv64/testbench/tests/tb_axi_xbar.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/eval/ppa/ifu-evidence.mk",
     f".github/task-runs/{IFU_AXI_RUN_ID}/contract.md",
@@ -3845,10 +3845,10 @@ def validate_ifu_axi_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_variant_by_source = {
-        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v": {
             "required": 14, "compile_success": 14, "dynamic_rejected": 14,
         },
-        "npc/rv64/vsrc/bus/AxiCrossbar.v": {
+        "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v": {
             "required": 4, "compile_success": 4, "dynamic_rejected": 4,
         },
     }
@@ -3910,17 +3910,17 @@ IFU_FETCH_RESULT_SCHEMA = "npc-rv64-ifu-fetch-provenance-evidence-v1"
 IFU_FETCH_COMMAND = "make -C npc/rv64 check-ifu-fetch-provenance"
 IFU_FETCH_RUN_ID = "2026-07-22-rv64-v9h-ifu-fetch-provenance-current-design"
 IFU_FETCH_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/cache/OooFetchPacketCache.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{IFU_FETCH_RUN_ID}/contract.md",
     f".github/task-runs/{IFU_FETCH_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{IFU_FETCH_RUN_ID}/review-summary.md",
@@ -4204,10 +4204,10 @@ def validate_ifu_fetch_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_variant_by_source = {
-        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v": {
             "required": 8, "compile_success": 8, "dynamic_rejected": 8,
         },
-        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v": {
             "required": 8, "compile_success": 8, "dynamic_rejected": 8,
         },
     }
@@ -4293,17 +4293,17 @@ IFU_ACCESS_ARTIFACT_PATHS = {
     ),
 }
 IFU_ACCESS_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
-    "npc/rv64/vsrc/memory/PmpChecker.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
     "npc/rv64/legacy/sim/src/dpi.c",
     "npc/rv64/legacy/sim/src/memory/paddr.c",
@@ -4313,7 +4313,7 @@ IFU_ACCESS_SOURCE_BINDINGS = {
     "npc/rv64/testbench/tests/tb_axi_exec_firewall.sv",
     "npc/rv64/testbench/cpp/axi_dpi_slave_sized_tb.cpp",
     "npc/rv64/testbench/cpp/sized_dpi_guard_tb.cpp",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/eval/ppa/ifu-evidence.mk",
@@ -4545,21 +4545,21 @@ def validate_ifu_access_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_by_source = {
-        "npc/rv64/vsrc/bus/AxiCrossbar.v": {
+        "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v": {
             "required": 3, "compile_success": 3, "dynamic_rejected": 3},
-        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v": {
             "required": 9, "compile_success": 9, "dynamic_rejected": 9},
-        "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v": {
             "required": 2, "compile_success": 2, "dynamic_rejected": 2},
-        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/memory/PmpChecker.v": {
+        "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
     }
     if (
@@ -4658,16 +4658,16 @@ IFU_TVAL_ARTIFACT_PATHS = {
     ),
 }
 IFU_TVAL_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketFifo.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
@@ -4677,10 +4677,10 @@ IFU_TVAL_SOURCE_BINDINGS = {
     "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv",
     "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv",
     "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{IFU_TVAL_RUN_ID}/contract.md",
     f".github/task-runs/{IFU_TVAL_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{IFU_TVAL_RUN_ID}/run-focused.sh",
@@ -4925,25 +4925,25 @@ def validate_ifu_tval_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_by_source = {
-        "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v": {
             "required": 2, "compile_success": 2, "dynamic_rejected": 2},
-        "npc/rv64/vsrc/control/OooStopPendingSequencer.v": {
+        "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketFifo.v": {
             "required": 2, "compile_success": 2, "dynamic_rejected": 2},
-        "npc/rv64/vsrc/frontend/OooFrontend.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
-        "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v": {
             "required": 1, "compile_success": 1, "dynamic_rejected": 1},
     }
     if (
@@ -5020,15 +5020,15 @@ PTW_PMP_ARTIFACT_PATHS = {
     ),
 }
 PTW_PMP_SOURCE_BINDINGS = {
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-    "npc/rv64/vsrc/memory/PmpChecker.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_mem_axi_bridge.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{PTW_PMP_RUN_ID}/contract.md",
     f".github/task-runs/{PTW_PMP_RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{PTW_PMP_RUN_ID}/run-focused.sh",
@@ -5178,7 +5178,7 @@ def validate_ptw_pmp_debt(
         parsed_static = tool.validate_static_contract(root)
         lsu_deny_quiet_structure = (
             tool.validate_lsu_unbounded_deny_quiet_structure(
-                (root / "npc/rv64/vsrc/memory/OooMemAxiBridge.v")
+                (root / "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v")
                 .read_text(encoding="utf-8")))
     except (OSError, ValueError, AttributeError, json.JSONDecodeError) as exc:
         errors.append(f"{debt_id} cannot reconstruct semantic evidence: {exc}")
@@ -5252,9 +5252,9 @@ def validate_ptw_pmp_debt(
     if result.get("variant_audit") != parsed_variants:
         errors.append(f"{debt_id} RTL verification variants cannot be reconstructed")
     expected_by_source = {
-        "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v": {
             "required": 12, "compile_success": 12, "dynamic_rejected": 12},
-        "npc/rv64/vsrc/memory/OooMemAxiBridge.v": {
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v": {
             "required": 16, "compile_success": 16, "dynamic_rejected": 16},
     }
     if (
@@ -5512,7 +5512,7 @@ def f0_capture_functional_inputs(
             root / "am-kernels/tests/cpu-tests/scripts/check_results.py",
         ],
         "npc_host_harness_sources": [
-            root / "npc/rv64/Makefile",
+            root / "npc/rv64/Makefile.legacy",
             root / "npc/rv64/Kconfig",
             root / "npc/rv64/.config",
             root / "npc/rv64/configs/default_defconfig",
@@ -6027,7 +6027,7 @@ def validate_f0_debt(
         errors.append(f"{debt_id} result is not bound to current local RV64 RTL")
 
     makefile, makefile_error = safe_regular_file(
-        root, "npc/rv64/testbench/Makefile")
+        root, "npc/rv64/testbench/Makefile.legacy")
     required_tests: list[str] = []
     if makefile_error or makefile is None:
         errors.append(makefile_error or f"{debt_id} module Makefile is missing")
@@ -6369,7 +6369,7 @@ def validate_control_event_payload(
     module_logs = module.get("logs") if isinstance(module, dict) else None
     try:
         makefile_path, makefile_error = safe_regular_file(
-            root, "npc/rv64/testbench/Makefile")
+            root, "npc/rv64/testbench/Makefile.legacy")
         if makefile_error or makefile_path is None:
             raise ValueError(makefile_error or "module Makefile is missing")
         required_tests, inventory_errors = parse_required_tests(
@@ -7045,7 +7045,7 @@ def _validate_legacy_control_event_debt(
     live_inventory: list[str] = []
     inventory_is_valid = False
     makefile_path, makefile_error = safe_regular_file(
-        root, "npc/rv64/testbench/Makefile")
+        root, "npc/rv64/testbench/Makefile.legacy")
     if makefile_error or makefile_path is None:
         errors.append(
             makefile_error or f"{debt_id} test inventory Makefile is missing")
@@ -7572,7 +7572,7 @@ def validate_vectored_trap_debt(
         for row in rows
         if isinstance(row, dict) and isinstance(row.get("mutation_id"), str)
     } if isinstance(rows, list) else {}
-    source_path = root / "npc/rv64/vsrc/core/CsrFile.v"
+    source_path = root / "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v"
     source_text = source_path.read_text(encoding="utf-8")
     source_sha = sha256_file(source_path)
     mutation_ok = isinstance(rows, list) and (
@@ -8104,8 +8104,8 @@ def expected_input_sets(root: pathlib.Path, tests: list[str]) -> dict[str, set[s
         "config": {"npc/rv64/.config"},
         "generated_headers": generated,
         "filelists": {
-            "npc/rv64/vsrc/filelist.mk",
-            "npc/rv64/testbench/Makefile",
+            "npc/rv64/legacy/rtl/filelist.mk",
+            "npc/rv64/testbench/Makefile.legacy",
         },
         "specifications": specifications,
         "test_sources": test_support,
@@ -8328,7 +8328,7 @@ def validate_census(
         static_result = evaluator.audit(
             root,
             census_path,
-            root / "npc/rv64/vsrc",
+            root / "npc/rv64/legacy/rtl/vsrc",
         )
         hashes = static_result.get("hashes")
         if static_result.get("status") != "PASS":
@@ -8615,7 +8615,7 @@ def validate_system_recertification(
     l0_inventory_errors: list[str] = []
     try:
         required_tests, l0_inventory_errors = parse_required_tests(
-            (root / "npc/rv64/testbench/Makefile").read_text(encoding="utf-8")
+            (root / "npc/rv64/testbench/Makefile.legacy").read_text(encoding="utf-8")
         )
         if not l0_inventory_errors:
             expected_l0_count = len(required_tests)
@@ -10107,7 +10107,7 @@ def evaluate_candidate(
     blockers.extend(system_blockers)
     observed["system_recertification"] = system_observed
 
-    test_makefile = root / "npc/rv64/testbench/Makefile"
+    test_makefile = root / "npc/rv64/testbench/Makefile.legacy"
     required_tests, inventory_errors = parse_required_tests(
         test_makefile.read_text(encoding="utf-8")
         if test_makefile.is_file() else "")

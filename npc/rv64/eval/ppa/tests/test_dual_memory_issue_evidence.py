@@ -62,11 +62,11 @@ class DualMemoryIssueEvidenceTests(unittest.TestCase):
     def test_all_mutation_anchors_match_current_rtl_once(self) -> None:
         source_paths = {
             "OooIntBackend.v":
-                ROOT / "npc/rv64/vsrc/execute/OooIntBackend.v",
+                ROOT / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "OooMemAxiBridge.v":
-                ROOT / "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+                ROOT / "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
             "OooIntIssueQueue.v":
-                ROOT / "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+                ROOT / "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v",
         }
         for name, mutation in mutator.MUTATIONS.items():
             text = source_paths[mutation.source_name].read_text(
@@ -145,8 +145,8 @@ class DualMemoryIssueEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
             checker = root / "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
-            makefile = root / "npc/rv64/Makefile"
-            rtl = root / "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+            makefile = root / "npc/rv64/Makefile.legacy"
+            rtl = root / "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
             checker.parent.mkdir(parents=True)
             makefile.parent.mkdir(parents=True, exist_ok=True)
             rtl.parent.mkdir(parents=True)
@@ -163,7 +163,7 @@ class DualMemoryIssueEvidenceTests(unittest.TestCase):
             checker.write_text("new checker\n", encoding="utf-8")
             makefile.write_text("new orchestration\n", encoding="utf-8")
             allowed = {
-                "npc/rv64/Makefile",
+                "npc/rv64/Makefile.legacy",
                 "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
             }
             entries, drift = evidence.read_frozen_source_manifest(

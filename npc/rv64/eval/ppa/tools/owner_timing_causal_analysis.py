@@ -28,8 +28,8 @@ SELF_PATH = "npc/rv64/eval/ppa/tools/owner_timing_causal_analysis.py"
 OWNER_VERIFIER_PATH = "npc/rv64/eval/ppa/tools/owner_timing_workload_ab.py"
 DEFAULT_PROBE_SOURCE = (
     "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv")
-DEFAULT_ARBITER_RTL = "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v"
-DEFAULT_ADAPTER_RTL = "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+DEFAULT_ARBITER_RTL = "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemAxiArbiter.v"
+DEFAULT_ADAPTER_RTL = "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
 
 ROW_RE = re.compile(
     r"^\[OWNER-TIMING-CAUSAL-PROBE\] "

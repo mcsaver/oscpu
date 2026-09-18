@@ -352,7 +352,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
                 record
                 for record in item["detail"]["selected_bindings"]
                 if record["path"]
-                == "npc/rv64/vsrc/include/define.v"
+                == "npc/rv64/legacy/rtl/vsrc/include/define.v"
             ]
             self.assertEqual(len(define_records), 1)
             self.assertFalse(define_records[0]["matches_live"])
@@ -367,7 +367,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
                     binding["matches_live"]
                     for binding in item["detail"]["selected_bindings"]
                     if binding["path"]
-                    != "npc/rv64/vsrc/include/define.v"
+                    != "npc/rv64/legacy/rtl/vsrc/include/define.v"
                 )
             )
 
@@ -387,10 +387,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
             selected_paths = {
                 item["path"] for item in evidence["detail"]["selected_bindings"]
             }
-            self.assertNotIn("npc/rv64/vsrc/filelist.mk", selected_paths)
+            self.assertNotIn("npc/rv64/legacy/rtl/filelist.mk", selected_paths)
         self.assertEqual(
             COVERAGE.NON_SEMANTIC_ORCHESTRATION_PATHS,
-            frozenset({"npc/rv64/testbench/Makefile"}),
+            frozenset({"npc/rv64/testbench/Makefile.legacy"}),
         )
 
     def test_v11h_current_run_separates_local_and_system_gates(self) -> None:
@@ -1084,10 +1084,10 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(
             set(detail["compiler_input_required_claim_rtl"]),
             {
-                "npc/rv64/vsrc/writeback/OooRob.v",
-                "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-                "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
-                "npc/rv64/vsrc/control/"
+                "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
+                "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+                "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
+                "npc/rv64/legacy/rtl/vsrc/control/"
                 "OooPendingSystemAdmissionCancelGate.v",
             },
         )
@@ -1260,11 +1260,11 @@ class NegativeContractTests(unittest.TestCase):
                 "matches_live": False,
             },
             {
-                "path": "npc/rv64/vsrc/writeback/OooRob.v",
+                "path": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
                 "role": "rtl",
                 "evidence_sha256": "0" * 64,
                 "live_sha256": COVERAGE.sha256_file(
-                    ROOT / "npc/rv64/vsrc/writeback/OooRob.v"
+                    ROOT / "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v"
                 ),
                 "matches_live": False,
             },
@@ -2478,7 +2478,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/execute/OooExecuteBackend.v"
+            != "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -2688,7 +2688,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/memory/OooStoreQueue.v"
+            != "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -2797,7 +2797,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
+            != "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -2910,7 +2910,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
+            != "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -3024,7 +3024,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/execute/OooMulDivUnit.v"
+            != "npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -3175,7 +3175,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/execute/OooClmulUnit.v"
+            != "npc/rv64/legacy/rtl/vsrc/execute/OooClmulUnit.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -3348,7 +3348,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v"
+            != "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,
@@ -3392,7 +3392,7 @@ class NegativeContractTests(unittest.TestCase):
         summary = json.loads(
             (ROOT / closure["summary"]).read_text(encoding="utf-8")
         )
-        rob_path = "npc/rv64/vsrc/writeback/OooRob.v"
+        rob_path = "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v"
         target = next(
             compile_input
             for profile in summary["profiles"]
@@ -3429,7 +3429,7 @@ class NegativeContractTests(unittest.TestCase):
             (ROOT / closure["summary"]).read_text(encoding="utf-8")
         )
         summary["compile_input_closure"]["build_controls"][
-            "npc/rv64/testbench/Makefile"
+            "npc/rv64/testbench/Makefile.legacy"
         ] = "0" * 64
         closure["summary"] = self.write_policy(summary).relative_to(
             ROOT
@@ -3522,7 +3522,7 @@ class NegativeContractTests(unittest.TestCase):
             binding
             for binding in closure["current_selected_bindings"]
             if binding["path"]
-            != "npc/rv64/vsrc/execute/OooFpArithGate.v"
+            != "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v"
         ]
         with self.assertRaisesRegex(
             COVERAGE.CoverageError,

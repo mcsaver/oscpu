@@ -202,7 +202,7 @@ def parse_module_aggregate(
     summary: pathlib.Path,
     expected_design_id: str | None = None,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     expected_count = len(tests)
     markers = (
@@ -358,23 +358,23 @@ def build(
     variants = validate_variants(root, variant_summary)
 
     source_paths = (
-        "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
-        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
-        "npc/rv64/vsrc/control/OooControlPlane.v",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-        "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-        "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-        "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-        "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
-        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+        "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         "npc/rv64/sim/vsrc/NpcSimTop.sv",
         "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
         "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
         "npc/rv64/testbench/common/tb_common.svh",
-        "npc/rv64/Makefile",
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/Makefile.legacy",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/check_tb_result.py",
         f".github/task-runs/{RUN_ID}/completion-definition.md",
         f".github/task-runs/{RUN_ID}/contract.md",

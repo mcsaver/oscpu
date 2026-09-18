@@ -478,7 +478,7 @@ FP_OOC_BACKEND_COMPLETION_REGISTER_FAMILIES = {
 
 _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
     "OooFpAddSubPipe": {
-        "rtl": "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
+        "rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpAddSubPipe.v",
         "helpers": ["OooFpPredicates.v", "OooFpRound.v"],
         "top_instance": "u_addsub_pipe",
         "inputs": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64,
@@ -489,7 +489,7 @@ _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
         "top_boundary": "addsub_s3_q_to_wrapper_s4_d",
     },
     "OooFpMulProductPipe": {
-        "rtl": "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
+        "rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulProductPipe.v",
         "helpers": ["OooFpPredicates.v"],
         "top_instance": "u_mul_product_pipe",
         "inputs": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64,
@@ -505,7 +505,7 @@ _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
         "top_boundary": "mul_product_s1_q_to_mul_norm_s2_d",
     },
     "OooFpMulNormRoundPipe": {
-        "rtl": "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
+        "rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulNormRoundPipe.v",
         "helpers": ["OooFpRound.v"],
         "top_instance": "u_mul_norm_round_pipe",
         "inputs": {"clk": 1, "rst": 1, "flush_i": 1,
@@ -522,7 +522,7 @@ _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
         "top_boundary": "mul_norm_s3_q_to_wrapper_s4_d",
     },
     "OooFpFmaAlignAddPipe": {
-        "rtl": "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
+        "rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaAlignAddPipe.v",
         "helpers": ["OooFpPredicates.v", "OooFpRound.v"],
         "top_instance": "u_fma_align_add_pipe",
         "inputs": {"clk": 1, "rst": 1, "flush_i": 1, "frs1_value_i": 64,
@@ -539,7 +539,7 @@ _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
         "top_boundary": "fma_align_s3_q_to_fma_norm_s4_d",
     },
     "OooFpFmaNormRoundPipe": {
-        "rtl": "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+        "rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaNormRoundPipe.v",
         "helpers": ["OooFpRound.v"],
         "top_instance": "u_fma_norm_round_pipe",
         "inputs": {"clk": 1, "rst": 1, "flush_i": 1,
@@ -561,12 +561,12 @@ _FP_OOC_CHILD_SPECS: dict[str, dict[str, Any]] = {
 def _expected_fp_ooc_child_contracts() -> dict[str, dict[str, Any]]:
     contracts: dict[str, dict[str, Any]] = {}
     for module, spec in _FP_OOC_CHILD_SPECS.items():
-        compile_sources = ["npc/rv64/vsrc/include/define.v"]
+        compile_sources = ["npc/rv64/legacy/rtl/vsrc/include/define.v"]
         compile_sources.extend(
-            f"npc/rv64/vsrc/execute/{helper}" for helper in spec["helpers"]
+            f"npc/rv64/legacy/rtl/vsrc/execute/{helper}" for helper in spec["helpers"]
         )
         compile_sources.append(spec["rtl"])
-        source_closure = [*compile_sources, "npc/rv64/vsrc/filelist.mk"]
+        source_closure = [*compile_sources, "npc/rv64/legacy/rtl/filelist.mk"]
         endpoint_contracts = {
             "OooFpAddSubPipe": {
                 "kind": "wrapper_register_d",
@@ -668,7 +668,7 @@ def fp_ooc_child_source_domain_errors(child_contracts: Any) -> list[str]:
             errors.append(f"FP OOC {module} compile_sources contains duplicates")
         invalid_compile_paths = [
             path for path in compile_sources
-            if not path.startswith("npc/rv64/vsrc/")
+            if not path.startswith("npc/rv64/legacy/rtl/vsrc/")
             or "/../" in path
             or Path(path).suffix not in {".v", ".sv"}
         ]
@@ -692,9 +692,9 @@ def fp_ooc_child_source_domain_errors(child_contracts: Any) -> list[str]:
             )
         if rtl not in compile_sources:
             errors.append(f"FP OOC {module} compile_sources lacks child RTL")
-        if "npc/rv64/vsrc/filelist.mk" not in source_closure:
+        if "npc/rv64/legacy/rtl/filelist.mk" not in source_closure:
             errors.append(f"FP OOC {module} source_closure lacks filelist.mk")
-        if "npc/rv64/vsrc/filelist.mk" in compile_sources:
+        if "npc/rv64/legacy/rtl/filelist.mk" in compile_sources:
             errors.append(f"FP OOC {module} compile_sources includes filelist.mk")
     return errors
 
@@ -1420,8 +1420,8 @@ def validate_catalog(catalog: dict[str, Any], *, root: Path = REPO_ROOT) -> list
     if not isinstance(scope, dict):
         errors.append("scope must be an object")
         return errors
-    if scope.get("source_root") != "npc/rv64/vsrc":
-        errors.append("scope.source_root must be npc/rv64/vsrc")
+    if scope.get("source_root") != "npc/rv64/legacy/rtl/vsrc":
+        errors.append("scope.source_root must be npc/rv64/legacy/rtl/vsrc")
     if scope.get("extensions") != [".v", ".sv"]:
         errors.append("scope.extensions must be the canonical [.v, .sv] list")
     inventory_review = scope.get("inventory_review")
@@ -1483,7 +1483,7 @@ def validate_catalog(catalog: dict[str, Any], *, root: Path = REPO_ROOT) -> list
         "configuration_scope",
     }
     for path, value in overrides.items():
-        if not isinstance(path, str) or not path.startswith("npc/rv64/vsrc/"):
+        if not isinstance(path, str) or not path.startswith("npc/rv64/legacy/rtl/vsrc/"):
             errors.append(f"file override path is outside vsrc: {path}")
             continue
         if not isinstance(value, dict) or not value:
@@ -1752,7 +1752,7 @@ def git_state(root: Path, source_root: str) -> tuple[str, set[str], dict[str, st
 
 def make_filelists(root: Path) -> dict[str, set[str]]:
     rv64 = root / "npc/rv64"
-    source_root = (rv64 / "vsrc").resolve()
+    source_root = (rv64 / "legacy/rtl/vsrc").resolve()
     goal = "print-architecture-registry-lists"
     eval_text = (
         f"{goal}:\n"
@@ -1768,7 +1768,7 @@ def make_filelists(root: Path) -> dict[str, set[str]]:
             "-C",
             str(rv64),
             "-f",
-            "vsrc/filelist.mk",
+            "legacy/rtl/filelist.mk",
             f"VSRCDIR={source_root}",
             f"--eval={eval_text}",
             goal,
@@ -1939,7 +1939,7 @@ def mapped_runner_contract_errors(runner: str) -> list[str]:
         "canonical runner identity":
             'runner_path="$(realpath -e -- "${BASH_SOURCE[0]}")"',
         "explicit filelist de-duplication":
-            '! -path "${repo_root}/npc/rv64/vsrc/filelist.mk"',
+            '! -path "${repo_root}/npc/rv64/legacy/rtl/filelist.mk"',
         "canonical runner manifest input":
             '"${architecture_registry}" "${runner_path}"',
         "pointer-free catalog binding note":
@@ -2629,7 +2629,7 @@ def role_for(path: str, lists: dict[str, set[str]], catalog: dict[str, Any]) -> 
     # A directory name or SIM_TOP_SRCS membership is observation, not intent.
     # Every non-product source therefore needs an explicit file override.
     if path.startswith((
-        "npc/rv64/vsrc/debug/", "npc/rv64/vsrc/sim/", "npc/rv64/sim/vsrc/"
+        "npc/rv64/legacy/rtl/vsrc/debug/", "npc/rv64/legacy/rtl/vsrc/sim/", "npc/rv64/sim/vsrc/"
     )):
         return "unclassified"
     if path in lists["core"]:
@@ -2754,7 +2754,7 @@ def reachable_instances(yosys_json: dict[str, Any], top: str) -> list[dict[str, 
 def synth_sources(root: Path) -> list[Path]:
     completed = run_checked(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "--no-print-directory",
             "-s",
             "-C",
@@ -2803,8 +2803,8 @@ def capture_elaboration(
     version = run_checked([str(executable), "-V"], root=root).stdout.strip()
     top = scope["top_module"]
     include_dirs = [
-        "npc/rv64/vsrc",
-        "npc/rv64/vsrc/include",
+        "npc/rv64/legacy/rtl/vsrc",
+        "npc/rv64/legacy/rtl/vsrc/include",
     ]
     command = ["read_verilog", "-sv"]
     command.extend(f"-I {path}" for path in include_dirs)
@@ -4826,10 +4826,10 @@ def render_markdown(snapshot: dict[str, Any], catalog: dict[str, Any]) -> str:
 
     directory_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in snapshot["files"]:
-        relative = row["path"].removeprefix("npc/rv64/vsrc/")
+        relative = row["path"].removeprefix("npc/rv64/legacy/rtl/vsrc/")
         directory = relative.split("/", 1)[0]
         directory_rows[directory].append(row)
-    lines.extend(["", "## 权责源码树", "", "```text", "npc/rv64/vsrc"])
+    lines.extend(["", "## 权责源码树", "", "```text", "npc/rv64/legacy/rtl/vsrc"])
     directories = sorted(directory_rows)
     for index, directory in enumerate(directories):
         rows = directory_rows[directory]
@@ -4998,7 +4998,7 @@ def render_markdown(snapshot: dict[str, Any], catalog: dict[str, Any]) -> str:
             "```bash",
             "python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --capability bpu",
             "python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --capability fp",
-            "python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --path npc/rv64/vsrc/frontend/OooBranchDirectionPredictor.v",
+            "python3 npc/rv64/eval/ppa/tools/architecture_registry.py query --path npc/rv64/legacy/rtl/vsrc/frontend/OooBranchDirectionPredictor.v",
             "python3 npc/rv64/eval/ppa/tools/architecture_registry.py emit mapped-blackbox-modules --physical-configuration mapped-5ns-four-placeholder-v1",
             "python3 npc/rv64/eval/ppa/tools/architecture_registry.py emit ooc-composite-contract --physical-configuration mapped-5ns-fp-arith-production-children-ooc-boundary-v1",
             "```",

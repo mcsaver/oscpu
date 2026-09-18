@@ -564,7 +564,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = subprocess.run(
-        ["make", "-s", "print-v11j-bridge-holder-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11j-bridge-holder-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -696,7 +696,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc' / 'rv64' / 'vsrc'}",
+        f"-I{repo_root / 'npc' / 'rv64' / 'legacy' / 'rtl' / 'vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -844,7 +844,7 @@ def run_regressions(
         for test in REGRESSIONS
     ]
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-C",
         str(testbench_dir),
         f"RESULT_DIR={regression_dir}",
@@ -939,11 +939,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc" / "rv64" / "testbench"
     bridge_path = (
-        repo_root / "npc" / "rv64" / "vsrc" / "memory"
+        repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "memory"
         / "OooMemAxiBridge.v"
     ).resolve()
     wrapper_path = (
-        repo_root / "npc" / "rv64" / "vsrc" / "memory"
+        repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "memory"
         / "OooDualMemBridgeWrapper.v"
     ).resolve()
     status_path = result_dir / "runner.status"

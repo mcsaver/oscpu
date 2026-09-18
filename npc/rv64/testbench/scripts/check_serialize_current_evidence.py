@@ -257,7 +257,7 @@ def validate_queue_head(summary: dict[str, Any], design_id: str) -> None:
             f"queue-head C2 negative profile drifted: {name}",
         )
     required_production = {
-        "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
     }
     for name, profile in profiles.items():
         compile_input = profile.get("compile_input", {})

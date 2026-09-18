@@ -138,7 +138,7 @@ def rtl_binding(repo_root: Path) -> tuple[str, dict[str, str]]:
     suffixes = {".v", ".sv", ".vh", ".svh", ".mk"}
     files = sorted(
         path
-        for path in (repo_root / "npc" / "rv64" / "vsrc").rglob("*")
+        for path in (repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc").rglob("*")
         if path.is_file() and path.suffix.lower() in suffixes
     )
     if not files:
@@ -198,7 +198,7 @@ def run_mutation(
     mutant_path.write_text(mutated_text, encoding="utf-8")
 
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-B",
         f"BUILD_DIR={build_dir}",
         f"RESULT_DIR={run_dir}",
@@ -299,7 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     repo_root = args.repo_root.resolve()
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc" / "rv64" / "testbench"
-    source_path = repo_root / "npc" / "rv64" / "vsrc" / "core" / "CsrFile.v"
+    source_path = repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "core" / "CsrFile.v"
 
     if (
         result_dir.exists()

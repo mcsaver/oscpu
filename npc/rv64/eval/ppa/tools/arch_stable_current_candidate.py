@@ -96,7 +96,7 @@ def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
 
 def find_repo_root(start: pathlib.Path) -> pathlib.Path:
     for candidate in (start.resolve(), *start.resolve().parents):
-        if (candidate / "npc/rv64/vsrc").is_dir() and (
+        if (candidate / "npc/rv64/legacy/rtl/vsrc").is_dir() and (
             candidate / ".github/AGENTS.md").is_file():
             return candidate
     raise CandidateError("repository root was not found")
@@ -335,7 +335,7 @@ def build_candidate(
             f"architecture debt status is not 16 CLOSED + 4 excluded: "
             f"unresolved={unresolved} excluded={excluded}")
 
-    makefile = root / "npc/rv64/testbench/Makefile"
+    makefile = root / "npc/rv64/testbench/Makefile.legacy"
     required_tests, inventory_errors = freeze.parse_required_tests(
         makefile.read_text(encoding="utf-8"))
     if inventory_errors:
@@ -377,7 +377,7 @@ def build_candidate(
         "filelists": [
             artifact(
                 root, path,
-                "rtl_filelist" if path.endswith("vsrc/filelist.mk")
+                "rtl_filelist" if path.endswith("legacy/rtl/filelist.mk")
                 else "test_inventory",
             )
             for path in sorted(expected["filelists"])

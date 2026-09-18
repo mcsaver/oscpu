@@ -25,7 +25,7 @@ class MutationContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.source_path = (
-            ROOT / "npc/rv64/vsrc/memory/OooMemOwnerTracker.v"
+            ROOT / "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v"
         )
         cls.source = cls.source_path.read_text(encoding="utf-8")
 

@@ -4,7 +4,7 @@ BUILD_DIR ?= ../../build/chengyue64/regress
 TESTS ?= tb_r64_service_request_hint tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_dcache_write_buffer tb_r64_issue32 tb_r64_free_select tb_r64_dcache_split_owner tb_r64_fabric_groups tb_r64_fabric_read_continue tb_r64_dcache_store_overlap tb_r64_axi_write_bypass tb_r64_fabric_latency_bypass tb_r64_writeback_demand tb_r64_rr_bypass tb_r64_issue_mdu_pair tb_r64_scratch_resume tb_r64_lsu_network tb_r64_dcache_overlap tb_r64_dispatch_wants tb_r64_rr_raw_fp_pair tb_r64_completion_payload tb_r64_predictor_local_counter tb_r64_fetch_facts_reset tb_r64_fast_raw_owner tb_r64_fma_raw_owner tb_r64_direct_mem_execute tb_r64_lsu_direct_bind tb_r64_lsu_owner_bypass tb_r64_lsu_descriptor_payload tb_r64_lsu_query_pin tb_r64_direct_bind_trigger tb_r64_head_serial_class tb_r64_fetch_protection_owner tb_r64_frontend_prepared tb_r64_fp_qcredit tb_r64_fp_qcredit_vectors tb_r64_service_bank_pair tb_r64_service_cache_hot tb_r64_service_aux_owner tb_r64_service_qcredit tb_r64_dcache_amo_pipe tb_r64_data_terminal tb_r64_fetch_translation tb_r64_fetch_translation_owners tb_r64_packet_map tb_r64_packet_missing tb_r64_packet_headcut tb_r64_align_plan_threebank tb_r64_translation_equiv tb_r64_translation_poison tb_r64_frontend_ingress tb_r64_decode_stage tb_r64_rr_lsq_slot tb_r64_lsu_reserve tb_r64_platform_reset tb_r64_trap_prepare tb_r64_control_pipeline tb_r64_recovery_plan tb_r64_frontend_bundle tb_r64_frontend_training tb_r64_lsu_progress tb_r64_alu_pipe tb_r64_alu_lane tb_r64_fp_normalize tb_r64_clmul_writeback tb_r64_issue_serial tb_r64_fp_fast_pipeline tb_r64_fp_completion tb_r64_trap_vector tb_r64_counter tb_r64_fp_grs tb_r64_mul_booth tb_r64_fp_writeback tb_r64_lsu_metadata tb_r64_fp_product tb_r64_fabric_reset tb_r64_div_pipeline tb_r64_regread_pipeline tb_r64_div_writeback tb_r64_lsu_request_queue tb_r64_writeback_lanes tb_r64_mul_writeback tb_uart tb_axi_clint tb_r64_mul_pipeline tb_axi_reset_syscon tb_r64_lsu_order_select tb_axi_to_uart tb_r64_numeric_helpers tb_r64_lsu_select tb_r64_fabric_latency tb_r64_early_frontend tb_r64_early_wakeup tb_r64_store_done tb_axi_plic tb_r64_tensor_memory tb_r64_mem_admission tb_r64_fetch tb_r64_rvc tb_r64_rob_rename tb_r64_issue_regread tb_r64_writeback tb_r64_axi_read tb_r64_axi_write tb_r64_icache tb_r64_tlb tb_r64_pagewalk tb_r64_translation tb_r64_decode tb_r64_arithmetic tb_r64_backend tb_r64_frontend tb_r64_protection tb_r64_pte_port tb_r64_csr tb_r64_serial tb_r64_commit tb_r64_fp_round tb_r64_fp_fma tb_r64_fp_long tb_r64_fp_fast tb_r64_fp_execute tb_r64_backend_fp tb_r64_predictor tb_r64_pipeline tb_r64_lsu tb_r64_lsu_completion tb_r64_lsu_memory tb_r64_memory_service tb_r64_lsu_coupled tb_r64_lsu_misaligned tb_r64_dcache tb_r64_fabric tb_r64_fabric_devices tb_r64_rtc
 TEST_ARGS_tb_r64_lsu := +prepared-capture
 TEST_ARGS_tb_r64_dcache_amo_pipe := +late-invalidate
-TEST_ORACLES := oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v ../../vsrc/decode/OooRvcDecompressor.v ../../vsrc/decode/DecodeUnit.v ../../vsrc/decode/OooFpDecode.v ../../vsrc/core/CsrFile.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v
+TEST_ORACLES := oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v oracles/legacy/OooRvcDecompressor.v oracles/legacy/DecodeUnit.v oracles/legacy/OooFpDecode.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v
 IVERILOG ?= iverilog
 VVP ?= vvp
 # 16-entry PMP plus four fetch queries exercise 30k independent region models.
@@ -25,7 +25,7 @@ run: $(TESTS:%=$(BUILD_DIR)/%.pass)
 $(BUILD_DIR):
 	mkdir -p $@
 $(BUILD_DIR)/%.vvp: modules/%.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(TEST_ORACLES) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s $* -o $@ $(R64_RTL_SRCS) $(TEST_ORACLES) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s $* -o $@ $(R64_RTL_SRCS) $(TEST_ORACLES) $<
 $(BUILD_DIR)/%.pass: $(BUILD_DIR)/%.vvp
 	timeout $(or $(TEST_TIMEOUT_$*),60) $(VVP) $< $(TEST_ARGS_$*) > $(BUILD_DIR)/$*.log 2>&1
 	rg -e '^\[PASS\] $*($$| )' $(BUILD_DIR)/$*.log
@@ -117,10 +117,10 @@ software-run: am-run official-run act4-run
 
 TENSOR_UNIT_DIR := $(abspath $(BUILD_DIR)/tensor-unit)
 TENSOR_UNIT_BIN := $(TENSOR_UNIT_DIR)/Vtb_r64_tensor
-TENSOR_UNIT_SRCS := $(filter-out %/R64TensorSystemTop.v,$(R64_TENSOR_SRCS)) ../../vsrc/chengyue64/platform/R64TensorMemory.v
+TENSOR_UNIT_SRCS := $(filter-out %/R64TensorSystemTop.v,$(R64_TENSOR_SRCS)) ../../vsrc/platform/R64TensorMemory.v
 $(TENSOR_UNIT_BIN): modules/tb_r64_tensor.sv $(TENSOR_UNIT_SRCS) $(R64_SIM_WARNINGS) Makefile
 	mkdir -p $(TENSOR_UNIT_DIR)
-	verilator -Imodules --binary --timing --build -j $(CORE_JOBS) --top-module tb_r64_tensor -Mdir $(TENSOR_UNIT_DIR) --assert -DR64_ASSERT $(TENSOR_FLAGS) -I../../vsrc/include -I../../vsrc/chengyue64/backend -I../../vsrc/chengyue64/platform $(R64_SIM_WARNINGS) $(TENSOR_UNIT_SRCS) modules/tb_r64_tensor.sv > $(TENSOR_UNIT_DIR)/build.log 2>&1
+	verilator -Imodules --binary --timing --build -j $(CORE_JOBS) --top-module tb_r64_tensor -Mdir $(TENSOR_UNIT_DIR) --assert -DR64_ASSERT $(TENSOR_FLAGS) -I../../vsrc/include -I../../vsrc/backend -I../../vsrc/platform $(R64_SIM_WARNINGS) $(TENSOR_UNIT_SRCS) modules/tb_r64_tensor.sv > $(TENSOR_UNIT_DIR)/build.log 2>&1
 .PHONY: tensor-unit
 tensor-unit: $(TENSOR_UNIT_BIN)
 	timeout 120 $(TENSOR_UNIT_BIN) > $(TENSOR_UNIT_DIR)/run.log 2>&1
@@ -135,9 +135,9 @@ negative-store: $(BUILD_DIR)/tb_r64_lsu_coupled.vvp
 	rg -F 'R64Lsu visible store cancelled before retirement' $(BUILD_DIR)/store-bad-flush.log
 negative: negative-store
 $(BUILD_DIR)/tb_r64_lsu_coupled_baseline.vvp: modules/tb_r64_lsu_coupled.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_lsu_coupled -Ptb_r64_lsu_coupled.EARLY_STORE=0 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu_coupled -Ptb_r64_lsu_coupled.EARLY_STORE=0 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_lsu -Ptb_r64_lsu.EARLY_STORE=1 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.EARLY_STORE=1 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_lsu_prepared.pass: $(BUILD_DIR)/tb_r64_lsu_prepared.vvp
 	timeout 60 $(VVP) $< +prepared-hold > $(BUILD_DIR)/tb_r64_lsu_prepared.log 2>&1
 	rg -e '^\[PASS\] tb_r64_lsu($$| )' $(BUILD_DIR)/tb_r64_lsu_prepared.log
@@ -161,7 +161,7 @@ $(BUILD_DIR)/tb_axi_clint.vvp: ../tests/tb_axi_clint.sv ../../vsrc/bus/AxiClint.
 
 
 $(BUILD_DIR)/tb_r64_lsu_metadata.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=2 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=2 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_lsu_metadata.pass: $(BUILD_DIR)/tb_r64_lsu_metadata.vvp
 	timeout 60 $(VVP) $< +metadata-hold > $(BUILD_DIR)/tb_r64_lsu_metadata.log 2>&1
 	rg -e '^\[PASS\] tb_r64_lsu($$| )' $(BUILD_DIR)/tb_r64_lsu_metadata.log
@@ -209,7 +209,7 @@ negative-lsu-reserve: $(BUILD_DIR)/tb_r64_lsu_reserve.vvp
 # Fixed terminal credit must preserve held owners when full+pop and kill meet.
 .PHONY: rr-qcredit-matrix
 rr-qcredit-matrix: | $(BUILD_DIR)
-	@set -e; for q in 0 1; do for k in 0 1; do name=rr-qcredit-$$q-$$k; $(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_rr_qcredit -Ptb_r64_rr_qcredit.Q_ONLY_TERMINAL=$$q -Ptb_r64_rr_qcredit.TARGET_INGRESS_KILL=$$k -o $(BUILD_DIR)/$$name.vvp $(R64_RTL_SRCS) modules/tb_r64_rr_qcredit.sv > $(BUILD_DIR)/$$name-build.log 2>&1; timeout 90 $(VVP) $(BUILD_DIR)/$$name.vvp > $(BUILD_DIR)/$$name.log 2>&1; rg -F '[PASS] rr_qcredit' $(BUILD_DIR)/$$name.log; done; done
+	@set -e; for q in 0 1; do for k in 0 1; do name=rr-qcredit-$$q-$$k; $(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_rr_qcredit -Ptb_r64_rr_qcredit.Q_ONLY_TERMINAL=$$q -Ptb_r64_rr_qcredit.TARGET_INGRESS_KILL=$$k -o $(BUILD_DIR)/$$name.vvp $(R64_RTL_SRCS) modules/tb_r64_rr_qcredit.sv > $(BUILD_DIR)/$$name-build.log 2>&1; timeout 90 $(VVP) $(BUILD_DIR)/$$name.vvp > $(BUILD_DIR)/$$name.log 2>&1; rg -F '[PASS] rr_qcredit' $(BUILD_DIR)/$$name.log; done; done
 
 .PHONY: negative-data-terminal
 negative: negative-data-terminal
@@ -249,19 +249,19 @@ lsu-network-matrix: $(BUILD_DIR)/tb_r64_lsu_network.pass
 # Same real RR/ALU/WB-holder fixture with acceptance-time wake enabled.
 .PHONY: early-accept-matrix
 early-accept-matrix: | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_early_wakeup -Ptb_r64_early_wakeup.EARLY_ACCEPT=1 -o $(BUILD_DIR)/early-accept.vvp $(R64_RTL_SRCS) modules/tb_r64_early_wakeup.sv > $(BUILD_DIR)/early-accept-build.log 2>&1
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_early_wakeup -Ptb_r64_early_wakeup.EARLY_ACCEPT=1 -o $(BUILD_DIR)/early-accept.vvp $(R64_RTL_SRCS) modules/tb_r64_early_wakeup.sv > $(BUILD_DIR)/early-accept-build.log 2>&1
 	timeout 60 $(VVP) $(BUILD_DIR)/early-accept.vvp > $(BUILD_DIR)/early-accept.log 2>&1
 	rg -F '[PASS] tb_r64_early_wakeup ' $(BUILD_DIR)/early-accept.log
 
 $(BUILD_DIR)/tb_r64_axi_write_bypass.vvp: modules/tb_r64_axi_write.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_axi_write -Ptb_r64_axi_write.B_BYPASS=1 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_axi_write -Ptb_r64_axi_write.B_BYPASS=1 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_axi_write_bypass.pass: $(BUILD_DIR)/tb_r64_axi_write_bypass.vvp
 	timeout 60 $(VVP) $< > $(BUILD_DIR)/tb_r64_axi_write_bypass.log 2>&1
 	rg -F '[PASS] tb_r64_axi_write' $(BUILD_DIR)/tb_r64_axi_write_bypass.log
 	touch $@
 
 $(BUILD_DIR)/tb_r64_fabric_latency_bypass.vvp: modules/tb_r64_fabric_latency.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_fabric_latency -Ptb_r64_fabric_latency.B_BYPASS=1 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_fabric_latency -Ptb_r64_fabric_latency.B_BYPASS=1 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_fabric_latency_bypass.pass: $(BUILD_DIR)/tb_r64_fabric_latency_bypass.vvp
 	timeout 60 $(VVP) $< > $(BUILD_DIR)/tb_r64_fabric_latency_bypass.log 2>&1
 	rg -F '[PASS] tb_r64_fabric_latency' $(BUILD_DIR)/tb_r64_fabric_latency_bypass.log
@@ -275,7 +275,7 @@ negative-bypass: $(BUILD_DIR)/tb_r64_axi_write_bypass.vvp
 
 .PHONY: fabric-read-matrix
 fabric-read-matrix: | $(BUILD_DIR)
-	@set -e; for c in 0 1; do for e in 0 1; do name=read-continue-$$c-$$e; $(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_fabric_read_continue -Ptb_r64_fabric_read_continue.READ_CONTINUE=$$c -Ptb_r64_fabric_read_continue.EARLY_RETURN=$$e -o $(BUILD_DIR)/$$name.vvp $(R64_RTL_SRCS) modules/tb_r64_fabric_read_continue.sv > $(BUILD_DIR)/$$name-build.log 2>&1; timeout 60 $(VVP) $(BUILD_DIR)/$$name.vvp > $(BUILD_DIR)/$$name.log 2>&1; rg -F '[PASS] tb_r64_fabric_read_continue' $(BUILD_DIR)/$$name.log; done; done
+	@set -e; for c in 0 1; do for e in 0 1; do name=read-continue-$$c-$$e; $(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_fabric_read_continue -Ptb_r64_fabric_read_continue.READ_CONTINUE=$$c -Ptb_r64_fabric_read_continue.EARLY_RETURN=$$e -o $(BUILD_DIR)/$$name.vvp $(R64_RTL_SRCS) modules/tb_r64_fabric_read_continue.sv > $(BUILD_DIR)/$$name-build.log 2>&1; timeout 60 $(VVP) $(BUILD_DIR)/$$name.vvp > $(BUILD_DIR)/$$name.log 2>&1; rg -F '[PASS] tb_r64_fabric_read_continue' $(BUILD_DIR)/$$name.log; done; done
 
 .PHONY: fabric-group-matrix
 fabric-group-matrix: $(BUILD_DIR)/tb_r64_fabric_groups.pass
@@ -291,7 +291,7 @@ fabric-group-matrix: $(BUILD_DIR)/tb_r64_fabric_groups.pass
 # assertion-bearing scenario with Verilator; production strict lint is separate.
 $(BUILD_DIR)/tb_r64_issue32.pass: modules/tb_r64_issue32.sv modules/tb_r64_issue_regread.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS)
 	mkdir -p $(BUILD_DIR)
-	verilator -Imodules --binary --timing --assert -DR64_ASSERT -Wno-fatal -j 4 --top-module tb_r64_issue32 --prefix Vtb_r64_issue32 -Mdir $(BUILD_DIR)/issue32-obj -I../../vsrc/include -I../../vsrc/chengyue64/backend -I../../vsrc/chengyue64/platform $(R64_RTL_SRCS) modules/tb_r64_issue32.sv > $(BUILD_DIR)/tb_r64_issue32-build.log 2>&1
+	verilator -Imodules --binary --timing --assert -DR64_ASSERT -Wno-fatal -j 4 --top-module tb_r64_issue32 --prefix Vtb_r64_issue32 -Mdir $(BUILD_DIR)/issue32-obj -I../../vsrc/include -I../../vsrc/backend -I../../vsrc/platform $(R64_RTL_SRCS) modules/tb_r64_issue32.sv > $(BUILD_DIR)/tb_r64_issue32-build.log 2>&1
 	timeout 60 $(BUILD_DIR)/issue32-obj/Vtb_r64_issue32 > $(BUILD_DIR)/tb_r64_issue32.log 2>&1
 	rg -e '^\[PASS\] tb_r64_issue32($$| )' $(BUILD_DIR)/tb_r64_issue32.log
 	touch $@
@@ -340,7 +340,7 @@ block-run: core-reference $(SYSTEM_BIN) $(BLOCK_TEMPLATE) $(CORE_BUILD_DIR)/bloc
 
 # Exercise the explicitly enabled Split-to-Service request preselection contract.
 $(BUILD_DIR)/tb_r64_service_request_hint.vvp: modules/tb_r64_service_bank_pair.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/chengyue64/backend -I ../../vsrc/chengyue64/platform -s tb_r64_service_bank_pair -Ptb_r64_service_bank_pair.REQUEST_HINTS=1 -o $@ $(R64_RTL_SRCS) $<
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_service_bank_pair -Ptb_r64_service_bank_pair.REQUEST_HINTS=1 -o $@ $(R64_RTL_SRCS) $<
 $(BUILD_DIR)/tb_r64_service_request_hint.pass: $(BUILD_DIR)/tb_r64_service_request_hint.vvp
 	timeout 60 $(VVP) $< > $(BUILD_DIR)/tb_r64_service_request_hint.log 2>&1
 	rg -F '[PASS] tb_r64_service_bank_pair ' $(BUILD_DIR)/tb_r64_service_request_hint.log

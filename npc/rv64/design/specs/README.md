@@ -2,8 +2,8 @@
 
 本目录按子系统组织逐模块规范，包含旧 Ooo* 核规范和仍被系统复用的总线、外设合同。
 当前主线是承岳64，入口为 [ARCHITECTURE](../../ARCHITECTURE.md)、
-[模块拓扑](../../vsrc/chengyue64/TOPOLOGY.md) 和
-[模块说明](../../vsrc/chengyue64/MODULES.md)。
+[模块拓扑](../../vsrc/TOPOLOGY.md) 和
+[模块说明](../../vsrc/MODULES.md)。
 
 `ooo-*` 及下方旧核分类中的“当前”、状态和待办均属于相应历史实现，不能直接作为承岳64
 模块的规范或验证结论。[AXI 总线](axi4-bus.md)、[PLIC](axi-plic.md) 等共享合同应按实际

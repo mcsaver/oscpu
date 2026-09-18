@@ -139,7 +139,7 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
 
     def test_removing_adapter_fallthrough_is_rejected(self) -> None:
         texts = self.source_texts()
-        path = "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+        path = "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
         texts[path] = texts[path].replace(
             "wire final_b_fallthrough_w", "wire removed_final_b_fallthrough_w", 1)
         with self.assertRaisesRegex(
@@ -148,7 +148,7 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
 
     def test_non_state_only_bready_is_rejected(self) -> None:
         texts = self.source_texts()
-        path = "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+        path = "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
         texts[path] = texts[path].replace(
             "assign d_axi_bready_o = (state_q == S_W_RESP);",
             "assign d_axi_bready_o = (state_q == S_W_RESP) && u_axi_bready_i;",
@@ -182,7 +182,7 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
 
     def test_source_inventory_must_be_complete(self) -> None:
         texts = self.source_texts()
-        texts.pop("npc/rv64/vsrc/bus/AxiCrossbar.v")
+        texts.pop("npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v")
         with self.assertRaisesRegex(
                 analysis.EvidenceError, "source text inventory is incomplete"):
             analysis.analyze_source_texts(texts)

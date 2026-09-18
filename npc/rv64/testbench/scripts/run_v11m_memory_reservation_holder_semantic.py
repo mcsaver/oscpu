@@ -855,7 +855,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = subprocess.run(
-        ["make", "-s", "print-v11m-memory-reservation-holder-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11m-memory-reservation-holder-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -880,7 +880,7 @@ def load_regression_context(
 ) -> dict[str, tuple[Path, ...]]:
     completed = subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "-s",
             "print-v11m-memory-reservation-holder-regression-context",
         ],
@@ -994,7 +994,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc' / 'rv64' / 'vsrc'}",
+        f"-I{repo_root / 'npc' / 'rv64' / 'legacy' / 'rtl' / 'vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -1080,7 +1080,7 @@ def run_regressions(
         for test in REGRESSIONS
     }
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-C",
         str(testbench_dir),
         f"RESULT_DIR={regression_dir}",
@@ -1171,7 +1171,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo_root
         / "npc"
         / "rv64"
-        / "vsrc"
+        / "legacy" / "rtl" / "vsrc"
         / "execute"
         / "OooIntBackend.v"
     ).resolve()

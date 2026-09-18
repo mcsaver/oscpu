@@ -236,7 +236,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -445,10 +445,10 @@ def validate_effective_make_dispatch(
 
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     bridge = safe_file(
-        root, root / "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
     ).read_text(encoding="utf-8")
     xbar = safe_file(
-        root, root / "npc/rv64/vsrc/bus/AxiCrossbar.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v"
     ).read_text(encoding="utf-8")
     bridge_tb = safe_file(
         root, root / "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv"
@@ -570,13 +570,13 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge_xbar.sv",
     "npc/rv64/testbench/tests/tb_axi_xbar.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     CANONICAL_DISPATCH_FILE,
     f".github/task-runs/{RUN_ID}/contract.md",
@@ -667,8 +667,8 @@ def raw_summary(result: dict[str, Any]) -> str:
     bp = result["metrics"]["xbar_backpressure"]
     variants = result["variant_audit"]
     module = result["module_aggregate"]
-    bridge_source = "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
-    xbar_source = "npc/rv64/vsrc/bus/AxiCrossbar.v"
+    bridge_source = "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
+    xbar_source = "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v"
     return "\n".join((
         f"schema={result['schema']}",
         f"design_id={result['design_id']}",

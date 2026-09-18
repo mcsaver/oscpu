@@ -74,7 +74,7 @@ def write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
 
 def find_repo_root(start: pathlib.Path) -> pathlib.Path:
     for candidate in (start.resolve(), *start.resolve().parents):
-        if (candidate / "npc/rv64/vsrc").is_dir() and (
+        if (candidate / "npc/rv64/legacy/rtl/vsrc").is_dir() and (
             candidate / ".github/AGENTS.md").is_file():
             return candidate
     raise RehydrateError("repository root was not found")
@@ -383,7 +383,7 @@ def rehydrate(
     if schema_issues:
         raise RehydrateError(
             "rehydrated aggregate schema: " + "; ".join(schema_issues[:8]))
-    makefile = root / "npc/rv64/testbench/Makefile"
+    makefile = root / "npc/rv64/testbench/Makefile.legacy"
     required_tests, inventory_errors = freeze.parse_required_tests(
         makefile.read_text(encoding="utf-8"))
     if inventory_errors:

@@ -156,13 +156,13 @@ def check(texts):
 def main():
     root = Path(__file__).resolve().parents[4]
     paths = {
-        "core": "npc/rv64/vsrc/core/NpcCoreTop.v",
-        "glue": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-        "access": "npc/rv64/vsrc/memory/OooMemoryAccess.v",
-        "gate": "npc/rv64/vsrc/memory/OooMemoryRequestGate.v",
-        "control": "npc/rv64/vsrc/control/OooControlPlane.v",
-        "bridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-        "dual_bridge": "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+        "core": "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+        "glue": "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+        "access": "npc/rv64/legacy/rtl/vsrc/memory/OooMemoryAccess.v",
+        "gate": "npc/rv64/legacy/rtl/vsrc/memory/OooMemoryRequestGate.v",
+        "control": "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+        "bridge": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+        "dual_bridge": "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v",
     }
     texts = {
         key: (root / path).read_text(encoding="utf-8")

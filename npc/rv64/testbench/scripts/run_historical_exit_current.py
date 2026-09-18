@@ -42,7 +42,7 @@ def find_repo_root(start: pathlib.Path) -> pathlib.Path:
 
 
 ROOT = find_repo_root(pathlib.Path(__file__))
-VSRCDIR = ROOT / "npc/rv64/vsrc"
+VSRCDIR = ROOT / "npc/rv64/legacy/rtl/vsrc"
 COMMON = ROOT / "npc/rv64/testbench/common"
 TB = ROOT / "npc/rv64/testbench/tests/tb_ooo_serialized_owner_exactly_once.sv"
 ARCH_BINDING_TOOL = ROOT / "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"

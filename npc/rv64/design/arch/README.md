@@ -1,8 +1,8 @@
 # 架构文档与实施记录
 
 当前架构从 [承岳64 架构入口](../../ARCHITECTURE.md) 进入；核内结构见
-[TOPOLOGY](../../vsrc/chengyue64/TOPOLOGY.md) 和
-[MODULES](../../vsrc/chengyue64/MODULES.md)。本目录保留不同阶段的架构材料，
+[TOPOLOGY](../../vsrc/TOPOLOGY.md) 和
+[MODULES](../../vsrc/MODULES.md)。本目录保留不同阶段的架构材料，
 文件位于 `arch/` 并不表示它描述当前主线。
 
 | 类别 | 入口 | 适用范围 |

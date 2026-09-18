@@ -28,7 +28,7 @@ def prepare_sources(out, root=ROOT):
     src=src.replace("  .clk_i(clk_i),","  .model_snapshot_o(csr_snapshot_o),\n  .clk_i(clk_i),",1)
     (out/"R64SystemTestTop.sv").write_text(src)
     files=subprocess.check_output(["make","-s","-C",str(root/"npc/rv64"),"print-synth-rtl"],text=True).split()
-    incs=[root/"npc/rv64/vsrc/include",root/"npc/rv64/vsrc/chengyue64/backend",root/"npc/rv64/vsrc/chengyue64/platform"]
+    incs=[root/"npc/rv64/vsrc/include",root/"npc/rv64/vsrc/backend",root/"npc/rv64/vsrc/platform"]
     adapted=[]
     assertions=[]
     for name in files:

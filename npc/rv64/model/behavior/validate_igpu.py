@@ -48,8 +48,8 @@ $finish;end endmodule
 """
     tb=directory/"counter.sv";tb.write_text(code);sim=directory/"counter.vvp"
     command(["iverilog","-g2012","-s","tb","-o",sim,tb,
-             ROOT/"npc/rv64/vsrc/chengyue64/control/R64Counter.v",
-             ROOT/"npc/rv64/vsrc/chengyue64/control/R64CounterNear.v"])
+             ROOT/"npc/rv64/vsrc/control/R64Counter.v",
+             ROOT/"npc/rv64/vsrc/control/R64CounterNear.v"])
     return [tuple(int(x,16) for x in line.split()) for line in command(["vvp",sim]).splitlines() if "$finish" not in line]
 
 def host_benchmark(model,cases,directory):

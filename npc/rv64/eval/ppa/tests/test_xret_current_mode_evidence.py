@@ -116,13 +116,13 @@ class XretCurrentModeEvidenceTests(unittest.TestCase):
         original = (
             f"[COMPILE] -o {temp}/build/test.vvp "
             f"{temp}/OooFetchHeadClassifyGate.v\n"
-            "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v\n"
+            "/home/lyg/PA/ysyx-workbench/npc/rv64/legacy/rtl/vsrc/core/CsrFile.v\n"
         )
         normalized = runner.normalize_transient_paths(original, temp)
         self.assertNotIn(str(temp), normalized)
         self.assertEqual(normalized.count(runner.TRANSIENT_DIR_TOKEN), 2)
         self.assertIn(
-            "/home/lyg/PA/ysyx-workbench/npc/rv64/vsrc/core/CsrFile.v",
+            "/home/lyg/PA/ysyx-workbench/npc/rv64/legacy/rtl/vsrc/core/CsrFile.v",
             normalized)
 
     def test_exact_focused_and_program_markers_are_accepted(self) -> None:

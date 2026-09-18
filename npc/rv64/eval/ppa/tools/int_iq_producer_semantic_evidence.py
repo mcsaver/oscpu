@@ -21,8 +21,8 @@ from typing import Any
 SCHEMA = "rv64-v11f-int-iq-producer-semantic-evidence-v1"
 MUTANT_SCHEMA = "rv64-v11f-int-iq-producer-mutant-v1"
 TEST = "tb_ooo_int_issue_queue"
-RTL_PATH = "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v"
-SELECTOR_PATH = "npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v"
+RTL_PATH = "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v"
+SELECTOR_PATH = "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueSelect8.v"
 TB_PATH = "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv"
 EXPECTED_RTL_SHA256 = (
     "a63a0f835deec88121d923f7b0c01d57c069ed333f7c66a883fdaf77c1ad8d70"

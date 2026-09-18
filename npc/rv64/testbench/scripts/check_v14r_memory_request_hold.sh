@@ -110,7 +110,7 @@ run_make_target() {
   local target=$2
   local result_dir="${result_root}/${name}"
   local log="${result_root}/${name}.driver.log"
-  if ! make -C "${testbench_dir}" "${target}" \
+  if ! make -C "${testbench_dir}" -f Makefile.legacy "${target}" \
       "RESULT_DIR=${result_dir}" \
       "BUILD_DIR=${runtime_dir}/build/${name}" >"${log}" 2>&1; then
     echo "[V14R-HOLD-STEP][FAIL] step=${name}" >&2
@@ -122,12 +122,12 @@ run_make_target() {
 
 production_manifest() {
   sha256sum \
-    "${repo_root}/npc/rv64/vsrc/execute/OooIntBackend.v" \
-    "${repo_root}/npc/rv64/vsrc/memory/OooStoreQueue.v" \
-    "${repo_root}/npc/rv64/vsrc/writeback/OooRob.v" \
+    "${repo_root}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v" \
+    "${repo_root}/npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v" \
+    "${repo_root}/npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v" \
     "${repo_root}/npc/rv64/testbench/tests/tb_ooo_int_backend.sv" \
     "${repo_root}/npc/rv64/testbench/tests/tb_ooo_store_queue.sv" \
-    "${repo_root}/npc/rv64/testbench/Makefile" \
+    "${repo_root}/npc/rv64/testbench/Makefile.legacy" \
     "${repo_root}/npc/rv64/design/specs/ooo-memory-request-admission-hold.md" \
     "${script_dir}/run_v14r_memory_request_hold_mutation.sh" \
     "${script_dir}/check_v14r_memory_request_hold.sh"
@@ -164,7 +164,7 @@ if [[ "${tier}" == "link" ]]; then
   default_log="${link_result}/logs/tb_ooo_int_backend.log"
   retry_log="${link_result}/logs/tb_ooo_int_backend_v11l_memory_retry_holder.log"
   reservation_log="${link_result}/logs/tb_ooo_int_backend_v11m_memory_reservation_holder.log"
-  if ! make -C "${testbench_dir}" \
+  if ! make -C "${testbench_dir}" -f Makefile.legacy \
       "${default_log}" "${retry_log}" "${reservation_log}" \
       "RESULT_DIR=${link_result}" "BUILD_DIR=${link_build}" \
       >"${link_log}" 2>&1; then

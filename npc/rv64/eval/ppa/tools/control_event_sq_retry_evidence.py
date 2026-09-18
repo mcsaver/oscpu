@@ -111,7 +111,7 @@ BACKEND_RETRY1_REQUEST_OPEN = """  wire mem_retry1_req_valid_w = mem_retry1_sele
 
 VARIANTS = {
     "backend-bank0-ready-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
         "mutated_name": "OooIntBackend.v",
         "old": BACKEND_BANK0,
@@ -122,7 +122,7 @@ VARIANTS = {
         ),
     },
     "backend-bank1-ready-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v9r_sq_retry_c0",
         "mutated_name": "OooIntBackend.v",
         "old": BACKEND_BANK1,
@@ -133,7 +133,7 @@ VARIANTS = {
         ),
     },
     "bridge-retry-fire-open": {
-        "production_source": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         "test_name": "tb_ooo_mem_axi_bridge_v9r_sq_retry_c0",
         "mutated_name": "OooMemAxiBridge.v",
         "old": BRIDGE_FIRE,
@@ -144,7 +144,7 @@ VARIANTS = {
         ),
     },
     "backend-bank0-resident-fire-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v11l_memory_retry_holder",
         "mutated_name": "OooIntBackend.v",
         "old": BACKEND_RETRY0_REQUEST,
@@ -155,7 +155,7 @@ VARIANTS = {
         ),
     },
     "backend-bank1-resident-fire-open": {
-        "production_source": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "production_source": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "test_name": "tb_ooo_int_backend_v11l_memory_retry_holder",
         "mutated_name": "OooIntBackend.v",
         "old": BACKEND_RETRY1_REQUEST,
@@ -168,11 +168,11 @@ VARIANTS = {
 }
 
 BASE_SOURCE_PATHS = {
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/common/rv32_encode.svh",
-    "npc/rv64/vsrc/include/define.v",
+    "npc/rv64/legacy/rtl/vsrc/include/define.v",
     "npc/rv64/design/specs/ooo-mem-axi-bridge-fsm.md",
     "npc/rv64/design/specs/ooo-memory-producer-lease.md",
     "npc/rv64/design/specs/ooo-dual-memory-datapath.md",

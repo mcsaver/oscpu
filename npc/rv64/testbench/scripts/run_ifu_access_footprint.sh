@@ -51,22 +51,22 @@ vvp_bin="${VVP:-$(dirname "$(command -v "$iverilog_bin")")/vvp}"
 compile_log="$output_dir/compile.log"
 sim_log="$output_dir/sim.log"
 vvp_file="$output_dir/tb_ooo_fetch_access_footprint.vvp"
-bridge_path="npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
+bridge_path="npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
 
 compile_cmd=("$iverilog_bin" -g2012 -Wall \
-  -I"$repo_root/npc/rv64/vsrc" \
-  -I"$repo_root/npc/rv64/vsrc/include" \
+  -I"$repo_root/npc/rv64/legacy/rtl/vsrc" \
+  -I"$repo_root/npc/rv64/legacy/rtl/vsrc/include" \
   -I"$repo_root/npc/rv64/testbench/common" \
   -DOOO_ASSERT \
   -s tb_ooo_fetch_access_footprint \
   -o "$vvp_file" \
   "$repo_root/npc/rv64/testbench/tests/tb_ooo_fetch_access_footprint.sv" \
-  "$repo_root/npc/rv64/vsrc/memory/PmpChecker.v" \
-  "$repo_root/npc/rv64/vsrc/decode/OooRvcDecompressor.v" \
-  "$repo_root/npc/rv64/vsrc/frontend/OooFetchPacketDecode.v" \
-  "$repo_root/npc/rv64/vsrc/cache/OooFetchPacketCache.v" \
-  "$repo_root/npc/rv64/vsrc/sram/Sram4096x199.v" \
-  "$repo_root/npc/rv64/vsrc/memory/OooSv39Tlb.v")
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/decode/OooRvcDecompressor.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/cache/OooFetchPacketCache.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/sram/Sram4096x199.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/memory/OooSv39Tlb.v")
 
 if [[ -n "$bridge_ref" ]]; then
   # 用 stdin 编译历史 bridge，避免 checkout/覆盖共享工作树；其余依赖沿用当前

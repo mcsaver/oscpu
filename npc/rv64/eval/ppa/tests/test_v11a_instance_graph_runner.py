@@ -18,7 +18,7 @@ RUNNER = REPO_ROOT / f".github/task-runs/{RUN_ID}/run-instance-graph.sh"
 STATUS_HELPER = REPO_ROOT / "scripts/task-run-status.sh"
 
 RUNNER_SOURCE_PATHS = (
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     "npc/rv64/configs/product-rtl-defaults.mk",
     "npc/rv64/design/arch/producer-holder-census.json",
     "npc/rv64/eval/ppa/tools/arch_stable_freeze.py",
@@ -112,7 +112,7 @@ fi
 
 if [[ "$tool" == */producer_holder_census.py ]]; then
   if [[ "${V11A_FAKE_SOURCE_DRIFT:-0}" == "1" ]]; then
-    printf '%s\n' "# injected source drift" >> "$repo_root/npc/rv64/Makefile"
+    printf '%s\n' "# injected source drift" >> "$repo_root/npc/rv64/Makefile.legacy"
   fi
   printf '%s\n' "[fixture-census] PASS"
   exit 0

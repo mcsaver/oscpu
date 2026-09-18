@@ -19,10 +19,10 @@ verilator --binary --timing --no-assert --no-trace \
   -O3 -CFLAGS "-O3 -DNDEBUG -march=native" \
   -Wall -Wno-fatal -Wno-TIMESCALEMOD -Wno-UNUSEDSIGNAL \
   --Mdir "${obj_dir}" \
-  -Inpc/rv64/vsrc/include \
+  -Inpc/rv64/legacy/rtl/vsrc/include \
   -Inpu/version_0820/rtl \
-  npc/rv64/vsrc/frontend/OooTensorPairOwner.v \
-  npc/rv64/vsrc/rename_allocate/OooTensorRobSidecar.v \
+  npc/rv64/legacy/rtl/vsrc/frontend/OooTensorPairOwner.v \
+  npc/rv64/legacy/rtl/vsrc/rename_allocate/OooTensorRobSidecar.v \
   npu/version_0820/rtl/TensorNpuCommandDecoder.v \
   npc/rv64/testbench/tests/tb_ooo_direct_npu_slice.sv \
   >"${result_root}/build.log" 2>&1

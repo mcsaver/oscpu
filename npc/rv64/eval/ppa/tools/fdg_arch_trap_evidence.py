@@ -177,7 +177,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     expected_count = len(tests)
     markers = (
@@ -328,20 +328,20 @@ def validate_mutations(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchHeadClassifyGate.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendBackendDispatchMux.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooControlPlane.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadClassifyGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendBackendDispatchMux.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
     "npc/rv64/testbench/tests/tb_ooo_fp_legality_dispatch_path.sv",
     "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/contract.md",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/rtl-derivation.md",
     ".github/task-runs/2026-07-21-rv64-v9d-fdg-arch-trap/run-focused.sh",

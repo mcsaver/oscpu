@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-permit_source="${workspace_dir}/npc/rv64/vsrc/control/OooSerializedMemTerminalPermit.v"
-drain_source="${workspace_dir}/npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
+permit_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/control/OooSerializedMemTerminalPermit.v"
+drain_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -14,7 +14,7 @@ fi
 
 result_dir="$(realpath -m "$1")"
 mkdir -p -- "${result_dir}"
-release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/vsrc -I${workspace_dir}/npc/rv64/vsrc/include -I${testbench_dir}/common"
+release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc/include -I${testbench_dir}/common"
 permit_sha_before="$(sha256sum "${permit_source}" | awk '{print $1}')"
 drain_sha_before="$(sha256sum "${drain_source}" | awk '{print $1}')"
 
@@ -104,7 +104,7 @@ run_variant() {
   esac
 
   set +e
-  make -C "${testbench_dir}" v16a-serialized-mem-terminal-permit-focused \
+  make -C "${testbench_dir}" -f Makefile.legacy v16a-serialized-mem-terminal-permit-focused \
     "RTL_OOO_SERIALIZED_MEM_TERMINAL_PERMIT=${mutated_permit}" \
     "RTL_OOO_PENDING_DRAIN_RESOLVE_GATE=${mutated_drain}" \
     "RESULT_DIR=${test_result}" \

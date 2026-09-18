@@ -197,8 +197,8 @@ def read_f2_parent_mutations(
         raise ValueError("F2 integration evidence aggregate is incomplete")
 
     rtl = payload.get("rtl_sha256")
-    backend = root / "npc/rv64/vsrc/execute/OooIntBackend.v"
-    control_gate = root / "npc/rv64/vsrc/control/OooCoreSliceControlGate.v"
+    backend = root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+    control_gate = root / "npc/rv64/legacy/rtl/vsrc/control/OooCoreSliceControlGate.v"
     tb = root / "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
     glue_tb = root / "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv"
     if (
@@ -430,7 +430,7 @@ def main() -> int:
     bind("sustained_dual_memory", sustained_text, DI5_METRIC,
          "sustained dual memory")
 
-    lq_path = root / "npc/rv64/vsrc/memory/OooLoadQueue.v"
+    lq_path = root / "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v"
     mutation_payload = read_mutations(mutation_results, lq_path)
     metric_basis = {
         "nonalias_load_bypass": (

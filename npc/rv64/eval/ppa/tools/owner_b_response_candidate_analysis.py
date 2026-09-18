@@ -28,24 +28,24 @@ IMPLEMENTED_CANDIDATE = "adapter-final-b-fall-through-v1"
 NEXT_CANDIDATE = "adapter-input-aw-w-fall-through-v1"
 
 SOURCE_PATHS = (
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-    "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
-    "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
-    "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v",
-    "npc/rv64/vsrc/core/NpcCoreTop.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/bus/NpcAxiBus.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemAxiArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v",
+    "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/NpcAxiBus.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
     "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
 )
 PRIOR_STABLE_PATHS = frozenset((
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-    "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
-    "npc/rv64/vsrc/memory/OooDualMemAxiArbiter.v",
-    "npc/rv64/vsrc/core/NpcCoreTop.v",
-    "npc/rv64/vsrc/bus/NpcAxiBus.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemAxiArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/NpcAxiBus.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
 ))
 
@@ -110,9 +110,9 @@ def analyze_source_texts(texts: dict[str, str]) -> dict[str, Any]:
     missing = [path for path in SOURCE_PATHS if path not in texts]
     require(not missing, f"source text inventory is incomplete: {missing}")
 
-    bridge = texts["npc/rv64/vsrc/memory/OooMemAxiBridge.v"]
-    adapter = texts["npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"]
-    crossbar = texts["npc/rv64/vsrc/bus/AxiCrossbar.v"]
+    bridge = texts["npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"]
+    adapter = texts["npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"]
+    crossbar = texts["npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v"]
     slave = texts["npc/rv64/sim/vsrc/AxiDpiSlave.sv"]
 
     # 这些结构约束把 4-cycle 观测绑定到真实 VALID/READY owner，而不是注释。
@@ -289,7 +289,7 @@ def source_snapshot(prior: dict[str, Any], closure: dict[str, str]) -> tuple[
             require(prior_hashes.get(relative) == ref["sha256"],
                     f"non-candidate source drifted since prior analysis: {relative}")
     adapter = next(item for item in refs if item["path"] ==
-                   "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v")
+                   "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v")
     require(closure.get("ADAPTER_SHA256") == adapter["sha256"],
             "current adapter is not the independently reviewed V15P implementation")
     return refs, analyze_source_texts(texts)
@@ -369,7 +369,7 @@ def build_receipt(
     sources, source_checks = source_snapshot(prior, closure)
     adapter_ref = next(
         item for item in sources
-        if item["path"] == "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+        if item["path"] == "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
     )
     review_refs = verify_independent_review(
         independent_review_path,

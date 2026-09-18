@@ -131,8 +131,8 @@ mapfile -t FP_SRCS < <(
     -Wno-UNOPTFLAT \
     -I"${NPC_RV64_DIR}/vsrc" \
     -I"${NPC_RV64_DIR}/vsrc/include" \
-    -I"${NPC_RV64_DIR}/vsrc/chengyue64/backend" \
-    -I"${NPC_RV64_DIR}/vsrc/chengyue64/platform" \
+    -I"${NPC_RV64_DIR}/vsrc/backend" \
+    -I"${NPC_RV64_DIR}/vsrc/platform" \
     -I"${NPU_ROOT}/rtl" \
     -I"${NPU_ROOT}/third_party/hardfloat/source/RISCV" \
     -I"${NPU_ROOT}/third_party/hardfloat/source" \

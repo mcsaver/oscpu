@@ -198,7 +198,7 @@ def canonical_rtl_binding(repo_root: Path) -> tuple[str, dict[str, str]]:
     suffixes = {".v", ".sv", ".vh", ".svh", ".mk"}
     files = sorted(
         path
-        for path in (repo_root / "npc" / "rv64" / "vsrc").rglob("*")
+        for path in (repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc").rglob("*")
         if path.is_file() and path.suffix.lower() in suffixes
     )
     if not files:
@@ -274,7 +274,7 @@ def resolve_tools() -> tuple[Path, Path]:
 def load_make_context(testbench_dir: Path) -> tuple[Path, list[Path]]:
     completed = subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "--no-print-directory",
             "-s",
             "print-v11i-terminal-lifecycle-context",
@@ -458,7 +458,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc' / 'rv64' / 'vsrc'}",
+        f"-I{repo_root / 'npc' / 'rv64' / 'legacy' / 'rtl' / 'vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -624,7 +624,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc" / "rv64" / "testbench"
     backend_path = (
-        repo_root / "npc" / "rv64" / "vsrc" / "execute" / "OooIntBackend.v"
+        repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "execute" / "OooIntBackend.v"
     ).resolve()
     status_path = result_dir / "runner.status"
 
@@ -659,7 +659,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             repo_root / "npc" / "rv64" / "Makefile",
             testbench_dir / "Makefile",
             testbench_dir / "common" / "tb_common.svh",
-            repo_root / "npc" / "rv64" / "vsrc" / "filelist.mk",
+            repo_root / "npc" / "rv64" / "legacy" / "rtl" / "filelist.mk",
             Path(__file__).resolve(),
             Path(__file__).with_name(
                 "test_run_v11i_terminal_lifecycle.py"
@@ -740,10 +740,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             "status": status,
             "contract": {
                 "rtl_objects": [
-                    "npc/rv64/vsrc/execute/OooIntBackend.v",
-                    "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
-                    "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
-                    "npc/rv64/vsrc/memory/OooLoadQueue.v",
+                    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+                    "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
+                    "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v",
+                    "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v",
                 ],
                 "cycle_configuration": (
                     "33 sequential LOAD owners; tracker token 0..31 then "

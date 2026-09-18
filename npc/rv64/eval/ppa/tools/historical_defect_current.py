@@ -285,13 +285,13 @@ ACT4_REVIEW_RESULT_PATH = (
     / "subagent-contracts/v15z-act4-default-signoff-review-f72e-v2.result.md"
 )
 V9P_BACKEND_PATH = pathlib.PurePosixPath(
-    "npc/rv64/vsrc/execute/OooIntBackend.v"
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
 )
 V9P_BRIDGE_PATH = pathlib.PurePosixPath(
-    "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
 )
 V15P_ADAPTER_PATH = pathlib.PurePosixPath(
-    "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+    "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
 )
 V15P_ADAPTER_TB_PATH = pathlib.PurePosixPath(
     "npc/rv64/testbench/tests/tb_ooo_lsu_axi_lane_adapter.sv"
@@ -300,7 +300,7 @@ V15P_OWNER_TIMING_TB_PATH = pathlib.PurePosixPath(
     "npc/rv64/testbench/tests/tb_ooo_owner_timing_causal_probe.sv"
 )
 V9P_COLLECTOR_PATH = pathlib.PurePosixPath(
-    "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v"
 )
 SYSTEM_RECERT_CURRENT_PATH = pathlib.PurePosixPath(
     "npc/rv64/eval/ppa/evidence/system-recertification-current.json"
@@ -831,7 +831,7 @@ def validate_qh_younger_store(
                       f"{row.get('case')} terminal marker")
         safe_file(root, str(row.get("image_receipt_path")))
     production = historical.get("production_source", {})
-    require_equal(production.get("path"), "npc/rv64/vsrc/execute/OooIntBackend.v", "younger-store owner")
+    require_equal(production.get("path"), "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "younger-store owner")
     require_equal(production.get("no_drift"), True, "younger-store historical source stability")
     require_equal(production.get("sha256_before"), production.get("sha256_after"), "younger-store historical hashes")
     require(
@@ -847,15 +847,15 @@ def validate_qh_younger_store(
         current,
         {
             "npc/rv64/configs/product-rtl-defaults.mk",
-            "npc/rv64/testbench/Makefile",
+            "npc/rv64/testbench/Makefile.legacy",
             "npc/rv64/testbench/common/rv32_encode.svh",
             "npc/rv64/testbench/common/tb_common.svh",
             "npc/rv64/testbench/common/tb_ooo_core_top_glue_csr.svh",
             "npc/rv64/testbench/scripts/check_tb_result.py",
             "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
-            "npc/rv64/vsrc/control/OooControlEventApplySequencer.v",
-            "npc/rv64/vsrc/filelist.mk",
-            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/legacy/rtl/vsrc/control/OooControlEventApplySequencer.v",
+            "npc/rv64/legacy/rtl/filelist.mk",
+            "npc/rv64/legacy/rtl/vsrc/include/define.v",
         },
         "current QH",
     )
@@ -972,7 +972,7 @@ def validate_qh_younger_store(
         "make_source_selection_bound": True,
         "status": "PASS",
     }, "current QH compile-input closure")
-    require_current_source(root, current, "npc/rv64/vsrc/execute/OooIntBackend.v", "current QH")
+    require_current_source(root, current, "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "current QH")
     return {
         "historical_compile_success": "6/6",
         "historical_negative_rejection": "2/2",
@@ -1011,8 +1011,8 @@ def validate_qh_stop_hold(
     require_equal(coverage.get("event_deduplication"), False, "stop-hold event deduplication")
     require_equal(coverage.get("historical_pre_t3u_root_rejected"), True, "stop-hold historical root")
     for path in (
-        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-        "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendRunGate.v",
         "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
     ):
         expected = historical.get("production_sources", {}).get(path)
@@ -1026,15 +1026,15 @@ def validate_qh_stop_hold(
         current,
         {
             "npc/rv64/configs/product-rtl-defaults.mk",
-            "npc/rv64/testbench/Makefile",
+            "npc/rv64/testbench/Makefile.legacy",
             "npc/rv64/testbench/common/tb_common.svh",
             "npc/rv64/testbench/scripts/check_tb_result.py",
             "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv",
             "npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv",
             "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
             "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
-            "npc/rv64/vsrc/filelist.mk",
-            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/legacy/rtl/filelist.mk",
+            "npc/rv64/legacy/rtl/vsrc/include/define.v",
         },
         "current system",
     )
@@ -1094,8 +1094,8 @@ def validate_qh_stop_hold(
             log_markers={"V10B C1 owner/stop not clear kind=2": 1},
         )
     for path in (
-        "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-        "npc/rv64/vsrc/frontend/OooFrontendRunGate.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+        "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendRunGate.v",
     ):
         require_current_source(root, current, path, "current stop-hold")
     return {
@@ -1396,7 +1396,7 @@ def validate_exit_current(
     return {
         "baseline_profiles": "2/2",
         "compile_success_mutations": "7/7",
-        "current_csrfile_hash": sha256_file(safe_file(root, "npc/rv64/vsrc/core/CsrFile.v")),
+        "current_csrfile_hash": sha256_file(safe_file(root, "npc/rv64/legacy/rtl/vsrc/core/CsrFile.v")),
         "source_bindings": f"{len(expected_bindings)}/{len(expected_bindings)}_EXACT_ROLE_BOUND",
         "tool_configuration_bound": True,
         "intermediate_products_retained": 0,

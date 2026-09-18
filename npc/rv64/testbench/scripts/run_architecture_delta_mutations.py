@@ -23,11 +23,11 @@ from typing import Any, Sequence
 
 SCHEMA = "npc-rv64-architecture-delta-mutations-v1"
 TRANSIENT_TOKEN = "<ARCHITECTURE_DELTA_TRANSIENT>"
-BACKEND = "npc/rv64/vsrc/execute/OooIntBackend.v"
-STORE_QUEUE = "npc/rv64/vsrc/memory/OooStoreQueue.v"
-FRONTEND = "npc/rv64/vsrc/frontend/OooFrontend.v"
-FRONTEND_DISPATCH = "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v"
-PENDING_SYSTEM = "npc/rv64/vsrc/control/OooPendingSystemSequencer.v"
+BACKEND = "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+STORE_QUEUE = "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v"
+FRONTEND = "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v"
+FRONTEND_DISPATCH = "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v"
+PENDING_SYSTEM = "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v"
 CONTROL_TOOL = "npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py"
 ARCH_TOOL = "npc/rv64/eval/ppa/tools/architecture_hard_gates.py"
 
@@ -613,7 +613,7 @@ def run_one(
         build_dir = transient / "build"
         target = result_dir / "logs" / f"{variant.test_name}.log"
         command = [
-            "make", "-B", "-C", str(root / "npc/rv64/testbench"),
+            "make", "-f", "Makefile.legacy", "-B", "-C", str(root / "npc/rv64/testbench"),
             f"RESULT_DIR={result_dir}", f"BUILD_DIR={build_dir}",
             f"{variant.make_variable}={mutated_path}",
         ]

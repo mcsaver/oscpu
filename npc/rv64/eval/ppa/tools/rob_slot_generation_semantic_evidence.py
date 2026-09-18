@@ -21,7 +21,7 @@ from typing import Any
 SCHEMA = "rv64-v11e-rob-slot-generation-semantic-evidence-v1"
 MUTANT_SCHEMA = "rv64-v11e-rob-slot-generation-mutant-v1"
 TEST = "tb_ooo_rob"
-ROB_PATH = "npc/rv64/vsrc/writeback/OooRob.v"
+ROB_PATH = "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v"
 TB_PATH = "npc/rv64/testbench/tests/tb_ooo_rob.sv"
 EXPECTED_ROB_SHA256 = (
     "bbb68a2a819bb8bfb005adfb8f2659e8037ea6280d9dc338415395aeab62c561"

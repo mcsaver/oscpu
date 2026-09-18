@@ -171,7 +171,7 @@ class V14gGlobalOwnerFenceRunnerTest(unittest.TestCase):
         )
         self.assertEqual(
             include_dir.relative_to(self.repo_root).as_posix(),
-            "npc/rv64/vsrc/include",
+            "npc/rv64/legacy/rtl/vsrc/include",
         )
         for mutation in runner.MUTATIONS:
             self.assertIn(mutation.target, relative)

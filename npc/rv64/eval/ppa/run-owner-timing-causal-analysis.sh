@@ -154,7 +154,7 @@ trap finish_run EXIT
 
 task_run_status_stage l0-causal-probe
 set +e
-make -s -C npc/rv64/testbench owner-timing-causal-probe-focused \
+make -s -C npc/rv64/testbench -f Makefile.legacy owner-timing-causal-probe-focused \
   "RESULT_DIR=${probe_dir}" "BUILD_DIR=${runtime_dir}/build" \
   >"${probe_dir}/driver.log" 2>&1
 l0_probe_rc=$?

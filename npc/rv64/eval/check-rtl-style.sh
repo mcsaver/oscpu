@@ -21,7 +21,7 @@ files="${RTL_FILES:-}"
 if [[ -z "$files" ]]; then
   # 回退:自行从 Makefile 展开 RTL_CORE_SRCS
   here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  files="$(make -s -C "$here" print-synth-rtl 2>/dev/null)"
+  files="$(make -s -C "$here" -f Makefile.legacy print-synth-rtl 2>/dev/null)"
 fi
 
 violations=0

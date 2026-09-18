@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-sequencer_source="${workspace_dir}/npc/rv64/vsrc/control/OooPendingSystemSequencer.v"
-cancel_gate_source="${workspace_dir}/npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
+sequencer_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v"
+cancel_gate_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -29,7 +29,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/vsrc -I${workspace_dir}/npc/rv64/vsrc/include -I${testbench_dir}/common"
+release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc/include -I${testbench_dir}/common"
 sequencer_sha_before="$(sha256sum "${sequencer_source}" | awk '{print $1}')"
 cancel_gate_sha_before="$(sha256sum "${cancel_gate_source}" | awk '{print $1}')"
 aggregate_pass=1
@@ -127,7 +127,7 @@ run_variant() {
   } >"${mutation_diff}"
 
   set +e
-  make -C "${testbench_dir}" v15w-head0-csr-permit-disjoint-focused \
+  make -C "${testbench_dir}" -f Makefile.legacy v15w-head0-csr-permit-disjoint-focused \
     "RTL_OOO_PENDING_SYSTEM_SEQUENCER=${mutated_sequencer}" \
     "RTL_OOO_PENDING_SYSTEM_ADMISSION_CANCEL_GATE=${mutated_cancel_gate}" \
     "RESULT_DIR=${test_result}" \

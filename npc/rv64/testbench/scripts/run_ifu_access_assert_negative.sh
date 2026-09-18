@@ -11,14 +11,14 @@ iverilog_bin="${IVERILOG:-iverilog}"
 vvp_bin="${VVP:-$(dirname "$(command -v "$iverilog_bin")")/vvp}"
 image="$output_dir/tb_ooo_ifu_access_assert_negative.vvp"
 tracked_sources=(
-  "$repo_root/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
   "$repo_root/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv"
 )
 sha256sum "${tracked_sources[@]}" >"$output_dir/source-hashes.before.txt"
 
 "$iverilog_bin" -g2012 -Wall \
-  -I"$repo_root/npc/rv64/vsrc" \
-  -I"$repo_root/npc/rv64/vsrc/include" \
+  -I"$repo_root/npc/rv64/legacy/rtl/vsrc" \
+  -I"$repo_root/npc/rv64/legacy/rtl/vsrc/include" \
   -I"$repo_root/npc/rv64/testbench/common" \
   -DOOO_ASSERT \
   -s tb_ooo_fetch_axi_bridge \
@@ -26,11 +26,11 @@ sha256sum "${tracked_sources[@]}" >"$output_dir/source-hashes.before.txt"
   -o "$image" \
   "$repo_root/npc/rv64/testbench/tests/tb_ooo_fetch_axi_bridge.sv" \
   "$repo_root/npc/rv64/testbench/tests/tb_ooo_ifu_access_assert_negative_driver.sv" \
-  "$repo_root/npc/rv64/vsrc/memory/PmpChecker.v" \
-  "$repo_root/npc/rv64/vsrc/cache/OooFetchPacketCache.v" \
-  "$repo_root/npc/rv64/vsrc/sram/Sram4096x199.v" \
-  "$repo_root/npc/rv64/vsrc/memory/OooSv39Tlb.v" \
-  "$repo_root/npc/rv64/vsrc/frontend/OooFetchAxiBridge.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/cache/OooFetchPacketCache.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/sram/Sram4096x199.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/memory/OooSv39Tlb.v" \
+  "$repo_root/npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v" \
   >"$output_dir/compile.log" 2>&1
 
 summary="$output_dir/summary.tsv"

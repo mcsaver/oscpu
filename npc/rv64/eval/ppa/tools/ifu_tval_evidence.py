@@ -359,7 +359,7 @@ def parse_module_aggregate(
     root: pathlib.Path,
     summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -483,16 +483,16 @@ def validate_variants(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
 
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     paths = {
-        "decoder": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-        "fifo": "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
-        "frontend": "npc/rv64/vsrc/frontend/OooFrontend.v",
-        "pair": "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-        "dispatch": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-        "capture": "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-        "arbiter": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-        "pending": "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-        "stop": "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-        "csr": "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+        "decoder": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+        "fifo": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketFifo.v",
+        "frontend": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+        "pair": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+        "dispatch": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+        "capture": "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+        "arbiter": "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+        "pending": "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+        "stop": "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+        "csr": "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
         "lifecycle_tb": "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv",
         "fifo_tb": "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
         "core_glue_tb": "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
@@ -576,16 +576,16 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketFifo.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketFifo.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_fifo.sv",
@@ -595,10 +595,10 @@ SOURCE_BINDING_PATHS = (
     "npc/rv64/testbench/tests/tb_ooo_csr_trap_request_mux.sv",
     "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv",
     "npc/rv64/testbench/tests/tb_ooo_core_top_glue.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/run-focused.sh",

@@ -1,8 +1,8 @@
 # Shared simulator construction; test scenarios live in testbench/.
 R64_SIM_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 R64_HOME := $(abspath $(R64_SIM_DIR)/..)
-include $(R64_HOME)/vsrc/chengyue64/filelist.mk
-include $(R64_HOME)/vsrc/chengyue64/tensor-filelist.mk
+include $(R64_HOME)/vsrc/filelist.mk
+include $(R64_HOME)/vsrc/tensor-filelist.mk
 R64_RTL_HDRS := $(wildcard $(R64_RTL_ROOT)/backend/*.vh $(R64_RTL_ROOT)/platform/*.vh)
 R64_SIM_SRCS := $(R64_SIM_DIR)/src/r64_sim_main.cpp $(R64_HOME)/difftest/src/r64_difftest.cpp
 R64_SIM_HDRS := $(wildcard $(R64_SIM_DIR)/include/*.h $(R64_HOME)/difftest/include/*.h)
@@ -24,7 +24,7 @@ CORE_THREADS ?= 1
 # and combinational-cycle diagnostics and all R64_ASSERT checks remain fatal.
 CORE_LINT_FLAGS := -Wall -Wno-DECLFILENAME -Wno-PINCONNECTEMPTY -Wno-GENUNNAMED -Wno-VARHIDDEN -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-BLKSEQ
 TENSOR_FLAGS := $(CORE_LINT_FLAGS) -Wno-TIMESCALEMOD $(R64_TENSOR_INCLUDES)
-R64_SIM_DEPS := $(R64_SIM_SRCS) $(R64_SIM_HDRS) $(R64_SIM_DIR)/build.mk $(R64_HOME)/vsrc/chengyue64/filelist.mk
+R64_SIM_DEPS := $(R64_SIM_SRCS) $(R64_SIM_HDRS) $(R64_SIM_DIR)/build.mk $(R64_HOME)/vsrc/filelist.mk
 
 $(CORE_BUILD_DIR) $(SYSTEM_BUILD_DIR) $(TENSOR_BUILD_DIR):
 	mkdir -p $@
@@ -32,7 +32,7 @@ $(CORE_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.
 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64CoreTestTop --prefix VR64CoreTestTop -Mdir $(CORE_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES)' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(CORE_BUILD_DIR)/build.log 2>&1
 $(SYSTEM_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DEPS) | $(SYSTEM_BUILD_DIR)
 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64SystemTestTop --prefix VR64SystemTestTop -Mdir $(SYSTEM_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(SYSTEM_BUILD_DIR)/build.log 2>&1
-$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/chengyue64/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
+$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64TensorTestTop --prefix VR64TensorTestTop -Mdir $(TENSOR_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT -DR64_TENSOR $(TENSOR_FLAGS) $(R64_SIM_INCLUDES) $(R64_SIM_WARNINGS) $(R64_TENSOR_SRCS) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM -DR64_TENSOR' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(TENSOR_BUILD_DIR)/build.log 2>&1
 
 .PHONY: core-lint system-lint platform-lint tensor-lint force-simulation-config

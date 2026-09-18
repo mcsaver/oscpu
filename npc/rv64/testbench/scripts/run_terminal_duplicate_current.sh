@@ -28,10 +28,10 @@ source_paths=(
   ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/run-terminal-duplicate-diagnostic.sh"
   ".github/task-runs/2026-07-23-rv64-v9p-serialize-current-design/mutate-terminal-holder-identity.py"
   ".github/task-runs/2026-07-20-rv64-v8s-dual-memory-core-integration/mutate-v8s-dual-memory-core.py"
-  "npc/rv64/vsrc/execute/OooIntBackend.v"
-  "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
-  "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
-  "npc/rv64/testbench/Makefile"
+  "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+  "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
+  "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v"
+  "npc/rv64/testbench/Makefile.legacy"
   "npc/rv64/testbench/scripts/check_tb_result.py"
   "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
   "npc/rv64/testbench/tests/tb_ooo_int_backend_v8x_bridge.svh"
@@ -63,16 +63,16 @@ cmp -s "${output_dir}/rtl-source-binding.pre.json" \
 design_id="$(jq -r '.design_id' "${output_dir}/rtl-source-binding.pre.json")"
 [[ "${design_id}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
   fail "snapshot did not provide a valid design id"
-grep -Fq "${repo_root}/npc/rv64/vsrc/execute/OooIntBackend.v" \
+grep -Fq "${repo_root}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v" \
   "${output_dir}/positive.log" ||
   fail "positive.log did not compile the live OooIntBackend source"
-grep -Fq "${repo_root}/npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v" \
+grep -Fq "${repo_root}/npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v" \
   "${output_dir}/positive.log" ||
   fail "positive.log did not compile the live terminal collector source"
-grep -Fq "${repo_root}/npc/rv64/vsrc/execute/OooIntBackend.v" \
+grep -Fq "${repo_root}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v" \
   "${output_dir}/bridge-positive.log" ||
   fail "bridge-positive.log did not compile the live OooIntBackend source"
-grep -Fq "${repo_root}/npc/rv64/vsrc/memory/OooMemAxiBridge.v" \
+grep -Fq "${repo_root}/npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v" \
   "${output_dir}/bridge-positive.log" ||
   fail "bridge-positive.log did not compile the live bridge source"
 

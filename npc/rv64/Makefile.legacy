@@ -44,8 +44,8 @@ VERILATOR_THREADS_DPI ?= none
 VERILATOR_THREADS_MAX_MTASKS ?=
 VERILATOR_BUILD_JOBS ?= $(if $(filter 1,$(VERILATOR_THREADS)),1,$(VERILATOR_THREADS))
 
-VSRCDIR := $(abspath ./vsrc)
-include $(VSRCDIR)/filelist.legacy.mk
+VSRCDIR := $(NPC_HOME)/legacy/rtl/vsrc
+include $(NPC_HOME)/legacy/rtl/filelist.mk
 
 LEGACY_SIM_DIR := $(NPC_HOME)/legacy/sim
 INC_PATH += $(LEGACY_SIM_DIR)/include
@@ -243,7 +243,7 @@ print-synth-rtl:
 # 强制 .github/instructions/rtl-generation-workflow.instructions.md 的可执行子集——
 # 可综合文件须为 .v、不得用 SV 的 always_comb/always_ff/logic(iverilog 模块 TB 不兼容)。
 check-rtl-style:
-	@RTL_FILES="$$($(MAKE) -s print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
+	@RTL_FILES="$$($(MAKE) -s -f Makefile.legacy print-synth-rtl)" $(abspath eval/check-rtl-style.sh)
 	@bash $(abspath eval/tests/test-check-rtl-style.sh)
 
 # Finite-generation ProducerId holder census.  The first command proves the
@@ -314,7 +314,7 @@ V11I_TERMINAL_LIFECYCLE_RESULT ?= $(abspath $(BUILD_DIR)/v11i-terminal-lifecycle
 V11I_TERMINAL_LIFECYCLE_VALIDATOR := $(abspath eval/ppa/tools/v11i_terminal_lifecycle_evidence.py)
 .PHONY: check-memory-terminal-lifecycle
 check-memory-terminal-lifecycle:
-	@$(MAKE) --no-print-directory -C testbench \
+	@$(MAKE) --no-print-directory -C testbench -f Makefile.legacy \
 	  V11I_TERMINAL_LIFECYCLE_RESULT="$(V11I_TERMINAL_LIFECYCLE_RESULT)" \
 	  v11i-terminal-lifecycle
 	@python3 $(V11I_TERMINAL_LIFECYCLE_VALIDATOR) \

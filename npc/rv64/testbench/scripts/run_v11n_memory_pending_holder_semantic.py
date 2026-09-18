@@ -587,7 +587,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
-        ["make", "-s", "print-v11n-memory-pending-holder-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11n-memory-pending-holder-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -612,7 +612,7 @@ def load_regression_context(
 ) -> dict[str, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "-s",
             "print-v11n-memory-pending-holder-regression-context",
         ],
@@ -714,7 +714,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc/rv64/vsrc'}",
+        f"-I{repo_root / 'npc/rv64/legacy/rtl/vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -890,7 +890,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc/rv64/testbench"
     rtl_path = (
-        repo_root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+        repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
     ).resolve()
     status_path = result_dir / "runner.status"
     if result_dir.exists() and any(result_dir.iterdir()):

@@ -173,15 +173,15 @@ T/C 表示不同目标的实验，不要求同一轮合并提交。优先级可�
 ## 证据位置与本次完成范围
 
 - [拓扑](TOPOLOGY.md)；当前相关 RTL 均在同目录及 control/lsu 中。
-- [上一轮软件与整核评估](../../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
-- [本次 Backend 分组脚本](../../../../../tmp/rv64-lsu-network-complete-20260907/collect_backend_groups.py)。
-- [分组及 RTL 起终点](../../../../../tmp/rv64-lsu-network-complete-20260907/candidate-v2/sta/R64CoreTop-1000MHz/backend-groups/result-with-rtl.json)。同目录保存全部 22 个原始 .rpt、groups.json、report.tcl 和 run.log。
+- [上一轮软件与整核评估](../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
+- [本次 Backend 分组脚本](../../../../tmp/rv64-lsu-network-complete-20260907/collect_backend_groups.py)。
+- [分组及 RTL 起终点](../../../../tmp/rv64-lsu-network-complete-20260907/candidate-v2/sta/R64CoreTop-1000MHz/backend-groups/result-with-rtl.json)。同目录保存全部 22 个原始 .rpt、groups.json、report.tcl 和 run.log。
 
-上述内容为实施前分析。T1、T2、C1、C2、C3、C4 的 MDU 部分、C5 的 scratch 只读白名单已经形成独立候选快照并完成定向验证。IQ 选择器整体重构、分支 checkpoint、队列扩容仍是后置研究项。最终组合的完整测试、CPI 与映射结果见 [本轮实施报告](../../../../../tmp/rv64-backend-network-opt-20260907/REPORT.md)。所有负 slack 均按实际结果保留。
+上述内容为实施前分析。T1、T2、C1、C2、C3、C4 的 MDU 部分、C5 的 scratch 只读白名单已经形成独立候选快照并完成定向验证。IQ 选择器整体重构、分支 checkpoint、队列扩容仍是后置研究项。最终组合的完整测试、CPI 与映射结果见 [本轮实施报告](../../../../tmp/rv64-backend-network-opt-20260907/REPORT.md)。所有负 slack 均按实际结果保留。
 
 
 ## 最终实施结论（C6）
 
 七项有界候选已实现并完成同版本完整功能、软件、CoreMark/Dhrystone 与真实综合/STA。最终保留 C6：CoreMark 总周期 -5.5187%、Dhrystone -2.5770%，面积 +0.04686%；全局 setup/hold 与原基线相同，仍未收敛到 1 GHz。
 
-验证中发现并修正了第一版接受时唤醒的取消→fire→early tag→owner 长链。最终 IQ 含 reset 的 slack 仍比基线差 0.068264 ns，寄存器起点差 0.274281 ns；RR 操作数、PRF、WB 接受认证等路径改善。完整表与保留条件见 [实施报告](../../../../../tmp/rv64-backend-network-opt-20260907/REPORT.md)，不把本轮描述成全面时序改善。
+验证中发现并修正了第一版接受时唤醒的取消→fire→early tag→owner 长链。最终 IQ 含 reset 的 slack 仍比基线差 0.068264 ns，寄存器起点差 0.274281 ns；RR 操作数、PRF、WB 接受认证等路径改善。完整表与保留条件见 [实施报告](../../../../tmp/rv64-backend-network-opt-20260907/REPORT.md)，不把本轮描述成全面时序改善。

@@ -21,7 +21,7 @@ fi
 mapfile -t sources < <(
   cd "$tb_dir"
   make --no-print-directory -s -f - print-iq-sources <<'MAKE_EOF'
-include Makefile
+include Makefile.legacy
 .PHONY: print-iq-sources
 print-iq-sources:
 	@for source in $(sort $(TB_SRCS_tb_ooo_int_issue_queue)); do printf '%s\n' "$$source"; done
@@ -43,8 +43,8 @@ set +e
 (
   cd "$tb_dir"
   "$iverilog_path" -g2012 -Wall \
-    -I"$repo_root/npc/rv64/vsrc" \
-    -I"$repo_root/npc/rv64/vsrc/include" \
+    -I"$repo_root/npc/rv64/legacy/rtl/vsrc" \
+    -I"$repo_root/npc/rv64/legacy/rtl/vsrc/include" \
     -I"$tb_dir/common" \
     -DOOO_ASSERT -DR3P3_PACKED_HOLE_NEGATIVE \
     -s tb_ooo_int_issue_queue -o "$vvp_image" "${sources[@]}"

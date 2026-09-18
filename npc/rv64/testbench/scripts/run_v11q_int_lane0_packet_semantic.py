@@ -359,7 +359,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
-        ["make", "-s", "print-v11q-int-lane0-packet-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11q-int-lane0-packet-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -384,7 +384,7 @@ def load_regression_context(
 ) -> dict[str, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "-s",
             "print-v11q-int-lane0-packet-regression-context",
         ],
@@ -435,7 +435,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc/rv64/testbench"
     rtl_path = (
-        repo_root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+        repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
     ).resolve()
     status_path = result_dir / "runner.status"
     if result_dir.exists() and any(result_dir.iterdir()):
@@ -553,9 +553,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "focused_testbench_sha256": runner_common.sha256_file(
                     testbench_dir / "tests/tb_ooo_int_backend.sv"
                 ),
-                "pipe_stage_rtl": "npc/rv64/vsrc/pipeline/PipeStageReg.v",
+                "pipe_stage_rtl": "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v",
                 "pipe_stage_rtl_sha256": runner_common.sha256_file(
-                    repo_root / "npc/rv64/vsrc/pipeline/PipeStageReg.v"
+                    repo_root / "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v"
                 ),
                 "product_instances": [PRODUCT_INSTANCE],
             },

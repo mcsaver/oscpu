@@ -27,7 +27,7 @@ import producer_holder_instance_graph as instance_graph
 
 SCHEMA = "rv64-producer-holder-census-v1"
 EXPECTED_SCOPE = {
-    "source_root": "npc/rv64/vsrc",
+    "source_root": "npc/rv64/legacy/rtl/vsrc",
     "topology_root": "NpcTop",
     "coverage_granularity":
         "field-plus-packed-stage-plus-elaborated-instance",
@@ -599,7 +599,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--source-root", type=Path,
-        default=default_repo / "npc/rv64/vsrc",
+        default=default_repo / "npc/rv64/legacy/rtl/vsrc",
     )
     parser.add_argument("--json-out", type=Path)
     args = parser.parse_args()

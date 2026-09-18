@@ -1,24 +1,26 @@
 # 承岳64 RTL 目录
 
-正式版本：**ChengYue64（承岳64）v1.0.0**。版本真源为 [../core-version.mk](../core-version.mk)。
+本目录只保存 **ChengYue64（承岳64）** 主线的可综合 RTL、源码清单和模块说明。
+版本由 [../core-version.mk](../core-version.mk) 定义，默认源码直接列在
+[filelist.mk](filelist.mk)，可选 Tensor/NPU 源码由 [tensor-filelist.mk](tensor-filelist.mk) 补充。
 
-| 目录 / 文件 | 用途 |
+| 目录 | 职责 |
 | --- | --- |
-| [chengyue64/](chengyue64/) | 正式原生双发射乱序核；内部模块沿用 R64 前缀 |
-| [filelist.mk](filelist.mk) | 默认仿真和综合的源码入口 |
-| [bus/](bus/) | 主线使用的共享 AXI 外设 IP |
+| [core/](core/) | CPU 顶层连接 |
+| [frontend/](frontend/) | 取指、指令对齐、预测与解码 |
+| [backend/](backend/) | 重命名、发射、寄存器读取、执行调度、写回与退休 |
+| [fp/](fp/) | 浮点数值执行 |
+| [control/](control/) | CSR、特权、trap 与序列化控制 |
+| [memory/](memory/) | 地址翻译、权限和物理内存属性 |
+| [lsu/](lsu/) | 访存队列、内存服务与数据缓存 |
+| [bus/](bus/) | 主线 AXI 桥及复用的 CLINT、PLIC、UART、syscon 及默认错误响应外设 |
+| [platform/](platform/) | 系统互连、地址图、Tensor 接入和系统顶层 |
 | [include/](include/) | 共享硬件定义 |
-| [../sim/vsrc/](../sim/vsrc/) | RTL 仿真封装、DPI 与平台接入适配；R64NpuCpuSim 用于完整 NPU 消费者，不属于可综合核源码 |
-| `rebuild` | 指向 `chengyue64` 的兼容链接 |
-| `core/frontend/execute/memory/...` | 指向旧核归档的兼容链接，供历史工具和少量测试 oracle 使用 |
-| `filelist.legacy.mk` | 旧核兼容源码清单；不被默认构建包含 |
 
-旧核独有的 15 个 RTL 目录已迁移至
-[../../pack/rv64core-legacy-20260916/rv64/vsrc/](../../pack/rv64core-legacy-20260916/rv64/vsrc/)。
-旧目录说明原文随包保存在 [归档 README](../../pack/rv64core-legacy-20260916/rv64/vsrc/README.md)。
+默认 CPU/系统顶层为 `R64CoreTop` / `R64SystemTop`，可选 `R64TensorSystemTop`。
+模块位置与连接分别见 [MODULES.md](MODULES.md) 和 [TOPOLOGY.md](TOPOLOGY.md)。
 
-架构从 [../ARCHITECTURE.md](../ARCHITECTURE.md) 进入，
-模块列表与拓扑见 [chengyue64/MODULES.md](chengyue64/MODULES.md) 和
-[chengyue64/TOPOLOGY.md](chengyue64/TOPOLOGY.md)。
-默认顶层为 `R64CoreTop` / `R64SystemTop`，可选 `R64TensorSystemTop`；
-旧 `NpcTop` / `Ooo*` 主核不进入默认产品 filelist。
+仿真封装、DPI 和 NPU 宿主桥位于 [../sim/vsrc/](../sim/vsrc/)；
+测试激励和比较 oracle 位于 [../testbench/](../testbench/README.md)。
+旧核源码保存在[封存包](../../pack/rv64core-legacy-20260916/README.md)，
+旧仿真和构建入口见 [../legacy/](../legacy/README.md)。`vsrc/` 不保留旧核或旧开发名的源码链接。

@@ -45,20 +45,20 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
         )
         self.log_path = self.repo / self.evidence_paths["log"]
         self._write(
-            "npc/rv64/vsrc/core/NpcTop.v",
+            "npc/rv64/legacy/rtl/vsrc/core/NpcTop.v",
             "module NpcTop; Core u_core(); endmodule\n",
         )
         self._write(
-            "npc/rv64/vsrc/core/Core.v",
+            "npc/rv64/legacy/rtl/vsrc/core/Core.v",
             "module Core; HolderA u_a(); HolderB u_b0(); "
             "HolderB u_b1(); endmodule\n",
         )
         self._write(
-            "npc/rv64/vsrc/holder/HolderA.v",
+            "npc/rv64/legacy/rtl/vsrc/holder/HolderA.v",
             "module HolderA; endmodule\n",
         )
         self._write(
-            "npc/rv64/vsrc/holder/HolderB.v",
+            "npc/rv64/legacy/rtl/vsrc/holder/HolderB.v",
             "module HolderB; endmodule\n",
         )
         self._write(
@@ -335,10 +335,10 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
         self.assertEqual(
             [row["path"] for row in records],
             [
-                "npc/rv64/vsrc/core/NpcTop.v",
-                "npc/rv64/vsrc/core/Core.v",
-                "npc/rv64/vsrc/holder/HolderA.v",
-                "npc/rv64/vsrc/holder/HolderB.v",
+                "npc/rv64/legacy/rtl/vsrc/core/NpcTop.v",
+                "npc/rv64/legacy/rtl/vsrc/core/Core.v",
+                "npc/rv64/legacy/rtl/vsrc/holder/HolderA.v",
+                "npc/rv64/legacy/rtl/vsrc/holder/HolderB.v",
             ],
         )
 
@@ -397,7 +397,7 @@ class ProducerHolderInstanceGraphTests(unittest.TestCase):
     def test_frozen_source_drift_fails_closed(self) -> None:
         self.freeze_baseline()
         self._write(
-            "npc/rv64/vsrc/holder/HolderA.v",
+            "npc/rv64/legacy/rtl/vsrc/holder/HolderA.v",
             "module HolderA; wire drift; endmodule\n",
         )
         result = graph.audit_frozen(self.repo, self.manifest)

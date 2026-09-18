@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-rtl_source="${workspace_dir}/npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
+rtl_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -35,7 +35,7 @@ mutation_diff="${result_dir}/readd-trap-dispatch-cancel.diff"
 result_file="${result_dir}/result.txt"
 test_log="${test_result}/logs/tb_ooo_pending_system_admission_cancel_gate.log"
 compile_artifact="${work_dir}/build/tb_ooo_pending_system_admission_cancel_gate.vvp"
-release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/vsrc -I${workspace_dir}/npc/rv64/vsrc/include -I${testbench_dir}/common"
+release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc/include -I${testbench_dir}/common"
 rtl_sha_before="$(sha256sum "${rtl_source}" | awk '{print $1}')"
 
 cp -- "${rtl_source}" "${mutated_rtl}"
@@ -58,7 +58,7 @@ diff -u --label production/OooPendingSystemAdmissionCancelGate.v \
   "${rtl_source}" "${mutated_rtl}" >"${mutation_diff}" || true
 
 set +e
-make -C "${testbench_dir}" v15x-trap-c0-dispatch-closure-focused \
+make -C "${testbench_dir}" -f Makefile.legacy v15x-trap-c0-dispatch-closure-focused \
   "RTL_OOO_PENDING_SYSTEM_ADMISSION_CANCEL_GATE=${mutated_rtl}" \
   "RESULT_DIR=${test_result}" \
   "BUILD_DIR=${work_dir}/build" \

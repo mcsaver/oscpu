@@ -288,7 +288,7 @@ def required_module_tests(makefile: pathlib.Path) -> list[str]:
 def parse_module_aggregate(
     root: pathlib.Path, summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -485,15 +485,15 @@ def validate_effective_make_dispatch(
 
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     paths = {
-        "bridge": "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-        "pmp": "npc/rv64/vsrc/memory/PmpChecker.v",
-        "xbar": "npc/rv64/vsrc/bus/AxiCrossbar.v",
+        "bridge": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+        "pmp": "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
+        "xbar": "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
         "dpi": "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
-        "pair": "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-        "dispatch": "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-        "capture": "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-        "arbiter": "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-        "decoder": "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
+        "pair": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+        "dispatch": "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+        "capture": "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+        "arbiter": "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+        "decoder": "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
         "footprint_tb": "npc/rv64/testbench/tests/tb_ooo_fetch_access_footprint.sv",
         "lane_tb": "npc/rv64/testbench/tests/tb_ooo_ifu_lane1_fault_owner.sv",
     }
@@ -562,17 +562,17 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/frontend/OooFetchHeadPairGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontendDispatchGate.v",
-    "npc/rv64/vsrc/control/OooPendingLane1CaptureGate.v",
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v",
-    "npc/rv64/vsrc/control/OooStopPendingSequencer.v",
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v",
-    "npc/rv64/vsrc/memory/PmpChecker.v",
-    "npc/rv64/vsrc/bus/AxiCrossbar.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchHeadPairGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingLane1CaptureGate.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooStopPendingSequencer.v",
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/PmpChecker.v",
+    "npc/rv64/legacy/rtl/vsrc/bus/AxiCrossbar.v",
     "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
     "npc/rv64/legacy/sim/src/dpi.c",
     "npc/rv64/legacy/sim/src/memory/paddr.c",
@@ -582,7 +582,7 @@ SOURCE_BINDING_PATHS = (
     "npc/rv64/testbench/tests/tb_axi_exec_firewall.sv",
     "npc/rv64/testbench/cpp/axi_dpi_slave_sized_tb.cpp",
     "npc/rv64/testbench/cpp/sized_dpi_guard_tb.cpp",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     CANONICAL_DISPATCH_FILE,

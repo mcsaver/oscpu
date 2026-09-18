@@ -138,7 +138,7 @@ class OwnerResidencyEvidenceTest(unittest.TestCase):
             evidence.validate_variant_payload(self.root, payload, logs)
 
     def test_canonical_top_flush_is_static_low(self) -> None:
-        text = (self.root / "npc/rv64/vsrc/core/NpcCoreTop.v").read_text(
+        text = (self.root / "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v").read_text(
             encoding="utf-8")
         self.assertEqual(text.count(evidence.TOP_FLUSH_BINDING), 1)
 

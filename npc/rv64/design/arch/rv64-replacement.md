@@ -11,9 +11,9 @@
 并明确恢复 Linux 与 NPU 的完整替换范围。此前“OS 不运行、NPU 暂缓”的任务范围不再适用于本任务。
 实际 worktree 为 /home/lyg/PA/ysyx-workbench，保留已有未提交修改。
 
-当前 CPU 为 vsrc/rebuild/core/R64CoreTop.v，系统为 R64SystemTop，
-真实协处理器系统为 R64TensorSystemTop。默认 filelist 来自 vsrc/rebuild/filelist.mk。
-旧核入口是 vsrc/core/NpcCoreTop.v → OooCoreTopGlue，旧系统为 NpcTop/NpcSimTop。
+当前 CPU 为 vsrc/core/R64CoreTop.v，系统为 R64SystemTop，
+真实协处理器系统为 R64TensorSystemTop。默认 filelist 来自 vsrc/filelist.mk。
+旧核入口是归档中的 NpcCoreTop.v → OooCoreTopGlue，旧系统为 NpcTop/NpcSimTop。
 默认构建已切换并不等于全部消费者已完成迁移。
 
 ## 对旧实现的取舍
@@ -32,11 +32,11 @@
 
 ### 已核对的具体接口差异
 
-- 旧 [NpcCoreTop](../../vsrc/core/NpcCoreTop.v) 分别连接 OooFetchAxiBridge、
+- 旧 [NpcCoreTop](../../../pack/rv64core-legacy-20260916/rv64/vsrc/core/NpcCoreTop.v) 分别连接 OooFetchAxiBridge、
   OooDualMemBridgeWrapper 和 OooCoreTopGlue；该顶层的两个响应入口没有 RID/BID/RLAST 输入。
-  新 [R64CoreTop](../../vsrc/rebuild/core/R64CoreTop.v) 经
-  [R64AxiRead](../../vsrc/rebuild/bus/R64AxiRead.v) 与
-  [R64AxiWrite](../../vsrc/rebuild/bus/R64AxiWrite.v) 保存每个 client 的总线归属，
+  新 [R64CoreTop](../../vsrc/core/R64CoreTop.v) 经
+  [R64AxiRead](../../vsrc/bus/R64AxiRead.v) 与
+  [R64AxiWrite](../../vsrc/bus/R64AxiWrite.v) 保存每个 client 的总线归属，
   检查响应 ID、读拍数、RLAST，以及 B 到达前 AW/W 是否均已完成。
   替换适配不能丢弃新接口的响应身份，也不能凭等待周期数推断事务已完成。
 - R64AxiWrite 的 B_BYPASS 只缩短内部空响应队列的等待；物理 AXI 的 VALID 保持边界仍在。
@@ -44,7 +44,7 @@
 - 旧 NPU 使用 8-bit producer 接口，新核采用 9-bit ROB tag。
   [R64NpuCpuSim](../../sim/vsrc/R64NpuCpuSim.sv) 在命令握手时保存完整 tag，
   与旧 NPU 交互时使用低 8 位，核对 terminal 后恢复完整 tag；同一时刻只保留一个命令。
-  原生 [R64TensorLink](../../vsrc/rebuild/platform/R64TensorLink.v) 则全程使用 9 位，
+  原生 [R64TensorLink](../../vsrc/platform/R64TensorLink.v) 则全程使用 9 位，
   等待实际 DMA 排空、必要的缓存失效和 terminal 握手。
 - 旧 NPU testbench 将异常 completion 也纳入 command lifecycle 观察。
   新适配器保留这项观察，成功退休与异常分别接入各自事件；错误完成经过真实新核异常流水，

@@ -14,7 +14,7 @@ export TMPDIR="${COMPILER_TMP_DIR}"
 export TMP="${COMPILER_TMP_DIR}"
 export TEMP="${COMPILER_TMP_DIR}"
 unset MAKEFLAGS MFLAGS
-mapfile -t RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/vsrc" -g '*.v')
+mapfile -t RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/legacy/rtl/vsrc" -g '*.v')
 
 {
   verilator --binary --timing -O3 --no-assert --no-trace \
@@ -27,8 +27,8 @@ mapfile -t RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/vsrc" -g '*.v')
     -Wno-UNUSEDSIGNAL \
     -Wno-TIMESCALEMOD \
     -Wno-PINMISSING \
-    -I"${NPC_RV64_DIR}/vsrc" \
-    -I"${NPC_RV64_DIR}/vsrc/include" \
+    -I"${NPC_RV64_DIR}/legacy/rtl/vsrc" \
+    -I"${NPC_RV64_DIR}/legacy/rtl/vsrc/include" \
     -I"${NPC_RV64_DIR}/testbench/common" \
     --Mdir "${OBJ_DIR}" \
     "${NPC_RV64_DIR}/testbench/tests/tb_ooo_alu_decode_backend.sv" \

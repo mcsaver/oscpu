@@ -8,7 +8,7 @@ from always_ir import *
 from compose import Network
 from lsu_queue import request_queue
 from lsu_completion import completion,all_of,any_of,RESULT_W
-SOURCE="npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v"
+SOURCE="npc/rv64/vsrc/lsu/R64Lsu.v"
 
 def reduce_or(xs,width):
     value=const(0,width)
@@ -28,7 +28,7 @@ def order_select(n=6,slot_w=3):
             "first_slot_o":reduce_or((mux(first[i],const(i,slot_w),const(0,slot_w)) for i in range(n)),slot_w),
             "second_slot_o":reduce_or((mux(second[i],const(i,slot_w),const(0,slot_w)) for i in range(n)),slot_w)}
     m=Model("R64LsuOrderSelect",{"valid_i":n,"older_i":n*n},{},{k:e.width for k,e in values.items()},
-        [Block("select","comb",tuple(blocking(k,e) for k,e in values.items()),source="npc/rv64/vsrc/chengyue64/lsu/R64LsuOrderSelect.v:12")],
+        [Block("select","comb",tuple(blocking(k,e) for k,e in values.items()),source="npc/rv64/vsrc/lsu/R64LsuOrderSelect.v:12")],
         outputs={k:ref(k,e.width) for k,e in values.items()})
     m.parameters={"N":n,"SLOT_W":slot_w};return m
 

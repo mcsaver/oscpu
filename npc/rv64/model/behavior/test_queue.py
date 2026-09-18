@@ -32,7 +32,7 @@ def rtl_run(model,cases,directory,expect_failure=False):
     lines += [display,"clk_i=1;#1;",display,"cycle=cycle+1;end end","$finish;end endmodule"]
     (out/"tb.sv").write_text("\n".join(lines)+"\n")
     command(["iverilog","-g2012","-DR64_ASSERT","-s","tb","-o",out/"sim",out/"tb.sv",
-             ROOT/"npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v"])
+             ROOT/"npc/rv64/vsrc/lsu/R64LsuRequestQueue.v"])
     result=subprocess.run(["vvp",str(out/"sim")],capture_output=True,text=True,timeout=60)
     if expect_failure:
         if result.returncode==0 or "FATAL:" not in result.stdout:

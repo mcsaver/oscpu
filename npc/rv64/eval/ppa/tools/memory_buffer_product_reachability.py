@@ -27,12 +27,12 @@ PRODUCT_INSTANCE = (
     "u_decode_backend.u_int_backend"
 )
 SOURCE_PATHS = (
-    "npc/rv64/vsrc/core/NpcCoreTop.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-    "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-    "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+    "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
 )
 PASS_THROUGH_PATHS = SOURCE_PATHS[1:5]
 PRODUCT_ZERO_NETS = (

@@ -129,12 +129,12 @@ class IfuFetchProvenanceEvidenceTests(unittest.TestCase):
         self.assertEqual(
             audit["by_source"],
             {
-                "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v": {
+                "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v": {
                     "required": 8,
                     "compile_success": 8,
                     "dynamic_rejected": 8,
                 },
-                "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v": {
+                "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v": {
                     "required": 8,
                     "compile_success": 8,
                     "dynamic_rejected": 8,

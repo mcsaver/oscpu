@@ -14,7 +14,7 @@ class V11pCheckpointIrrevocableWriteRunnerTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.repo_root = Path(__file__).resolve().parents[4]
         cls.rtl_path = (
-            cls.repo_root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+            cls.repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         )
         cls.source = cls.rtl_path.read_text(encoding="utf-8")
 

@@ -391,7 +391,7 @@ def load_regression_context(
 ) -> dict[str, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "-s",
             "--no-print-directory",
             "--eval",
@@ -487,9 +487,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     repo_root = args.repo_root.resolve()
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc/rv64/testbench"
-    rtl_path = (repo_root / "npc/rv64/vsrc/execute/OooIntBackend.v").resolve()
+    rtl_path = (repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v").resolve()
     clmul_rtl_path = (
-        repo_root / "npc/rv64/vsrc/execute/OooClmulUnit.v"
+        repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooClmulUnit.v"
     ).resolve()
     status_path = result_dir / "runner.status"
     if result_dir.exists() and any(result_dir.iterdir()):

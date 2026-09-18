@@ -40,7 +40,7 @@ class V8lCurrentCensusEvidenceTests(unittest.TestCase):
             "schema": builder.RTL_BINDING_SCHEMA,
             "design_id": "sha256:" + "a" * 64,
             "rtl_files": {
-                "npc/rv64/vsrc/example.v": "b" * 64,
+                "npc/rv64/legacy/rtl/vsrc/example.v": "b" * 64,
             },
         }
 
@@ -57,7 +57,7 @@ class V8lCurrentCensusEvidenceTests(unittest.TestCase):
     def test_pre_post_rtl_drift_is_rejected(self) -> None:
         pre = self.snapshot()
         post = self.snapshot()
-        post["rtl_files"]["npc/rv64/vsrc/example.v"] = "c" * 64
+        post["rtl_files"]["npc/rv64/legacy/rtl/vsrc/example.v"] = "c" * 64
         with self.assertRaisesRegex(
             RuntimeError, "drifted during the focused run"
         ):
@@ -67,7 +67,7 @@ class V8lCurrentCensusEvidenceTests(unittest.TestCase):
         old = self.snapshot()
         live = self.snapshot()
         live["design_id"] = "sha256:" + "d" * 64
-        live["rtl_files"]["npc/rv64/vsrc/example.v"] = "e" * 64
+        live["rtl_files"]["npc/rv64/legacy/rtl/vsrc/example.v"] = "e" * 64
         with self.assertRaisesRegex(
             RuntimeError, "live canonical RTL differs"
         ):
@@ -78,7 +78,7 @@ class V8lCurrentCensusEvidenceTests(unittest.TestCase):
     def test_runner_source_manifests_bind_live_bytes(self) -> None:
         with tempfile.TemporaryDirectory(prefix="v8l-provenance-") as temp:
             root = Path(temp)
-            source = root / "npc/rv64/vsrc/example.v"
+            source = root / "npc/rv64/legacy/rtl/vsrc/example.v"
             source.parent.mkdir(parents=True)
             source.write_text("module example; endmodule\n", encoding="utf-8")
             row = f"{digest(source)}  {source}\n"
@@ -92,7 +92,7 @@ class V8lCurrentCensusEvidenceTests(unittest.TestCase):
             )
             self.assertEqual(
                 result,
-                {"npc/rv64/vsrc/example.v": digest(source)},
+                {"npc/rv64/legacy/rtl/vsrc/example.v": digest(source)},
             )
 
             source.write_text(

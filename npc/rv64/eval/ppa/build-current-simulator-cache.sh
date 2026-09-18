@@ -180,7 +180,7 @@ cache_dir=${cache_root}/${rtl_design_id#sha256:}
 task_run_status_stage simulator-build
 run_bounded_log "${runtime_dir}/build.full.log" "${result_dir}/build-tail.log" \
   env NEMU_HOME="${repo_root}/nemu" YSYX_HOME="${repo_root}" \
-    make -C "${repo_root}/npc/rv64" BUILD_DIR="${build_dir}" \
+    make -C "${repo_root}/npc/rv64" -f Makefile.legacy BUILD_DIR="${build_dir}" \
       OOO_CSR_QUEUE_HEAD=1 OOO_ASSERT=1 OOO_TERMINAL_HOLDER_ASSERT=1 \
       CXX=/usr/bin/clang++ LINK=/usr/bin/clang++ \
       'VERILATOR=verilator -Wno-fatal' \

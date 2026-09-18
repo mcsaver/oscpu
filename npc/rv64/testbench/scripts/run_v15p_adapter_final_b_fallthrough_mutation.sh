@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-rtl_source="${workspace_dir}/npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+rtl_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -59,7 +59,7 @@ diff -u --label production/OooLsuAxiLaneAdapter.v \
   "${rtl_source}" "${mutated_rtl}" >"${mutation_diff}" || true
 
 set +e
-make -C "${testbench_dir}" owner-timing-causal-probe-focused \
+make -C "${testbench_dir}" -f Makefile.legacy owner-timing-causal-probe-focused \
   "RTL_OOO_LSU_AXI_LANE_ADAPTER=${mutated_rtl}" \
   "RESULT_DIR=${mutation_result_dir}" \
   "BUILD_DIR=${work_dir}/build" >"${driver_log}" 2>&1

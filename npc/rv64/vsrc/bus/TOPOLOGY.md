@@ -1,6 +1,6 @@
 # Rebuild BUS 拓扑与事务生命周期
 
-日期：2026-09-08。范围：生产连接 `R64CoreTop → R64SystemTop → R64AxiPlatform`。本文已按四批优化后的 RTL 更新；逐批 CPI、综合/STA、验证和产物清理记录见 [本轮结果](../../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。优化前的分析保留在 [OPTIMIZATION.md](OPTIMIZATION.md)。
+日期：2026-09-08。范围：生产连接 `R64CoreTop → R64SystemTop → R64AxiPlatform`。本文已按四批优化后的 RTL 更新；逐批 CPI、综合/STA、验证和产物清理记录见 [本轮结果](../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。优化前的分析保留在 [OPTIMIZATION.md](OPTIMIZATION.md)。
 
 ## 1. 高级网络
 
@@ -95,7 +95,7 @@ AW 描述符和 W owner 按命令同时登记，W 数据按接受顺序发送；
 逻辑写入发生在原来的真实R/B边沿，下一拍落入原数据阵列；同址lookup按byte转发待写数据。
 B完成、R接收、refill install与请求响应拍数保持。该结构缩小了最终R/B选择信号直接驱动的大阵列范围，
 同时保留等待B时的独立load进展。全核拓扑及本轮STA反馈见
-[全核拓扑](../TOPOLOGY.md) 和 [整合评估](../../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+[全核拓扑](../TOPOLOGY.md) 和 [整合评估](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
 
 
 ## 5. 当前地址分发与平台支路
@@ -131,7 +131,7 @@ RTC 的统一寄存器桥只用于 RTC。CLINT、PLIC、UART、syscon 各自持�
 
 Tensor 扩展的 gmem 请求使用独立接口，并通过 dma_invalidate 与核心维护一致性；它不是本 Fabric 的额外 AXI master。外部 virtio 端口也不能凭名称推断为本 Fabric 的 DMA 主端。
 
-依据：[R64AxiPlatform.v](../platform/R64AxiPlatform.v) 第 50–55、110–269 行；[R64PlatformMap.vh](../platform/R64PlatformMap.vh)；[define.v](../../include/define.v) 第 169–281 行；[仿真宿主](../../../sim/src/r64_sim_main.cpp)。
+依据：[R64AxiPlatform.v](../platform/R64AxiPlatform.v) 第 50–55、110–269 行；[R64PlatformMap.vh](../platform/R64PlatformMap.vh)；[define.v](../include/define.v) 第 169–281 行；[仿真宿主](../../sim/src/r64_sim_main.cpp)。
 
 ## 6. 背压、取消与时序边界
 
@@ -143,7 +143,7 @@ BUS 没有 ROB kill/branch flush 输入。已经接受的 AR/AW/W 继续 drain�
 
 ## 7. 验证范围与剩余边界
 
-四批的固定 RTL、命令、原始 PASS/FAIL、CPI/面积/时序和清理清单汇总在 [本轮结果](../../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。综合为真实单元库映射和布局前 STA；没有把已存在的 1 ns setup/hold 失败改成 PASS。
+四批的固定 RTL、命令、原始 PASS/FAIL、CPI/面积/时序和清理清单汇总在 [本轮结果](../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。综合为真实单元库映射和布局前 STA；没有把已存在的 1 ns setup/hold 失败改成 PASS。
 
 直接机制覆盖包括：B 直通与 FIFO 回退；延迟/错误 B 下 hit；四种续拍/早返回配置；同目标公平性；慢 MMIO 与 RAM 的单组/双组对照；R FIFO 背压；两 bank 的 R/B 写口冲突、成功/失败字节写读回、invalidate、reservation clear；完整系统 NEMU 对照和固定软件基准。
 

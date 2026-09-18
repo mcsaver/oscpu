@@ -814,7 +814,7 @@ def production_identity_entries() -> dict[pathlib.Path, str]:
     suffixes = {".v", ".sv", ".vh", ".svh", ".mk"}
     paths = sorted(
         source.resolve()
-        for source in (REPO_ROOT / "npc/rv64/vsrc").rglob("*")
+        for source in (REPO_ROOT / "npc/rv64/legacy/rtl/vsrc").rglob("*")
         if source.is_file() and source.suffix.lower() in suffixes
     )
     paths.extend(

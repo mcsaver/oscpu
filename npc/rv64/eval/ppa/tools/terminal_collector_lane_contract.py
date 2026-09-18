@@ -14,8 +14,8 @@ from typing import Any
 
 SCHEMA = "rv64-terminal-collector-lane-contract-v2"
 PAIR_SCHEMA = "rv64-terminal-collector-source-pair-matrix-v1"
-BACKEND = "npc/rv64/vsrc/execute/OooIntBackend.v"
-COLLECTOR = "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+BACKEND = "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+COLLECTOR = "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v"
 TOOL = "npc/rv64/eval/ppa/tools/terminal_collector_lane_contract.py"
 
 LANES = [

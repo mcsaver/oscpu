@@ -22,7 +22,7 @@ from typing import Any
 SCHEMA = "rv64-v11g-store-queue-holder-semantic-evidence-v1"
 MUTANT_SCHEMA = "rv64-v11g-store-queue-holder-mutant-v1"
 TEST = "tb_ooo_store_queue"
-RTL_PATH = "npc/rv64/vsrc/memory/OooStoreQueue.v"
+RTL_PATH = "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v"
 TB_PATH = "npc/rv64/testbench/tests/tb_ooo_store_queue.sv"
 EXPECTED_RTL_SHA256 = (
     "b6d3b77379fbfa6777df239f3c94ce62e31e75dfcbd60810f1e6f3ae968d5d2f"

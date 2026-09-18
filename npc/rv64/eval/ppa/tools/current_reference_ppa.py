@@ -25,7 +25,7 @@ SELECTED_SLICE = "qualify.current-reference-ppa"
 EXPECTED_ADAPTER_SHA256 = (
     "6d81b143e92992dfdd02b31a5b72c57ca69d3ffcbc626d00e7bb5ad3fb3a0e22"
 )
-ADAPTER_PATH = "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+ADAPTER_PATH = "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
 EXPECTED_UNKNOWN_MACROS = {
     "OooBranchDirectionPredictor": 1,
     "OooFpArithGate": 1,

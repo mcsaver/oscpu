@@ -122,7 +122,7 @@ HOLDER_SECTIONS = (
     "token_set_holders",
 )
 CONFIG_PATH = "npc/rv64/configs/product-rtl-defaults.mk"
-MAKEFILE_PATH = "npc/rv64/Makefile"
+MAKEFILE_PATH = "npc/rv64/Makefile.legacy"
 EXPECTED_CONFIG_DEFINES = {
     "OOO_CSR_QUEUE_HEAD": "1",
     "OOO_TERMINAL_HOLDER_ASSERT": "1",
@@ -225,7 +225,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def rtl_binding(repo_root: Path) -> tuple[str, dict[str, str]]:
-    source_root = repo_root / "npc/rv64/vsrc"
+    source_root = repo_root / "npc/rv64/legacy/rtl/vsrc"
     files = sorted(
         path for path in source_root.rglob("*")
         if path.is_file() and path.suffix.lower() in RTL_SUFFIXES
@@ -462,8 +462,8 @@ def canonical_yosys_script(
 ) -> str:
     """Build a path-stable script whose output path is an explicit placeholder."""
     include_paths = (
-        "npc/rv64/vsrc",
-        "npc/rv64/vsrc/include",
+        "npc/rv64/legacy/rtl/vsrc",
+        "npc/rv64/legacy/rtl/vsrc/include",
     )
     source_paths: list[str] = []
     for index, row in enumerate(source_records):
@@ -1221,7 +1221,7 @@ def _yosys_executable(repo_root: Path, requested: str | None) -> Path:
 
 def _synth_sources(repo_root: Path) -> list[Path]:
     completed = subprocess.run(
-        ["make", "--no-print-directory", "-s",
+        ["make", "-f", "Makefile.legacy", "--no-print-directory", "-s",
          "-C", str(repo_root / "npc/rv64"),
          "print-synth-rtl"],
         check=False,

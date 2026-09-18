@@ -26,19 +26,19 @@ DEFAULT_RUN_ID = "2026-07-20-rv64-v8u-dual-memory-sustained-issue"
 MUTATIONS = set(arch.DUAL_MEMORY_MUTATION_NAMES)
 MUTATION_SOURCE_PATHS = {
     "backend_next_requires_response_fire":
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
     "backend_turnover_accepts_partial":
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
     "backend_peek_dequeue_without_capture":
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
     "bridge_station_query_requires_ready":
-        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
     "bridge_station_lookup_ignores_ready":
-        "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
     "iq_pair_pop_only_entry0":
-        "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v",
     "iq_pair_exposes_regular_issue1":
-        "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v",
 }
 MUTATION_TESTS = {
     "backend_next_requires_response_fire": "tb_ooo_int_backend",
@@ -518,8 +518,8 @@ def validate_f2_replay(
     allowed_drift = {
         ".github/task-runs/2026-07-20-rv64-v8r-dual-memory-bridge-wrapper/"
         "evidence/focused/result.json",
-        "npc/rv64/Makefile",
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/Makefile.legacy",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/design/arch/producer-holder-census.json",
         "npc/rv64/eval/ppa/tests/test_producer_holder_census.py",
         "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
@@ -583,9 +583,9 @@ def validate_f2_replay(
         raise ValueError("current F1 source-closure digest mismatch")
     f1_rtl = f1_result.get("rtl_sha256")
     expected_f1_rtl = {
-        "bridge": "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "dcache": "npc/rv64/vsrc/cache/OooDataWordCache.v",
-        "wrapper": "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v",
+        "bridge": "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
+        "dcache": "npc/rv64/legacy/rtl/vsrc/cache/OooDataWordCache.v",
+        "wrapper": "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v",
     }
     if not isinstance(f1_rtl, dict) or any(
         f1_rtl.get(role) != arch.digest(arch.safe_artifact(root, rel))
@@ -638,10 +638,10 @@ def validate_f2_replay(
         raise ValueError("F2 replay source-closure digest mismatch")
     rtl_sha = result.get("rtl_sha256")
     expected_rtl = {
-        "backend": "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "canonical_core": "npc/rv64/vsrc/core/NpcCoreTop.v",
+        "backend": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "canonical_core": "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
         "core_slice_control_gate":
-            "npc/rv64/vsrc/control/OooCoreSliceControlGate.v",
+            "npc/rv64/legacy/rtl/vsrc/control/OooCoreSliceControlGate.v",
     }
     if not isinstance(rtl_sha, dict) or any(
         rtl_sha.get(role) != arch.digest(arch.safe_artifact(root, rel))

@@ -147,8 +147,8 @@ endmodule
 """
             (out/"tb.sv").write_text(tb)
             command(["iverilog","-g2012","-s","tb","-o",out/"sim",out/"tb.sv",
-                     ROOT/"npc/rv64/vsrc/chengyue64/control/R64Counter.v",
-                     ROOT/"npc/rv64/vsrc/chengyue64/control/R64CounterNear.v"])
+                     ROOT/"npc/rv64/vsrc/control/R64Counter.v",
+                     ROOT/"npc/rv64/vsrc/control/R64CounterNear.v"])
             rtl=command(["vvp",out/"sim"])
             actual=[]
             order=[b.name for b in m.blocks if b.kind=="posedge"]

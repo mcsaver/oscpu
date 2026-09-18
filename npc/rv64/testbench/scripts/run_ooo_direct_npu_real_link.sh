@@ -15,7 +15,7 @@ export TMPDIR="${COMPILER_TMP_DIR}"
 export TMP="${COMPILER_TMP_DIR}"
 export TEMP="${COMPILER_TMP_DIR}"
 unset MAKEFLAGS MFLAGS
-mapfile -t NPC_RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/vsrc" -g '*.v')
+mapfile -t NPC_RTL_SRCS < <(rg --files "${NPC_RV64_DIR}/legacy/rtl/vsrc" -g '*.v')
 mapfile -t NPU_RTL_SRCS < <(rg --files "${NPU_ROOT}/rtl" -g '*.v' -g '*.sv')
 mapfile -t LZC_SRCS < <(
   rg --files "${NPU_ROOT}/third_party/fpu-sp/verilog/src/lzc" -g '*.sv' |
@@ -52,8 +52,8 @@ HARD_FLOAT_SRCS=(
     -Wno-TIMESCALEMOD \
     -Wno-PINMISSING \
     -Wno-UNOPTFLAT \
-    -I"${NPC_RV64_DIR}/vsrc" \
-    -I"${NPC_RV64_DIR}/vsrc/include" \
+    -I"${NPC_RV64_DIR}/legacy/rtl/vsrc" \
+    -I"${NPC_RV64_DIR}/legacy/rtl/vsrc/include" \
     -I"${NPC_RV64_DIR}/testbench/common" \
     -I"${NPU_ROOT}/rtl" \
     -I"${NPU_ROOT}/third_party/hardfloat/source/RISCV" \

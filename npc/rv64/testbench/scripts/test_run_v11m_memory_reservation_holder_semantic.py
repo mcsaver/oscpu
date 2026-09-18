@@ -17,7 +17,7 @@ class V11mMemoryReservationRunnerTest(unittest.TestCase):
             cls.repo_root
             / "npc"
             / "rv64"
-            / "vsrc"
+            / "legacy" / "rtl" / "vsrc"
             / "execute"
             / "OooIntBackend.v"
         )
@@ -219,7 +219,7 @@ class V11mMemoryReservationRunnerTest(unittest.TestCase):
         )
         self.assertEqual(
             include_dir.relative_to(self.repo_root).as_posix(),
-            "npc/rv64/vsrc/include",
+            "npc/rv64/legacy/rtl/vsrc/include",
         )
         contexts = runner.load_regression_context(testbench_dir)
         self.assertEqual(set(contexts), set(runner.REGRESSIONS))
@@ -228,8 +228,8 @@ class V11mMemoryReservationRunnerTest(unittest.TestCase):
                 path.relative_to(self.repo_root).as_posix()
                 for path in paths
             }
-            self.assertIn("npc/rv64/testbench/Makefile", common)
-            self.assertIn("npc/rv64/vsrc/include/define.v", common)
+            self.assertIn("npc/rv64/testbench/Makefile.legacy", common)
+            self.assertIn("npc/rv64/legacy/rtl/vsrc/include/define.v", common)
 
 
 if __name__ == "__main__":

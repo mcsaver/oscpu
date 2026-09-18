@@ -291,7 +291,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
-        ["make", "-s", "print-v11o-memory-buffer-token-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11o-memory-buffer-token-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -316,7 +316,7 @@ def load_regression_context(
 ) -> dict[str, tuple[Path, ...]]:
     completed = runner_common.subprocess.run(
         [
-            "make",
+            "make", "-f", "Makefile.legacy",
             "-s",
             "print-v11o-memory-buffer-token-regression-context",
         ],
@@ -414,7 +414,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc/rv64/vsrc'}",
+        f"-I{repo_root / 'npc/rv64/legacy/rtl/vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -660,7 +660,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc/rv64/testbench"
     rtl_path = (
-        repo_root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+        repo_root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
     ).resolve()
     status_path = result_dir / "runner.status"
     if result_dir.exists() and any(result_dir.iterdir()):
@@ -679,11 +679,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         product_paths = [
             repo_root / relative
             for relative in (
-                "npc/rv64/vsrc/core/NpcCoreTop.v",
-                "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-                "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-                "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-                "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+                "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+                "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+                "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+                "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+                "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
             )
         ]
         runner_inputs = [

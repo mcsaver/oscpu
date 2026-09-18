@@ -17,7 +17,7 @@ class V11lMemoryRetryHolderRunnerTest(unittest.TestCase):
             cls.repo_root
             / "npc"
             / "rv64"
-            / "vsrc"
+            / "legacy" / "rtl" / "vsrc"
             / "execute"
             / "OooIntBackend.v"
         )
@@ -187,9 +187,9 @@ class V11lMemoryRetryHolderRunnerTest(unittest.TestCase):
                 "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
                 relative,
             )
-            self.assertIn("npc/rv64/testbench/Makefile", relative)
+            self.assertIn("npc/rv64/testbench/Makefile.legacy", relative)
             self.assertIn(
-                "npc/rv64/vsrc/include/define.v",
+                "npc/rv64/legacy/rtl/vsrc/include/define.v",
                 relative,
             )
 

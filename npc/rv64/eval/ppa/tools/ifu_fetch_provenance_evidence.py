@@ -330,7 +330,7 @@ def required_module_tests(makefile: pathlib.Path) -> list[str]:
 def parse_module_aggregate(
     root: pathlib.Path, summary: pathlib.Path,
 ) -> dict[str, Any]:
-    tests = required_module_tests(root / "npc/rv64/testbench/Makefile")
+    tests = required_module_tests(root / "npc/rv64/testbench/Makefile.legacy")
     text = summary.read_text(encoding="utf-8")
     count = len(tests)
     markers = (
@@ -458,10 +458,10 @@ def validate_variants(root: pathlib.Path, path: pathlib.Path) -> dict[str, Any]:
 
 def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
     bridge = safe_file(
-        root, root / "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
     ).read_text(encoding="utf-8")
     decode = safe_file(
-        root, root / "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v"
+        root, root / "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v"
     ).read_text(encoding="utf-8")
     page_tb = safe_file(
         root, root / "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv"
@@ -511,17 +511,17 @@ def validate_static_contract(root: pathlib.Path) -> dict[str, bool]:
 
 
 SOURCE_BINDING_PATHS = (
-    "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-    "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v",
-    "npc/rv64/vsrc/cache/OooFetchPacketCache.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v",
+    "npc/rv64/legacy/rtl/vsrc/cache/OooFetchPacketCache.v",
     "npc/rv64/design/specs/ooo-fetch-axi-bridge.md",
     "npc/rv64/testbench/tests/tb_ooo_fetch_page_end_fault.sv",
     "npc/rv64/testbench/tests/tb_ooo_fetch_packet_decode.sv",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/common/tb_common.svh",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/scripts/check_ifu_icache_coherence_contract.py",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     f".github/task-runs/{RUN_ID}/contract.md",
     f".github/task-runs/{RUN_ID}/rtl-derivation.md",
     f".github/task-runs/{RUN_ID}/review-summary.md",
@@ -599,8 +599,8 @@ def raw_summary(result: dict[str, Any]) -> str:
     decode = result["metrics"]["packet_decode"]
     variants = result["variant_audit"]
     module = result["module_aggregate"]
-    bridge = "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v"
-    decoder = "npc/rv64/vsrc/frontend/OooFetchPacketDecode.v"
+    bridge = "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v"
+    decoder = "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchPacketDecode.v"
     return "\n".join((
         f"schema={result['schema']}",
         f"design_id={result['design_id']}",

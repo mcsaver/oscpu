@@ -294,17 +294,17 @@ bounded_log() {
 
 production_manifest() {
   # filelist.mk 由后面的显式输入统一收录，避免目录枚举与固定清单产生重复身份。
-  find "${repo_root}/npc/rv64/vsrc" "${repo_root}/npc/rv64/legacy/sim" \
+  find -H "${repo_root}/npc/rv64/legacy/rtl/vsrc" "${repo_root}/npc/rv64/legacy/sim" \
     "${repo_root}/npc/rv64/sim/vsrc" \
     -type f \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o \
       -name '*.svh' -o -name '*.cpp' -o -name '*.cc' -o -name '*.c' -o \
       -name '*.h' -o -name '*.hpp' -o -name '*.mk' \) \
-    ! -path "${repo_root}/npc/rv64/vsrc/filelist.mk" -print0 |
+    ! -path "${repo_root}/npc/rv64/legacy/rtl/filelist.mk" -print0 |
     sort -z | xargs -0 sha256sum
   sha256sum "${repo_root}/npc/rv64/.config" \
     "${repo_root}/npc/rv64/include/generated/autoconf.h" \
     "${repo_root}/npc/rv64/include/config/auto.conf" \
-    "${repo_root}/npc/rv64/Makefile" "${repo_root}/npc/rv64/vsrc/filelist.mk" \
+    "${repo_root}/npc/rv64/Makefile.legacy" "${repo_root}/npc/rv64/legacy/rtl/filelist.mk" \
     "${repo_root}/yosys-sta/Makefile" "${repo_root}/yosys-sta/scripts/yosys.tcl" \
     "${repo_root}/yosys-sta/scripts/common.tcl" \
     "${repo_root}/yosys-sta/scripts/pdk/icsprout55.tcl" \
@@ -319,7 +319,7 @@ write_source_manifest() {
   local output=$1
   local rtl_line
   local -a rtl_files
-  rtl_line="$(make -s -C "${repo_root}/npc/rv64" print-synth-rtl)" || return 1
+  rtl_line="$(make -s -C "${repo_root}/npc/rv64" -f Makefile.legacy print-synth-rtl)" || return 1
   read -r -a rtl_files <<<"${rtl_line}"
   [[ "${#rtl_files[@]}" -ge 120 ]] || return 1
   sha256sum "${rtl_files[@]}" >"${output}"
@@ -358,11 +358,11 @@ fi
 if [[ "${synth_rc}" -eq 0 ]]; then
   task_run_status_stage traceable-mapped-synthesis
   setsid /usr/bin/timeout --signal=TERM --kill-after=30s 5400s \
-    nice -n 10 make -C "${repo_root}/npc/rv64" syn \
+    nice -n 10 make -C "${repo_root}/npc/rv64" -f Makefile.legacy syn \
       STA_RESULT_ROOT="${result_root}" STA_DESIGN=NpcTop STA_PDK=icsprout55 \
       STA_CLK_PORT_NAME=clk STA_CLK_FREQ_MHZ=200 \
       STA_SDC_FILE="${sdc_file}" \
-      STA_VERILOG_INCLUDE_DIRS="${repo_root}/npc/rv64/vsrc ${repo_root}/npc/rv64/vsrc/include" \
+      STA_VERILOG_INCLUDE_DIRS="${repo_root}/npc/rv64/legacy/rtl/vsrc ${repo_root}/npc/rv64/legacy/rtl/vsrc/include" \
       STA_VERILOG_DEFINES= STA_SYNTH_FLATTEN=0 STA_SYNTH_SHARE=0 \
       STA_SYNTH_STOP_AFTER_COARSE=0 STA_SYNTH_PUBLIC_AUTONAME=1 \
       STA_SYNTH_DFF_AUTONAME=0 STA_SYNTH_STA_FLATTEN_EXPORT=1 \

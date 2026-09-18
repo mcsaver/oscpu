@@ -20,7 +20,7 @@ from typing import Any
 SCHEMA = "rv64-v11d-memory-tracker-cursor-semantic-evidence-v1"
 MUTANT_SCHEMA = "rv64-v11d-memory-tracker-cursor-mutant-v1"
 TEST = "tb_ooo_mem_owner_tracker_cursor"
-TRACKER_PATH = "npc/rv64/vsrc/memory/OooMemOwnerTracker.v"
+TRACKER_PATH = "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v"
 EXPECTED_TRACKER_SHA256 = (
     "fd7e0a1bcdd1fd12f35b07bb655db67a512c9a30c3ca0aae6bd5a41903f889c8"
 )

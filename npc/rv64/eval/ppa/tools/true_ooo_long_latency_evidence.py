@@ -61,13 +61,13 @@ MUTATION_EXPECTATIONS = {
         "v8n MUL", "v8n MUL old WB exactly once"),
 }
 MUTATION_SOURCE_PATHS = {
-    "serial_issue1": "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "miq_issue1_freeze": "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "muldiv_issue1_freeze": "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "retire_before_head_done": "npc/rv64/vsrc/writeback/OooRob.v",
-    "load_owner_pid_truncate": "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "muldiv_owner_pid_truncate": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
-    "muldiv_resp_pid_truncate": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+    "serial_issue1": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "miq_issue1_freeze": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "muldiv_issue1_freeze": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "retire_before_head_done": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
+    "load_owner_pid_truncate": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "muldiv_owner_pid_truncate": "npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v",
+    "muldiv_resp_pid_truncate": "npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v",
 }
 
 

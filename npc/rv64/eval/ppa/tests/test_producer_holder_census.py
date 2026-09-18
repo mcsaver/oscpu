@@ -27,7 +27,7 @@ class ProducerHolderCensusTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="producer-census-")
         self.repo = Path(self.temp.name) / "repo"
-        self.source = self.repo / "npc/rv64/vsrc"
+        self.source = self.repo / "npc/rv64/legacy/rtl/vsrc"
         self.manifest = (
             self.repo / "npc/rv64/design/arch/producer-holder-census.json"
         )
@@ -35,14 +35,14 @@ class ProducerHolderCensusTests(unittest.TestCase):
         nemu_kconfig.parent.mkdir(parents=True, exist_ok=True)
         nemu_kconfig.write_text("# census fixture\n", encoding="utf-8")
         self.source.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(RV64_DIR / "vsrc", self.source)
+        shutil.copytree(RV64_DIR / "legacy/rtl/vsrc", self.source)
         (self.repo / "npc/rv64/legacy/sim").mkdir(parents=True, exist_ok=True)
         self.manifest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(MANIFEST, self.manifest)
         for relative in (
             "Makefile",
             "npc/rv64/configs/product-rtl-defaults.mk",
-            "npc/rv64/Makefile",
+            "npc/rv64/Makefile.legacy",
             "npc/rv64/scripts/config.mk",
         ):
             source = REPO_ROOT / relative
@@ -307,7 +307,7 @@ class ProducerHolderCensusTests(unittest.TestCase):
         discovered = {tuple(row) for row in result["discovered"]["direct_full_p_fields"]}
         self.assertNotIn(
             (
-                "npc/rv64/vsrc/execute/OooIntBackend.v",
+                "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
                 "OooIntBackend",
                 "v8l_mem_capture_producer_q",
             ),
@@ -315,7 +315,7 @@ class ProducerHolderCensusTests(unittest.TestCase):
         )
         self.assertNotIn(
             (
-                "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+                "npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v",
                 "OooMulDivUnit",
                 "md_req_producer_id_q",
             ),

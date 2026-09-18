@@ -93,8 +93,8 @@ class PtwPmpEvidenceTests(unittest.TestCase):
         self.assertEqual(audit["compile_success"], 28)
         self.assertEqual(audit["dynamic_rejected"], 28)
         self.assertEqual(set(audit["by_source"]), {
-            "npc/rv64/vsrc/frontend/OooFetchAxiBridge.v",
-            "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
+            "npc/rv64/legacy/rtl/vsrc/frontend/OooFetchAxiBridge.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v",
         })
 
     def test_live_module_aggregate_is_exact(self) -> None:
@@ -123,7 +123,7 @@ class PtwPmpEvidenceTests(unittest.TestCase):
         self.assertTrue(audit["lsu_tb_keeps_awready_wready_high"])
 
     def test_lsu_unbounded_deny_quiet_structure_is_fail_closed(self) -> None:
-        path = REPO / "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+        path = REPO / "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
         text = path.read_text(encoding="utf-8")
         certificate = evidence.validate_lsu_unbounded_deny_quiet_structure(text)
         self.assertEqual(certificate["cycle_bound"], "unbounded_by_state_decode")

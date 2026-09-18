@@ -1,7 +1,7 @@
 """Direct ordered behavior of R64LsuRequestQueue; no synthesis/netlist import."""
 from always_ir import *
 
-SOURCE="npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v"
+SOURCE="npc/rv64/vsrc/lsu/R64LsuRequestQueue.v"
 
 def request_queue(data_w=157,tag_w=9,rob_w=5,age_w=1,prepared_cancel=False,assertions=True):
     if not 1<=rob_w<=10 or tag_w<rob_w or min(data_w,age_w)<1:

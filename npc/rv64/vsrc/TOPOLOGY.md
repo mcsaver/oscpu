@@ -1,4 +1,4 @@
-# Rebuild 全核拓扑与本轮优化入口
+# 承岳64全核拓扑与本轮优化入口
 
 范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。以 BUS 第四批为基线；面积只记录，优先比较正确性、时序和 CPI。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
 
@@ -60,7 +60,7 @@ flowchart TB
 
 完整 SystemTop 基线在1ns/0.05ns uncertainty、icsprout55 TT1.2V25C下，setup=-2.803282499ns，hold=-0.036660694ns，真实状态为 FAIL。最差链已定位至 DCache bank 写数据；不是所有模块频率都由这一个数代表。后续所有结论以同源测量为准，不能把数据路径优化直接换算为已实现的硅后Fmax。
 
-对应结果：[全拓扑迭代目录](../../../../tmp/rv64-whole-topology-20260908/PLAN.md)。每阶段保存源码差异、配置、功能/CPI结果、STA路径与RTL对应，再清除综合网表及可再生构建产物。
+对应结果：[全拓扑迭代目录](../../../tmp/rv64-whole-topology-20260908/PLAN.md)。每阶段保存源码差异、配置、功能/CPI结果、STA路径与RTL对应，再清除综合网表及可再生构建产物。
 
 ## 分配、执行与完成信用的完整连接
 
@@ -132,4 +132,4 @@ flowchart LR
   R --> M["Q：forward_mask发布"]
 ```
 
-这说明后续应把mask/descriptor的准备与可见性、以及Split/Service的寄存信用作为独立实验。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+这说明后续应把mask/descriptor的准备与可见性、以及Split/Service的寄存信用作为独立实验。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../tmp/rv64-whole-topology-20260908/REPORT.md)。

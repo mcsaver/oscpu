@@ -99,7 +99,7 @@ source "${status_helper}"
 task_run_status_init "${status_path}" || exit 1
 
 production_identity() {
-  find "${repo_root}/npc/rv64/vsrc" -type f \
+  find -H "${repo_root}/npc/rv64/legacy/rtl/vsrc" -type f \
     \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o \
        -name '*.svh' -o -name '*.mk' \) -print0 |
     sort -z | xargs -0 sha256sum
@@ -181,8 +181,8 @@ run_l0() {
   vvp_bin="$(dirname -- "$(command -v iverilog)")/vvp"
   [[ -x "${vvp_bin}" ]] || vvp_bin=$(command -v vvp) || return 1
   iverilog -g2012 -Wall -DOOO_ASSERT \
-    -I "${repo_root}/npc/rv64/vsrc" \
-    -I "${repo_root}/npc/rv64/vsrc/include" \
+    -I "${repo_root}/npc/rv64/legacy/rtl/vsrc" \
+    -I "${repo_root}/npc/rv64/legacy/rtl/vsrc/include" \
     -s tb_axi_dpi_owner_b_delay_probe \
     -o "${l0_dir}/probe.vvp" "${wrapper_tb}" "${wrapper}" \
     >"${evidence_dir}/l0-compile.log" 2>&1 || return 1
@@ -348,7 +348,7 @@ fi
 if [[ "${source_rc}" -eq 0 ]]; then
   task_run_status_stage diagnostic-simulator-build
   setsid /usr/bin/timeout --signal=TERM --kill-after=20s 900s \
-    make -C "${repo_root}/npc/rv64" -f Makefile \
+    make -C "${repo_root}/npc/rv64" -f Makefile.legacy \
       -f eval/ppa/instrumentation/owner-timing.mk \
       -f eval/ppa/instrumentation/owner-b-latency-sensitivity.mk \
       CONFIG_NPC_OOO_STATS=y BUILD_DIR="${build_dir}" \

@@ -210,7 +210,7 @@ if [[ "${stats_on_rc}" -eq 0 ]]; then
   build_owned=1
   printf '%s\n' "${run_dir}" >"${build_dir}/.performance-baseline-owner"
   printf '%s\n' 'VERILATOR_FLAGS += -Wno-PINCONNECTEMPTY' | \
-    make -C "${repo_root}/npc/rv64" -f Makefile -f - \
+    make -C "${repo_root}/npc/rv64" -f Makefile.legacy -f - \
     BUILD_DIR="${build_dir}" \
     CONFIG_NPC_OOO_STATS=n \
     VERILATOR_BUILD_JOBS=1 \

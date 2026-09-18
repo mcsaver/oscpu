@@ -63,13 +63,13 @@ PROJECTION_REPORT_PATH = (
 )
 DEFAULT_RECEIPT_PATH = RUN / "evidence/v9p-current-full-core-path-projection-v1.json"
 RTL_PATHS = {
-    "backend": pathlib.PurePosixPath("npc/rv64/vsrc/execute/OooIntBackend.v"),
-    "bridge": pathlib.PurePosixPath("npc/rv64/vsrc/memory/OooMemAxiBridge.v"),
+    "backend": pathlib.PurePosixPath("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"),
+    "bridge": pathlib.PurePosixPath("npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"),
     "adapter": pathlib.PurePosixPath(
-        "npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"
+        "npc/rv64/legacy/rtl/vsrc/memory/OooLsuAxiLaneAdapter.v"
     ),
     "collector": pathlib.PurePosixPath(
-        "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v"
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v"
     ),
 }
 TARGET_TESTS = {

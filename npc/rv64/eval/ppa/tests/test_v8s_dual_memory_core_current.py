@@ -98,8 +98,8 @@ class CurrentMutatorTests(unittest.TestCase):
         )
 
     def test_all_eighteen_live_anchors_are_exact(self) -> None:
-        backend = ROOT / "npc/rv64/vsrc/execute/OooIntBackend.v"
-        control = ROOT / "npc/rv64/vsrc/control/OooCoreSliceControlGate.v"
+        backend = ROOT / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+        control = ROOT / "npc/rv64/legacy/rtl/vsrc/control/OooCoreSliceControlGate.v"
         with tempfile.TemporaryDirectory() as raw:
             output_root = pathlib.Path(raw)
             for name in sorted(CURRENT_MUTATOR.LEGACY.MUTATIONS):

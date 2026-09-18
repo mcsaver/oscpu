@@ -1,6 +1,6 @@
 # BUS 优化与架构重组分析
 
-实施更新（2026-09-08）：下文保留优化前的四批分析。四批 RTL 已按此范围落实，实际网络见 [TOPOLOGY.md](TOPOLOGY.md)，逐批验证、CPI、综合/STA 与中间产物清理见 [实施结果](../../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。性能假设以测量结果修正；不把原建议视作已经证明的收益。
+实施更新（2026-09-08）：下文保留优化前的四批分析。四批 RTL 已按此范围落实，实际网络见 [TOPOLOGY.md](TOPOLOGY.md)，逐批验证、CPI、综合/STA 与中间产物清理见 [实施结果](../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。性能假设以测量结果修正；不把原建议视作已经证明的收益。
 
 日期：2026-09-08。基于当前 [BUS 拓扑](TOPOLOGY.md)、实际 RTL 调用链和上一轮 C6 的系统基准日志。本轮是分析：不修改 RTL，不重新运行综合或大规模测试。
 
@@ -15,7 +15,7 @@
 
 因此，近期若以 CoreMark/Dhrystone CPI 为目标，优先级应调整为：普通 store 期间的缓存可用性、单拍写完成延迟 → 读补行循环 → 按流量分区的总线架构 → 更多 outstanding。读 burst 服务仍是流式访存、大工作集和冷启动的重要方向。
 
-证据：[CoreMark 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/coremark-runner.log)、[Dhrystone 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/dhrystone-runner.log)；[计数实现的当前源码位置](../../../sim/src/r64_sim_main.cpp)。结果命令明确使用 C6 的 VR64SystemTestTop。
+证据：[CoreMark 日志](../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/coremark-runner.log)、[Dhrystone 日志](../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/dhrystone-runner.log)；[计数实现的当前源码位置](../../sim/src/r64_sim_main.cpp)。结果命令明确使用 C6 的 VR64SystemTestTop。
 
 ## 2. 第一批：不增加外部 store 数量的两项实验
 

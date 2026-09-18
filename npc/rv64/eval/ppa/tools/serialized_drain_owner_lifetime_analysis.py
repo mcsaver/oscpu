@@ -34,54 +34,54 @@ CLOSURE_MARKER = (
 REVIEW_MARKER = "SERIALIZED-DRAIN-OWNER-LIFETIME-REVIEW GAP"
 
 SOURCE_CONTRACTS: dict[str, tuple[tuple[str, str], ...]] = {
-    "npc/rv64/vsrc/frontend/OooBackendDrainTracker.v": (
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooBackendDrainTracker.v": (
         ("force_drained_clear_boundary", "if (rst || force_drained_i)"),
         ("registered_empty_without_dispatch",
          "drained_q <= backend_empty_i && !dispatch_fire_i;"),
     ),
-    "npc/rv64/vsrc/control/OooControlPlane.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v": (
         ("system_arch_owner_onehot", "[V10A-SERIAL-OWNER-ONEHOT]"),
         ("exit_owner_onehot", "[V10D-SERIAL-EXIT-ONEHOT]"),
         ("arch_c1_clear", "[V10A-ARCH-C1-CLEAR]"),
         ("exit_c1_clear", "[V10D-EXIT-C1-CLEAR]"),
         ("rob_head_trap_priority", "[V10A-ARCH-REQUEST-PRIORITY]"),
     ),
-    "npc/rv64/vsrc/control/OooCsrTrapRequestMux.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v": (
         ("rob_head_exception_priority", "!core_commit_exception_trap_o"),
         ("pending_arch_requires_drain",
          "drained_pending_control_w && pending_arch_trap_i"),
     ),
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v": (
         ("capture_requires_can_run",
          "!csr_trap_mem_valid_i && can_run_i && fifo_has_packet_i"),
         ("system_capture_uses_capture_base",
          "capture_base_w && csr_irq_pending_i"),
     ),
-    "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v": (
         ("raw_backend_drain_recheck", "assign backend_drained_o ="),
         ("fence_current_idle", "!pending_system_fence_i || mem_idle_i"),
         ("current_terminal_scalar", "mem_owner_terminalized_i;"),
         ("drain_uses_raw_backend", "stop_pending_i && backend_drained_o"),
     ),
-    "npc/rv64/vsrc/control/OooPendingTrapExitSequencer.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingTrapExitSequencer.v": (
         ("exit_clear", "if (clear_exit_i)"),
         ("arch_clear", "if (clear_arch_i)"),
         ("exit_holder_q", "output reg pending_exit_o"),
         ("arch_holder_q", "output reg pending_arch_trap_o"),
     ),
-    "npc/rv64/vsrc/control/OooTrapExitEventMux.v": (
+    "npc/rv64/legacy/rtl/vsrc/control/OooTrapExitEventMux.v": (
         ("rob_head_trap_blocks_drain", "!csr_trap_mem_valid_i"),
         ("exit_requires_drain", "pending_exit_i;"),
         ("trap_before_exit", "!terminal_trap_w"),
     ),
-    "npc/rv64/vsrc/execute/OooIntBackend.v": (
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v": (
         ("same_edge_memory_birth", "wire v15r_mem_birth_any_w ="),
         ("birth_inhibits_terminal", "!v15r_mem_birth_any_w &&"),
         ("collector_pending_accounted", "v9y_pending_without_live_mask_w"),
         ("unterminalized_holder_accounted",
          "v9y_unterminalized_holder_mask_w"),
     ),
-    "npc/rv64/vsrc/frontend/OooFrontendRunGate.v": (
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontendRunGate.v": (
         ("serialized_owner_in_stop_owner", "pending_arch_trap_i ||"),
         ("stop_owner_includes_system", "pending_system_i ||"),
         ("stop_owner_includes_exit", "pending_exit_i ||"),

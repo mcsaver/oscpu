@@ -33,10 +33,10 @@ ASSERT_DEFINE = "-DOOO_ASSERT"
 MUTATION_DEFINE = "-DV11I_STALE_TERMINAL_MUTATION"
 EXPECTED_CONTRACT = {
     "rtl_objects": [
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
-        "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
-        "npc/rv64/vsrc/memory/OooLoadQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v",
     ],
     "cycle_configuration": (
         "33 sequential LOAD owners; tracker token 0..31 then "
@@ -80,7 +80,7 @@ def canonical_rtl_binding(repo_root: Path) -> tuple[str, dict[str, str]]:
     suffixes = {".v", ".sv", ".vh", ".svh", ".mk"}
     files = sorted(
         path
-        for path in (repo_root / "npc" / "rv64" / "vsrc").rglob("*")
+        for path in (repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc").rglob("*")
         if path.is_file() and path.suffix.lower() in suffixes
     )
     if not files:
@@ -309,7 +309,7 @@ def validate(
         raise EvidenceError("stale tuple variant contract is incomplete")
     variant_path = resolve_repo_file(repo_root, variant.get("path"))
     variant_sha = require_sha256(variant.get("sha256"), "variant")
-    backend = repo_root / "npc" / "rv64" / "vsrc" / "execute" / "OooIntBackend.v"
+    backend = repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "execute" / "OooIntBackend.v"
     backend_sha = require_sha256(
         variant.get("production_backend_sha256"), "production backend"
     )

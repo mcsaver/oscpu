@@ -43,8 +43,8 @@ esac
 }
 
 tb_dir=${repo_root}/npc/rv64/testbench
-backend=${repo_root}/npc/rv64/vsrc/execute/OooIntBackend.v
-bridge=${repo_root}/npc/rv64/vsrc/memory/OooMemAxiBridge.v
+backend=${repo_root}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v
+bridge=${repo_root}/npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v
 mutation_tool=${repo_root}/npc/rv64/eval/ppa/tools/control_event_sq_retry_evidence.py
 mkdir -p -- "${repo_root}/.github/runtime-artifacts"
 build_root=$(mktemp -d "${repo_root}/.github/runtime-artifacts/v9r-current.XXXXXXXX")
@@ -87,7 +87,7 @@ bridge_sha_before=$(sha256sum -- "${bridge}" | awk '{print $1}')
 baseline_result=${result_root}/baseline
 baseline_build=${build_root}/baseline
 mkdir -p -- "${baseline_result}" "${baseline_build}"
-make -B -C "${tb_dir}" -j1 \
+make -B -C "${tb_dir}" -f Makefile.legacy -j1 \
   TESTS='tb_ooo_int_backend_v9r_sq_retry_c0 tb_ooo_mem_axi_bridge_v9r_sq_retry_c0' \
   EXTRA_TESTS= BUILD_DIR="${baseline_build}" RESULT_DIR="${baseline_result}" \
   RTL_EVIDENCE_SHA="${design_sha_before}" run \
@@ -117,7 +117,7 @@ run_variant() {
     --case "${case_name}" --output "${mutant}"
 
   set +e
-  make -B -C "${tb_dir}" -j1 TESTS="${test_name}" EXTRA_TESTS= \
+  make -B -C "${tb_dir}" -f Makefile.legacy -j1 TESTS="${test_name}" EXTRA_TESTS= \
     "${rtl_variable}=${mutant}" BUILD_DIR="${variant_build}" \
     RESULT_DIR="${variant_dir}" RTL_EVIDENCE_SHA="${design_sha_before}" run \
     >"${variant_build}/make.log" 2>&1
@@ -181,8 +181,8 @@ jq -n \
     schema: "npc-rv64-v9r-sq-retry-c0-current-v1", status: "PASS",
     design_id: $design_id,
     production_sources: {
-      backend: {path: "npc/rv64/vsrc/execute/OooIntBackend.v", sha256: $backend_sha256},
-      bridge: {path: "npc/rv64/vsrc/memory/OooMemAxiBridge.v", sha256: $bridge_sha256}
+      backend: {path: "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", sha256: $backend_sha256},
+      bridge: {path: "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v", sha256: $bridge_sha256}
     },
     baseline: {
       status: "PASS", backend_banks: 2, forced_barrier_cases: 2,

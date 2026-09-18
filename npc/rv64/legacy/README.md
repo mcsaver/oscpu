@@ -1,10 +1,11 @@
-# 旧 RV64 仿真宿主
+# 旧 RV64 核心兼容入口
 
 本目录保存旧 `NpcTop/Ooo*` 核的宿主实现。承岳64默认构建使用
 [当前仿真环境](../sim/README.md)，不编译这里的 C/C++ 代码。
 
 | 路径 | 职责 |
 | --- | --- |
+| [`rtl/`](rtl/README.md) | 旧核心源清单与封存 RTL 链接 |
 | `sim/src/` | 旧 CPU 执行驱动、DPI、内存、设备、monitor 与 trace |
 | `sim/include/` | 上述宿主的头文件和设备地址定义 |
 | `sim/difftest/` | 旧宿主的 NEMU 动态库适配与状态比较实现 |

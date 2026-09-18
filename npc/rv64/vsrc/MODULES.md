@@ -1,6 +1,6 @@
-# Rebuild 模块清单
+# 承岳64模块清单
 
-按文件列出声明模块；这是一张覆盖检查表，不是 elaboration 实例证明。生产参数、owner 与连接见 [全核拓扑](TOPOLOGY.md) 及各域文档。目录外 AxiClint/AxiPlic/AxiResetSyscon/AxiToUart/Uart/AxiDefaultSlave 由平台显式连接，见 BUS 文档。
+按文件列出声明模块；这是一张覆盖检查表，不是 elaboration 实例证明。生产参数、owner 与连接见 [全核拓扑](TOPOLOGY.md) 及各域文档。共享 AxiClint/AxiPlic/AxiResetSyscon/AxiToUart/Uart/AxiDefaultSlave 同样位于本目录的 `bus/`，由平台显式连接，见 [BUS 文档](bus/TOPOLOGY.md)。
 
 | 文件 | 声明模块 |
 |---|---|
@@ -24,8 +24,14 @@
 | [backend/R64Rob.v](backend/R64Rob.v) | R64Rob |
 | [backend/R64WideAdd.v](backend/R64WideAdd.v) | R64WideAdd |
 | [backend/R64Writeback.v](backend/R64Writeback.v) | R64Writeback |
+| [bus/AxiClint.v](bus/AxiClint.v) | AxiClint |
+| [bus/AxiDefaultSlave.v](bus/AxiDefaultSlave.v) | AxiDefaultSlave |
+| [bus/AxiPlic.v](bus/AxiPlic.v) | AxiPlic |
+| [bus/AxiResetSyscon.v](bus/AxiResetSyscon.v) | AxiResetSyscon |
+| [bus/AxiToUart.v](bus/AxiToUart.v) | AxiToUart |
 | [bus/R64AxiRead.v](bus/R64AxiRead.v) | R64AxiRead |
 | [bus/R64AxiWrite.v](bus/R64AxiWrite.v) | R64AxiWrite |
+| [bus/Uart.v](bus/Uart.v) | Uart |
 | [control/R64Commit.v](control/R64Commit.v) | R64Commit |
 | [control/R64Counter.v](control/R64Counter.v) | R64Counter |
 | [control/R64CounterNear.v](control/R64CounterNear.v) | R64CounterNear |

@@ -636,8 +636,8 @@ def build_payload(
                 "owner cone."
             ),
             "intended_scope": [
-                "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
-                "npc/rv64/vsrc/control/OooControlPlane.v",
+                "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
+                "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
                 "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
                 "npc/rv64/testbench/tests/tb_ooo_mem_owner_terminal_collector.sv",
             ],

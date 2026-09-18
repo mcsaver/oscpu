@@ -1,5 +1,5 @@
 R64_TENSOR_RTL_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-R64_TENSOR_WORKSPACE := $(abspath $(R64_TENSOR_RTL_ROOT)/../../../..)
+R64_TENSOR_WORKSPACE := $(abspath $(R64_TENSOR_RTL_ROOT)/../../..)
 # Real NPU numerical engines; functional DPI and host portals are disabled.
 R64_TENSOR_SRCS := $(R64_TENSOR_WORKSPACE)/npu/version_0820/third_party/fpu-sp/verilog/src/lzc/lzc_wire.sv \
  $(R64_TENSOR_WORKSPACE)/npu/version_0820/third_party/fpu-sp/verilog/src/float/fp_wire.sv \

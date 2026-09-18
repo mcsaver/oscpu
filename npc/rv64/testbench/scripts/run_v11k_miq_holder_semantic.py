@@ -540,7 +540,7 @@ def load_make_context(
     testbench_dir: Path,
 ) -> tuple[Path, tuple[Path, ...]]:
     completed = subprocess.run(
-        ["make", "-s", "print-v11k-miq-holder-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11k-miq-holder-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -569,7 +569,7 @@ def load_regression_context(
     testbench_dir: Path,
 ) -> dict[str, tuple[Path, ...]]:
     completed = subprocess.run(
-        ["make", "-s", "print-v11k-miq-holder-regression-context"],
+        ["make", "-f", "Makefile.legacy", "-s", "print-v11k-miq-holder-regression-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -702,7 +702,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc' / 'rv64' / 'vsrc'}",
+        f"-I{repo_root / 'npc' / 'rv64' / 'legacy' / 'rtl' / 'vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -836,7 +836,7 @@ def run_regressions(
         for test in REGRESSIONS
     }
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-C",
         str(testbench_dir),
         f"RESULT_DIR={regression_dir}",
@@ -952,7 +952,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     result_dir = args.result_dir.resolve()
     testbench_dir = repo_root / "npc" / "rv64" / "testbench"
     miq_path = (
-        repo_root / "npc" / "rv64" / "vsrc" / "memory"
+        repo_root / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "memory"
         / "OooMemInflightQueue.v"
     ).resolve()
     status_path = result_dir / "runner.status"
@@ -981,7 +981,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         runner_inputs = [
             *production_sources,
             include_dir / "define.v",
-            repo_root / "npc" / "rv64" / "vsrc" / "filelist.mk",
+            repo_root / "npc" / "rv64" / "legacy" / "rtl" / "filelist.mk",
             repo_root / "npc" / "rv64" / "testbench" / "Makefile",
             testbench_dir / "tests" / "tb_ooo_mem_inflight_queue.sv",
             Path(__file__).resolve(),

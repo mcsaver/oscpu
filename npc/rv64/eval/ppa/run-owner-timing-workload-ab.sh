@@ -136,7 +136,7 @@ source "${repo_root}/scripts/task-run-status.sh"
 task_run_status_init "${status_path}" || exit 1
 
 production_identity() {
-  find "${repo_root}/npc/rv64/vsrc" -type f \
+  find -H "${repo_root}/npc/rv64/legacy/rtl/vsrc" -type f \
     \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o \
        -name '*.svh' -o -name '*.mk' \) -print0 |
     sort -z | xargs -0 sha256sum
@@ -308,7 +308,7 @@ fi
 if [[ "${manifest_rc}" -eq 0 ]]; then
   task_run_status_stage "diagnostic-simulator-build"
   setsid /usr/bin/timeout --signal=TERM --kill-after=20s 900s \
-    make -C "${repo_root}/npc/rv64" -f Makefile \
+    make -C "${repo_root}/npc/rv64" -f Makefile.legacy \
       -f eval/ppa/instrumentation/owner-timing.mk \
       CONFIG_NPC_OOO_STATS=y BUILD_DIR="${build_dir}" \
       VERILATOR_BUILD_JOBS=1 >"${build_log_full}" 2>&1 &

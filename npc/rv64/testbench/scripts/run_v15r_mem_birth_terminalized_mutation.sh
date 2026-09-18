@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-rtl_source="${workspace_dir}/npc/rv64/vsrc/execute/OooIntBackend.v"
+rtl_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -54,9 +54,9 @@ diff -u --label production/OooIntBackend.v \
   --label mutation/OooIntBackend.v \
   "${rtl_source}" "${mutated_rtl}" >"${mutation_diff}" || true
 
-release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/vsrc -I${workspace_dir}/npc/rv64/vsrc/include -I${testbench_dir}/common"
+release_ivflags="-g2012 -Wall -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc -I${workspace_dir}/npc/rv64/legacy/rtl/vsrc/include -I${testbench_dir}/common"
 set +e
-make -C "${testbench_dir}" v15r-mem-birth-terminalized-focused \
+make -C "${testbench_dir}" -f Makefile.legacy v15r-mem-birth-terminalized-focused \
   "RTL_OOO_INT_BACKEND=${mutated_rtl}" \
   "RESULT_DIR=${mutation_result_dir}" \
   "BUILD_DIR=${work_dir}/build" \

@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 testbench_dir="$(cd "${script_dir}/.." && pwd)"
 workspace_dir="$(cd "${testbench_dir}/../../.." && pwd)"
-rtl_source="${workspace_dir}/npc/rv64/vsrc/execute/OooIntBackend.v"
+rtl_source="${workspace_dir}/npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: $0 RESULT_DIR" >&2
@@ -168,7 +168,7 @@ run_variant() {
     "${rtl_source}" "${mutated_rtl}" >"${mutation_diff}" || true
 
   set +e
-  make -C "${testbench_dir}" "${make_target}" \
+  make -C "${testbench_dir}" -f Makefile.legacy "${make_target}" \
     "RTL_OOO_INT_BACKEND=${mutated_rtl}" \
     "RESULT_DIR=${mutation_result_dir}" \
     "BUILD_DIR=${mutation_build_dir}" >"${driver_log}" 2>&1

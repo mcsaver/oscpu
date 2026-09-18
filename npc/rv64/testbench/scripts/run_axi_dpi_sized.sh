@@ -11,7 +11,7 @@ mkdir -p "$BUILD_DIR/obj_axi" "$BUILD_DIR/obj_guard"
 echo "[axi-dpi-sized] build real AxiDpiSlave with instrumented DPI callbacks"
 verilator --cc --exe --build --top-module AxiDpiSlave \
   -Wall -Wno-UNUSEDSIGNAL \
-  -I"$RV64/vsrc/include" \
+  -I"$RV64/legacy/rtl/vsrc/include" \
   --Mdir "$BUILD_DIR/obj_axi" \
   -CFLAGS "-std=c++17 -Wall -Wextra -Werror" \
   "$RV64/sim/vsrc/AxiDpiSlave.sv" \
@@ -23,7 +23,7 @@ echo "[axi-dpi-sized] run AXI lane/low-window protocol test"
 echo "[axi-dpi-sized] build end-to-end AxiDpiSlave + real dpi.c/paddr.c guard test"
 verilator --cc --exe --build --top-module AxiDpiSlave \
   -Wall -Wno-UNUSEDSIGNAL \
-  -I"$RV64/vsrc/include" \
+  -I"$RV64/legacy/rtl/vsrc/include" \
   --Mdir "$BUILD_DIR/obj_guard" \
   -CFLAGS "-std=c++17 -O2 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -I$RV64/legacy/sim/include -I$RV64/include/generated" \
   -LDFLAGS "-Wl,--gc-sections" \

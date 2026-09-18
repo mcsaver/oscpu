@@ -73,15 +73,15 @@ class GreenFixture:
         self.module_spec = write_text(
             root, "npc/rv64/design/specs/core.md", "# frozen core spec\n")
         self.rtl = write_text(
-            root, "npc/rv64/vsrc/core.v", "module core; endmodule\n")
+            root, "npc/rv64/legacy/rtl/vsrc/core.v", "module core; endmodule\n")
         self.filelist = write_text(
-            root, "npc/rv64/vsrc/filelist.mk", "RTL_CORE_SRCS := core.v\n")
+            root, "npc/rv64/legacy/rtl/filelist.mk", "RTL_CORE_SRCS := core.v\n")
         self.config = write_text(root, "npc/rv64/.config", "CONFIG_TEST=y\n")
         self.header = write_text(
             root, "npc/rv64/include/generated/autoconf.h",
             "#define CONFIG_TEST 1\n")
         self.makefile = write_text(
-            root, "npc/rv64/testbench/Makefile", "TESTS := tb_a\n")
+            root, "npc/rv64/testbench/Makefile.legacy", "TESTS := tb_a\n")
         self.test_source = write_text(
             root, "npc/rv64/testbench/tests/tb_a.sv",
             "module tb_a; endmodule\n")
@@ -94,7 +94,7 @@ class GreenFixture:
 
         self.owner_sq_rtl = write_text(
             root,
-            "npc/rv64/vsrc/memory/OooStoreQueue.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v",
             "module OooStoreQueue;\n"
             "  reg request_sent_q [0:3];\n"
             "  integer head_q;\n"
@@ -108,7 +108,7 @@ class GreenFixture:
         )
         self.owner_amo_rtl = write_text(
             root,
-            "npc/rv64/vsrc/execute/OooIntBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
             "module OooIntBackend;\n"
             "  reg mem_amo_write_sent_q;\n"
             "  reg reservation_valid_q;\n"
@@ -127,7 +127,7 @@ class GreenFixture:
         )
         self.owner_top_rtl = write_text(
             root,
-            "npc/rv64/vsrc/core/NpcCoreTop.v",
+            "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
             "module NpcCoreTop;\n"
             "  ) u_ooo_core (\n"
             "    .clk(clk),\n"
@@ -749,7 +749,7 @@ class GreenFixture:
             '''"OOO-4":"speculation_recovery"}\n'''
             '''def digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\n'''
             '''def canonical(value):\n    data=json.dumps(value,allow_nan=False,sort_keys=True,separators=(",",":")).encode()\n    return hashlib.sha256(data).hexdigest()\n'''
-            '''def rtl_binding(root):\n    suffixes={".v",".sv",".vh",".svh",".mk"}\n    files=sorted(p for p in (root/"npc/rv64/vsrc").rglob("*") if p.is_file() and p.suffix in suffixes)\n    entries={p.relative_to(root).as_posix():digest(p) for p in files}\n    if not entries: raise ValueError("empty fixture RTL")\n    return canonical(entries),entries\n'''
+            '''def rtl_binding(root):\n    suffixes={".v",".sv",".vh",".svh",".mk"}\n    files=sorted(p for p in (root/"npc/rv64/legacy/rtl/vsrc").rglob("*") if p.is_file() and p.suffix in suffixes)\n    entries={p.relative_to(root).as_posix():digest(p) for p in files}\n    if not entries: raise ValueError("empty fixture RTL")\n    return canonical(entries),entries\n'''
             '''def evaluate(root,evidence_path):\n    source_sha,files=rtl_binding(root)\n    evidence=json.loads(evidence_path.read_text())\n    tests=evidence.get("tests",{})\n    ok=(evidence.get("schema")=="npc-rv64-architecture-directed-suite-v2" and evidence.get("design_id")==f"sha256:{source_sha}" and set(tests)==set(GATE_TEST.values()) and all(isinstance(v,dict) and v.get("status")=="PASS" for v in tests.values()))\n    gates={}\n    for gate,test in GATE_TEST.items():\n        passed=ok and tests.get(test,{}).get("status")=="PASS"\n        gates[gate]={"status":"GREEN" if passed else "RED","evidence_test":test,"checks":[{"check_id":"fixture.recomputed","passed":passed,"detail":"derived from current RTL and evidence"}]}\n    contract=root/"npc/rv64/design/arch/rv64-architecture-ppa-contract.md"\n    return {"schema":"npc-rv64-architecture-hard-gates-result-v2","overall_status":"GREEN" if ok else "RED","exit_code":0 if ok else 1,"contract":{"path":"npc/rv64/design/arch/rv64-architecture-ppa-contract.md","sha256":digest(contract)},"rtl_source_set":{"design_id":f"sha256:{source_sha}","sha256":source_sha,"file_count":len(files),"files":files},"evidence_errors":[] if ok else ["fixture evidence mismatch"],"gates":gates}\n''',
         )
 
@@ -2420,7 +2420,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
 
         remapped_mutation = json.loads(json.dumps(mutations))
         remapped_mutation["results"][0]["source"] = (
-            "npc/rv64/vsrc/core/OooCoreTopGlue.v"
+            "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v"
         )
         cases.append(("mutation source remap", index, remapped_mutation))
 
@@ -2452,7 +2452,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         remapped_variant = json.loads(json.dumps(payload))
         remapped_variant["compile_success_rtl_variants"][0][
             "production_source"
-        ] = "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+        ] = "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
         cases.append(("variant source remapped", remapped_variant))
 
         promoted = json.loads(json.dumps(payload))
@@ -2525,7 +2525,7 @@ class CurrentWorkspaceTests(unittest.TestCase):
         self.assertEqual(result["ppa"], "UNQUALIFIED")
         self.assertFalse(result["promotion_eligible"])
         expected_inventory, inventory_errors = freeze.parse_required_tests(
-            (root / "npc/rv64/testbench/Makefile").read_text(
+            (root / "npc/rv64/testbench/Makefile.legacy").read_text(
                 encoding="utf-8"))
         self.assertEqual(inventory_errors, [])
         self.assertEqual(

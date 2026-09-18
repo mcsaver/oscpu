@@ -75,7 +75,7 @@ CURRENT_FILES = {
 }
 SELECTED_BINDINGS = {
     (
-        pathlib.Path("npc/rv64/vsrc/memory/OooLoadQueue.v"),
+        pathlib.Path("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v"),
         "rtl",
     ),
     (

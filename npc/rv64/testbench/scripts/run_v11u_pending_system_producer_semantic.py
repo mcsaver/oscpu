@@ -25,28 +25,28 @@ PRODUCT_INSTANCE = (
     "u_pending_system_sequencer"
 )
 GEN_WIDTHS = (1, 4)
-BASE_IVFLAGS = "-g2012 -Wall -I../vsrc -I../vsrc/include -Icommon"
+BASE_IVFLAGS = "-g2012 -Wall -I../legacy/rtl/vsrc -I../legacy/rtl/vsrc/include -Icommon"
 
-SEQUENCER = "npc/rv64/vsrc/control/OooPendingSystemSequencer.v"
-CSR_MUX = "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v"
-CONTROL_PLANE = "npc/rv64/vsrc/control/OooControlPlane.v"
-CORE_TOP_GLUE = "npc/rv64/vsrc/core/OooCoreTopGlue.v"
-EXECUTE_BACKEND = "npc/rv64/vsrc/execute/OooExecuteBackend.v"
-ALU_CORE_SLICE = "npc/rv64/vsrc/execute/OooAluCoreSlice.v"
-ALU_DECODE_BACKEND = "npc/rv64/vsrc/decode/OooAluDecodeBackend.v"
-INT_BACKEND = "npc/rv64/vsrc/execute/OooIntBackend.v"
-DISPATCH_BACKEND = "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v"
-ROB = "npc/rv64/vsrc/writeback/OooRob.v"
+SEQUENCER = "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v"
+CSR_MUX = "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v"
+CONTROL_PLANE = "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v"
+CORE_TOP_GLUE = "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v"
+EXECUTE_BACKEND = "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v"
+ALU_CORE_SLICE = "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v"
+ALU_DECODE_BACKEND = "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v"
+INT_BACKEND = "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
+DISPATCH_BACKEND = "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v"
+ROB = "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v"
 PENDING_DISPATCH_ARBITER = (
-    "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v"
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v"
 )
 PENDING_DRAIN_RESOLVE_GATE = (
-    "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v"
 )
 PENDING_SYSTEM_ADMISSION_CANCEL_GATE = (
-    "npc/rv64/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
+    "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemAdmissionCancelGate.v"
 )
-DEFINE = "npc/rv64/vsrc/include/define.v"
+DEFINE = "npc/rv64/legacy/rtl/vsrc/include/define.v"
 TB_SEQUENCER = "npc/rv64/testbench/tests/tb_ooo_pending_system_sequencer.sv"
 TB_LEASE_PROBE = (
     "npc/rv64/testbench/tests/tb_ooo_pending_system_lease_probe.sv"
@@ -54,8 +54,8 @@ TB_LEASE_PROBE = (
 TB_CSR_MUX = "npc/rv64/testbench/tests/tb_ooo_csr_access_request_mux.sv"
 TB_INT_BACKEND = "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
 TB_PRIV_SYSTEM = "npc/rv64/testbench/tests/tb_ooo_priv_system.sv"
-MAKEFILE = "npc/rv64/testbench/Makefile"
-FILELIST = "npc/rv64/vsrc/filelist.mk"
+MAKEFILE = "npc/rv64/testbench/Makefile.legacy"
+FILELIST = "npc/rv64/legacy/rtl/filelist.mk"
 RESULT_CHECKER = "npc/rv64/testbench/scripts/check_tb_result.py"
 COMMON_TB = "npc/rv64/testbench/common/tb_common.svh"
 COMMON_ENCODE = "npc/rv64/testbench/common/rv32_encode.svh"

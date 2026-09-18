@@ -180,11 +180,11 @@ check_disk_limit() {
 }
 
 production_manifest() {
-  find "${repo_root}/npc/rv64/vsrc" -type f \
+  find -H "${repo_root}/npc/rv64/legacy/rtl/vsrc" -type f \
     \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o -name '*.svh' -o -name '*.mk' \) \
     -print0 | sort -z | xargs -0 sha256sum
   sha256sum \
-    "${repo_root}/npc/rv64/Makefile" \
+    "${repo_root}/npc/rv64/Makefile.legacy" \
     "${repo_root}/npc/rv64/design/arch/rv64-architecture-registry-v1.json" \
     "${repo_root}/npc/rv64/eval/ppa/schemas/rv64-architecture-registry-v1.schema.json" \
     "${repo_root}/npc/rv64/eval/ppa/tools/architecture_registry.py" \
@@ -240,7 +240,7 @@ done
 stage=production-manifest-before
 production_manifest >"${evidence_dir}/production-manifest-before.sha256" || fail 1
 stage=source-manifest
-rtl_line="$(make -s -C "${repo_root}/npc/rv64" print-synth-rtl)" || fail 1
+rtl_line="$(make -s -C "${repo_root}/npc/rv64" -f Makefile.legacy print-synth-rtl)" || fail 1
 read -r -a rtl_files <<<"${rtl_line}"
 [[ "${#rtl_files[@]}" -ge 120 ]] || fail 1
 sha256sum "${rtl_files[@]}" >"${evidence_dir}/synthesis-sources.sha256" || fail 1
@@ -306,7 +306,7 @@ for module in "${children[@]}"; do
     "${yosys}" -q -Q -T -t -l "${child_dir}/yosys.log" \
     -c "${child_yosys_tcl}" -- "${module}" icsprout55 \
     "${child_compile_sources[*]}" "${child_netlist}" \
-    "${repo_root}/npc/rv64/vsrc ${repo_root}/npc/rv64/vsrc/include" "" \
+    "${repo_root}/npc/rv64/legacy/rtl/vsrc ${repo_root}/npc/rv64/legacy/rtl/vsrc/include" "" \
     || fail $?
   [[ -s "${child_netlist}" && -s "${child_result_dir}/synth_stat.txt" &&
      -s "${child_census}" && -s "${child_design_json}" ]] || fail 1
@@ -390,9 +390,9 @@ stage=top-synthesis
 run_bounded 5400 /usr/bin/env SYNTH_KNOWN_OOC_MODULES="${known_modules}" \
   SYNTH_COMPOSITE_CENSUS_JSON="${top_census}" \
   SYNTH_COMPOSITE_DESIGN_JSON="${top_design_json}" \
-  make -C "${repo_root}/npc/rv64" syn STA_RESULT_ROOT="${top_result_root}" \
+  make -C "${repo_root}/npc/rv64" -f Makefile.legacy syn STA_RESULT_ROOT="${top_result_root}" \
   STA_DESIGN=NpcTop STA_PDK=icsprout55 STA_CLK_PORT_NAME=clk STA_CLK_FREQ_MHZ=200 \
-  STA_VERILOG_INCLUDE_DIRS="${repo_root}/npc/rv64/vsrc ${repo_root}/npc/rv64/vsrc/include" \
+  STA_VERILOG_INCLUDE_DIRS="${repo_root}/npc/rv64/legacy/rtl/vsrc ${repo_root}/npc/rv64/legacy/rtl/vsrc/include" \
   STA_VERILOG_DEFINES= STA_SYNTH_FLATTEN=0 STA_SYNTH_SHARE=0 \
   STA_SYNTH_STOP_AFTER_COARSE=0 STA_SYNTH_PUBLIC_AUTONAME=1 \
   STA_SYNTH_DFF_AUTONAME=0 STA_SYNTH_STA_FLATTEN_EXPORT=1 \

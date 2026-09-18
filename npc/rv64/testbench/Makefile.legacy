@@ -1,6 +1,6 @@
 NPC_SINGLE_HOME := $(abspath ..)
-VSRCDIR := $(NPC_SINGLE_HOME)/vsrc
-include $(VSRCDIR)/filelist.mk
+VSRCDIR := $(NPC_SINGLE_HOME)/legacy/rtl/vsrc
+include $(NPC_SINGLE_HOME)/legacy/rtl/filelist.mk
 BUILD_DIR ?= build
 RESULT_TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
 RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench

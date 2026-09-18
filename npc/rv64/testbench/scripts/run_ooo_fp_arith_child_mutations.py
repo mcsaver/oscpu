@@ -337,12 +337,12 @@ MUTATIONS = (
 
 
 SOURCE_RELATIVE_PATHS = {
-    "wrapper": "npc/rv64/vsrc/execute/OooFpArithGate.v",
-    "addsub": "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
-    "mul_product": "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
-    "mul_norm": "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
-    "fma_align": "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
-    "fma_norm": "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
+    "wrapper": "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v",
+    "addsub": "npc/rv64/legacy/rtl/vsrc/execute/OooFpAddSubPipe.v",
+    "mul_product": "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulProductPipe.v",
+    "mul_norm": "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulNormRoundPipe.v",
+    "fma_align": "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaAlignAddPipe.v",
+    "fma_norm": "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaNormRoundPipe.v",
 }
 
 MAKE_OVERRIDES = {
@@ -359,20 +359,20 @@ MAKE_OVERRIDES = {
 # The four lexical/include dependencies are define.v, tb_common.svh,
 # OooFpPredicates.v and OooFpRound.v.
 DEPENDENCY_RELATIVE_PATHS = (
-    "npc/rv64/vsrc/execute/OooFpArithGate.v",
-    "npc/rv64/vsrc/execute/OooFpAddSubPipe.v",
-    "npc/rv64/vsrc/execute/OooFpMulProductPipe.v",
-    "npc/rv64/vsrc/execute/OooFpMulNormRoundPipe.v",
-    "npc/rv64/vsrc/execute/OooFpFmaAlignAddPipe.v",
-    "npc/rv64/vsrc/execute/OooFpFmaNormRoundPipe.v",
-    "npc/rv64/vsrc/include/define.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpAddSubPipe.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulProductPipe.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpMulNormRoundPipe.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaAlignAddPipe.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpFmaNormRoundPipe.v",
+    "npc/rv64/legacy/rtl/vsrc/include/define.v",
     "npc/rv64/testbench/common/tb_common.svh",
-    "npc/rv64/vsrc/execute/OooFpPredicates.v",
-    "npc/rv64/vsrc/execute/OooFpRound.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpPredicates.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooFpRound.v",
     "npc/rv64/testbench/tests/tb_ooo_fp_arith_gate.sv",
     "npc/rv64/testbench/scripts/check_tb_result.py",
-    "npc/rv64/testbench/Makefile",
-    "npc/rv64/vsrc/filelist.mk",
+    "npc/rv64/testbench/Makefile.legacy",
+    "npc/rv64/legacy/rtl/filelist.mk",
     "npc/rv64/testbench/scripts/run_ooo_fp_arith_child_mutations.py",
 )
 
@@ -561,7 +561,7 @@ def run_one(
 
     log_path = run_dir / "logs" / "tb_ooo_fp_arith_gate.log"
     command = [
-        "make",
+        "make", "-f", "Makefile.legacy",
         "-B",
         f"BUILD_DIR={build_dir}",
         f"RESULT_DIR={run_dir}",

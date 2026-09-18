@@ -334,7 +334,7 @@ set(NPU_SYSTEM_FPU_RTL_SOURCES
 )
 # Use the CPU's native catalog; no historical Ooo CPU enters this model.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${NPU_NPC_RTL_ROOT}/filelist.mk" "${NPU_NPC_RTL_ROOT}/chengyue64/filelist.mk")
+    "${NPU_NPC_RTL_ROOT}/filelist.mk")
 execute_process(
     COMMAND "${NPU_MAKE_EXECUTABLE}" -s -C "${NPU_WORKBENCH_ROOT}/npc/rv64" print-synth-rtl
     OUTPUT_VARIABLE NPU_NATIVE_SOURCE_TEXT OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -344,8 +344,8 @@ list(APPEND NPU_NPC_RTL_SOURCES
     "${NPU_WORKBENCH_ROOT}/npc/rv64/sim/vsrc/AxiDpiSlave.sv"
     "${NPU_WORKBENCH_ROOT}/npc/rv64/sim/vsrc/R64NpuCpuSim.sv")
 file(GLOB NPU_SYSTEM_INCLUDE_DEPENDENCIES CONFIGURE_DEPENDS
-    "${NPU_NPC_RTL_ROOT}/chengyue64/backend/*.vh"
-    "${NPU_NPC_RTL_ROOT}/chengyue64/platform/*.vh")
+    "${NPU_NPC_RTL_ROOT}/backend/*.vh"
+    "${NPU_NPC_RTL_ROOT}/platform/*.vh")
 list(APPEND NPU_SYSTEM_INCLUDE_DEPENDENCIES
     "${NPU_NPC_RTL_ROOT}/include/define.v"
     "${NPU_PROJECT_ROOT}/rtl/tensor_npu_defs.vh")
@@ -399,8 +399,8 @@ add_custom_command(
             -Wno-PINMISSING -Wno-UNOPTFLAT
             "-I${NPU_NPC_RTL_ROOT}"
             "-I${NPU_NPC_RTL_ROOT}/include"
-            "-I${NPU_NPC_RTL_ROOT}/chengyue64/backend"
-            "-I${NPU_NPC_RTL_ROOT}/chengyue64/platform"
+            "-I${NPU_NPC_RTL_ROOT}/backend"
+            "-I${NPU_NPC_RTL_ROOT}/platform"
             "-I${NPU_PROJECT_ROOT}/rtl"
             "-I${NPU_PROJECT_ROOT}/third_party/hardfloat/source/RISCV"
             "-I${NPU_PROJECT_ROOT}/third_party/hardfloat/source"

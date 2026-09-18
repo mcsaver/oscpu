@@ -1,7 +1,7 @@
-# NPC RTL source catalog.
-# 按功能目录集中维护 filelist，主仿真、模块 testbench 和综合入口共享同一份路径清单。
-
-VSRCDIR ?= $(abspath ./vsrc)
+# 旧 NpcTop / Ooo* 核的归档源清单；当前主线由 ../../vsrc/filelist.mk 定义。
+# 以本清单位置定位冻结 RTL，禁止误用当前主线 vsrc/core。
+LEGACY_RTL_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+VSRCDIR ?= $(LEGACY_RTL_DIR)/vsrc
 
 RTL_INCLUDE_DIR := $(VSRCDIR)/include
 RTL_COMMON_DIR := $(VSRCDIR)/common
@@ -17,7 +17,7 @@ RTL_REGREAD_BYPASS_DIR := $(VSRCDIR)/regread_bypass
 RTL_CONTROL_DIR := $(VSRCDIR)/control
 RTL_BUS_DIR := $(VSRCDIR)/bus
 RTL_WRITEBACK_DIR := $(VSRCDIR)/writeback
-RTL_SIM_DIR := $(abspath $(VSRCDIR)/../sim/vsrc)
+RTL_SIM_DIR := $(abspath $(LEGACY_RTL_DIR)/../../sim/vsrc)
 RTL_DEBUG_DIR := $(VSRCDIR)/debug
 # SRAM 宏行为模型独立目录：仿真真源；NpcTop 综合时按模块名进 SYNTH_BLACKBOX_MODULES。
 RTL_SRAM_DIR := $(VSRCDIR)/sram

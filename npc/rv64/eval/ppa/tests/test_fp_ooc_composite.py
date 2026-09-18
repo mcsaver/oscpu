@@ -1280,7 +1280,7 @@ class FpOocCompositeTests(unittest.TestCase):
         self.assertNotIn('status_path="${run_dir}/${run_id}.status"', runner)
 
     def test_child_source_domains_and_runner_consumption_are_explicit(self) -> None:
-        filelist = "npc/rv64/vsrc/filelist.mk"
+        filelist = "npc/rv64/legacy/rtl/filelist.mk"
         for module, contract in self.projection["child_contracts"].items():
             closure = contract["source_closure"]
             compile_sources = contract["compile_sources"]

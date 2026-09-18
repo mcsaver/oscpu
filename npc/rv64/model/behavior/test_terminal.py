@@ -8,7 +8,7 @@ from compose import Network
 from lsu_terminal import terminal
 from test_always import ROOT,command
 
-RTL=ROOT/"npc/rv64/vsrc/chengyue64/lsu"
+RTL=ROOT/"npc/rv64/vsrc/lsu"
 
 def original_statement(source,lhs):
     match=re.search(r"assign\s+"+re.escape(lhs)+r"\s*=\s*[^;]+;",source)
@@ -98,7 +98,7 @@ def rtl_run(model,cases,directory,expect_failure=False):
     display='$display("'+" ".join("%h" for _ in obs)+'",'+",".join(obs)+");"
     lines += [display,"clk_i=1;#1;",display,"end end $finish;end endmodule"]
     (root/"tb.sv").write_text("\n".join(lines))
-    command(["iverilog","-g2012","-DR64_ASSERT","-I",ROOT/"npc/rv64/vsrc/chengyue64/backend",
+    command(["iverilog","-g2012","-DR64_ASSERT","-I",ROOT/"npc/rv64/vsrc/backend",
              "-s","tb","-o",root/"sim",root/"tb.sv",root/"terminal.sv",
              RTL/"R64LsuRequestQueue.v",RTL/"R64LsuCompletion.v",RTL/"R64LsuOrderSelect.v"])
     result=subprocess.run(["vvp",str(root/"sim")],capture_output=True,text=True,timeout=60)

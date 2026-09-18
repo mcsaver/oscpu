@@ -1,14 +1,14 @@
 # 承岳64（ChengYue64）
 
 本目录的默认 RV64 实现为 **承岳64 v1.0.0**，版本由
-[core-version.mk](core-version.mk) 定义。默认 RTL 位于 `vsrc/chengyue64/`，
+[core-version.mk](core-version.mk) 定义。默认 RTL 位于 `vsrc/`，
 仿真宿主位于 `sim/`，差分检查位于 `difftest/`，测试用例位于 `testbench/chengyue64/`，构建输出位于 `build/chengyue64/`。
 
 ## 按用途查找
 
 | 要了解的内容 | 文档入口 | 对应目录职责 |
 | --- | --- | --- |
-| CPU、系统顶层与模块连接 | [架构入口](ARCHITECTURE.md) | `vsrc/chengyue64/` 保存主线 RTL 和就近维护的模块说明 |
+| CPU、系统顶层与模块连接 | [架构入口](ARCHITECTURE.md) | `vsrc/` 保存主线 RTL 和就近维护的模块说明 |
 | 设计规范、取舍与文献 | [设计文档](design/README.md) | `design/` 区分主线设计、共享 IP 规范和旧核资料 |
 | 模块、整核、软件回归 | [验证入口](testbench/chengyue64/README.md) | `testbench/` 保存具体测试用例、oracle 和回归脚本 |
 | NEMU 参考接口、CSR 比较与比较时机 | [DiffTest](difftest/README.md) | `difftest/src/r64_difftest.cpp` 实现参考模型适配及状态比较 |
@@ -43,9 +43,9 @@ make -C npc/rv64 run IMG=/absolute/guest.bin RUN_ARGS="--maxcycles=20000000 --pr
 
 ## 当前版本与历史兼容
 
-正式命名于 2026-09-16，原开发名为 `rebuildcore`。`vsrc/rebuild` 和 `testbench/rebuild`
-保留为正式目录的兼容链接；部分旧核 RTL 路径链接到
-[旧核源码包](../pack/rv64core-legacy-20260916/README.md)。
+正式命名于 2026-09-16，原开发名为 `rebuildcore`。`vsrc/` 按模块直接保存主线 RTL，
+旧核源码集中在[旧核源码包](../pack/rv64core-legacy-20260916/README.md)；旧核和开发名的源码
+兼容链接已移除。`testbench/rebuild` 仍是测试入口的兼容链接。
 默认构建不使用[legacy/sim/](legacy/README.md) 中的旧核仿真器和 `Makefile.legacy`。
 
 `eval/`、`perf/`、`vivado/` 中保留的旧流程有各自适用范围，不能用其历史指标描述承岳64。

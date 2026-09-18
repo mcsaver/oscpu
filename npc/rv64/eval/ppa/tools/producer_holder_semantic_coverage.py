@@ -1259,7 +1259,7 @@ V11U_ASSERTION_PROFILES = {
 }
 V11U_MUTATIONS = {
     "lease-output-metadata-gated": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_lease_probe",
         "widths": (4,),
@@ -1267,7 +1267,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV8K_PROBE_PARTIAL_METADATA",),
     },
     "ordinary-clear-kills-live": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_lease_probe",
         "widths": (4,),
@@ -1275,7 +1275,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV8K_PROBE_LIVE_CLEAR",),
     },
     "clear-dispatched-kills-live": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_lease_probe",
         "widths": (4,),
@@ -1283,7 +1283,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV8K_PROBE_LIVE_CLEAR_DISPATCHED",),
     },
     "birth-drops-generation": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_sequencer",
         "widths": (1, 4),
@@ -1291,7 +1291,7 @@ V11U_MUTATIONS = {
         "defines": (),
     },
     "noncsr-dispatch-birth-widened": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_lease_probe",
         "widths": (4,),
@@ -1299,7 +1299,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV11U_PROBE_NONCSR_DISPATCH",),
     },
     "exact-death-disabled": {
-        "target": "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
         "override": "RTL_OOO_PENDING_SYSTEM_SEQUENCER",
         "test": "tb_ooo_pending_system_sequencer",
         "widths": (4,),
@@ -1307,7 +1307,7 @@ V11U_MUTATIONS = {
         "defines": (),
     },
     "claim-seal-ignores-raw": {
-        "target": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v",
         "override": "RTL_OOO_CSR_ACCESS_REQUEST_MUX",
         "test": "tb_ooo_csr_access_request_mux",
         "widths": (4,),
@@ -1315,7 +1315,7 @@ V11U_MUTATIONS = {
         "defines": ("-DOOO_CSR_QUEUE_HEAD=1",),
     },
     "pid-match-ignores-generation": {
-        "target": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v",
         "override": "RTL_OOO_CSR_ACCESS_REQUEST_MUX",
         "test": "tb_ooo_csr_access_request_mux",
         "widths": (1, 4),
@@ -1323,7 +1323,7 @@ V11U_MUTATIONS = {
         "defines": (),
     },
     "pc-coherence-removed": {
-        "target": "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v",
         "override": "RTL_OOO_CSR_ACCESS_REQUEST_MUX",
         "test": "tb_ooo_csr_access_request_mux",
         "widths": (4,),
@@ -1331,7 +1331,7 @@ V11U_MUTATIONS = {
         "defines": (),
     },
     "pending-live-mask-removed": {
-        "target": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "override": "RTL_OOO_INT_BACKEND",
         "test": "tb_ooo_int_backend",
         "widths": (1, 4),
@@ -1339,7 +1339,7 @@ V11U_MUTATIONS = {
         "defines": ("-DV11U_PENDING_CSR_LEASE_FOCUSED",),
     },
     "rob-dispatch0-generation-dropped": {
-        "target": "npc/rv64/vsrc/writeback/OooRob.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
         "override": "RTL_OOO_ROB",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1348,7 +1348,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "rob-head0-generation-flipped": {
-        "target": "npc/rv64/vsrc/writeback/OooRob.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
         "override": "RTL_OOO_ROB",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1358,7 +1358,7 @@ V11U_MUTATIONS = {
     },
     "pending-drain-system-csr-eligibility-disconnected": {
         "target": (
-            "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v"
+            "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v"
         ),
         "override": "RTL_OOO_PENDING_DRAIN_RESOLVE_GATE",
         "test": "tb_ooo_priv_system",
@@ -1371,7 +1371,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "control-plane-dispatch-fire-disconnected": {
-        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
         "override": "RTL_OOO_CONTROL_PLANE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1380,7 +1380,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "control-plane-birth-pid-corrupted": {
-        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
         "override": "RTL_OOO_CONTROL_PLANE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1389,7 +1389,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "control-plane-exact-death-disconnected": {
-        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
         "override": "RTL_OOO_CONTROL_PLANE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1398,7 +1398,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "control-plane-flush-reset-disconnected": {
-        "target": "npc/rv64/vsrc/control/OooControlPlane.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
         "override": "RTL_OOO_CONTROL_PLANE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1407,7 +1407,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "core-top-glue-pending-valid-disconnected": {
-        "target": "npc/rv64/vsrc/core/OooCoreTopGlue.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
         "override": "RTL_OOO_CORE_TOP_GLUE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1416,7 +1416,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "execute-backend-pending-valid-disconnected": {
-        "target": "npc/rv64/vsrc/execute/OooExecuteBackend.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
         "override": "RTL_OOO_EXECUTE_BACKEND",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1425,7 +1425,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "alu-core-slice-pending-valid-disconnected": {
-        "target": "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
         "override": "RTL_OOO_ALU_CORE_SLICE",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1434,7 +1434,7 @@ V11U_MUTATIONS = {
         "assertions": True,
     },
     "alu-decode-backend-pending-valid-disconnected": {
-        "target": "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
+        "target": "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
         "override": "RTL_OOO_ALU_DECODE_BACKEND",
         "test": "tb_ooo_priv_system",
         "widths": (4,),
@@ -1497,7 +1497,7 @@ SELECTED_BINDING_RTL_DELTA_PROJECTED_KINDS = frozenset(
 SELECTED_BINDING_PROJECTION_SCHEMA = (
     "rv64-selected-binding-define-projection-v1"
 )
-SELECTED_BINDING_PROJECTION_TARGET = "npc/rv64/vsrc/include/define.v"
+SELECTED_BINDING_PROJECTION_TARGET = "npc/rv64/legacy/rtl/vsrc/include/define.v"
 SELECTED_BINDING_PROJECTION_PROFILES = {
     "product": (),
     "assertion": ("OOO_ASSERT",),
@@ -1508,14 +1508,14 @@ SELECTED_BINDING_PROJECTION_CLAIM = (
     "whole-architecture, system, or PPA status."
 )
 NON_SEMANTIC_ORCHESTRATION_PATHS = frozenset(
-    {"npc/rv64/testbench/Makefile"}
+    {"npc/rv64/testbench/Makefile.legacy"}
 )
 DESIGN_ID_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 V11_SELECTED_BINDINGS = {
     "v11b_terminal_collector": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
         (
@@ -1525,7 +1525,7 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11c_memory_tracker": {
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_mem_owner_tracker.sv",
             "testbench",
@@ -1537,7 +1537,7 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11d_memory_tracker_cursor": {
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_mem_owner_tracker_cursor.sv",
@@ -1545,31 +1545,31 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11e_rob_slot_generation": {
-        ("npc/rv64/vsrc/writeback/OooRob.v", "rtl"),
-        ("npc/rv64/vsrc/writeback/OooArchRegFile.v", "rtl"),
-        ("npc/rv64/vsrc/control/OooCsrTrapRequestMux.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/writeback/OooArchRegFile.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/control/OooCsrTrapRequestMux.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         ("npc/rv64/testbench/tests/tb_ooo_rob.sv", "testbench"),
     },
     "v11f_int_iq_producer": {
-        ("npc/rv64/vsrc/scheduling/OooIntIssueQueue.v", "rtl"),
-        ("npc/rv64/vsrc/scheduling/OooIntIssueSelect8.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueSelect8.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_issue_queue.sv",
             "testbench",
         ),
     },
     "v11g_store_queue_holder": {
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
             "testbench",
         ),
     },
     "v11h_load_queue_producer": {
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_load_queue_producer_semantic.sv",
@@ -1581,8 +1581,8 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11j_bridge_holder": {
-        ("npc/rv64/vsrc/memory/OooMemAxiBridge.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_dual_mem_bridge_wrapper.sv",
@@ -1590,8 +1590,8 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11k_miq_holder": {
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_dual_mem_inflight_queue_semantic.sv",
@@ -1603,25 +1603,25 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11l_memory_retry_holder": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v14r_memory_request_hold": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/writeback/OooRob.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
@@ -1632,96 +1632,96 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11m_memory_reservation_holder": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11n_memory_pending_holder": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11o_memory_buffer_token": {
-        ("npc/rv64/vsrc/core/NpcCoreTop.v", "rtl"),
-        ("npc/rv64/vsrc/core/OooCoreTopGlue.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooExecuteBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooAluCoreSlice.v", "rtl"),
-        ("npc/rv64/vsrc/decode/OooAluDecodeBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11p_checkpoint_irrevocable_write": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooLoadQueue.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooMemInflightQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v", "rtl"),
         (
-            "npc/rv64/vsrc/memory/OooMemOwnerTerminalCollector.v",
+            "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTerminalCollector.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
-        ("npc/rv64/vsrc/memory/OooStoreQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11q_int_lane0_packet": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/pipeline/PipeStageReg.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11r_int_lane1_packet": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/pipeline/PipeStageReg.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
         ),
     },
     "v11s_muldiv_producer": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooMulDivUnit.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
@@ -1737,9 +1737,9 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11t_clmul_producer": {
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooClmulUnit.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooClmulUnit.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
@@ -1756,24 +1756,24 @@ V11_SELECTED_BINDINGS = {
     },
     "v11u_pending_system_producer": {
         (
-            "npc/rv64/vsrc/control/OooPendingSystemSequencer.v",
+            "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v",
             "rtl",
         ),
         (
-            "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v",
+            "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/control/OooControlPlane.v", "rtl"),
-        ("npc/rv64/vsrc/core/OooCoreTopGlue.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooExecuteBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooAluCoreSlice.v", "rtl"),
-        ("npc/rv64/vsrc/decode/OooAluDecodeBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v", "rtl"),
         (
-            "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+            "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
             "rtl",
         ),
-        ("npc/rv64/vsrc/execute/OooIntBackend.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/"
             "tb_ooo_pending_system_sequencer.sv",
@@ -1799,10 +1799,10 @@ V11_SELECTED_BINDINGS = {
         ),
     },
     "v11v_fp_producer": {
-        ("npc/rv64/vsrc/execute/OooFpBackend.v", "rtl"),
-        ("npc/rv64/vsrc/execute/OooFpArithGate.v", "rtl"),
-        ("npc/rv64/vsrc/scheduling/OooFpIssueQueue.v", "rtl"),
-        ("npc/rv64/vsrc/include/define.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooFpBackend.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/scheduling/OooFpIssueQueue.v", "rtl"),
+        ("npc/rv64/legacy/rtl/vsrc/include/define.v", "rtl"),
         (
             "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
             "testbench",
@@ -3341,7 +3341,7 @@ def evaluate_v14r_memory_request_hold(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/design/specs/ooo-memory-request-admission-hold.md",
         (
             "npc/rv64/testbench/scripts/"
@@ -3429,7 +3429,7 @@ def evaluate_v14r_memory_request_hold(
         )
 
     backend_sha = sha256_file(
-        root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+        root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
     )
     mutation_root = evidence_root / "mutation"
     mutation_summary_path = mutation_root / "result.txt"
@@ -5349,7 +5349,7 @@ def evaluate_v11j_bridge_holder(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/run_v11j_bridge_holder_semantic.py",
         (
             "npc/rv64/testbench/scripts/"
@@ -5498,9 +5498,9 @@ def evaluate_v11j_bridge_holder(
         name = record.get("name")
         target = record.get("target")
         expected_target = (
-            "npc/rv64/vsrc/memory/OooDualMemBridgeWrapper.v"
+            "npc/rv64/legacy/rtl/vsrc/memory/OooDualMemBridgeWrapper.v"
             if name == "wrapper-crosswire-residency-lanes"
-            else "npc/rv64/vsrc/memory/OooMemAxiBridge.v"
+            else "npc/rv64/legacy/rtl/vsrc/memory/OooMemAxiBridge.v"
         )
         if (
             target != expected_target
@@ -5731,7 +5731,7 @@ def evaluate_v11k_miq_holder(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/run_v11k_miq_holder_semantic.py",
         (
             "npc/rv64/testbench/scripts/"
@@ -5963,7 +5963,7 @@ def evaluate_v11k_miq_holder(
         name = record.get("name")
         target = record.get("target")
         if (
-            target != "npc/rv64/vsrc/memory/OooMemInflightQueue.v"
+            target != "npc/rv64/legacy/rtl/vsrc/memory/OooMemInflightQueue.v"
             or record.get("unit_id") != "miq-owner-tokens"
             or record.get("compile_success_required") is not True
             or sha256_file(resolve_repo_path(root, target))
@@ -6027,8 +6027,8 @@ def evaluate_v11k_miq_holder(
             or not source_pre
             or source_pre != source_post
             or regression_testbenches[name] not in source_pre
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11K regression binding is incomplete: {name}"
@@ -6250,7 +6250,7 @@ def evaluate_v11l_memory_retry_holder(
 
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -6295,7 +6295,7 @@ def evaluate_v11l_memory_retry_holder(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11l_memory_retry_holder_semantic.py"
@@ -6605,8 +6605,8 @@ def evaluate_v11l_memory_retry_holder(
             or production["rtl"] not in source_pre
             or source_pre[production["rtl"]]
             != production["rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11L regression binding is incomplete: {name}"
@@ -6774,7 +6774,7 @@ def evaluate_v11m_memory_reservation_holder(
 
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -6819,7 +6819,7 @@ def evaluate_v11m_memory_reservation_holder(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11m_memory_reservation_holder_semantic.py"
@@ -7120,8 +7120,8 @@ def evaluate_v11m_memory_reservation_holder(
             or production["rtl"] not in source_pre
             or source_pre[production["rtl"]]
             != production["rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11M regression binding is incomplete: {name}"
@@ -7322,7 +7322,7 @@ def evaluate_v11n_memory_pending_holder(
 
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -7367,7 +7367,7 @@ def evaluate_v11n_memory_pending_holder(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11n_memory_pending_holder_semantic.py"
@@ -7886,8 +7886,8 @@ def evaluate_v11n_memory_pending_holder(
             or production["rtl"] not in source_pre
             or source_pre[production["rtl"]]
             != production["rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11N regression binding is incomplete: {name}"
@@ -8071,7 +8071,7 @@ def evaluate_v11o_memory_buffer_token(
 
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -8116,7 +8116,7 @@ def evaluate_v11o_memory_buffer_token(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11o_memory_buffer_token_semantic.py"
@@ -8258,12 +8258,12 @@ def evaluate_v11o_memory_buffer_token(
         )
     source_rows = reachability.get("sources")
     expected_product_sources = {
-        "npc/rv64/vsrc/core/NpcCoreTop.v",
-        "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-        "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-        "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-        "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+        "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+        "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
     }
     if (
         not isinstance(source_rows, list)
@@ -8720,8 +8720,8 @@ def evaluate_v11o_memory_buffer_token(
             or production["rtl"] not in source_pre
             or source_pre[production["rtl"]]
             != production["rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11O regression binding is incomplete: {name}"
@@ -8918,7 +8918,7 @@ def evaluate_v11p_checkpoint_irrevocable_write(
 
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -8963,7 +8963,7 @@ def evaluate_v11p_checkpoint_irrevocable_write(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11p_checkpoint_irrevocable_write_semantic.py"
@@ -9283,8 +9283,8 @@ def evaluate_v11p_checkpoint_irrevocable_write(
             or production["rtl"] not in source_pre
             or source_pre[production["rtl"]]
             != production["rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11P regression binding is incomplete: {name}"
@@ -9468,9 +9468,9 @@ def evaluate_v11q_int_lane0_packet(
     pipe_path = resolve_repo_path(root, production.get("pipe_stage_rtl"))
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("pipe_stage_rtl")
-        != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
+        != "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -9517,7 +9517,7 @@ def evaluate_v11q_int_lane0_packet(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11q_int_lane0_packet_semantic.py"
@@ -9840,8 +9840,8 @@ def evaluate_v11q_int_lane0_packet(
             or production["pipe_stage_rtl"] not in source_pre
             or source_pre[production["pipe_stage_rtl"]]
             != production["pipe_stage_rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11Q regression binding is incomplete: {name}"
@@ -10042,9 +10042,9 @@ def evaluate_v11r_int_lane1_packet(
     pipe_path = resolve_repo_path(root, production.get("pipe_stage_rtl"))
     if (
         production.get("rtl")
-        != "npc/rv64/vsrc/execute/OooIntBackend.v"
+        != "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
         or production.get("pipe_stage_rtl")
-        != "npc/rv64/vsrc/pipeline/PipeStageReg.v"
+        != "npc/rv64/legacy/rtl/vsrc/pipeline/PipeStageReg.v"
         or production.get("focused_testbench")
         != "npc/rv64/testbench/tests/tb_ooo_int_backend.sv"
         or not source_hash_matches_with_rtl_delta(
@@ -10091,7 +10091,7 @@ def evaluate_v11r_int_lane1_packet(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11r_int_lane1_packet_semantic.py"
@@ -10414,8 +10414,8 @@ def evaluate_v11r_int_lane1_packet(
             or production["pipe_stage_rtl"] not in source_pre
             or source_pre[production["pipe_stage_rtl"]]
             != production["pipe_stage_rtl_sha256"]
-            or "npc/rv64/testbench/Makefile" not in source_pre
-            or "npc/rv64/vsrc/include/define.v" not in source_pre
+            or "npc/rv64/testbench/Makefile.legacy" not in source_pre
+            or "npc/rv64/legacy/rtl/vsrc/include/define.v" not in source_pre
         ):
             raise CoverageError(
                 f"V11R regression binding is incomplete: {name}"
@@ -10684,8 +10684,8 @@ def evaluate_v11s_muldiv_producer(
         )
 
     expected_production_paths = {
-        "integration_rtl": "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "muldiv_rtl": "npc/rv64/vsrc/execute/OooMulDivUnit.v",
+        "integration_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "muldiv_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooMulDivUnit.v",
         "base_testbench": V11S_BASE_TESTBENCH,
         "focused_testbench": V11S_FOCUSED_FRAGMENT,
         "leaf_testbench": (
@@ -10766,7 +10766,7 @@ def evaluate_v11s_muldiv_producer(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11s_muldiv_producer_semantic.py"
@@ -11080,8 +11080,8 @@ def evaluate_v11s_muldiv_producer(
         source_pre = record.get("compile_source_manifest")
         source_post = record.get("compile_source_post_manifest")
         required_paths = {
-            "npc/rv64/testbench/Makefile",
-            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/testbench/Makefile.legacy",
+            "npc/rv64/legacy/rtl/vsrc/include/define.v",
             production["muldiv_rtl"],
         }
         if name == "tb_ooo_muldiv_unit":
@@ -11377,8 +11377,8 @@ def evaluate_v11t_clmul_producer(
         raise CoverageError("V11T CLMUL producer summary is not complete")
 
     expected_production_paths = {
-        "integration_rtl": "npc/rv64/vsrc/execute/OooIntBackend.v",
-        "clmul_rtl": "npc/rv64/vsrc/execute/OooClmulUnit.v",
+        "integration_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+        "clmul_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooClmulUnit.v",
         "base_testbench": V11T_BASE_TESTBENCH,
         "focused_testbench": V11T_FOCUSED_FRAGMENT,
         "leaf_testbench": "npc/rv64/testbench/tests/tb_ooo_clmul_unit.sv",
@@ -11539,7 +11539,7 @@ def evaluate_v11t_clmul_producer(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/run_v11t_clmul_producer_semantic.py",
         "npc/rv64/testbench/scripts/test_run_v11t_clmul_producer_semantic.py",
         "npc/rv64/testbench/scripts/run_v11s_muldiv_producer_semantic.py",
@@ -11855,8 +11855,8 @@ def evaluate_v11t_clmul_producer(
         source_pre = record.get("compile_source_manifest")
         source_post = record.get("compile_source_post_manifest")
         required_paths = {
-            "npc/rv64/testbench/Makefile",
-            "npc/rv64/vsrc/include/define.v",
+            "npc/rv64/testbench/Makefile.legacy",
+            "npc/rv64/legacy/rtl/vsrc/include/define.v",
             production["clmul_rtl"],
         }
         if name == "tb_ooo_clmul_unit":
@@ -12128,9 +12128,9 @@ def evaluate_v11v_fp_producer(
         raise CoverageError("V11V FP producer summary is not complete")
 
     expected_production_paths = {
-        "fp_backend_rtl": "npc/rv64/vsrc/execute/OooFpBackend.v",
-        "fp_iq_rtl": "npc/rv64/vsrc/scheduling/OooFpIssueQueue.v",
-        "fp_arith_rtl": "npc/rv64/vsrc/execute/OooFpArithGate.v",
+        "fp_backend_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpBackend.v",
+        "fp_iq_rtl": "npc/rv64/legacy/rtl/vsrc/scheduling/OooFpIssueQueue.v",
+        "fp_arith_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooFpArithGate.v",
         "base_testbench": V11V_BASE_TESTBENCH,
         "focused_testbench": V11V_FOCUSED_FRAGMENT,
     }
@@ -12291,7 +12291,7 @@ def evaluate_v11v_fp_producer(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
+        "npc/rv64/testbench/Makefile.legacy",
         "npc/rv64/testbench/scripts/run_v11v_fp_producer_semantic.py",
         "npc/rv64/testbench/scripts/test_run_v11v_fp_producer_semantic.py",
         (
@@ -12854,12 +12854,12 @@ def evaluate_v11u_pending_system_producer(
 
     expected_production_paths = {
         "sequencer_rtl": (
-            "npc/rv64/vsrc/control/OooPendingSystemSequencer.v"
+            "npc/rv64/legacy/rtl/vsrc/control/OooPendingSystemSequencer.v"
         ),
         "csr_mux_rtl": (
-            "npc/rv64/vsrc/control/OooCsrAccessRequestMux.v"
+            "npc/rv64/legacy/rtl/vsrc/control/OooCsrAccessRequestMux.v"
         ),
-        "int_backend_rtl": "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "int_backend_rtl": "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         "sequencer_testbench": (
             "npc/rv64/testbench/tests/"
             "tb_ooo_pending_system_sequencer.sv"
@@ -12880,12 +12880,12 @@ def evaluate_v11u_pending_system_producer(
         ),
     }
     expected_parent_rtl = {
-        "npc/rv64/vsrc/control/OooControlPlane.v",
-        "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-        "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-        "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-        "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooControlPlane.v",
+        "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+        "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
     }
     if set(production) != {
         "product_instances",
@@ -12946,8 +12946,8 @@ def evaluate_v11u_pending_system_producer(
         )
     )
     support_paths = {
-        "npc/rv64/testbench/Makefile",
-        "npc/rv64/vsrc/filelist.mk",
+        "npc/rv64/testbench/Makefile.legacy",
+        "npc/rv64/legacy/rtl/filelist.mk",
         (
             "npc/rv64/testbench/scripts/"
             "run_v11u_pending_system_producer_semantic.py"
@@ -12959,14 +12959,14 @@ def evaluate_v11u_pending_system_producer(
         "npc/rv64/testbench/scripts/check_tb_result.py",
         "npc/rv64/testbench/common/tb_common.svh",
         "npc/rv64/testbench/common/rv32_encode.svh",
-        "npc/rv64/vsrc/include/define.v",
+        "npc/rv64/legacy/rtl/vsrc/include/define.v",
     }
     compile_claim_rtl = {
-        "npc/rv64/vsrc/writeback/OooRob.v",
-        "npc/rv64/vsrc/control/OooPendingDispatchArbiter.v",
-        "npc/rv64/vsrc/control/OooPendingDrainResolveGate.v",
+        "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingDispatchArbiter.v",
+        "npc/rv64/legacy/rtl/vsrc/control/OooPendingDrainResolveGate.v",
         (
-            "npc/rv64/vsrc/control/"
+            "npc/rv64/legacy/rtl/vsrc/control/"
             "OooPendingSystemAdmissionCancelGate.v"
         ),
     }
@@ -12998,7 +12998,7 @@ def evaluate_v11u_pending_system_producer(
         )
 
     expected_build_controls = support_paths - {
-        "npc/rv64/vsrc/include/define.v"
+        "npc/rv64/legacy/rtl/vsrc/include/define.v"
     }
     build_controls = (
         compile_input_closure.get("build_controls")

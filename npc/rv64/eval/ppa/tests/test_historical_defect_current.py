@@ -202,7 +202,7 @@ class HistoricalDefectCurrentTest(unittest.TestCase):
     def test_current_build_control_hash_drift_is_rejected(self) -> None:
         historical = self.tool.load_json(ROOT, self.tool.HISTORICAL_QH_PATH)
         current = self.tool.load_json(ROOT, self.tool.V14E_QH_PATH)
-        current["build_controls"]["npc/rv64/testbench/Makefile"]["sha256"] = "0" * 64
+        current["build_controls"]["npc/rv64/testbench/Makefile.legacy"]["sha256"] = "0" * 64
         with self.assertRaises(self.tool.HistoricalCurrentError):
             self.tool.validate_qh_younger_store(
                 ROOT, historical, current, self.receipt["design_id"]

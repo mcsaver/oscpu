@@ -1,6 +1,6 @@
 """Ordered behavior of production R64LsuCompletion, including free payload writes."""
 from always_ir import *
-SOURCE="npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v"
+SOURCE="npc/rv64/vsrc/lsu/R64LsuCompletion.v"
 RESULT_W=140
 
 def all_of(*xs):

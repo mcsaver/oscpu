@@ -1030,7 +1030,7 @@ class NegativeTests(unittest.TestCase):
     def test_ooo3_source_manifest_rejects_stale_or_missing_rtl(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary).resolve()
-            rtl = root / "npc/rv64/vsrc/memory/OooLoadQueue.v"
+            rtl = root / "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v"
             harness = root / "npc/rv64/testbench/tests/tb_ooo_load_queue.sv"
             manifest = root / "evidence/sources.pre.sha256"
             rtl.parent.mkdir(parents=True)
@@ -1039,7 +1039,7 @@ class NegativeTests(unittest.TestCase):
             rtl.write_text("module OooLoadQueue; endmodule\n", encoding="utf-8")
             harness.write_text("module tb; endmodule\n", encoding="utf-8")
             expected = (
-                "npc/rv64/vsrc/memory/OooLoadQueue.v",
+                "npc/rv64/legacy/rtl/vsrc/memory/OooLoadQueue.v",
                 "npc/rv64/testbench/tests/tb_ooo_load_queue.sv",
             )
 
@@ -1655,7 +1655,7 @@ class NegativeTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
-            source = root / "npc/rv64/vsrc/execute/OooIntBackend.v"
+            source = root / "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v"
             source.parent.mkdir(parents=True)
             source.write_text("module OooIntBackend; endmodule\n", encoding="utf-8")
             source_sha = builder.arch.digest(source)

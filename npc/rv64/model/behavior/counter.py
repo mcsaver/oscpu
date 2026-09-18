@@ -1,7 +1,7 @@
 """Manual behavior description of production R64Counter, preserving all 22 edge blocks."""
 from always_ir import Block, Model, If, const, ref, bit_slice, resize, add, sub, eq, band, bor, mux, nba, blocking, concat
 
-SOURCE="npc/rv64/vsrc/chengyue64/control/R64Counter.v"
+SOURCE="npc/rv64/vsrc/control/R64Counter.v"
 def counter():
     inputs={"rst_i":1,"enable_i":1,"increment_i":2,"write_i":1,"write_value_i":64}
     states={"value_o":64,**{f"near_q{bank}":3 for bank in range(1,8)}}
@@ -27,7 +27,7 @@ def counter():
                                eq(bit_slice(value,0,3),threshold))
                 blocks.append(Block(f"{mode}_summary{bank}_{offset}","comb",
                     (blocking(f"{mode}_near{bank}_{offset}",near_expr),),
-                    source="npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"))
+                    source="npc/rv64/vsrc/control/R64CounterNear.v:8"))
             def put(expr):return nba(f"near_q{bank}",expr,low=offset,width=1)
             body=(If(r("rst_i"),(put(const(0)),),
                      (If(r("write_i"),(put(r(f"writing_near{bank}_{offset}")),),

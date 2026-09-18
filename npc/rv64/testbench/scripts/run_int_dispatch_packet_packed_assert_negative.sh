@@ -21,7 +21,7 @@ fi
 mapfile -t sources < <(
   cd "$tb_dir"
   make --no-print-directory -s -f - print-int-backend-sources <<'MAKE_EOF'
-include Makefile
+include Makefile.legacy
 .PHONY: print-int-backend-sources
 print-int-backend-sources:
 	@for source in $(sort $(TB_SRCS_tb_ooo_int_backend)); do printf '%s\n' "$$source"; done
@@ -50,8 +50,8 @@ set +e
 (
   cd "$tb_dir"
   "$iverilog_path" -g2012 -Wall \
-    -I"$repo_root/npc/rv64/vsrc" \
-    -I"$repo_root/npc/rv64/vsrc/include" \
+    -I"$repo_root/npc/rv64/legacy/rtl/vsrc" \
+    -I"$repo_root/npc/rv64/legacy/rtl/vsrc/include" \
     -I"$tb_dir/common" \
     -DOOO_ASSERT -DINT_DISPATCH_PACKET_PACKED_NEGATIVE \
     -s tb_ooo_int_backend -o "$vvp_image" "${sources[@]}"

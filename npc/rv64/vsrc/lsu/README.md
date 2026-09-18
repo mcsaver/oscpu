@@ -33,7 +33,7 @@ winner引用。旧late-IO容量fixture已更新为当前未知属性发布规则
 新增r64_core_lsu_contention.S通过真实三级4KiB页表、A/D更新、双数据流与store测试CPU/PTE共享服务。
 
 同源基线/候选的完整软件、CoreMark、CPI、整核综合及1ns STA结果统一见
-[综合评估](../../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
+[综合评估](../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
 下面的分轮数据保留其原始配置与测量时间，不代表最新联合候选的结果。
 
 ## CPU/PTE bank 配对与未知属性发布边界（2026-09-07）
@@ -56,7 +56,7 @@ round-robin辅助选择、各辅助busy/返回保持与原队列深度不变。
 同约束局部STA中，Service setup slack由−0.370313变为−0.357756ns，单元面积增加8.151%；
 LSU修复后setup由−0.862424变为−0.900504ns。两者均仍未达到1GHz，不能把定向周期收益
 当作整核时序闭合。实现、逐端点组结果和复验见
-[本轮报告](../../../../../tmp/rv64-lsu-service-pair-20260907/REPORT.md)。
+[本轮报告](../../../../tmp/rv64-lsu-service-pair-20260907/REPORT.md)。
 
 ## 数据与责任边界
 
@@ -269,7 +269,7 @@ LR reservation 也保存在 D-cache，避免 LSU 预判 SC 与辅助写之间的
 
 ## 当前直接证据与边界
 
-测试源现位于 [testbench/chengyue64/modules/](../../../testbench/chengyue64/modules/)，下表所述既有日志位于 `../../../build/rebuild/lsu/`：
+测试源现位于 [testbench/chengyue64/modules/](../../testbench/chengyue64/modules)，下表所述既有日志位于 `../../build/rebuild/lsu`：
 
 | 测试 | 可观察结果 |
 | --- | --- |

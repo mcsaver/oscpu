@@ -19,7 +19,7 @@ from run_v11i_terminal_lifecycle import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-BACKEND = REPO_ROOT / "npc" / "rv64" / "vsrc" / "execute" / "OooIntBackend.v"
+BACKEND = REPO_ROOT / "npc" / "rv64" / "legacy" / "rtl" / "vsrc" / "execute" / "OooIntBackend.v"
 
 
 class V11ITerminalLifecycleRunnerTest(unittest.TestCase):

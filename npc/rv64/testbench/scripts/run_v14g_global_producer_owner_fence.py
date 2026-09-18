@@ -66,7 +66,7 @@ class Profile:
 MUTATIONS = (
     Mutation(
         "int-iq-mask-drops-on-fire",
-        "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+        "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v",
         """\
       if (valid_q[lease_i])
         producer_live_mask_r[producer_id_q[lease_i]] = 1'b1;
@@ -80,7 +80,7 @@ MUTATIONS = (
     ),
     Mutation(
         "dispatch-drops-external-union",
-        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
         """\
   wire [(1 << PRODUCER_ID_W)-1:0] complete_producer_live_mask_w =
       producer_live_mask_i | int_iq_producer_live_mask_w;
@@ -94,7 +94,7 @@ MUTATIONS = (
     ),
     Mutation(
         "backend-drops-load-queue-union",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         """\
   wire [(1 << PRODUCER_ID_W)-1:0] external_producer_live_mask_w =
       mem_owner_producer_live_mask_w |
@@ -111,7 +111,7 @@ MUTATIONS = (
     ),
     Mutation(
         "backend-drops-reservation-union",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         """\
   wire [(1 << PRODUCER_ID_W)-1:0] transient_producer_live_mask_w =
       mem_res_producer_live_mask_w |
@@ -126,7 +126,7 @@ MUTATIONS = (
     ),
     Mutation(
         "backend-drops-memory-owner-union",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         """\
   wire [(1 << PRODUCER_ID_W)-1:0] external_producer_live_mask_w =
       mem_owner_producer_live_mask_w |
@@ -141,7 +141,7 @@ MUTATIONS = (
     ),
     Mutation(
         "backend-lane6-corrupts-reservation-token",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         """\
       mem_issue1_res_owner_token_q,
       mem_issue_res_owner_token_q,
@@ -157,7 +157,7 @@ MUTATIONS = (
     ),
     Mutation(
         "backend-drops-pending-system-union",
-        "npc/rv64/vsrc/execute/OooIntBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
         """\
       fp_producer_live_mask_w |
       pending_system_producer_live_mask_w |
@@ -172,7 +172,7 @@ MUTATIONS = (
     ),
     Mutation(
         "dispatch-lane0-truncates-generation",
-        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
         """\
                              !complete_producer_live_mask_w[
                                  rob_dispatch0_producer_id_w] &&
@@ -188,7 +188,7 @@ MUTATIONS = (
     ),
     Mutation(
         "dispatch-mandatory-lane1-truncates-generation",
-        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
         """\
        !complete_producer_live_mask_w[
            rob_dispatch1_pair_producer_id_w]);
@@ -203,7 +203,7 @@ MUTATIONS = (
     ),
     Mutation(
         "dispatch-optional-lane1-truncates-generation",
-        "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
+        "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
         """\
                              !complete_producer_live_mask_w[
                                  rob_dispatch1_producer_id_w];
@@ -219,7 +219,7 @@ MUTATIONS = (
     ),
     Mutation(
         "tracker-clears-producer-on-death-edge",
-        "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
+        "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v",
         "  assign producer_live_mask_o = producer_live_q;\n",
         "  assign producer_live_mask_o = producer_live_next_r;\n",
         "death-edge-old",
@@ -485,7 +485,7 @@ v14g-print-context:
 	@printf '%s\\n' $(addprefix SOURCE=,$(abspath $(sort $(TB_SRCS_tb_ooo_int_backend))))
 """
     completed = subprocess.run(
-        ["make", "-s", f"--eval={transient_rule}", "v14g-print-context"],
+        ["make", "-f", "Makefile.legacy", "-s", f"--eval={transient_rule}", "v14g-print-context"],
         cwd=testbench_dir,
         text=True,
         capture_output=True,
@@ -618,7 +618,7 @@ def run_profile(
         str(iverilog),
         "-g2012",
         "-Wall",
-        f"-I{repo_root / 'npc' / 'rv64' / 'vsrc'}",
+        f"-I{repo_root / 'npc' / 'rv64' / 'legacy' / 'rtl' / 'vsrc'}",
         f"-I{include_dir}",
         f"-I{testbench_dir / 'common'}",
         *defines,
@@ -737,7 +737,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             include_dir / "define.v",
             repo_root
             / "npc/rv64/design/specs/ooo-global-producer-no-live-reuse.md",
-            repo_root / "npc/rv64/Makefile",
+            repo_root / "npc/rv64/Makefile.legacy",
             testbench_dir / "Makefile",
             testbench_dir / "common" / "tb_common.svh",
             testbench_dir / "common" / "rv32_encode.svh",

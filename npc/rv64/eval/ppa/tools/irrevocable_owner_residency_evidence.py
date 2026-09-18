@@ -62,21 +62,21 @@ SOURCE_PATHS = (
     ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/tb_v9n_amo_owner_residency.sv",
     ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/run-owner-residency-rtl-variants.py",
     ".github/task-runs/2026-07-23-rv64-v9n-irrevocable-write-owner-residency/run-focused.sh",
-    "npc/rv64/Makefile",
+    "npc/rv64/Makefile.legacy",
     "npc/rv64/design/specs/ooo-memory-producer-lease.md",
     "npc/rv64/design/specs/ooo-store-bresp-precise-terminal.md",
     "npc/rv64/eval/ppa/tests/test_irrevocable_owner_residency_evidence.py",
     "npc/rv64/eval/ppa/tools/architecture_hard_gates.py",
     "npc/rv64/eval/ppa/tools/irrevocable_owner_residency_evidence.py",
-    "npc/rv64/testbench/Makefile",
+    "npc/rv64/testbench/Makefile.legacy",
     "npc/rv64/testbench/scripts/check_tb_result.py",
     "npc/rv64/testbench/tests/tb_ooo_store_queue.sv",
     "npc/rv64/testbench/tests/tb_ooo_int_backend.sv",
-    "npc/rv64/vsrc/core/NpcCoreTop.v",
-    "npc/rv64/vsrc/memory/OooStoreQueue.v",
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/memory/OooMemOwnerTracker.v",
-    "npc/rv64/vsrc/writeback/OooRob.v",
+    "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooStoreQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/memory/OooMemOwnerTracker.v",
+    "npc/rv64/legacy/rtl/vsrc/writeback/OooRob.v",
 )
 
 
@@ -267,7 +267,7 @@ def build_evidence(
         variant_log_text[name] = path.read_text(encoding="utf-8")
     validated_rows = validate_variant_payload(root, summary, variant_log_text)
 
-    top_path = root / "npc/rv64/vsrc/core/NpcCoreTop.v"
+    top_path = root / "npc/rv64/legacy/rtl/vsrc/core/NpcCoreTop.v"
     top_text = top_path.read_text(encoding="utf-8")
     if top_text.count(TOP_FLUSH_BINDING) != 1:
         raise ValueError("canonical NpcCoreTop global flush binding drifted")

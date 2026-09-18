@@ -54,7 +54,7 @@ finish_run() {
 trap finish_run EXIT
 task_run_status_install_signal_traps
 
-make -C "${testbench_dir}" run \
+make -C "${testbench_dir}" -f Makefile.legacy run \
   "RESULT_DIR=${result_dir}" \
   "BUILD_DIR=${build_dir}"
 make_rc=$?

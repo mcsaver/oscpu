@@ -92,15 +92,15 @@ DEFAULT_YOSYS_RECEIPT = (
 )
 
 OPTIONAL_SOURCE_PATHS = (
-    "npc/rv64/vsrc/frontend/OooBranchAppendDispatchGate.v",
-    "npc/rv64/vsrc/frontend/OooFrontend.v",
-    "npc/rv64/vsrc/core/OooCoreTopGlue.v",
-    "npc/rv64/vsrc/execute/OooExecuteBackend.v",
-    "npc/rv64/vsrc/execute/OooAluCoreSlice.v",
-    "npc/rv64/vsrc/decode/OooAluDecodeBackend.v",
-    "npc/rv64/vsrc/execute/OooIntBackend.v",
-    "npc/rv64/vsrc/rename_allocate/OooDispatchBackend.v",
-    "npc/rv64/vsrc/scheduling/OooIntIssueQueue.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooBranchAppendDispatchGate.v",
+    "npc/rv64/legacy/rtl/vsrc/frontend/OooFrontend.v",
+    "npc/rv64/legacy/rtl/vsrc/core/OooCoreTopGlue.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooExecuteBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooAluCoreSlice.v",
+    "npc/rv64/legacy/rtl/vsrc/decode/OooAluDecodeBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/execute/OooIntBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/rename_allocate/OooDispatchBackend.v",
+    "npc/rv64/legacy/rtl/vsrc/scheduling/OooIntIssueQueue.v",
 )
 
 SUPPORT_REQUIREMENTS: dict[str, dict[str, Any]] = {
@@ -258,7 +258,7 @@ def current_design_id(root: pathlib.Path) -> str:
 
 
 def source_role(path: str) -> tuple[str, bool]:
-    if path.endswith("/Makefile") or path == "npc/rv64/Makefile":
+    if path.endswith("/Makefile") or path == "npc/rv64/Makefile.legacy":
         return "orchestration_snapshot", False
     if path.endswith("ooo-global-producer-no-live-reuse.md"):
         return "specification_snapshot", False

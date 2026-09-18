@@ -10,7 +10,7 @@
 #   3. rv64 可综合 .v 里的契约立即断言（$error）计数不回退（防断言被悄悄删；
 #      合法重构导致下降时，显式更新 eval/contract-assert-baseline.txt）。
 #
-# 用法：make -C npc/rv64 check-contract   （或直接 eval/check-contract.sh）
+# 用法：make -C npc/rv64 -f Makefile.legacy check-contract   （或直接 eval/check-contract.sh）
 # 退出码：0=通过，1=违规。
 set -u
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,7 +29,7 @@ grep -qE '\+define\+OOO_ASSERT' "$MK" \
   || report "Makefile 缺 +define+OOO_ASSERT（立即断言不会编入全核 sim 回归，等于没护栏）"
 
 # 3. 立即断言计数不回退
-files="$(make -s -C "$here" print-synth-rtl 2>/dev/null | tr ' ' '\n' | sort -u || true)"
+files="$(make -s -C "$here" -f Makefile.legacy print-synth-rtl 2>/dev/null | tr ' ' '\n' | sort -u || true)"
 cur=0
 for f in $files; do
   [[ -f "$f" ]] || continue
