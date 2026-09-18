@@ -38,7 +38,7 @@ def main():
             work=Path(name)
             for case in args.cases.split(","):
                 binary=work/(case+".bin")
-                image(ROOT/f"npc/rv64/testbench/chengyue64/r64_core_{case}.S",binary)
+                image(ROOT/f"npc/rv64/testbench/chengyue64/programs/r64_core_{case}.S",binary)
                 records={label:[] for label,_,_ in engines}
                 for sample in range(args.samples):
                     shift=sample%len(engines)

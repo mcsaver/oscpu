@@ -15,7 +15,7 @@
 
 因此，近期若以 CoreMark/Dhrystone CPI 为目标，优先级应调整为：普通 store 期间的缓存可用性、单拍写完成延迟 → 读补行循环 → 按流量分区的总线架构 → 更多 outstanding。读 burst 服务仍是流式访存、大工作集和冷启动的重要方向。
 
-证据：[CoreMark 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/coremark-runner.log)、[Dhrystone 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/dhrystone-runner.log)；[计数实现](../../../testbench/rebuild/r64_core_test.cpp) 第 379–407 行。结果命令明确使用 C6 的 VR64SystemTestTop。
+证据：[CoreMark 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/coremark-runner.log)、[Dhrystone 日志](../../../../../tmp/rv64-backend-network-opt-20260907/c6/benchmarks/dhrystone-runner.log)；[计数实现的当前源码位置](../../../sim/src/r64_sim_main.cpp)。结果命令明确使用 C6 的 VR64SystemTestTop。
 
 ## 2. 第一批：不增加外部 store 数量的两项实验
 

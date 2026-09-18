@@ -1,5 +1,5 @@
 #include "decode.hpp"
-#include "../../testbench/chengyue64/r64_image.h"
+#include "../../sim/include/r64_image.h"
 #include <chrono>
 #include <cstdio>
 #include <dlfcn.h>

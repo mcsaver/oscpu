@@ -96,11 +96,11 @@ data:
                 image(source,binary);workloads.append((case,binary,[]))
             for case in filter(None,args.core.split(",")):
                 binary=directory/(case+".bin")
-                image(ROOT/f"npc/rv64/testbench/chengyue64/r64_core_{case}.S",binary)
+                image(ROOT/f"npc/rv64/testbench/chengyue64/programs/r64_core_{case}.S",binary)
                 workloads.append(("core_"+case,binary,[]))
             if not args.skip_system_io:
                 binary=directory/"system_io.bin"
-                image(ROOT/"npc/rv64/testbench/chengyue64/r64_core_system_io.S",binary)
+                image(ROOT/"npc/rv64/testbench/chengyue64/programs/r64_core_system_io.S",binary)
                 sentinel=directory/"sentinel.bin"
                 sentinel.write_bytes(bytes.fromhex("8877665544332211"))
                 workloads.append(("system_io",binary,["--system",f"--load=0x81000000:{sentinel}","--uart-input=?:Z"]))

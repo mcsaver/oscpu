@@ -11,7 +11,7 @@ import unittest
 
 
 RV64_DIR = pathlib.Path(__file__).resolve().parents[3]
-INCLUDE_DIR = RV64_DIR / "csrc" / "include"
+INCLUDE_DIR = RV64_DIR / "legacy/sim/include"
 
 
 class DifftestComparePolicyTests(unittest.TestCase):

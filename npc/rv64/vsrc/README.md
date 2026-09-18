@@ -8,7 +8,7 @@
 | [filelist.mk](filelist.mk) | 默认仿真和综合的源码入口 |
 | [bus/](bus/) | 主线使用的共享 AXI 外设 IP |
 | [include/](include/) | 共享硬件定义 |
-| [sim/](sim/) | DPI 与仿真集成适配；R64NpuCpuSim 用于完整 NPU 消费者 |
+| [../sim/vsrc/](../sim/vsrc/) | RTL 仿真封装、DPI 与平台接入适配；R64NpuCpuSim 用于完整 NPU 消费者，不属于可综合核源码 |
 | `rebuild` | 指向 `chengyue64` 的兼容链接 |
 | `core/frontend/execute/memory/...` | 指向旧核归档的兼容链接，供历史工具和少量测试 oracle 使用 |
 | `filelist.legacy.mk` | 旧核兼容源码清单；不被默认构建包含 |

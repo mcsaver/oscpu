@@ -7,8 +7,8 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-SIM_TOP = REPO_ROOT / "npc/rv64/vsrc/sim/NpcSimTop.sv"
-CPU_EXEC = REPO_ROOT / "npc/rv64/csrc/cpu/cpu-exec.cpp"
+SIM_TOP = REPO_ROOT / "npc/rv64/sim/vsrc/NpcSimTop.sv"
+CPU_EXEC = REPO_ROOT / "npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
 
 
 def diagnostic_decision(

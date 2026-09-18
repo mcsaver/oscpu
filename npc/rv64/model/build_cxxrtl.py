@@ -50,7 +50,9 @@ def compile_split(out, base_command, jobs, memory_gib):
         source=directory/f"part-{i:03d}.cc"
         source.write_text(code[:start]+"\n"+part+"\n"+suffix+"\n")
         sources.append(source)
-    sources.append(out/"main.cpp")
+    generated_sources=list(sources)
+    sources += [ROOT/"npc/rv64/sim/src/r64_sim_main.cpp",
+                ROOT/"npc/rv64/difftest/src/r64_difftest.cpp"]
     def compile_one(source):
         obj=directory/(source.stem+".o")
         command=base_command+["-c",str(source),"-o",str(obj)]
@@ -67,7 +69,7 @@ def compile_split(out, base_command, jobs, memory_gib):
     finally:
         # The pool has joined, including on error. Preserve diagnostics; remove
         # only this invocation's generated source/object paths.
-        for target in sources[:-1]+objects:
+        for target in generated_sources+objects:
             resolved=target.resolve()
             if not resolved.is_relative_to(directory.resolve()):
                 raise RuntimeError("compiler cleanup escaped build directory")
@@ -145,11 +147,8 @@ def main():
       else: outputs.append(f" get({member},{name});")
     header+=' void eval(){\n'+'\n'.join(inputs)+'\n r64model::settle(*engine);\n'+'\n'.join(outputs)+'\n }\n void final(){}\n};\n'
     (out/"adapter.h").write_text(header)
-    src=(root/"npc/rv64/testbench/chengyue64/r64_core_test.cpp").read_text()
-    src='#include "adapter.h"\nusing Dut=CxxrtlDut;\n'+src[src.index('#include "r64_image.h"'):]
-    src=src.replace('  Verilated::threadContextp()->threads(R64_HOST_THREADS);','')
-    src=src.replace('  Verilated::commandArgs(argc,argv);Dut d;','  Dut d;')
-    (out/"main.cpp").write_text(src)
+    (out/"dut_adapter.h").write_text('#pragma once\n#include "adapter.h"\n'
+        'using Dut=CxxrtlDut;\nnamespace r64 { inline void initialize_dut(int,char**){} }\n')
     print("adapter generated:",len(ports),"ports")
     runtime=root/"oss-cad-suite/share/yosys/include/backends/cxxrtl/runtime"
     if not args.forced_inline:
@@ -164,7 +163,9 @@ def main():
         runtime=local_runtime
     report["forced_inline"]=args.forced_inline
     cmd=[args.cxx,"-O"+args.optimization,"-std=c++17","-DR64_SYSTEM",
-         "-I"+str(out),"-I"+str(root/"npc/rv64/testbench/chengyue64"),
+         '-DR64_DUT_HEADER="dut_adapter.h"',
+         "-I"+str(out),"-I"+str(root/"npc/rv64/sim/include"),
+         "-I"+str(root/"npc/rv64/difftest/include"),
          "-I"+str(runtime)]
     if Path(args.cxx).name in ("clang++","clang"):
         cmd += ["-mllvm","-rotation-max-header-size=0"]

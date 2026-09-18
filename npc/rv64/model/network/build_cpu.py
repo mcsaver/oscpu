@@ -36,11 +36,8 @@ def command(argv, log):
     return time.perf_counter()-started
 
 def harness(out):
-    src=(ROOT/"npc/rv64/testbench/chengyue64/r64_core_test.cpp").read_text()
-    src='#include "model.h"\n#include "timing.hpp"\nusing Dut=TimedDut<NetworkDut>;\n'+src[src.index('#include "r64_image.h"'):]
-    src=src.replace('  Verilated::threadContextp()->threads(R64_HOST_THREADS);','')
-    src=src.replace('  Verilated::commandArgs(argc,argv);Dut d;','  Dut d;')
-    (out/"main.cpp").write_text(src)
+    (out/"dut_adapter.h").write_text('#pragma once\n#include "model.h"\n#include "timing.hpp"\n'
+        'using Dut=TimedDut<NetworkDut>;\nnamespace r64 { inline void initialize_dut(int,char**){} }\n')
 
 def build(args):
     args.out.mkdir(parents=True,exist_ok=True)
@@ -83,23 +80,26 @@ def build(args):
         report["code_generation_seconds"]=time.perf_counter()-began
         del design
         harness(work)
-        sources=report["network"]["sources"]+["main.cpp"]
+        sources=[work/name for name in report["network"]["sources"]]+[
+            ROOT/"npc/rv64/sim/src/r64_sim_main.cpp",ROOT/"npc/rv64/difftest/src/r64_difftest.cpp"]
+        objects=[work/(path.stem+".o") for path in sources]
         logs=args.out/"compile-logs";logs.mkdir(exist_ok=True)
         flags=[args.cxx,"-std=c++17","-O"+args.optimization,"-DR64_SYSTEM","-pthread",
-               "-I"+str(work),"-I"+str(Path(__file__).resolve().parent),"-I"+str(ROOT/"npc/rv64/testbench/chengyue64")]
-        def compile_one(name):
-            path=work/name
-            return command(["prlimit","--as="+str(6<<30),"--core=0","--"]+flags+["-c",str(path),"-o",str(path.with_suffix(".o"))],logs/(path.stem+".log"))
+               '-DR64_DUT_HEADER="dut_adapter.h"',
+               "-I"+str(work),"-I"+str(Path(__file__).resolve().parent),
+               "-I"+str(ROOT/"npc/rv64/sim/include"),"-I"+str(ROOT/"npc/rv64/difftest/include")]
+        def compile_one(path):
+            return command(["prlimit","--as="+str(6<<30),"--core=0","--"]+flags+["-c",str(path),"-o",str(work/(path.stem+".o"))],logs/(path.stem+".log"))
         began=time.perf_counter()
         try:
             with ThreadPoolExecutor(max_workers=args.jobs) as pool:
                 list(pool.map(compile_one,sources))
             report["compile_seconds"]=time.perf_counter()-began
-            report["link_seconds"]=command(flags+[str((work/p).with_suffix(".o")) for p in sources]+[
+            report["link_seconds"]=command(flags+[str(obj) for obj in objects]+[
                 "-ldl","-Wl,--no-as-needed","-lreadline","-o",str(args.out/"r64-network")],args.out/"link.log")
         finally:
-            for name in sources:
-                path=(work/name).with_suffix(".o").resolve()
+            for obj in objects:
+                path=obj.resolve()
                 if not path.is_relative_to(work.resolve()):raise RuntimeError("cleanup path escaped build")
                 path.unlink(missing_ok=True)
         for log in logs.glob("*.log"):

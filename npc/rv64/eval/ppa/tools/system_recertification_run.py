@@ -32,7 +32,8 @@ ARCH_BINDING_PATH = pathlib.PurePosixPath(
 INPUT_TREES = (
     pathlib.PurePosixPath("npc/rv64/configs"),
     pathlib.PurePosixPath("npc/rv64/scripts"),
-    pathlib.PurePosixPath("npc/rv64/csrc"),
+    pathlib.PurePosixPath("npc/rv64/legacy"),
+    pathlib.PurePosixPath("npc/rv64/sim"),
     pathlib.PurePosixPath("npc/rv64/vsrc"),
 )
 
@@ -277,7 +278,8 @@ def verify_source_sandbox(
     prefixes = (
         "npc/rv64/configs/",
         "npc/rv64/scripts/",
-        "npc/rv64/csrc/",
+        "npc/rv64/legacy/",
+        "npc/rv64/sim/",
         "npc/rv64/vsrc/",
     )
     for relative, record in snapshot.get("files", {}).items():

@@ -36,7 +36,7 @@ SOURCE_PATHS = (
     "npc/rv64/vsrc/core/OooCoreTopGlue.v",
     "npc/rv64/vsrc/bus/NpcAxiBus.v",
     "npc/rv64/vsrc/bus/AxiCrossbar.v",
-    "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+    "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
     "npc/rv64/eval/ppa/instrumentation/NpcOooOwnerTimingProbe.sv",
 )
 PRIOR_STABLE_PATHS = frozenset((
@@ -46,7 +46,7 @@ PRIOR_STABLE_PATHS = frozenset((
     "npc/rv64/vsrc/core/NpcCoreTop.v",
     "npc/rv64/vsrc/bus/NpcAxiBus.v",
     "npc/rv64/vsrc/bus/AxiCrossbar.v",
-    "npc/rv64/vsrc/sim/AxiDpiSlave.sv",
+    "npc/rv64/sim/vsrc/AxiDpiSlave.sv",
 ))
 
 
@@ -113,7 +113,7 @@ def analyze_source_texts(texts: dict[str, str]) -> dict[str, Any]:
     bridge = texts["npc/rv64/vsrc/memory/OooMemAxiBridge.v"]
     adapter = texts["npc/rv64/vsrc/memory/OooLsuAxiLaneAdapter.v"]
     crossbar = texts["npc/rv64/vsrc/bus/AxiCrossbar.v"]
-    slave = texts["npc/rv64/vsrc/sim/AxiDpiSlave.sv"]
+    slave = texts["npc/rv64/sim/vsrc/AxiDpiSlave.sv"]
 
     # 这些结构约束把 4-cycle 观测绑定到真实 VALID/READY owner，而不是注释。
     require_once(

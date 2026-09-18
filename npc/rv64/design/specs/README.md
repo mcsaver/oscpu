@@ -1,10 +1,20 @@
 # 模块规范索引（design/specs/）
 
-按子系统组织的逐模块规范。★ = 专业规范(图文并茂、状态机、不变量、关键路径、验证);
-其余为 decompose 阶段的简明 owner 边界笔记(见 `../../vsrc/README.md` 总览)。
-模板见 `../arch/SPEC-TEMPLATE.md`。动 RTL 前先写/更新对应 spec。
+本目录按子系统组织逐模块规范，包含旧 Ooo* 核规范和仍被系统复用的总线、外设合同。
+当前主线是承岳64，入口为 [ARCHITECTURE](../../ARCHITECTURE.md)、
+[模块拓扑](../../vsrc/chengyue64/TOPOLOGY.md) 和
+[模块说明](../../vsrc/chengyue64/MODULES.md)。
 
-> **2026-07-11 authority 刷新**：当前实现快照为
+`ooo-*` 及下方旧核分类中的“当前”、状态和待办均属于相应历史实现，不能直接作为承岳64
+模块的规范或验证结论。[AXI 总线](axi4-bus.md)、[PLIC](axi-plic.md) 等共享合同应按实际
+复用的 RTL 和接口判断适用范围，不能与旧 CPU 规范一起视为失效。本次保留文件位置，以维持
+既有工具和代码引用；阶段快照与归档入口见 [arch 索引](../arch/README.md) 和
+[历史索引](../history/README.md)。
+
+★ 表示带有状态机、不变量和验证等详细说明的规范；其余保留 decompose 阶段的模块职责笔记。
+规范模板见 [SPEC-TEMPLATE](../arch/SPEC-TEMPLATE.md)。以下分类与阶段说明保留原记录范围。
+
+> **历史阶段说明：2026-07-11 authority 刷新**：该阶段实现快照为
 > `../arch/rtl-ground-truth-2026-07-11.md`；2026-07-03 全量重审快照已移入
 > `../arch/history/rtl-ground-truth-2026-07-03.md`（已归档）。07-11 先校正当前
 > authority 与承重合同，不把一次性“已审计份数”继续作为现状正确性指标。

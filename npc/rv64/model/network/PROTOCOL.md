@@ -156,8 +156,8 @@ grant 和需求提示策略。首次生产迁移需要对应的 RegisteredGrant 
 - [LSU 完成队列](../../vsrc/chengyue64/lsu/R64LsuCompletion.v)
 - [九源双出口写回](../../vsrc/chengyue64/backend/R64Writeback.v)
 - [Backend 与 ROB 接受、写回及唤醒连接](../../vsrc/chengyue64/backend/R64Backend.v)
-- [写回竞争测试](../../testbench/chengyue64/tb_r64_writeback_demand.sv)
-- [LSU 提示与写回组合测试](../../testbench/chengyue64/tb_r64_lsu_wb_request.sv)
+- [写回竞争测试](../../testbench/chengyue64/modules/tb_r64_writeback_demand.sv)
+- [LSU 提示与写回组合测试](../../testbench/chengyue64/modules/tb_r64_lsu_wb_request.sv)
 
 迁移时必须将 demand hint、注册 grant、固定 lane、owner 查询/证书、取消及 reuse
 保护纳入协议。尤其 hint 只允许影响端口预约，不能凭提示生成有效完成。

@@ -164,7 +164,8 @@ historical root cause 或 PROMOTABLE。checker/parser/report-only 变化按 0.1 
 elaborated RTL 或相关 simulator/device/guest 输入语义变化只重跑受影响层，不以全量 Ubuntu 代替分层定位。
 checker-only replay 使用 canonical replay 入口，只能纠正 oracle 对冻结输入的解释，不能改写原始执行状态
 或扩大原 case 的 signoff scope；identity/binding 不一致时 fail closed。current simulator cache 仍须绑定
-production RTL 与实际 vsrc/csrc/build config，按项目缓存策略清理可再生中间物。
+production RTL、实际仿真宿主源码（`sim/`、`difftest/`，旧核为 `legacy/sim/`）及 build config，
+按项目缓存策略清理可再生中间物。
 
 ### 0.2 角色、变更控制与 waiver
 

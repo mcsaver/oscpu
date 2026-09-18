@@ -1,5 +1,10 @@
 # rebuild 对旧 RV64 核的完整替换
 
+> 范围：本文记录 2026-09-15 起的系统替换实施与当轮验证结果，保留当时的 `rebuild` 命名。
+> 2026-09-16 起主线命名为承岳64，当前目录、拓扑与运行入口见
+> [ARCHITECTURE](../../ARCHITECTURE.md)；本文中的“当前”和测试/PPA 结果均属于所述实施阶段。
+> 早期 CPU-only 重写与暂停记录见 [历史索引](../history/README.md)。
+
 ## 目标与实际入口
 
 2026-09-15 用户要求学习旧核架构和实现、扬长避短，使 rebuild 能完全取代旧核；
@@ -21,7 +26,7 @@
 | 访存 | PMP、PMA、Sv39、A/D 更新、物理别名和真实总线错误语义 | 翻译、保护、LSU、DCache、AXI 分开保存事务状态；不能提前发布 speculative store 换吞吐 |
 | AXI | AW/W 独立保持，B/R 有真实归属，读写等待可重叠 | 原生 AXI4 包含 RID/BID/RLAST；保留完整响应身份 |
 | 平台 | CLINT、PLIC、UART、syscon 的设备协议和地址图是兼容资产 | 复用真实设备 RTL；补齐旧 UART 的 8250 寄存器/FIFO/中断语义，保留独立 M/S 外部中断 |
-| DiffTest | NEMU 独立 ISA/架构参考；系统事件与 ISA 行为分层 | 默认逐退休检查 PC/GPR/FPR/CSR；外部输入送到独立设备模型，不恢复整份寄存器掩盖差异 |
+| DiffTest | NEMU 独立 ISA/架构参考；系统事件与 ISA 行为分层 | 每次退休推进参考并检查 PC/GPR/FPR；一拍内退休和 trap 处理后比较选定 CSR；外部输入送到独立设备模型，不恢复整份寄存器掩盖差异 |
 | NPU | 命令/描述符、terminal、DMA 和缓存失效的生命周期完整 | 真实 TensorNpuCoprocessor 经 R64TensorLink/R64TensorMemory；runtime/standalone 经 R64NpuCpuSim 使用原生系统；保留完整 9-bit owner 到终态 |
 | 性能与时序 | 理想 IPC=2 不能代表实际程序；局部优化不能相加为整核收益 | 保留当前 1 ns 约束；结合实际 CPI 与同源整机 STA 取舍；扩大队列必须有收益证据 |
 
@@ -37,7 +42,7 @@
 - R64AxiWrite 的 B_BYPASS 只缩短内部空响应队列的等待；物理 AXI 的 VALID 保持边界仍在。
   这类局部旁路须保持真实握手与背压，不以组合透传跨越外部协议边界。
 - 旧 NPU 使用 8-bit producer 接口，新核采用 9-bit ROB tag。
-  [R64NpuCpuSim](../../vsrc/sim/R64NpuCpuSim.sv) 在命令握手时保存完整 tag，
+  [R64NpuCpuSim](../../sim/vsrc/R64NpuCpuSim.sv) 在命令握手时保存完整 tag，
   与旧 NPU 交互时使用低 8 位，核对 terminal 后恢复完整 tag；同一时刻只保留一个命令。
   原生 [R64TensorLink](../../vsrc/rebuild/platform/R64TensorLink.v) 则全程使用 9 位，
   等待实际 DMA 排空、必要的缓存失效和 terminal 握手。

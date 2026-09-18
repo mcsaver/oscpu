@@ -78,7 +78,8 @@ config_isolation_smoke() {
     "${repo_root}/npc/rv64/Kconfig" \
     "${repo_root}/npc/rv64/configs" \
     "${repo_root}/npc/rv64/scripts" \
-    "${repo_root}/npc/rv64/csrc" \
+    "${repo_root}/npc/rv64/legacy" \
+    "${repo_root}/npc/rv64/sim" \
     "${repo_root}/npc/rv64/vsrc" \
     "${smoke_root}/npc-source-sandbox/npc/rv64/" || smoke_rc=$?
   if [[ "${smoke_rc}" -eq 0 ]]; then
@@ -743,7 +744,8 @@ cp -a -- \
   "${repo_root}/npc/rv64/Kconfig" \
   "${repo_root}/npc/rv64/configs" \
   "${repo_root}/npc/rv64/scripts" \
-  "${repo_root}/npc/rv64/csrc" \
+  "${repo_root}/npc/rv64/legacy" \
+  "${repo_root}/npc/rv64/sim" \
   "${repo_root}/npc/rv64/vsrc" \
   "${npc_source_sandbox}/"
 cmp -s "${repo_root}/Makefile" "${sandbox_workspace}/Makefile"

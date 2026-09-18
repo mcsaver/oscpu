@@ -14,7 +14,7 @@ verilator --cc --exe --build --top-module AxiDpiSlave \
   -I"$RV64/vsrc/include" \
   --Mdir "$BUILD_DIR/obj_axi" \
   -CFLAGS "-std=c++17 -Wall -Wextra -Werror" \
-  "$RV64/vsrc/sim/AxiDpiSlave.sv" \
+  "$RV64/sim/vsrc/AxiDpiSlave.sv" \
   "$RV64/testbench/cpp/axi_dpi_slave_sized_tb.cpp"
 
 echo "[axi-dpi-sized] run AXI lane/low-window protocol test"
@@ -25,11 +25,11 @@ verilator --cc --exe --build --top-module AxiDpiSlave \
   -Wall -Wno-UNUSEDSIGNAL \
   -I"$RV64/vsrc/include" \
   --Mdir "$BUILD_DIR/obj_guard" \
-  -CFLAGS "-std=c++17 -O2 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -I$RV64/csrc/include -I$RV64/include/generated" \
+  -CFLAGS "-std=c++17 -O2 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -I$RV64/legacy/sim/include -I$RV64/include/generated" \
   -LDFLAGS "-Wl,--gc-sections" \
-  "$RV64/vsrc/sim/AxiDpiSlave.sv" \
+  "$RV64/sim/vsrc/AxiDpiSlave.sv" \
   "$RV64/testbench/cpp/sized_dpi_guard_tb.cpp" \
-  "$RV64/csrc/dpi.c"
+  "$RV64/legacy/sim/src/dpi.c"
 
 echo "[axi-dpi-sized] run PMEM tail guard-page test"
 "$BUILD_DIR/obj_guard/VAxiDpiSlave"

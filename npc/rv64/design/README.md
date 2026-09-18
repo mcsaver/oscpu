@@ -1,43 +1,19 @@
-# RV64 OoO 核 · 设计与优化工作区导航
+# RV64 设计文档导航
 
-本目录是 RV64 乱序核的**设计/规范/优化**入口。配套评估与综合工具在 `../eval/`、`../vivado/`。
-新会话/新人从这里恢复上下文。
+当前主线为承岳64（ChengYue64）。从 [架构入口](../ARCHITECTURE.md) 了解系统组成与
+当前源码，从 [模块拓扑](../vsrc/chengyue64/TOPOLOGY.md) 和
+[模块说明](../vsrc/chengyue64/MODULES.md) 了解核内职责。
 
-## 目录结构
-| 路径 | 内容 |
+本目录按设计说明、模块规范、参考资料和历史记录分类。测试操作见
+[testbench](../testbench/README.md)，仿真平台见 [sim](../sim/README.md)，差分接口与比较策略见
+[difftest](../difftest/README.md)，综合与 STA 见 [syn](../syn/README.md)。
+
+| 目录 | 内容与适用范围 |
 | --- | --- |
-| `arch/ooo-core-architecture.md` | **微架构宪法**（normative 顶层）：指令生命周期、标准 uop/event 字段、状态 owner 表、副作用/flush/redirect 宪法、pending 退出计划。是 B2/B3/B4/B-LSQ 的父规范 |
-| `arch/history/b2-branch-spec-redirect.md`(已归档) | **B2 规范**：多级分支投机 + 统一 redirect，拆 branch/jump pending。评审定 B(ROB-walk) 基线 + C 快照 Phase-2；含共享地基/拆除清单/验证计划 |
-| `arch/rtl-ground-truth-2026-07-11.md` | 2026-07-11 RTL snapshot；后续关闭状态以 active specs、`arch/rv64-200mhz-completion-design.md` 和最新 task-run 为准 |
-| `arch/history/rtl-ground-truth-2026-07-03.md`(已归档) | 2026-07-03 时点快照；仅供历史追溯，不再裁决当前 RTL |
-| `arch/ROADMAP.md` | **主干**：已验证状态、架构深度再评估、优先级 backlog、专业化工作流、时序 track |
-| `arch/mem-lsq.md` | LSQ / load 侧访存解耦规范（部分落地：SQ+store→load 前递已实现，load 多 outstanding 未做） |
-| `arch/timing-dispatch-issue-path.md` | dispatch→issue 关键路径时序规范（FP FMA 流水化后 dispatch 链复为封顶） |
-| `arch/SPEC-TEMPLATE.md` | 规范模板（spec 先行/状态机优先/图文并茂） |
-| `arch/history/mem-store-decouple.md`(已归档) | B1 store 早完成历史规范；T4I 已删除 `bpend/store_decouple`，不得作为当前行为依据 |
-| `specs/*.md` | 逐模块 active 规范；已完成计划与 orphan spec 见 `specs/history/`。核心规范包括 `ooo-muldiv-unit`、`pmp-checker`、`ooo-mem-axi-bridge-fsm`、`ooo-fetch-axi-bridge`、`ooo-rename-alloc`、`ooo-rob`、`ooo-csrfile`、`ooo-int-issue-queue` |
-| `literature/` | 体系结构文献笔记 |
-| `history/study/`(已归档) | 早期学习笔记(npc/single 复制品,原件活在 `npc/single/design/study/`) |
-| `../eval/` | 统一评估系统（三 gate + CPI 画像，自校验）；详见 `../eval/README.md` |
-| `../vivado/` | Vivado OOC 综合/时序分析（按模块+内存看门狗，抗 WSL 崩溃）；详见 `../vivado/README.md` |
+| [arch/](arch/README.md) | 架构与系统替换记录、历史 OoO 架构材料，以及既有工具消费的策略和 registry 文件；各自适用版本见目录说明 |
+| [specs/](specs/README.md) | 按模块划分的接口/行为规范；须区分旧 Ooo* 核规范与仍复用的总线、外设合同 |
+| [literature/](literature/README.md) | 文献笔记；`design/` 根目录另保留 RISC-V 手册 PDF 作为 ISA 参考资料 |
+| [history/](history/README.md) | 旧使用说明、旧 registry 快照、原生重写/暂停记录与早期学习笔记；同时索引 arch/history 和 specs/history |
 
-## 专业化工作流（每轮迭代）
-RECALL(读 ROADMAP+spec+记忆) → SPEC(动 RTL 前先写/更新规范) → IMPL(状态机优先) →
-EVAL(`eval/npc-eval.sh --all` 三 gate 全绿 + CPI 对比) → DECIDE(负优化撤回) → RECORD+COMMIT。
-
-## 当前一句话状态（2026-07-14）
-
-当前核是双 dispatch/双 commit、ROB16、int/FP 独立 rename+IQ 的小窗口 RV64 OoO；
-branch/FP/store 已进入正式 OoO 主路径，system/trap 默认仍走 pending+drain。fetch redirect PC
-已由年龄律 arbiter 单源化，但 IFU 单 outstanding、LSU 单请求、无 LQ/MSHR/coherence。
-IFU 精确 footprint/lane1 fault owner/faulting-portion `tval`、PTE WRITE PMP/PMA、plain-store
-PMA 与 LSU standard lane/AWSIZE/B-owner 已随 T4G–T4I 关闭。当前新鲜基线为 module
-100/100、AM 59/59、official/privileged 177/177、CoreMark 与 Dhrystone-10000 GOOD TRAP、
-sized DPI PASS。fresh frozen-input Yosys/OpenSTA exact 5ns top40 为 40/40 MET，实际最差
-slack `+0.017907454ns`；这只证明典型 liberty、ideal clock、placeholder macro、内部受约束路径
-下的 gate-level proxy 200MHz，不是 P&R/CTS/SPEF/OCV 物理签核。当前实现与证据边界见
-`arch/rv64-200mhz-completion-design.md`、active specs 与
-`.github/task-runs/2026-07-14-rv64-t4i-standard-axi-lanes/`，优先级见 `arch/ROADMAP.md`。
-
-## 长期记忆
-跨会话事实/经验在 `.github/memory/modules/npc.md` 与 `.github/memory/project-status.md`。
+设计行为以实际 RTL、filelist 和可执行测试为准。历史文档中的“当前”、测试计数、PPA 结果和
+待办仅适用于其采样版本，不能直接作为承岳64 的验收结果。

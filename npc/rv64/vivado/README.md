@@ -1,5 +1,9 @@
 # Vivado 综合 / 时序分析（vivado/）
 
+> 下文针对旧 `NpcTop` 与 Ooo* 模块的 FPGA OOC 工具和历史测量。
+> 承岳64当前默认的 ASIC 综合与 OpenSTA 入口见 [../syn/README.md](../syn/README.md)。
+> 两套顶层、约束和报告不可互换；本页不构成当前主线的时序或验证要求。
+
 用 Vivado 对**可综合核**(`NpcTop` + `RTL_CORE_SRCS`，排除 sim/DPI)做 OOC 综合，
 产出时序/关键路径/资源报告，作为**数据驱动时序(Fmax)优化**的依据。
 

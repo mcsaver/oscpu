@@ -13,7 +13,7 @@
 //
 // generic profile 的外部 ABI 对照:
 //   AM  : abstract-machine/am/include/device_address.h
-//   NPC : npc/rv64/csrc/include/device_address.h (经脚本回写 vsrc/include/define.v)
+//   NPC : npc/rv64/legacy/sim/include/device_address.h (经脚本回写 vsrc/include/define.v)
 // 这些镜像必须数值一致,由 Linux/scripts/check-device-address-map.sh 校验。
 // ============================================================================
 

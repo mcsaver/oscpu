@@ -14,7 +14,7 @@ ROOT=Path(__file__).resolve().parents[3]
 def prepare_sources(out, root=ROOT):
     out=Path(out).resolve()
     out.mkdir(parents=True,exist_ok=True)
-    top=root/"npc/rv64/testbench/chengyue64/R64SystemTestTop.sv"
+    top=root/"npc/rv64/sim/vsrc/R64SystemTestTop.sv"
     src=top.read_text()
     # Keep every DUT connection, registered retirement and exact CSR observation.
     # Optional textual debug and occupancy reporting are outside this adapter.

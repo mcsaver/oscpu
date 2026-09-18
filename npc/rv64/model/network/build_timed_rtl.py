@@ -17,13 +17,18 @@ def main():
     network=Path(__file__).resolve().parent
     with tempfile.TemporaryDirectory(prefix="timed-rtl-",dir=args.out.resolve()) as name:
         work=Path(name)
-        src=(ROOT/"npc/rv64/testbench/chengyue64/r64_core_test.cpp").read_text()
-        src=src.replace('using Dut=VR64SystemTestTop;','#include "timing.hpp"\nusing Dut=TimedDut<VR64SystemTestTop>;')
-        (work/"main.cpp").write_text(src)
+        (work/"dut_adapter.h").write_text('#pragma once\n#include "VR64SystemTestTop.h"\n#include "verilated.h"\n'
+            '#include "timing.hpp"\nusing Dut=TimedDut<VR64SystemTestTop>;\n'
+            'namespace r64 { inline void initialize_dut(int argc,char** argv){\n'
+            'Verilated::threadContextp()->threads(R64_HOST_THREADS);\n'
+            'Verilated::commandArgs(argc,argv); } }\n')
         flags=["g++","-O2","-std=c++17","-DR64_SYSTEM","-DR64_HOST_THREADS=1",
                "-I"+str(args.obj.resolve()),"-I"+str(args.include),"-I"+str(args.include/"vltstd"),
-               "-I"+str(network),"-I"+str(ROOT/"npc/rv64/testbench/chengyue64")]
-        sources=[work/"main.cpp",args.include/"verilated.cpp",args.include/"verilated_threads.cpp"]
+               '-DR64_DUT_HEADER="dut_adapter.h"',"-I"+str(work),
+               "-I"+str(network),"-I"+str(ROOT/"npc/rv64/sim/include"),
+               "-I"+str(ROOT/"npc/rv64/difftest/include")]
+        sources=[ROOT/"npc/rv64/sim/src/r64_sim_main.cpp",ROOT/"npc/rv64/difftest/src/r64_difftest.cpp",
+                 args.include/"verilated.cpp",args.include/"verilated_threads.cpp"]
         objects=[]
         for source in sources:
             target=work/(source.stem+".o");objects.append(target)

@@ -1,5 +1,10 @@
 # NPC RV64 Testsuites
 
+当前承岳64的官方 ISA 和 ACT4 构建/运行入口是
+`make -C npc/rv64 software-test`，由
+[testbench/chengyue64](../testbench/chengyue64/README.md) 驱动。
+本目录保留外部测试源码和旧核回归脚本；下文旧脚本用法不能替代当前主线验收。
+
 这个目录专门放 `npc/rv64` 核级外部测试套件、测试工具链和可重复脚本，避免把 CPU 测试资产混到 `.github` 或 RTL 目录里。
 
 ## Layout

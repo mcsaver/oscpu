@@ -746,9 +746,9 @@ class RawBenchmarkParserTests(unittest.TestCase):
             self) -> None:
         rv64_dir = PPA_DIR.parents[1]
         schema = self.counter_contract
-        sim_top = (rv64_dir / "vsrc/sim/NpcSimTop.sv").read_text(
+        sim_top = (rv64_dir / "sim/vsrc/NpcSimTop.sv").read_text(
             encoding="utf-8")
-        cpu_exec = (rv64_dir / "csrc/cpu/cpu-exec.cpp").read_text(
+        cpu_exec = (rv64_dir / "legacy/sim/src/cpu/cpu-exec.cpp").read_text(
             encoding="utf-8")
         reasons = schema["reason_encoding"]
         self.assertEqual(

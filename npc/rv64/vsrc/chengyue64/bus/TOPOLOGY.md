@@ -123,7 +123,7 @@ B完成、R接收、refill install与请求响应拍数保持。该结构缩小�
 
 窗口命中按第一个非零 MASK 的匹配项优先。属性位 `MEMORY=EXECUTABLE=16'h6a80` 标记端口 7、9、11、13、14；其中有的仍连接错误 slave，属性为 memory 不证明设备已实现。合法命中未实现窗口由 slave 返回 SLVERR；非法描述符或地址未命中由 Fabric 内部生成 DECERR。
 
-`R64SystemTop` 只导出这四组单拍外部接口。当前 `R64SystemTestTop.sv` 的系统回归由 `r64_core_test.cpp` 的四个 C++ Endpoint 模型响应，不是实例化旧 `AxiDpiSlave.sv`。每个模型保存一项 R、独立 AW/W 和一项 B；不能把 core-only harness 的 full-AXI 内存行为混入这条系统链。
+`R64SystemTop` 只导出这四组单拍外部接口。当前 `R64SystemTestTop.sv` 的系统回归由 `sim/src/r64_sim_main.cpp` 的四个 C++ Endpoint 模型响应，不是实例化旧 `AxiDpiSlave.sv`。每个模型保存一项 R、独立 AW/W 和一项 B；不能把 core-only harness 的 full-AXI 内存行为混入这条系统链。
 
 IRQ/事件有独立的旁路拓扑：CLINT → time、软件/定时器 IRQ；UART IRQ 位 1、RTC IRQ 位 4 与外部 IRQ 源汇入 PLIC，PLIC → M/S 外部 IRQ；syscon 发布系统控制事件。这些信号不经过 AXI R/B 数据返回。
 
@@ -131,7 +131,7 @@ RTC 的统一寄存器桥只用于 RTC。CLINT、PLIC、UART、syscon 各自持�
 
 Tensor 扩展的 gmem 请求使用独立接口，并通过 dma_invalidate 与核心维护一致性；它不是本 Fabric 的额外 AXI master。外部 virtio 端口也不能凭名称推断为本 Fabric 的 DMA 主端。
 
-依据：[R64AxiPlatform.v](../platform/R64AxiPlatform.v) 第 50–55、110–269 行；[R64PlatformMap.vh](../platform/R64PlatformMap.vh)；[define.v](../../include/define.v) 第 169–281 行；[r64_core_test.cpp](../../../testbench/rebuild/r64_core_test.cpp) 第 309–400 行。
+依据：[R64AxiPlatform.v](../platform/R64AxiPlatform.v) 第 50–55、110–269 行；[R64PlatformMap.vh](../platform/R64PlatformMap.vh)；[define.v](../../include/define.v) 第 169–281 行；[仿真宿主](../../../sim/src/r64_sim_main.cpp)。
 
 ## 6. 背压、取消与时序边界
 

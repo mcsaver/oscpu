@@ -22,15 +22,16 @@ BIN := $(SYSTEM_BUILD_DIR)/obj/VR64SystemTestTop
 IMG ?=
 RUN_ARGS ?=
 SUBMAKE := $(MAKE) --no-print-directory -C $(TEST_DIR) SYSTEM_BUILD_DIR=$(SYSTEM_BUILD_DIR) CORE_BUILD_DIR=$(CORE_BUILD_DIR) TENSOR_BUILD_DIR=$(TENSOR_BUILD_DIR) CORE_REF=$(CORE_REF) CORE_JOBS=$(CORE_JOBS)
+SIMMAKE := $(MAKE) --no-print-directory -C $(NPC_HOME)/sim SYSTEM_BUILD_DIR=$(SYSTEM_BUILD_DIR) CORE_BUILD_DIR=$(CORE_BUILD_DIR) TENSOR_BUILD_DIR=$(TENSOR_BUILD_DIR) CORE_REF=$(CORE_REF) CORE_JOBS=$(CORE_JOBS)
 
 .PHONY: default all run sim lint testbench test core-test device-test tensor-test difftest-ref regression software-test
 default all:
-	@$(SUBMAKE) $(BIN)
+	@$(SIMMAKE) system
 run sim: default difftest-ref
 	@test -n "$(IMG)" || { echo 'IMG must identify the RV64 boot image'; exit 2; }
 	@$(BIN) "$(abspath $(IMG))" "$(CORE_REF)" $(RUN_ARGS)
 lint:
-	@$(SUBMAKE) core-lint system-lint
+	@$(SIMMAKE) lint
 testbench test:
 	@$(SUBMAKE) -j4 run negative pipeline-matrix admission-matrix store-matrix trigger-matrix rr-qcredit-matrix
 device-test:
@@ -45,7 +46,7 @@ software-test:
 # have separate explicit targets and must be reported alongside this cohort.
 regression: lint test core-test software-test device-test
 difftest-ref:
-	@$(SUBMAKE) core-reference
+	@$(MAKE) --no-print-directory -C $(NPC_HOME)/difftest reference CORE_REF=$(CORE_REF)
 
 # Native layered system acceptance. A supplied SYSTEM_IMAGES directory uses
 # the existing L2/L3 artifact ABI; otherwise build the checked-in payloads.
@@ -66,7 +67,7 @@ l2-test l3-test: all difftest-ref
 	  if [ "$$layer" = l3 ]; then script=build-rv64-lightweight-linux.sh; fi; \
 	  bash "$(WORKSPACE)/Linux/scripts/$$script" --output-dir "$$images" --work-dir "$$out/build" --jobs "$(CORE_JOBS)" >"$$out/build.log" 2>&1; \
 	fi; \
-	python3 "$(TEST_DIR)/run_r64_system.py" --layer "$$layer" --case "$(SYSTEM_CASE)" \
+	python3 "$(TEST_DIR)/scripts/run_r64_system.py" --layer "$$layer" --case "$(SYSTEM_CASE)" \
 	  --images "$$images" --out "$$out" --sim "$(BIN)" --ref "$(CORE_REF)" \
 	  --host-timeout "$(SYSTEM_TIMEOUT)" $(SYSTEM_RUN_ARGS)
 

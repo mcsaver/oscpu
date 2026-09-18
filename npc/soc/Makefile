@@ -46,6 +46,8 @@ VERILATOR_THREADS_MAX_MTASKS ?=
 
 VSRCDIR := $(abspath ./vsrc)
 include $(VSRCDIR)/filelist.mk
+include $(NPC_HOME)/sim/filelist.mk
+include $(NPC_HOME)/difftest/filelist.mk
 
 YSYX_SOC_HOME ?= $(abspath ../../ysyxSoC)
 YSYX_SOC_FULL_V ?= $(YSYX_SOC_HOME)/build/ysyxSoCFull.v
@@ -54,9 +56,9 @@ YSYX_SOC_INCLUDE_DIRS := \
 	$(YSYX_SOC_HOME)/perip/uart16550/rtl \
 	$(YSYX_SOC_HOME)/perip/spi/rtl
 SOC_VSRCS := $(SOC_CPU_SRCS) $(YSYX_SOC_FULL_V) $(YSYX_SOC_PERIP_SRCS)
-SOC_CSRCS := $(abspath ./csrc/soc-main.cpp)
+SOC_CSRCS := $(SIM_HOME)/src/soc-main.cpp
 
-INC_PATH += $(abspath ./csrc/include)
+INC_PATH += $(SIM_HOME)/include $(DIFFTEST_HOME)/include
 
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
 	# difftest 只在配置打开时编进二进制；性能配置关闭后不再链接 dlopen 路径，也不进入提交热路径检查。
@@ -126,14 +128,10 @@ endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
-CSRCS_ALL_RAW = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
-# soc-main.cpp 只服务 ysyxSoCFull 顶层，普通 NpcSimTop/AM 后端不能把它和 main.c 一起编进去。
-CSRCS_ALL = $(filter-out $(SOC_CSRCS),$(CSRCS_ALL_RAW))
-DIFFTEST_CSRC := $(abspath ./csrc/cpu/difftest.cpp)
+# 宿主和 DiffTest 分别维护源清单；SoC 独立入口仍单独链接。
+CSRCS = $(filter-out $(SOC_CSRCS),$(SIM_HOST_SRCS))
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
-CSRCS = $(CSRCS_ALL)
-else
-CSRCS = $(filter-out $(DIFFTEST_CSRC),$(CSRCS_ALL))
+CSRCS += $(DIFFTEST_CSRC)
 endif
 
 # 这组变量把“纯 RTL 核心的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
@@ -175,7 +173,7 @@ $(CAPSTONE_LIB):
 	$(MAKE) -C $(CAPSTONE_HOME)
 
 # Kconfig 输出会改变 CFLAGS 和条件编译；列入依赖后，切换配置不会继续沿用旧 NpcSimTop。
-$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(CONFIG_OUTPUTS)
+$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(SIM_HEADER_SRCS) $(DIFFTEST_HEADER_SRCS) $(CONFIG_OUTPUTS) $(MAKEFILE_LIST)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) \
@@ -199,7 +197,7 @@ soc-run: $(SOC_BIN)
 	@# ysyxSoCFull 入口可直接加载 MROM 镜像；IMG 为空时运行内建两条指令 smoke。
 	@$(SOC_BIN) $(IMG) $(RUN_ARGS)
 
-$(SOC_BIN): $(SOC_VSRCS) $(SOC_CSRCS)
+$(SOC_BIN): $(SOC_VSRCS) $(SOC_CSRCS) $(CONFIG_OUTPUTS) $(MAKEFILE_LIST)
 	@rm -rf $(SOC_OBJ_DIR)
 	$(VERILATOR) $(SOC_VERILATOR_FLAGS) \
 		--top-module $(SOC_TOP) $(SOC_VSRCS) $(SOC_CSRCS) \

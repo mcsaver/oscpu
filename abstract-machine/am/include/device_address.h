@@ -11,11 +11,11 @@
 //
 // 对应真源:
 //   NEMU : nemu/include/device/device_address.h
-//   NPC  : npc/rv64/csrc/include/device_address.h  (经脚本回写 vsrc/include/define.v)
+//   NPC  : npc/rv64/legacy/sim/include/device_address.h  (经脚本回写 vsrc/include/define.v)
 // 三份必须数值一致,由 Linux/scripts/check-device-address-map.sh 门禁校验。
 //
 // difftest 说明: NPC 对任何经 DPI/csrc 的 MMIO 访问都会 skip_ref(见
-// npc/rv64/csrc/memory/paddr.c),所以 rtc/kbd/vga 用简易 csrc 模型即可,值不必与
+// npc/rv64/legacy/sim/src/memory/paddr.c),所以 rtc/kbd/vga 用简易 csrc 模型即可,值不必与
 // NEMU 逐拍一致。serial 走 RTL UART(只写),clint/plic 走 RTL(中断,AM 不作数据读)。
 // ============================================================================
 

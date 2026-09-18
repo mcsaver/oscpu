@@ -1,9 +1,9 @@
-NPC_SINGLE_HOME := $(abspath ..)
-VSRCDIR := $(NPC_SINGLE_HOME)/vsrc
+NPC_SOC_HOME := $(abspath ..)
+VSRCDIR := $(NPC_SOC_HOME)/vsrc
 include $(VSRCDIR)/filelist.mk
 BUILD_DIR ?= build
 RESULT_TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
-RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
+RESULT_DIR ?= $(BUILD_DIR)/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
 PIPE_RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/pipe-test
 PIPE_LOG_DIR := $(PIPE_RESULT_DIR)/logs
@@ -211,7 +211,7 @@ $(foreach t,$(TESTS),$(eval $(call RUN_TEST,$(t))))
 summary: $(TESTS:%=$(LOG_DIR)/%.log)
 	@mkdir -p $(RESULT_DIR)
 	@{ \
-	  echo "# NPC single module testbench summary"; \
+	  echo "# NPC soc module testbench summary"; \
 	  echo; \
 	  echo "- result_dir: $(abspath $(RESULT_DIR))"; \
 	  echo "- tool: $$($(IVERILOG) -V | sed -n '1p')"; \
@@ -268,7 +268,7 @@ $(PIPE_LOG_DIR)/stage_pipe_test.log: $(STAGE_PIPE_TEST_SRCS) common/tb_common.sv
 pipe_summary: $(PIPE_LOG_DIR)/pipe_test.log $(PIPE_LOG_DIR)/stage_pipe_test.log
 	@mkdir -p $(PIPE_RESULT_DIR)
 	@{ \
-	  echo "# NPC single pipe_test summary"; \
+	  echo "# NPC soc pipe_test summary"; \
 	  echo; \
 	  echo "- result_dir: $(abspath $(PIPE_RESULT_DIR))"; \
 	  echo "- tool: $$($(IVERILOG) -V | sed -n '1p')"; \

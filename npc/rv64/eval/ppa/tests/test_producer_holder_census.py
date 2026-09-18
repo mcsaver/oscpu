@@ -36,7 +36,7 @@ class ProducerHolderCensusTests(unittest.TestCase):
         nemu_kconfig.write_text("# census fixture\n", encoding="utf-8")
         self.source.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(RV64_DIR / "vsrc", self.source)
-        (self.repo / "npc/rv64/csrc").mkdir(parents=True, exist_ok=True)
+        (self.repo / "npc/rv64/legacy/sim").mkdir(parents=True, exist_ok=True)
         self.manifest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(MANIFEST, self.manifest)
         for relative in (

@@ -41,7 +41,7 @@ e2e_npc_single_contract() {
     npc/single/Makefile \
     npc/single/Kconfig \
     npc/single/vsrc/filelist.mk \
-    npc/single/csrc/cpu/cpu-exec.cpp
+    npc/single/sim/src/cpu/cpu-exec.cpp
 }
 
 e2e_npc_soc_contract() {
@@ -259,9 +259,9 @@ e2e_npc_rv64_systemd_guest_check_contract() {
     npc/rv64/vsrc/bus/AxiClint.v \
     npc/rv64/vsrc/core/NpcTop.v \
     npc/rv64/testbench/scripts/test_debug_ooo_flags_contract.py \
-    npc/rv64/csrc/dpi.c \
-    npc/rv64/csrc/cpu/cpu-exec.cpp \
-    npc/rv64/csrc/monitor/log.c
+    npc/rv64/legacy/sim/src/dpi.c \
+    npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp \
+    npc/rv64/legacy/sim/src/monitor/log.c
 
   bash -n "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   bash -n "$E2E_ROOT_DIR/Linux/scripts/npc-systemd-strict-check.sh"
@@ -292,18 +292,18 @@ e2e_npc_rv64_systemd_guest_check_contract() {
   grep -q 'Failed to start .*Create System Users' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'MTIME_DIVISOR' "$E2E_ROOT_DIR/npc/rv64/vsrc/bus/AxiClint.v"
   grep -q "CLINT_MTIME_DIVISOR = 32'd10" "$E2E_ROOT_DIR/npc/rv64/vsrc/core/NpcTop.v"
-  grep -q 'NPC_USER_ECALL_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'NPC_USER_ECALL_TRACE_PRIV' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'NPC_USER_ECALL_MIN_COMMIT' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'NPC_USER_ECALL_PATH_TRACE' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'debug_ooo_satp_o' "$E2E_ROOT_DIR/npc/rv64/vsrc/sim/NpcSimTop.sv"
+  grep -q 'NPC_USER_ECALL_TRACE' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_TRACE_PRIV' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_MIN_COMMIT' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_ECALL_PATH_TRACE' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'debug_ooo_satp_o' "$E2E_ROOT_DIR/npc/rv64/sim/vsrc/NpcSimTop.sv"
   grep -q "bool debug_valid = ((flags >> 63) & 0x1u) != 0;" \
-    "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'NPC_USER_PROGRESS_INTERVAL' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'maybe_log_ecall_trap' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'trap_hit=' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'LogBothTag("user_ecall"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
-  grep -q 'LogBothTag("user_progress"' "$E2E_ROOT_DIR/npc/rv64/csrc/cpu/cpu-exec.cpp"
+    "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'NPC_USER_PROGRESS_INTERVAL' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'maybe_log_ecall_trap' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'trap_hit=' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'LogBothTag("user_ecall"' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
+  grep -q 'LogBothTag("user_progress"' "$E2E_ROOT_DIR/npc/rv64/legacy/sim/src/cpu/cpu-exec.cpp"
   grep -q 'npc_systemd_transaction_evidence.py' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q 'systemd-transaction-evidence.json' "$E2E_ROOT_DIR/Linux/scripts/check-npc-systemd-guest.sh"
   grep -q '__NPC_SYSTEMD_STRICT_DONE__' "$E2E_ROOT_DIR/Linux/scripts/npc-systemd-strict-check.sh"

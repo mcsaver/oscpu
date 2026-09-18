@@ -2628,9 +2628,9 @@ def role_for(path: str, lists: dict[str, set[str]], catalog: dict[str, Any]) -> 
         return "source_fragment"
     # A directory name or SIM_TOP_SRCS membership is observation, not intent.
     # Every non-product source therefore needs an explicit file override.
-    if path.startswith("npc/rv64/vsrc/debug/") or path.startswith(
-        "npc/rv64/vsrc/sim/"
-    ):
+    if path.startswith((
+        "npc/rv64/vsrc/debug/", "npc/rv64/vsrc/sim/", "npc/rv64/sim/vsrc/"
+    )):
         return "unclassified"
     if path in lists["core"]:
         return "product"

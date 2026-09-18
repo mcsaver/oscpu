@@ -103,7 +103,7 @@ R64Lsu 对每个 owner 共享归约 older_q & ordering_w，两条翻译响应 la
 独立回归入口为：
 
 ~~~sh
-make -C npc/rv64/testbench/rebuild TESTS=tb_r64_lsu_owner_bypass run
+make -C npc/rv64/testbench/chengyue64 TESTS=tb_r64_lsu_owner_bypass run
 ~~~
 
 新 TB 默认采用 20 项、两个生产开关为1、EARLY_STORE=1；已纳入默认 TESTS。
@@ -269,7 +269,7 @@ LR reservation 也保存在 D-cache，避免 LSU 预判 SC 与辅助写之间的
 
 ## 当前直接证据与边界
 
-测试源在 `../../../testbench/rebuild/`，日志在 `../../../build/rebuild/lsu/`：
+测试源现位于 [testbench/chengyue64/modules/](../../../testbench/chengyue64/modules/)，下表所述既有日志位于 `../../../build/rebuild/lsu/`：
 
 | 测试 | 可观察结果 |
 | --- | --- |
@@ -390,7 +390,7 @@ descriptor 捕获之前仍使用保守源保护，因此 commit/query capture �
 提交后保留125拍变为0拍，同拍capture用例130拍变为1拍；多源/部分转发仍保留必要引用。
 这些是受控背压下的槽位收益，未测整核CPI或本补丁STA。
 
-make -C npc/rv64/testbench/rebuild lsu-query-pin-matrix 运行无匹配、未访问字节、
+make -C npc/rv64/testbench/chengyue64 lsu-query-pin-matrix 运行无匹配、未访问字节、
 被覆盖源、必要源、多源及commit/capture六种模式。测试还在query停留时复用释放槽和ROB代际，
 并检查最终load数据。详细A/B保存在 tmp/rv64-lsu-query-pin-opt-20260907/REPORT.md。
 descriptor 的 older 位图在每次 source slot 新 allocation 时清除相应位，防止旧

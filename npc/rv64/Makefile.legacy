@@ -47,7 +47,8 @@ VERILATOR_BUILD_JOBS ?= $(if $(filter 1,$(VERILATOR_THREADS)),1,$(VERILATOR_THRE
 VSRCDIR := $(abspath ./vsrc)
 include $(VSRCDIR)/filelist.legacy.mk
 
-INC_PATH += $(abspath ./csrc/include)
+LEGACY_SIM_DIR := $(NPC_HOME)/legacy/sim
+INC_PATH += $(LEGACY_SIM_DIR)/include
 
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
 	# difftest 只在配置打开时编进二进制；性能配置关闭后不再链接 dlopen 路径，也不进入提交热路径检查。
@@ -138,8 +139,8 @@ endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
-CSRCS_ALL = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
-DIFFTEST_CSRC := $(abspath ./csrc/cpu/difftest.cpp)
+CSRCS_ALL = $(shell find $(LEGACY_SIM_DIR)/src $(LEGACY_SIM_DIR)/difftest \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
+DIFFTEST_CSRC := $(LEGACY_SIM_DIR)/difftest/difftest.cpp
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
 CSRCS = $(CSRCS_ALL)
 else

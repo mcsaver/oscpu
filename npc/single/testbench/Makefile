@@ -3,7 +3,7 @@ VSRCDIR := $(NPC_SINGLE_HOME)/vsrc
 include $(VSRCDIR)/filelist.mk
 BUILD_DIR ?= build
 RESULT_TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
-RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/module-testbench
+RESULT_DIR ?= $(BUILD_DIR)/results/$(RESULT_TIMESTAMP)/module-testbench
 LOG_DIR := $(RESULT_DIR)/logs
 PIPE_RESULT_DIR ?= ../perf/results/$(RESULT_TIMESTAMP)/pipe-test
 PIPE_LOG_DIR := $(PIPE_RESULT_DIR)/logs

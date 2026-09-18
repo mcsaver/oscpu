@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # 三侧设备地址图一致性门禁
 #   AM   : abstract-machine/am/include/device_address.h      (DEV_*_BASE, SoC 分支)
-#   NEMU : nemu/include/device/device_address.h              (DEV_*_MMIO, SoC 分支)
-#   NPC  : npc/rv64/csrc/include/device_address.h            (NPC_*)
+#   NEMU : nemu/include/device/device_address.h              (DEV_* 别名)
+#        + nemu/include/platform/generic-map.h               (generic/legacy 数值)
+#   NPC  : npc/rv64/legacy/sim/include/device_address.h            (NPC_*)
 #        + npc/rv64/vsrc/include/define.v                    (DPI/syscon RTL 窗口)
 # difftest 要求三方设备地址逐一相等;RV32 legacy(0xa0000000)分支不在校验范围。
 set -euo pipefail
@@ -10,7 +11,8 @@ set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 AM=$ROOT/abstract-machine/am/include/device_address.h
 NEMU=$ROOT/nemu/include/device/device_address.h
-NPC=$ROOT/npc/rv64/csrc/include/device_address.h
+NEMU_MAP=$ROOT/nemu/include/platform/generic-map.h
+NPC=$ROOT/npc/rv64/legacy/sim/include/device_address.h
 DEFV=$ROOT/npc/rv64/vsrc/include/define.v
 
 fail=0
@@ -20,6 +22,19 @@ err()  { echo "[devmap] MISMATCH: $*" >&2; fail=1; }
 # 取某文件中某宏的 SoC 分支值(过滤掉 legacy 0xa... 家族)
 soc_val() { grep -oE "$2[[:space:]]+0x[0-9a-fA-F]+" "$1" | grep -oE '0x[0-9a-fA-F]+' | grep -viE '^0xa' | head -1; }
 legacy_val() { grep -oE "$2[[:space:]]+0x[0-9a-fA-F]+" "$1" | grep -oE '0x[0-9a-fA-F]+' | grep -iE '^0xa' | head -1; }
+# DEV_* now aliases the generic platform's numeric ABI. Follow the actual alias
+# so an incorrect mapping still fails the same address comparisons below.
+nemu_macro() {
+  local symbol
+  symbol=$(awk -v name="$1" '$1 == "#define" && $2 == name { print $3 }' "$NEMU")
+  [[ "$symbol" =~ ^NEMU_GENERIC_[A-Z0-9_]+$ ]] || {
+    echo "[devmap] invalid or missing NEMU alias: $1" >&2
+    return 1
+  }
+  printf '%s\n' "$symbol"
+}
+nemu_soc_val() { local symbol; symbol=$(nemu_macro "$1") || return; soc_val "$NEMU_MAP" "$symbol"; }
+nemu_legacy_val() { local symbol; symbol=$(nemu_macro "$1") || return; legacy_val "$NEMU_MAP" "$symbol"; }
 # NPC define.v 里的 64'hxxxx_xxxx_xxxx_xxxx -> 0x...
 defv_val() { grep -E "define[[:space:]]+$2" "$1" | grep -oE "64'h[0-9a-fA-F_]+" | tr -d "_" | sed "s/64'h0*/0x/;s/0x$/0x0/" | head -1; }
 
@@ -39,11 +54,11 @@ am_rtc=$(soc_val "$AM" DEV_RTC_BASE); am_kbd=$(soc_val "$AM" DEV_KBD_BASE); am_v
 am_audio=$(soc_val "$AM" DEV_AUDIO_BASE); am_audio_legacy=$(legacy_val "$AM" DEV_AUDIO_BASE)
 am_fb=$(soc_val "$AM" DEV_FB_BASE); am_disk=$(soc_val "$AM" DEV_DISK_BASE)
 
-ne_serial=$(soc_val "$NEMU" DEV_SERIAL_MMIO); ne_clint=$(soc_val "$NEMU" DEV_CLINT_MMIO); ne_plic=$(soc_val "$NEMU" DEV_PLIC_MMIO)
-ne_syscon=$(soc_val "$NEMU" DEV_SYSCON_RESET_MMIO)
-ne_rtc=$(soc_val "$NEMU" DEV_RTC_MMIO); ne_kbd=$(soc_val "$NEMU" DEV_KBD_MMIO); ne_vga=$(soc_val "$NEMU" DEV_VGA_CTL_MMIO)
-ne_audio=$(soc_val "$NEMU" DEV_AUDIO_CTL_MMIO); ne_audio_legacy=$(legacy_val "$NEMU" DEV_AUDIO_CTL_MMIO)
-ne_fb=$(soc_val "$NEMU" DEV_FB_ADDR); ne_disk=$(soc_val "$NEMU" DEV_DISK_MMIO)
+ne_serial=$(nemu_soc_val DEV_SERIAL_MMIO); ne_clint=$(nemu_soc_val DEV_CLINT_MMIO); ne_plic=$(nemu_soc_val DEV_PLIC_MMIO)
+ne_syscon=$(nemu_soc_val DEV_SYSCON_RESET_MMIO)
+ne_rtc=$(nemu_soc_val DEV_RTC_MMIO); ne_kbd=$(nemu_soc_val DEV_KBD_MMIO); ne_vga=$(nemu_soc_val DEV_VGA_CTL_MMIO)
+ne_audio=$(nemu_soc_val DEV_AUDIO_CTL_MMIO); ne_audio_legacy=$(nemu_legacy_val DEV_AUDIO_CTL_MMIO)
+ne_fb=$(nemu_soc_val DEV_FB_ADDR); ne_disk=$(nemu_soc_val DEV_DISK_MMIO)
 
 # NPC: UART/CLINT/PLIC 直接给, 简易设备 = NPC_DEVICE_BASE + 偏移
 np_uart=$(grep -oE 'NPC_UART_BASE[[:space:]]+UINT64_C\(0x[0-9a-fA-F]+' "$NPC" | grep -oE '0x[0-9a-fA-F]+')

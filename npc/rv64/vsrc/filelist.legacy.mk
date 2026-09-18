@@ -17,7 +17,7 @@ RTL_REGREAD_BYPASS_DIR := $(VSRCDIR)/regread_bypass
 RTL_CONTROL_DIR := $(VSRCDIR)/control
 RTL_BUS_DIR := $(VSRCDIR)/bus
 RTL_WRITEBACK_DIR := $(VSRCDIR)/writeback
-RTL_SIM_DIR := $(VSRCDIR)/sim
+RTL_SIM_DIR := $(abspath $(VSRCDIR)/../sim/vsrc)
 RTL_DEBUG_DIR := $(VSRCDIR)/debug
 # SRAM 宏行为模型独立目录：仿真真源；NpcTop 综合时按模块名进 SYNTH_BLACKBOX_MODULES。
 RTL_SRAM_DIR := $(VSRCDIR)/sram

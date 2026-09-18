@@ -160,7 +160,7 @@ class OwnerBResponseCandidateAnalysisTests(unittest.TestCase):
 
     def test_early_target_bvalid_is_rejected(self) -> None:
         texts = self.source_texts()
-        path = "npc/rv64/vsrc/sim/AxiDpiSlave.sv"
+        path = "npc/rv64/sim/vsrc/AxiDpiSlave.sv"
         texts[path] = texts[path].replace(
             "if (write_complete_w) begin", "if (aw_valid_q) begin", 1)
         with self.assertRaisesRegex(

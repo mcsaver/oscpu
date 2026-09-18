@@ -502,7 +502,7 @@ e2e_guard_profiles_for_path() {
   esac
 
   case "$path" in
-    *difftest*|npc/rv64/csrc/cpu/difftest*|nemu/src/isa/riscv64/difftest*)
+    *difftest*|npc/rv64/legacy/sim/difftest/*|nemu/src/isa/riscv64/difftest*)
       e2e_guard_add_profile "difftest" "$path"
       return 0
       ;;

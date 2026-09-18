@@ -294,7 +294,8 @@ bounded_log() {
 
 production_manifest() {
   # filelist.mk 由后面的显式输入统一收录，避免目录枚举与固定清单产生重复身份。
-  find "${repo_root}/npc/rv64/vsrc" "${repo_root}/npc/rv64/csrc" \
+  find "${repo_root}/npc/rv64/vsrc" "${repo_root}/npc/rv64/legacy/sim" \
+    "${repo_root}/npc/rv64/sim/vsrc" \
     -type f \( -name '*.v' -o -name '*.sv' -o -name '*.vh' -o \
       -name '*.svh' -o -name '*.cpp' -o -name '*.cc' -o -name '*.c' -o \
       -name '*.h' -o -name '*.hpp' -o -name '*.mk' \) \

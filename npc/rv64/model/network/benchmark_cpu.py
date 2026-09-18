@@ -45,7 +45,7 @@ def main():
             directory=Path(name)
             for case in args.cases.split(","):
                 program=directory/(case+".bin")
-                image(ROOT/f"npc/rv64/testbench/chengyue64/r64_core_{case}.S",program)
+                image(ROOT/f"npc/rv64/testbench/chengyue64/programs/r64_core_{case}.S",program)
                 records={"rtl":[],"model":[]}
                 for sample in range(args.samples):
                     engines=[("rtl",args.rtl),("model",args.model)]

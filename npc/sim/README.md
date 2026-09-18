@@ -1,4 +1,4 @@
-# NPC 仿真顶层
+# NPC 后端选择入口
 
 `npc/sim` 是平台无关的仿真入口，职责类似 AM 的 `scripts/platform/*.mk` 分层：外部模块只和这一层交互，这一层再选择真实后端。
 
@@ -6,6 +6,11 @@
 
 - `single`: 默认后端，运行未接入 ysyxSoCFull 的 `NpcSimTop` 自仿真版本。
 - `soc`: ysyxSoC 接入复制版，同时也保留普通 `NpcSimTop` 后端用于 AM 镜像 smoke。
+- `rv64`: [承岳64](../rv64/README.md) RV64 主线。
+
+本目录的 `sim` 表示统一命令入口。实际时钟驱动、设备模拟和 RTL 仿真封装分别在
+[single/sim](../single/sim/README.md)、[soc/sim](../soc/sim/README.md)、
+[rv64/sim](../rv64/sim/README.md)；DiffTest 和具体测试用例由各后端独立管理。
 
 常用命令：
 

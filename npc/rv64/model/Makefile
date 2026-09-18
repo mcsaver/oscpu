@@ -7,7 +7,7 @@ $(BUILD):
 	mkdir -p $@
 $(BUILD)/r64-model: src/model.cpp src/trace.hpp src/decode.hpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ src/model.cpp
-$(BUILD)/trace-nemu: src/trace_nemu.cpp src/trace.hpp src/decode.hpp ../testbench/chengyue64/r64_image.h | $(BUILD)
+$(BUILD)/trace-nemu: src/trace_nemu.cpp src/trace.hpp src/decode.hpp ../sim/include/r64_image.h | $(BUILD)
 	$(CXX) $(CXXFLAGS) -o $@ src/trace_nemu.cpp -ldl -Wl,--no-as-needed -lreadline
 test: all $(BUILD)/test-decode
 	$(BUILD)/test-decode

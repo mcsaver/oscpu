@@ -1,4 +1,9 @@
-# NPC RV64 评估系统（eval/）
+# 旧 RV64 核评估系统（eval/）
+
+> 适用范围：下文保留旧 `NpcTop/Ooo*` 核的评估流程、配置与历史结果，
+> 不是承岳64当前默认入口。承岳64的回归见[验证文档](../testbench/chengyue64/README.md)，
+> CSR 对拍见 [DiffTest](../difftest/README.md)，ASIC 时序见
+> [综合与 STA](../syn/README.md)。旧指标和流程中的“当前”仅指各自记录时点。
 
 本目录是 RV64 OoO 核的**统一评估入口**。每轮优化/重构迭代后，用它做"深度再评估"，
 产出可对比、可追溯的报告，作为下一步决策依据。

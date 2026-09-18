@@ -273,7 +273,7 @@ class FunctionalFixture:
             ("npc/rv64/Kconfig", "mainmenu \"fixture\"\n"),
             ("npc/rv64/.config", "CONFIG_NPC_DIFFTEST=y\n"),
             ("npc/rv64/configs/default_defconfig", "CONFIG_NPC_DIFFTEST=y\n"),
-            ("npc/rv64/csrc/main.cpp", "int main() { return 0; }\n"),
+            ("npc/rv64/legacy/sim/src/main.cpp", "int main() { return 0; }\n"),
             ("am-kernels/tests/cpu-tests/Makefile", "all:\n\t@true\n"),
             ("am-kernels/tests/cpu-tests/scripts/check_results.py", "pass\n"),
             ("abstract-machine/Makefile", "all:\n\t@true\n"),

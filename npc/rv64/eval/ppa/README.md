@@ -1,5 +1,11 @@
 # NPC RV64 PPA promotion contract
 
+> 适用范围：下文保留旧 `NpcTop/Ooo*` 核的 promotion 合同、registry 和证据工作流。
+> 文中的 current/canonical 指对应旧核配置，不代表承岳64的默认工程入口。
+> 当前主线的综合与时序见 [syn/README.md](../../syn/README.md)，
+> 验证见 [testbench/chengyue64](../../testbench/chengyue64/README.md)。
+> 旧核的冻结资格、测试计数和 PPA 结果不能转作承岳64的验证结论。
+
 This directory is the canonical, fail-closed promotion interface for the RV64
 dual-issue out-of-order core. Functional, architectural, evidence, and timing
 gates are evaluated before any balanced score. A score can never compensate

@@ -116,7 +116,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         lists = {
             "core": {"npc/rv64/vsrc/control/NewProduct.v"},
             "header": set(),
-            "sim": {"npc/rv64/vsrc/sim/NewModel.sv"},
+            "sim": {"npc/rv64/sim/vsrc/NewModel.sv"},
         }
         development_errors = registry.file_registration_errors(
             "npc/rv64/vsrc/control/NewProduct.v",
@@ -132,7 +132,7 @@ class ArchitectureRegistryTests(unittest.TestCase):
         self.assertEqual(
             "unclassified",
             registry.role_for(
-                "npc/rv64/vsrc/sim/NewModel.sv",
+                "npc/rv64/sim/vsrc/NewModel.sv",
                 lists,
                 self.catalog,
             ),

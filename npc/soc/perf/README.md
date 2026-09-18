@@ -1,4 +1,6 @@
-# NPC 仿真性能分析与优化
+# NPC SoC 仿真性能分析与优化
+
+当前后端脚本位于 `scripts/`，使用本目录的 SoC 构建入口。以下优化记录来自早期 Single 副本，保留原始后端与结果路径；当前模块测试方法见 [`../testbench/README.md`](../testbench/README.md)。
 
 ## 目录结构
 
@@ -22,7 +24,7 @@ perf/
 | gprof (-pg) | 编译插桩，函数级耗时 | 约 5% 开销 |
 | callgrind | 指令级精确计数 | 20-40x 慢，短程序 |
 | Verilator -O3 | RTL 转 C++ 优化等级 | 构建时间增加 |
-| Icarus Verilog | 模块级 RTL 自检 | 由 `npc/single/testbench` 驱动，结果归档到 `results/<timestamp>/module-testbench/` |
+| Icarus Verilog | 模块级 RTL 自检 | 由 `npc/single/testbench` 驱动，新结果写入 `../testbench/build/results/<timestamp>/module-testbench/`；历史记录留在 `results/` |
 | pipe_test | 流水线级气泡提取 | 由 `npc/single/testbench` 驱动，结果归档到 `results/<timestamp>/pipe-test/` |
 
 ## 模块级自检结果
@@ -33,7 +35,7 @@ perf/
 make -C npc/single/testbench run
 ```
 
-最新一次归档：
+早期归档记录（不代表当前验证状态）：
 
 - `results/20260520-114215/module-testbench/summary.txt`
 - 结果：21/21 PASS

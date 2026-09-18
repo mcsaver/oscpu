@@ -32,8 +32,8 @@ export TMP="${COMPILER_TMP_DIR}"
 export TEMP="${COMPILER_TMP_DIR}"
 unset MAKEFLAGS MFLAGS
 read -r -a NPC_RTL_SRCS <<< "$(make -s -C "${NPC_RV64_DIR}" print-synth-rtl)"
-NPC_RTL_SRCS+=("${NPC_RV64_DIR}/vsrc/sim/AxiDpiSlave.sv"
-               "${NPC_RV64_DIR}/vsrc/sim/R64NpuCpuSim.sv")
+NPC_RTL_SRCS+=("${NPC_RV64_DIR}/sim/vsrc/AxiDpiSlave.sv"
+               "${NPC_RV64_DIR}/sim/vsrc/R64NpuCpuSim.sv")
 NPU_RTL_SRCS=(
   "${NPU_ROOT}/third_party/hardfloat/source/RISCV/HardFloat_specialize.v"
   "${NPU_ROOT}/third_party/hardfloat/source/HardFloat_primitives.v"

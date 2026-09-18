@@ -369,7 +369,7 @@ def build(
         "npc/rv64/vsrc/core/OooCoreTopGlue.v",
         "npc/rv64/vsrc/memory/OooMemInflightQueue.v",
         "npc/rv64/vsrc/memory/OooMemAxiBridge.v",
-        "npc/rv64/vsrc/sim/NpcSimTop.sv",
+        "npc/rv64/sim/vsrc/NpcSimTop.sv",
         "npc/rv64/testbench/tests/tb_ooo_priv_system.sv",
         "npc/rv64/testbench/tests/tb_ooo_pending_drain_resolve_gate.sv",
         "npc/rv64/testbench/common/tb_common.svh",

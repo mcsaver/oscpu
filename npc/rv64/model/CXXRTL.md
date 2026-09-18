@@ -65,7 +65,7 @@ compare_runs.py 对自然结束、全部功能记录、每条绝对退休周期�
 - 原有跨层 CSR 观察和 ROB/LSU/RegRead 检查通过附加观察输出连接。
   这些输出不进入被测设计的数据输入，也不修改断言条件。
 - 去除 testbench 可选的文本调试及占用统计打印；退休记录和功能检查来自原有
-  r64_core_test.cpp。NEMU 的 GPR/FPR/CSR、UART 和设备检查继续执行。
+  sim/src/r64_sim_main.cpp 与 difftest/src/r64_difftest.cpp。NEMU 的 GPR/FPR/CSR、UART 和设备检查继续执行。
 - CXXRTL 每个寄存器提交后继续计算组合逻辑直至稳定，避免主机在上升沿后读到旧 CSR。
 - 驱动入口不提供自定义 performer 回调。生成代码显式拒绝非空回调，并将对应不可达分支
   专门化；原始 RTL 检查和 CXXRTL_ASSERT 全部保留。

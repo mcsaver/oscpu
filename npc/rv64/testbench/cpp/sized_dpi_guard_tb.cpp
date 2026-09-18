@@ -16,7 +16,7 @@
 
 // 直接编译真实 paddr 实现，并在同一 translation unit 内把它的私有 PMEM
 // 指针绑定到 guard page；不复制 host_read_sized，避免测试与实现同盲区。
-#include "../../csrc/memory/paddr.c"
+#include "../../legacy/sim/src/memory/paddr.c"
 
 // paddr.c 的越界 fallback 会引用这些平台服务；边界测试不建 MMIO/trace，
 // 用明确的 test-only stub 保持被测对象只聚焦真实 PMEM + sized DPI 路径。

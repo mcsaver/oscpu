@@ -341,8 +341,8 @@ execute_process(
     COMMAND_ERROR_IS_FATAL ANY)
 string(REGEX REPLACE "[ \t\r\n]+" ";" NPU_NPC_RTL_SOURCES "${NPU_NATIVE_SOURCE_TEXT}")
 list(APPEND NPU_NPC_RTL_SOURCES
-    "${NPU_NPC_RTL_ROOT}/sim/AxiDpiSlave.sv"
-    "${NPU_NPC_RTL_ROOT}/sim/R64NpuCpuSim.sv")
+    "${NPU_WORKBENCH_ROOT}/npc/rv64/sim/vsrc/AxiDpiSlave.sv"
+    "${NPU_WORKBENCH_ROOT}/npc/rv64/sim/vsrc/R64NpuCpuSim.sv")
 file(GLOB NPU_SYSTEM_INCLUDE_DEPENDENCIES CONFIGURE_DEPENDS
     "${NPU_NPC_RTL_ROOT}/chengyue64/backend/*.vh"
     "${NPU_NPC_RTL_ROOT}/chengyue64/platform/*.vh")

@@ -44,8 +44,10 @@ NPC_OOO_ALU_EXPERIMENT ?= 0
 
 VSRCDIR := $(abspath ./vsrc)
 include $(VSRCDIR)/filelist.mk
+include $(NPC_HOME)/sim/filelist.mk
+include $(NPC_HOME)/difftest/filelist.mk
 
-INC_PATH += $(abspath ./csrc/include)
+INC_PATH += $(SIM_HOME)/include $(DIFFTEST_HOME)/include
 
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
 	# difftest 只在配置打开时编进二进制；性能配置关闭后不再链接 dlopen 路径，也不进入提交热路径检查。
@@ -123,12 +125,10 @@ endif
 
 $(shell mkdir -p $(BUILD_DIR))
 
-CSRCS_ALL = $(shell find $(abspath ./csrc) \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" \))
-DIFFTEST_CSRC := $(abspath ./csrc/cpu/difftest.cpp)
+# 宿主和 DiffTest 分别维护源清单；SoC 独立入口仍单独链接。
+CSRCS = $(SIM_HOST_SRCS)
 ifeq ($(CONFIG_NPC_DIFFTEST),y)
-CSRCS = $(CSRCS_ALL)
-else
-CSRCS = $(filter-out $(DIFFTEST_CSRC),$(CSRCS_ALL))
+CSRCS += $(DIFFTEST_CSRC)
 endif
 
 # 这组变量把“纯 RTL 核心的网表综合/STA”和 Verilator 仿真壳分开管理；以后直接 make syn/make sta 即可，不必再回 yosys-sta 目录拼长命令。
@@ -160,7 +160,7 @@ $(CAPSTONE_LIB):
 	$(MAKE) -C $(CAPSTONE_HOME)
 
 # Kconfig 输出会改变 CFLAGS 和条件编译；列入依赖后，切换配置不会继续沿用旧 NpcSimTop。
-$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(CONFIG_OUTPUTS)
+$(BIN): $(VSRCS) $(RTL_HEADER_SRCS) $(CSRCS) $(SIM_HEADER_SRCS) $(DIFFTEST_HEADER_SRCS) $(CONFIG_OUTPUTS) $(MAKEFILE_LIST)
 	@rm -rf $(OBJ_DIR)
 	$(VERILATOR) $(VERILATOR_FLAGS) \
 		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) \

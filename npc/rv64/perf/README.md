@@ -1,4 +1,9 @@
-# NPC 仿真性能分析与优化
+# NPC 历史仿真性能分析与优化
+
+> 本页保留早期 `npc/single` 及旧 NPC 仿真器的性能记录，命令和周期数不代表承岳64。
+> 当前 RV64 的运行与吞吐检查见[验证入口](../testbench/chengyue64/README.md)，
+> 版本测量见[发布说明](../releases/chengyue64-v1.0.0/README.md)，
+> 性能模型见[模型入口](../model/README.md)。`results/` 中的旧测量保留原版本范围。
 
 ## 目录结构
 
