@@ -1,0 +1,2839 @@
+{
+  "status": "pass",
+  "scope": "connected production LSU terminal slice; one instance, one dispatch per run",
+  "whole_cpu_executed": false,
+  "stimulus": "external ingress queue inputs only; credit, grants, completion and priority feedback stay on GPU",
+  "tests": [
+    {
+      "name": "terminal0",
+      "parameters": {
+        "TAG_W": 9,
+        "ROB_W": 5,
+        "PREPARED_CANCEL": 0
+      },
+      "instances": {
+        "raw": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 152,
+            "TAG_W": 9,
+            "ROB_W": 5,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 0
+          }
+        },
+        "fault": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 70,
+            "TAG_W": 9,
+            "ROB_W": 5,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 0
+          }
+        },
+        "forward": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 77,
+            "TAG_W": 9,
+            "ROB_W": 5,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 0
+          }
+        },
+        "select": {
+          "model": "R64LsuOrderSelect",
+          "parameters": {
+            "N": 6,
+            "SLOT_W": 3
+          }
+        },
+        "events": {
+          "model": "R64LsuEventController",
+          "parameters": {}
+        },
+        "completion": {
+          "model": "R64LsuCompletion",
+          "parameters": {
+            "TAG_W": 9,
+            "ROB_W": 5
+          }
+        },
+        "format": {
+          "model": "R64LsuResultFormat",
+          "parameters": {}
+        }
+      },
+      "state_fields": 69,
+      "edges": 1200,
+      "rtl_observations": 2400,
+      "differences": 0,
+      "coverage": {
+        "six_sources": 518,
+        "dual_capture": 401,
+        "backpressure": 229,
+        "same_edge_push_pop": 273,
+        "kill_resident": 154,
+        "flush_resident": 21,
+        "priority_wrap": 165,
+        "skid_shift": 402
+      },
+      "compile_seconds": 0.37372235700604506,
+      "generation_and_compile_seconds": 0.4968973249779083,
+      "execution": {
+        "model": "R64LsuTerminal",
+        "backend": "materialized-dataflow-simd",
+        "lanes": 256,
+        "wave_size": 8,
+        "input_words": 33,
+        "state_words": 117,
+        "observation_words": 138,
+        "shared_bytes": 772,
+        "materialized_words": 75,
+        "comb_frontiers": 3,
+        "stages": [
+          {
+            "kind": "comb",
+            "word_or_check_rules": 31,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 3,
+                "parameters": 7,
+                "first_lane": 16
+              },
+              {
+                "tasks": 6,
+                "parameters": 7,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 8,
+                "parameters": 3,
+                "first_lane": 40
+              },
+              {
+                "tasks": 3,
+                "parameters": 9,
+                "first_lane": 48
+              },
+              {
+                "tasks": 3,
+                "parameters": 6,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 2,
+                "parameters": 10,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 9,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 33,
+            "scheduled_lanes": 120,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 16
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 24
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 32
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 40
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 48
+              },
+              {
+                "tasks": 10,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 3,
+                "first_lane": 80
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 88
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 96
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 104
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 112
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 11,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 16
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 40
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 48
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 72
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "state",
+            "word_or_check_rules": 137,
+            "scheduled_lanes": 248,
+            "families": [
+              {
+                "tasks": 6,
+                "parameters": 10,
+                "first_lane": 0
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 8
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 16
+              },
+              {
+                "tasks": 12,
+                "parameters": 8,
+                "first_lane": 32
+              },
+              {
+                "tasks": 16,
+                "parameters": 5,
+                "first_lane": 48
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 64
+              },
+              {
+                "tasks": 10,
+                "parameters": 8,
+                "first_lane": 80
+              },
+              {
+                "tasks": 16,
+                "parameters": 8,
+                "first_lane": 96
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 112
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 120
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 128
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 136
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 144
+              },
+              {
+                "tasks": 4,
+                "parameters": 9,
+                "first_lane": 152
+              },
+              {
+                "tasks": 8,
+                "parameters": 7,
+                "first_lane": 160
+              },
+              {
+                "tasks": 4,
+                "parameters": 8,
+                "first_lane": 168
+              },
+              {
+                "tasks": 8,
+                "parameters": 6,
+                "first_lane": 176
+              },
+              {
+                "tasks": 6,
+                "parameters": 16,
+                "first_lane": 184
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 192
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 200
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 208
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 216
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 224
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 232
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 240
+              }
+            ]
+          }
+        ],
+        "descriptor_words": 6960,
+        "barriers_per_edge_without_trace": 5,
+        "independent_simulation_instances": 1,
+        "host_dispatches_per_run": 1,
+        "block_sources": [
+          {
+            "name": "raw__bind_rst_i",
+            "source": "connection:raw.rst_i"
+          },
+          {
+            "name": "raw__bind_flush_i",
+            "source": "connection:raw.flush_i"
+          },
+          {
+            "name": "raw__bind_kill_mask_i",
+            "source": "connection:raw.kill_mask_i"
+          },
+          {
+            "name": "raw__bind_cancel_candidates_i",
+            "source": "connection:raw.cancel_candidates_i"
+          },
+          {
+            "name": "raw__bind_cancel_active_i",
+            "source": "connection:raw.cancel_active_i"
+          },
+          {
+            "name": "raw__bind_in_fire_i",
+            "source": "connection:raw.in_fire_i"
+          },
+          {
+            "name": "raw__bind_in_tag_i",
+            "source": "connection:raw.in_tag_i"
+          },
+          {
+            "name": "raw__bind_in_data_i",
+            "source": "connection:raw.in_data_i"
+          },
+          {
+            "name": "raw__bind_in_age_i",
+            "source": "connection:raw.in_age_i"
+          },
+          {
+            "name": "raw__bind_age_clear_i",
+            "source": "connection:raw.age_clear_i"
+          },
+          {
+            "name": "raw__bind_out_ready_i",
+            "source": "connection:raw.out_ready_i"
+          },
+          {
+            "name": "raw__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "raw__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "raw__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "raw__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "raw__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "fault__bind_rst_i",
+            "source": "connection:fault.rst_i"
+          },
+          {
+            "name": "fault__bind_flush_i",
+            "source": "connection:fault.flush_i"
+          },
+          {
+            "name": "fault__bind_kill_mask_i",
+            "source": "connection:fault.kill_mask_i"
+          },
+          {
+            "name": "fault__bind_cancel_candidates_i",
+            "source": "connection:fault.cancel_candidates_i"
+          },
+          {
+            "name": "fault__bind_cancel_active_i",
+            "source": "connection:fault.cancel_active_i"
+          },
+          {
+            "name": "fault__bind_in_fire_i",
+            "source": "connection:fault.in_fire_i"
+          },
+          {
+            "name": "fault__bind_in_tag_i",
+            "source": "connection:fault.in_tag_i"
+          },
+          {
+            "name": "fault__bind_in_data_i",
+            "source": "connection:fault.in_data_i"
+          },
+          {
+            "name": "fault__bind_in_age_i",
+            "source": "connection:fault.in_age_i"
+          },
+          {
+            "name": "fault__bind_age_clear_i",
+            "source": "connection:fault.age_clear_i"
+          },
+          {
+            "name": "fault__bind_out_ready_i",
+            "source": "connection:fault.out_ready_i"
+          },
+          {
+            "name": "fault__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "fault__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "fault__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "fault__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "fault__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "forward__bind_rst_i",
+            "source": "connection:forward.rst_i"
+          },
+          {
+            "name": "forward__bind_flush_i",
+            "source": "connection:forward.flush_i"
+          },
+          {
+            "name": "forward__bind_kill_mask_i",
+            "source": "connection:forward.kill_mask_i"
+          },
+          {
+            "name": "forward__bind_cancel_candidates_i",
+            "source": "connection:forward.cancel_candidates_i"
+          },
+          {
+            "name": "forward__bind_cancel_active_i",
+            "source": "connection:forward.cancel_active_i"
+          },
+          {
+            "name": "forward__bind_in_fire_i",
+            "source": "connection:forward.in_fire_i"
+          },
+          {
+            "name": "forward__bind_in_tag_i",
+            "source": "connection:forward.in_tag_i"
+          },
+          {
+            "name": "forward__bind_in_data_i",
+            "source": "connection:forward.in_data_i"
+          },
+          {
+            "name": "forward__bind_in_age_i",
+            "source": "connection:forward.in_age_i"
+          },
+          {
+            "name": "forward__bind_age_clear_i",
+            "source": "connection:forward.age_clear_i"
+          },
+          {
+            "name": "forward__bind_out_ready_i",
+            "source": "connection:forward.out_ready_i"
+          },
+          {
+            "name": "forward__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "forward__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "forward__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "forward__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "forward__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "select__bind_valid_i",
+            "source": "connection:select.valid_i"
+          },
+          {
+            "name": "select__bind_older_i",
+            "source": "connection:select.older_i"
+          },
+          {
+            "name": "select__select",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuOrderSelect.v:12"
+          },
+          {
+            "name": "events__bind_rst_i",
+            "source": "connection:events.rst_i"
+          },
+          {
+            "name": "events__bind_valid_i",
+            "source": "connection:events.valid_i"
+          },
+          {
+            "name": "events__bind_first_i",
+            "source": "connection:events.first_i"
+          },
+          {
+            "name": "events__bind_second_i",
+            "source": "connection:events.second_i"
+          },
+          {
+            "name": "events__bind_credit_i",
+            "source": "connection:events.credit_i"
+          },
+          {
+            "name": "events__bind_tags_i",
+            "source": "connection:events.tags_i"
+          },
+          {
+            "name": "events__bind_results_i",
+            "source": "connection:events.results_i"
+          },
+          {
+            "name": "events__order",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1095"
+          },
+          {
+            "name": "events__arbitrate",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1082"
+          },
+          {
+            "name": "events__payload",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1117"
+          },
+          {
+            "name": "events__priority",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1092"
+          },
+          {
+            "name": "events__count_check",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1461"
+          },
+          {
+            "name": "completion__bind_rst_i",
+            "source": "connection:completion.rst_i"
+          },
+          {
+            "name": "completion__bind_flush_i",
+            "source": "connection:completion.flush_i"
+          },
+          {
+            "name": "completion__bind_kill_mask_i",
+            "source": "connection:completion.kill_mask_i"
+          },
+          {
+            "name": "completion__bind_in_fire_i",
+            "source": "connection:completion.in_fire_i"
+          },
+          {
+            "name": "completion__bind_in_tag_i",
+            "source": "connection:completion.in_tag_i"
+          },
+          {
+            "name": "completion__bind_in_result_i",
+            "source": "connection:completion.in_result_i"
+          },
+          {
+            "name": "completion__bind_out_ready_i",
+            "source": "connection:completion.out_ready_i"
+          },
+          {
+            "name": "completion__credit",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:20"
+          },
+          {
+            "name": "completion__lane0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__lane1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:25"
+          },
+          {
+            "name": "completion__request",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:48"
+          },
+          {
+            "name": "completion__reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:31"
+          },
+          {
+            "name": "completion__turn",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:85"
+          },
+          {
+            "name": "completion__protocol",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:90"
+          },
+          {
+            "name": "format__bind_raw0_i",
+            "source": "connection:format.raw0_i"
+          },
+          {
+            "name": "format__bind_raw1_i",
+            "source": "connection:format.raw1_i"
+          },
+          {
+            "name": "format__bind_fault0_i",
+            "source": "connection:format.fault0_i"
+          },
+          {
+            "name": "format__bind_fault1_i",
+            "source": "connection:format.fault1_i"
+          },
+          {
+            "name": "format__bind_forward0_i",
+            "source": "connection:format.forward0_i"
+          },
+          {
+            "name": "format__bind_forward1_i",
+            "source": "connection:format.forward1_i"
+          },
+          {
+            "name": "format__result0_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result1_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result2_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result3_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result4_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result5_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          }
+        ]
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1200,
+        "trace": 1,
+        "gpu_ms": 11.7847,
+        "submit_wait_ms": 13.6497,
+        "process_ms": 368.762,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 798.6482029955368
+      },
+      "negative_credit": {
+        "failure_cycle": 3,
+        "gpu": {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 4,
+          "trace": 1,
+          "gpu_ms": 0.143177,
+          "submit_wait_ms": 1.3191,
+          "process_ms": 347.548,
+          "status": 1,
+          "failure_cycle": 3,
+          "failure_block": 43,
+          "failure_phase": 1,
+          "invocation_ms": 763.8078260060865
+        },
+        "whole_network_state_held": true,
+        "rtl_rejected": true
+      }
+    },
+    {
+      "name": "terminal1",
+      "parameters": {
+        "TAG_W": 12,
+        "ROB_W": 6,
+        "PREPARED_CANCEL": 1
+      },
+      "instances": {
+        "raw": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 152,
+            "TAG_W": 12,
+            "ROB_W": 6,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 1
+          }
+        },
+        "fault": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 70,
+            "TAG_W": 12,
+            "ROB_W": 6,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 1
+          }
+        },
+        "forward": {
+          "model": "R64LsuRequestQueue",
+          "parameters": {
+            "DATA_W": 77,
+            "TAG_W": 12,
+            "ROB_W": 6,
+            "AGE_W": 1,
+            "PREPARED_CANCEL": 1
+          }
+        },
+        "select": {
+          "model": "R64LsuOrderSelect",
+          "parameters": {
+            "N": 6,
+            "SLOT_W": 3
+          }
+        },
+        "events": {
+          "model": "R64LsuEventController",
+          "parameters": {}
+        },
+        "completion": {
+          "model": "R64LsuCompletion",
+          "parameters": {
+            "TAG_W": 12,
+            "ROB_W": 6
+          }
+        },
+        "format": {
+          "model": "R64LsuResultFormat",
+          "parameters": {}
+        }
+      },
+      "state_fields": 69,
+      "edges": 1200,
+      "rtl_observations": 2400,
+      "differences": 0,
+      "coverage": {
+        "six_sources": 494,
+        "dual_capture": 392,
+        "backpressure": 214,
+        "same_edge_push_pop": 276,
+        "kill_resident": 165,
+        "flush_resident": 19,
+        "priority_wrap": 153,
+        "skid_shift": 393
+      },
+      "compile_seconds": 0.38543809100519866,
+      "generation_and_compile_seconds": 0.49269610800547525,
+      "execution": {
+        "model": "R64LsuTerminal",
+        "backend": "materialized-dataflow-simd",
+        "lanes": 512,
+        "wave_size": 8,
+        "input_words": 35,
+        "state_words": 129,
+        "observation_words": 151,
+        "shared_bytes": 820,
+        "materialized_words": 75,
+        "comb_frontiers": 3,
+        "stages": [
+          {
+            "kind": "comb",
+            "word_or_check_rules": 31,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 3,
+                "parameters": 7,
+                "first_lane": 16
+              },
+              {
+                "tasks": 6,
+                "parameters": 7,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 8,
+                "parameters": 3,
+                "first_lane": 40
+              },
+              {
+                "tasks": 3,
+                "parameters": 9,
+                "first_lane": 48
+              },
+              {
+                "tasks": 3,
+                "parameters": 6,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 2,
+                "parameters": 10,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 9,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 33,
+            "scheduled_lanes": 120,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 16
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 24
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 32
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 40
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 48
+              },
+              {
+                "tasks": 10,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 3,
+                "first_lane": 80
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 88
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 96
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 104
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 112
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 11,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 16
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 40
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 48
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 72
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "state",
+            "word_or_check_rules": 152,
+            "scheduled_lanes": 264,
+            "families": [
+              {
+                "tasks": 6,
+                "parameters": 10,
+                "first_lane": 0
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 8
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 16
+              },
+              {
+                "tasks": 24,
+                "parameters": 9,
+                "first_lane": 32
+              },
+              {
+                "tasks": 16,
+                "parameters": 5,
+                "first_lane": 56
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 72
+              },
+              {
+                "tasks": 10,
+                "parameters": 8,
+                "first_lane": 88
+              },
+              {
+                "tasks": 16,
+                "parameters": 8,
+                "first_lane": 104
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 120
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 128
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 136
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 144
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 152
+              },
+              {
+                "tasks": 4,
+                "parameters": 6,
+                "first_lane": 160
+              },
+              {
+                "tasks": 8,
+                "parameters": 7,
+                "first_lane": 168
+              },
+              {
+                "tasks": 4,
+                "parameters": 5,
+                "first_lane": 176
+              },
+              {
+                "tasks": 8,
+                "parameters": 6,
+                "first_lane": 184
+              },
+              {
+                "tasks": 3,
+                "parameters": 0,
+                "first_lane": 192
+              },
+              {
+                "tasks": 6,
+                "parameters": 16,
+                "first_lane": 200
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 208
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 216
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 224
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 232
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 240
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 248
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 256
+              }
+            ]
+          }
+        ],
+        "descriptor_words": 7264,
+        "barriers_per_edge_without_trace": 5,
+        "independent_simulation_instances": 1,
+        "host_dispatches_per_run": 1,
+        "block_sources": [
+          {
+            "name": "raw__bind_rst_i",
+            "source": "connection:raw.rst_i"
+          },
+          {
+            "name": "raw__bind_flush_i",
+            "source": "connection:raw.flush_i"
+          },
+          {
+            "name": "raw__bind_kill_mask_i",
+            "source": "connection:raw.kill_mask_i"
+          },
+          {
+            "name": "raw__bind_cancel_candidates_i",
+            "source": "connection:raw.cancel_candidates_i"
+          },
+          {
+            "name": "raw__bind_cancel_active_i",
+            "source": "connection:raw.cancel_active_i"
+          },
+          {
+            "name": "raw__bind_in_fire_i",
+            "source": "connection:raw.in_fire_i"
+          },
+          {
+            "name": "raw__bind_in_tag_i",
+            "source": "connection:raw.in_tag_i"
+          },
+          {
+            "name": "raw__bind_in_data_i",
+            "source": "connection:raw.in_data_i"
+          },
+          {
+            "name": "raw__bind_in_age_i",
+            "source": "connection:raw.in_age_i"
+          },
+          {
+            "name": "raw__bind_age_clear_i",
+            "source": "connection:raw.age_clear_i"
+          },
+          {
+            "name": "raw__bind_out_ready_i",
+            "source": "connection:raw.out_ready_i"
+          },
+          {
+            "name": "raw__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "raw__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "raw__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "raw__g_cancel_contract",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:89"
+          },
+          {
+            "name": "raw__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "raw__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "fault__bind_rst_i",
+            "source": "connection:fault.rst_i"
+          },
+          {
+            "name": "fault__bind_flush_i",
+            "source": "connection:fault.flush_i"
+          },
+          {
+            "name": "fault__bind_kill_mask_i",
+            "source": "connection:fault.kill_mask_i"
+          },
+          {
+            "name": "fault__bind_cancel_candidates_i",
+            "source": "connection:fault.cancel_candidates_i"
+          },
+          {
+            "name": "fault__bind_cancel_active_i",
+            "source": "connection:fault.cancel_active_i"
+          },
+          {
+            "name": "fault__bind_in_fire_i",
+            "source": "connection:fault.in_fire_i"
+          },
+          {
+            "name": "fault__bind_in_tag_i",
+            "source": "connection:fault.in_tag_i"
+          },
+          {
+            "name": "fault__bind_in_data_i",
+            "source": "connection:fault.in_data_i"
+          },
+          {
+            "name": "fault__bind_in_age_i",
+            "source": "connection:fault.in_age_i"
+          },
+          {
+            "name": "fault__bind_age_clear_i",
+            "source": "connection:fault.age_clear_i"
+          },
+          {
+            "name": "fault__bind_out_ready_i",
+            "source": "connection:fault.out_ready_i"
+          },
+          {
+            "name": "fault__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "fault__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "fault__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "fault__g_cancel_contract",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:89"
+          },
+          {
+            "name": "fault__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "fault__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "forward__bind_rst_i",
+            "source": "connection:forward.rst_i"
+          },
+          {
+            "name": "forward__bind_flush_i",
+            "source": "connection:forward.flush_i"
+          },
+          {
+            "name": "forward__bind_kill_mask_i",
+            "source": "connection:forward.kill_mask_i"
+          },
+          {
+            "name": "forward__bind_cancel_candidates_i",
+            "source": "connection:forward.cancel_candidates_i"
+          },
+          {
+            "name": "forward__bind_cancel_active_i",
+            "source": "connection:forward.cancel_active_i"
+          },
+          {
+            "name": "forward__bind_in_fire_i",
+            "source": "connection:forward.in_fire_i"
+          },
+          {
+            "name": "forward__bind_in_tag_i",
+            "source": "connection:forward.in_tag_i"
+          },
+          {
+            "name": "forward__bind_in_data_i",
+            "source": "connection:forward.in_data_i"
+          },
+          {
+            "name": "forward__bind_in_age_i",
+            "source": "connection:forward.in_age_i"
+          },
+          {
+            "name": "forward__bind_age_clear_i",
+            "source": "connection:forward.age_clear_i"
+          },
+          {
+            "name": "forward__bind_out_ready_i",
+            "source": "connection:forward.out_ready_i"
+          },
+          {
+            "name": "forward__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "forward__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "forward__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "forward__g_cancel_contract",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:89"
+          },
+          {
+            "name": "forward__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "forward__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "select__bind_valid_i",
+            "source": "connection:select.valid_i"
+          },
+          {
+            "name": "select__bind_older_i",
+            "source": "connection:select.older_i"
+          },
+          {
+            "name": "select__select",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuOrderSelect.v:12"
+          },
+          {
+            "name": "events__bind_rst_i",
+            "source": "connection:events.rst_i"
+          },
+          {
+            "name": "events__bind_valid_i",
+            "source": "connection:events.valid_i"
+          },
+          {
+            "name": "events__bind_first_i",
+            "source": "connection:events.first_i"
+          },
+          {
+            "name": "events__bind_second_i",
+            "source": "connection:events.second_i"
+          },
+          {
+            "name": "events__bind_credit_i",
+            "source": "connection:events.credit_i"
+          },
+          {
+            "name": "events__bind_tags_i",
+            "source": "connection:events.tags_i"
+          },
+          {
+            "name": "events__bind_results_i",
+            "source": "connection:events.results_i"
+          },
+          {
+            "name": "events__order",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1095"
+          },
+          {
+            "name": "events__arbitrate",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1082"
+          },
+          {
+            "name": "events__payload",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1117"
+          },
+          {
+            "name": "events__priority",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1092"
+          },
+          {
+            "name": "events__count_check",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1461"
+          },
+          {
+            "name": "completion__bind_rst_i",
+            "source": "connection:completion.rst_i"
+          },
+          {
+            "name": "completion__bind_flush_i",
+            "source": "connection:completion.flush_i"
+          },
+          {
+            "name": "completion__bind_kill_mask_i",
+            "source": "connection:completion.kill_mask_i"
+          },
+          {
+            "name": "completion__bind_in_fire_i",
+            "source": "connection:completion.in_fire_i"
+          },
+          {
+            "name": "completion__bind_in_tag_i",
+            "source": "connection:completion.in_tag_i"
+          },
+          {
+            "name": "completion__bind_in_result_i",
+            "source": "connection:completion.in_result_i"
+          },
+          {
+            "name": "completion__bind_out_ready_i",
+            "source": "connection:completion.out_ready_i"
+          },
+          {
+            "name": "completion__credit",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:20"
+          },
+          {
+            "name": "completion__lane0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__lane1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:25"
+          },
+          {
+            "name": "completion__request",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:48"
+          },
+          {
+            "name": "completion__reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:31"
+          },
+          {
+            "name": "completion__turn",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:85"
+          },
+          {
+            "name": "completion__protocol",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:90"
+          },
+          {
+            "name": "format__bind_raw0_i",
+            "source": "connection:format.raw0_i"
+          },
+          {
+            "name": "format__bind_raw1_i",
+            "source": "connection:format.raw1_i"
+          },
+          {
+            "name": "format__bind_fault0_i",
+            "source": "connection:format.fault0_i"
+          },
+          {
+            "name": "format__bind_fault1_i",
+            "source": "connection:format.fault1_i"
+          },
+          {
+            "name": "format__bind_forward0_i",
+            "source": "connection:format.forward0_i"
+          },
+          {
+            "name": "format__bind_forward1_i",
+            "source": "connection:format.forward1_i"
+          },
+          {
+            "name": "format__result0_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result1_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result2_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result3_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result4_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result5_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          }
+        ]
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1200,
+        "trace": 1,
+        "gpu_ms": 13.5278,
+        "submit_wait_ms": 17.2615,
+        "process_ms": 411.113,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 885.1122790074442
+      },
+      "negative_credit": {
+        "failure_cycle": 3,
+        "gpu": {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 4,
+          "trace": 1,
+          "gpu_ms": 0.127812,
+          "submit_wait_ms": 1.46657,
+          "process_ms": 362.084,
+          "status": 1,
+          "failure_cycle": 3,
+          "failure_block": 45,
+          "failure_phase": 1,
+          "invocation_ms": 832.6253609848209
+        },
+        "whole_network_state_held": true,
+        "rtl_rejected": true
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "terminal0",
+      "edges": 1200,
+      "samples": 5,
+      "trace": false,
+      "gpu_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1200,
+          "trace": 0,
+          "gpu_ms": 5.12109,
+          "submit_wait_ms": 7.23926,
+          "process_ms": 237.273,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 465.3621239995118
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1200,
+          "trace": 0,
+          "gpu_ms": 4.96682,
+          "submit_wait_ms": 6.34787,
+          "process_ms": 231.879,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 462.7712089859415
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1200,
+          "trace": 0,
+          "gpu_ms": 5.09729,
+          "submit_wait_ms": 6.97037,
+          "process_ms": 238.916,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 473.15949699259363
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1200,
+          "trace": 0,
+          "gpu_ms": 5.07937,
+          "submit_wait_ms": 6.85948,
+          "process_ms": 239.173,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 473.32646598806605
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1200,
+          "trace": 0,
+          "gpu_ms": 5.04432,
+          "submit_wait_ms": 6.97033,
+          "process_ms": 256.07,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 485.20256599294953
+        }
+      ],
+      "host": {
+        "samples": 5,
+        "inner_ms": [
+          1.42146,
+          1.42055,
+          1.4567,
+          1.46826,
+          1.4165699999999999
+        ],
+        "median_inner_ms": 1.42146,
+        "invocation_ms": [
+          3.2981529948301613,
+          2.9688179783988744,
+          3.0146099743433297,
+          2.9777640011161566,
+          3.0111979867797345
+        ],
+        "median_invocation_ms": 3.0111979867797345
+      },
+      "median_gpu_ms": 5.07937,
+      "median_gpu_invocation_ms": 473.15949699259363,
+      "execution": {
+        "model": "R64LsuTerminal",
+        "backend": "materialized-dataflow-simd",
+        "lanes": 256,
+        "wave_size": 8,
+        "input_words": 33,
+        "state_words": 117,
+        "observation_words": 138,
+        "shared_bytes": 772,
+        "materialized_words": 75,
+        "comb_frontiers": 3,
+        "stages": [
+          {
+            "kind": "comb",
+            "word_or_check_rules": 31,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 3,
+                "parameters": 7,
+                "first_lane": 16
+              },
+              {
+                "tasks": 6,
+                "parameters": 7,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 8,
+                "parameters": 3,
+                "first_lane": 40
+              },
+              {
+                "tasks": 3,
+                "parameters": 9,
+                "first_lane": 48
+              },
+              {
+                "tasks": 3,
+                "parameters": 6,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 2,
+                "parameters": 10,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 9,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 33,
+            "scheduled_lanes": 120,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 16
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 24
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 32
+              },
+              {
+                "tasks": 2,
+                "parameters": 4,
+                "first_lane": 40
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 48
+              },
+              {
+                "tasks": 10,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 72
+              },
+              {
+                "tasks": 2,
+                "parameters": 3,
+                "first_lane": 80
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 88
+              },
+              {
+                "tasks": 2,
+                "parameters": 1,
+                "first_lane": 96
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 104
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 112
+              }
+            ]
+          },
+          {
+            "kind": "comb",
+            "word_or_check_rules": 11,
+            "scheduled_lanes": 88,
+            "families": [
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 0
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 8
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 16
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 24
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 32
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 40
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 48
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 56
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 64
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 72
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 80
+              }
+            ]
+          },
+          {
+            "kind": "state",
+            "word_or_check_rules": 137,
+            "scheduled_lanes": 248,
+            "families": [
+              {
+                "tasks": 6,
+                "parameters": 10,
+                "first_lane": 0
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 8
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 16
+              },
+              {
+                "tasks": 12,
+                "parameters": 8,
+                "first_lane": 32
+              },
+              {
+                "tasks": 16,
+                "parameters": 5,
+                "first_lane": 48
+              },
+              {
+                "tasks": 12,
+                "parameters": 6,
+                "first_lane": 64
+              },
+              {
+                "tasks": 10,
+                "parameters": 8,
+                "first_lane": 80
+              },
+              {
+                "tasks": 16,
+                "parameters": 8,
+                "first_lane": 96
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 112
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 120
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 128
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 136
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 144
+              },
+              {
+                "tasks": 4,
+                "parameters": 9,
+                "first_lane": 152
+              },
+              {
+                "tasks": 8,
+                "parameters": 7,
+                "first_lane": 160
+              },
+              {
+                "tasks": 4,
+                "parameters": 8,
+                "first_lane": 168
+              },
+              {
+                "tasks": 8,
+                "parameters": 6,
+                "first_lane": 176
+              },
+              {
+                "tasks": 6,
+                "parameters": 16,
+                "first_lane": 184
+              },
+              {
+                "tasks": 3,
+                "parameters": 10,
+                "first_lane": 192
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 200
+              },
+              {
+                "tasks": 3,
+                "parameters": 3,
+                "first_lane": 208
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 216
+              },
+              {
+                "tasks": 2,
+                "parameters": 2,
+                "first_lane": 224
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 232
+              },
+              {
+                "tasks": 1,
+                "parameters": 0,
+                "first_lane": 240
+              }
+            ]
+          }
+        ],
+        "descriptor_words": 6960,
+        "barriers_per_edge_without_trace": 5,
+        "independent_simulation_instances": 1,
+        "host_dispatches_per_run": 1,
+        "block_sources": [
+          {
+            "name": "raw__bind_rst_i",
+            "source": "connection:raw.rst_i"
+          },
+          {
+            "name": "raw__bind_flush_i",
+            "source": "connection:raw.flush_i"
+          },
+          {
+            "name": "raw__bind_kill_mask_i",
+            "source": "connection:raw.kill_mask_i"
+          },
+          {
+            "name": "raw__bind_cancel_candidates_i",
+            "source": "connection:raw.cancel_candidates_i"
+          },
+          {
+            "name": "raw__bind_cancel_active_i",
+            "source": "connection:raw.cancel_active_i"
+          },
+          {
+            "name": "raw__bind_in_fire_i",
+            "source": "connection:raw.in_fire_i"
+          },
+          {
+            "name": "raw__bind_in_tag_i",
+            "source": "connection:raw.in_tag_i"
+          },
+          {
+            "name": "raw__bind_in_data_i",
+            "source": "connection:raw.in_data_i"
+          },
+          {
+            "name": "raw__bind_in_age_i",
+            "source": "connection:raw.in_age_i"
+          },
+          {
+            "name": "raw__bind_age_clear_i",
+            "source": "connection:raw.age_clear_i"
+          },
+          {
+            "name": "raw__bind_out_ready_i",
+            "source": "connection:raw.out_ready_i"
+          },
+          {
+            "name": "raw__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "raw__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "raw__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "raw__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "raw__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "raw__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "raw__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "fault__bind_rst_i",
+            "source": "connection:fault.rst_i"
+          },
+          {
+            "name": "fault__bind_flush_i",
+            "source": "connection:fault.flush_i"
+          },
+          {
+            "name": "fault__bind_kill_mask_i",
+            "source": "connection:fault.kill_mask_i"
+          },
+          {
+            "name": "fault__bind_cancel_candidates_i",
+            "source": "connection:fault.cancel_candidates_i"
+          },
+          {
+            "name": "fault__bind_cancel_active_i",
+            "source": "connection:fault.cancel_active_i"
+          },
+          {
+            "name": "fault__bind_in_fire_i",
+            "source": "connection:fault.in_fire_i"
+          },
+          {
+            "name": "fault__bind_in_tag_i",
+            "source": "connection:fault.in_tag_i"
+          },
+          {
+            "name": "fault__bind_in_data_i",
+            "source": "connection:fault.in_data_i"
+          },
+          {
+            "name": "fault__bind_in_age_i",
+            "source": "connection:fault.in_age_i"
+          },
+          {
+            "name": "fault__bind_age_clear_i",
+            "source": "connection:fault.age_clear_i"
+          },
+          {
+            "name": "fault__bind_out_ready_i",
+            "source": "connection:fault.out_ready_i"
+          },
+          {
+            "name": "fault__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "fault__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "fault__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "fault__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "fault__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "fault__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "fault__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "forward__bind_rst_i",
+            "source": "connection:forward.rst_i"
+          },
+          {
+            "name": "forward__bind_flush_i",
+            "source": "connection:forward.flush_i"
+          },
+          {
+            "name": "forward__bind_kill_mask_i",
+            "source": "connection:forward.kill_mask_i"
+          },
+          {
+            "name": "forward__bind_cancel_candidates_i",
+            "source": "connection:forward.cancel_candidates_i"
+          },
+          {
+            "name": "forward__bind_cancel_active_i",
+            "source": "connection:forward.cancel_active_i"
+          },
+          {
+            "name": "forward__bind_in_fire_i",
+            "source": "connection:forward.in_fire_i"
+          },
+          {
+            "name": "forward__bind_in_tag_i",
+            "source": "connection:forward.in_tag_i"
+          },
+          {
+            "name": "forward__bind_in_data_i",
+            "source": "connection:forward.in_data_i"
+          },
+          {
+            "name": "forward__bind_in_age_i",
+            "source": "connection:forward.in_age_i"
+          },
+          {
+            "name": "forward__bind_age_clear_i",
+            "source": "connection:forward.age_clear_i"
+          },
+          {
+            "name": "forward__bind_out_ready_i",
+            "source": "connection:forward.out_ready_i"
+          },
+          {
+            "name": "forward__continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "forward__g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "forward__occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "forward__occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "forward__g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "forward__reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "forward__protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          },
+          {
+            "name": "select__bind_valid_i",
+            "source": "connection:select.valid_i"
+          },
+          {
+            "name": "select__bind_older_i",
+            "source": "connection:select.older_i"
+          },
+          {
+            "name": "select__select",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuOrderSelect.v:12"
+          },
+          {
+            "name": "events__bind_rst_i",
+            "source": "connection:events.rst_i"
+          },
+          {
+            "name": "events__bind_valid_i",
+            "source": "connection:events.valid_i"
+          },
+          {
+            "name": "events__bind_first_i",
+            "source": "connection:events.first_i"
+          },
+          {
+            "name": "events__bind_second_i",
+            "source": "connection:events.second_i"
+          },
+          {
+            "name": "events__bind_credit_i",
+            "source": "connection:events.credit_i"
+          },
+          {
+            "name": "events__bind_tags_i",
+            "source": "connection:events.tags_i"
+          },
+          {
+            "name": "events__bind_results_i",
+            "source": "connection:events.results_i"
+          },
+          {
+            "name": "events__order",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1095"
+          },
+          {
+            "name": "events__arbitrate",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1082"
+          },
+          {
+            "name": "events__payload",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1117"
+          },
+          {
+            "name": "events__priority",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1092"
+          },
+          {
+            "name": "events__count_check",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1461"
+          },
+          {
+            "name": "completion__bind_rst_i",
+            "source": "connection:completion.rst_i"
+          },
+          {
+            "name": "completion__bind_flush_i",
+            "source": "connection:completion.flush_i"
+          },
+          {
+            "name": "completion__bind_kill_mask_i",
+            "source": "connection:completion.kill_mask_i"
+          },
+          {
+            "name": "completion__bind_in_fire_i",
+            "source": "connection:completion.in_fire_i"
+          },
+          {
+            "name": "completion__bind_in_tag_i",
+            "source": "connection:completion.in_tag_i"
+          },
+          {
+            "name": "completion__bind_in_result_i",
+            "source": "connection:completion.in_result_i"
+          },
+          {
+            "name": "completion__bind_out_ready_i",
+            "source": "connection:completion.out_ready_i"
+          },
+          {
+            "name": "completion__credit",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:20"
+          },
+          {
+            "name": "completion__lane0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__lane1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:65"
+          },
+          {
+            "name": "completion__ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:25"
+          },
+          {
+            "name": "completion__request",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:48"
+          },
+          {
+            "name": "completion__reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:31"
+          },
+          {
+            "name": "completion__turn",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:85"
+          },
+          {
+            "name": "completion__protocol",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuCompletion.v:90"
+          },
+          {
+            "name": "format__bind_raw0_i",
+            "source": "connection:format.raw0_i"
+          },
+          {
+            "name": "format__bind_raw1_i",
+            "source": "connection:format.raw1_i"
+          },
+          {
+            "name": "format__bind_fault0_i",
+            "source": "connection:format.fault0_i"
+          },
+          {
+            "name": "format__bind_fault1_i",
+            "source": "connection:format.fault1_i"
+          },
+          {
+            "name": "format__bind_forward0_i",
+            "source": "connection:format.forward0_i"
+          },
+          {
+            "name": "format__bind_forward1_i",
+            "source": "connection:format.forward1_i"
+          },
+          {
+            "name": "format__result0_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result1_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result2_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result3_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result4_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          },
+          {
+            "name": "format__result5_o",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64Lsu.v:1056"
+          }
+        ]
+      },
+      "fast_compile_seconds": 0.2450987920165062,
+      "gpu_inner_over_host_inner": 3.5733471219731827
+    }
+  ],
+  "additional_gpu_check_phases": [
+    {
+      "backend": "simd",
+      "case": "pre",
+      "phase": 0,
+      "cycle": 0,
+      "final_state": [
+        5
+      ]
+    },
+    {
+      "backend": "simd",
+      "case": "post",
+      "phase": 2,
+      "cycle": 1,
+      "final_state": [
+        7
+      ]
+    },
+    {
+      "backend": "wave",
+      "case": "pre",
+      "phase": 0,
+      "cycle": 0,
+      "final_state": [
+        5
+      ]
+    },
+    {
+      "backend": "wave",
+      "case": "post",
+      "phase": 2,
+      "cycle": 1,
+      "final_state": [
+        7
+      ]
+    },
+    {
+      "backend": "dataflow",
+      "case": "pre",
+      "phase": 0,
+      "cycle": 0,
+      "final_state": [
+        5
+      ]
+    },
+    {
+      "backend": "dataflow",
+      "case": "post",
+      "phase": 2,
+      "cycle": 1,
+      "final_state": [
+        7
+      ]
+    }
+  ],
+  "temporary_compilation_files_removed": true,
+  "native_uint32_regressions": [
+    {
+      "name": "load_sign_extension",
+      "edges": 1800,
+      "observations": 3600,
+      "differences": 0,
+      "compile_seconds": 0.018338596011744812,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1800,
+        "trace": 1,
+        "gpu_ms": 3.22661,
+        "submit_wait_ms": 4.5039,
+        "process_ms": 110.125,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 147.48003100976348
+      }
+    },
+    {
+      "name": "wide_integer_mixed_edges",
+      "edges": 400,
+      "observations": 800,
+      "differences": 0,
+      "compile_seconds": 0.14742382100666873,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 400,
+        "trace": 1,
+        "gpu_ms": 1.99677,
+        "submit_wait_ms": 3.72271,
+        "process_ms": 246.608,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 498.463844996877
+      }
+    }
+  ]
+}

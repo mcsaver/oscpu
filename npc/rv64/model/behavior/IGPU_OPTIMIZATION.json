@@ -1,0 +1,2137 @@
+{
+  "status": "pass",
+  "backend": "native WSL Direct3D12 HLSL",
+  "gpu_executed": true,
+  "whole_cpu_executed": false,
+  "tests": [
+    {
+      "name": "counter",
+      "parameters": {},
+      "edges": 2000,
+      "observations": 4000,
+      "rtl_observations": 3999,
+      "differences": 0,
+      "compile_seconds": 0.6618645339913201,
+      "shared_bytes": 0,
+      "execution": {
+        "model": "R64Counter",
+        "input_words": 7,
+        "state_words": 9,
+        "observation_words": 18,
+        "lanes": 32,
+        "shared_bytes": 0,
+        "inputs": {
+          "rst_i": 1,
+          "enable_i": 1,
+          "increment_i": 2,
+          "write_i": 1,
+          "write_value_i": 64
+        },
+        "outputs": {
+          "value_o": 64,
+          "near_q1": 3,
+          "near_q2": 3,
+          "near_q3": 3,
+          "near_q4": 3,
+          "near_q5": 3,
+          "near_q6": 3,
+          "near_q7": 3
+        },
+        "states": {
+          "value_o": 64,
+          "near_q1": 3,
+          "near_q2": 3,
+          "near_q3": 3,
+          "near_q4": 3,
+          "near_q5": 3,
+          "near_q6": 3,
+          "near_q7": 3
+        },
+        "blocks": [
+          {
+            "name": "step_select",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:9"
+          },
+          {
+            "name": "low_byte",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:21"
+          },
+          {
+            "name": "next_bank1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary1_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary1_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary1_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary2_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary2_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary2_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank3",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary3_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary3_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary3_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank4",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary4_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary4_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary4_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank5",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary5_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary5_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary5_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank6",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary6_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary6_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary6_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank7",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary7_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary7_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary7_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "value_register",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:40"
+          }
+        ],
+        "backend": "wave-simd",
+        "state_word_rules": 9,
+        "check_rules": 0,
+        "simd_families": [
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 0
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 1
+          },
+          {
+            "tasks": 7,
+            "parameters": 3,
+            "first_lane": 2
+          }
+        ],
+        "descriptor_words": 45,
+        "barriers_per_edge": 0,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 32,
+        "scheduled_lanes": 9,
+        "active_rules": 9,
+        "state_register_rounds": 1,
+        "shader_target": "cs_6_6"
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 2000,
+        "trace": 1,
+        "gpu_ms": 4.47573,
+        "submit_wait_ms": 6.06226,
+        "process_ms": 105.728,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 152.04411299782805
+      }
+    },
+    {
+      "name": "queue0",
+      "parameters": {
+        "DATA_W": 157,
+        "TAG_W": 9,
+        "ROB_W": 5,
+        "AGE_W": 1,
+        "PREPARED_CANCEL": 0
+      },
+      "edges": 1500,
+      "observations": 3000,
+      "rtl_observations": 3000,
+      "differences": 0,
+      "compile_seconds": 9.619999763992382,
+      "shared_bytes": 144,
+      "execution": {
+        "model": "R64LsuRequestQueue",
+        "input_words": 21,
+        "state_words": 35,
+        "observation_words": 53,
+        "lanes": 128,
+        "shared_bytes": 144,
+        "inputs": {
+          "rst_i": 1,
+          "flush_i": 1,
+          "kill_mask_i": 32,
+          "cancel_candidates_i": 32,
+          "cancel_active_i": 1,
+          "in_fire_i": 2,
+          "in_tag_i": 18,
+          "in_data_i": 314,
+          "in_age_i": 2,
+          "age_clear_i": 1,
+          "out_ready_i": 2
+        },
+        "outputs": {
+          "in_ready_o": 2,
+          "out_occupied_o": 2,
+          "out_valid_o": 2,
+          "out_tag_o": 18,
+          "out_data_o": 314,
+          "out_age_o": 2,
+          "reuse_block_o": 32,
+          "held_age_o": 1,
+          "idle_o": 1
+        },
+        "states": {
+          "valid_q0": 2,
+          "valid_q1": 2,
+          "head_q": 2,
+          "tag_q0_0": 9,
+          "rob_slot_q0_0": 32,
+          "data_q0_0": 157,
+          "age_q0_0": 1,
+          "tag_q0_1": 9,
+          "rob_slot_q0_1": 32,
+          "data_q0_1": 157,
+          "age_q0_1": 1,
+          "tag_q1_0": 9,
+          "rob_slot_q1_0": 32,
+          "data_q1_0": 157,
+          "age_q1_0": 1,
+          "tag_q1_1": 9,
+          "rob_slot_q1_1": 32,
+          "data_q1_1": 157,
+          "age_q1_1": 1
+        },
+        "blocks": [
+          {
+            "name": "continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          }
+        ],
+        "backend": "fused-simd",
+        "state_word_rules": 35,
+        "check_rules": 5,
+        "simd_families": [
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 0
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 8
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 16
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 24
+          },
+          {
+            "tasks": 8,
+            "parameters": 3,
+            "first_lane": 32
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 40
+          },
+          {
+            "tasks": 2,
+            "parameters": 2,
+            "first_lane": 48
+          },
+          {
+            "tasks": 8,
+            "parameters": 4,
+            "first_lane": 56
+          },
+          {
+            "tasks": 2,
+            "parameters": 2,
+            "first_lane": 64
+          },
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 72
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 80
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 88
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 96
+          }
+        ],
+        "descriptor_words": 624,
+        "barriers_per_edge": 2,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 8,
+        "scheduled_lanes": 104,
+        "active_rules": 40
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1500,
+        "trace": 1,
+        "gpu_ms": 6.11703,
+        "submit_wait_ms": 7.66783,
+        "process_ms": 182.136,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 336.8985870038159
+      }
+    },
+    {
+      "name": "queue1",
+      "parameters": {
+        "DATA_W": 193,
+        "TAG_W": 12,
+        "ROB_W": 6,
+        "AGE_W": 32,
+        "PREPARED_CANCEL": 1
+      },
+      "edges": 1500,
+      "observations": 3000,
+      "rtl_observations": 3000,
+      "differences": 0,
+      "compile_seconds": 9.212297094985843,
+      "shared_bytes": 192,
+      "execution": {
+        "model": "R64LsuRequestQueue",
+        "input_words": 27,
+        "state_words": 47,
+        "observation_words": 70,
+        "lanes": 128,
+        "shared_bytes": 192,
+        "inputs": {
+          "rst_i": 1,
+          "flush_i": 1,
+          "kill_mask_i": 64,
+          "cancel_candidates_i": 64,
+          "cancel_active_i": 1,
+          "in_fire_i": 2,
+          "in_tag_i": 24,
+          "in_data_i": 386,
+          "in_age_i": 64,
+          "age_clear_i": 32,
+          "out_ready_i": 2
+        },
+        "outputs": {
+          "in_ready_o": 2,
+          "out_occupied_o": 2,
+          "out_valid_o": 2,
+          "out_tag_o": 24,
+          "out_data_o": 386,
+          "out_age_o": 64,
+          "reuse_block_o": 64,
+          "held_age_o": 32,
+          "idle_o": 1
+        },
+        "states": {
+          "valid_q0": 2,
+          "valid_q1": 2,
+          "head_q": 2,
+          "tag_q0_0": 12,
+          "rob_slot_q0_0": 64,
+          "data_q0_0": 193,
+          "age_q0_0": 32,
+          "tag_q0_1": 12,
+          "rob_slot_q0_1": 64,
+          "data_q0_1": 193,
+          "age_q0_1": 32,
+          "tag_q1_0": 12,
+          "rob_slot_q1_0": 64,
+          "data_q1_0": 193,
+          "age_q1_0": 32,
+          "tag_q1_1": 12,
+          "rob_slot_q1_1": 64,
+          "data_q1_1": 193,
+          "age_q1_1": 32
+        },
+        "blocks": [
+          {
+            "name": "continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "g_cancel_contract",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:89"
+          },
+          {
+            "name": "g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          }
+        ],
+        "backend": "fused-simd",
+        "state_word_rules": 47,
+        "check_rules": 6,
+        "simd_families": [
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 0
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 8
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 16
+          },
+          {
+            "tasks": 8,
+            "parameters": 5,
+            "first_lane": 24
+          },
+          {
+            "tasks": 12,
+            "parameters": 3,
+            "first_lane": 32
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 48
+          },
+          {
+            "tasks": 4,
+            "parameters": 6,
+            "first_lane": 56
+          },
+          {
+            "tasks": 12,
+            "parameters": 4,
+            "first_lane": 64
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 80
+          },
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 88
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 96
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 104
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 112
+          }
+        ],
+        "descriptor_words": 960,
+        "barriers_per_edge": 2,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 8,
+        "scheduled_lanes": 120,
+        "active_rules": 53
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1500,
+        "trace": 1,
+        "gpu_ms": 8.99323,
+        "submit_wait_ms": 10.8475,
+        "process_ms": 223.686,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 606.8632759852335
+      }
+    },
+    {
+      "name": "semantics",
+      "parameters": {},
+      "edges": 400,
+      "observations": 800,
+      "rtl_observations": 0,
+      "differences": 0,
+      "compile_seconds": 1.0119742429815233,
+      "shared_bytes": 272,
+      "execution": {
+        "model": "semantics",
+        "input_words": 14,
+        "state_words": 67,
+        "observation_words": 139,
+        "lanes": 512,
+        "shared_bytes": 272,
+        "inputs": {
+          "a": 130,
+          "b": 130,
+          "index": 65
+        },
+        "outputs": {
+          "add": 130,
+          "sub": 130,
+          "and": 130,
+          "or": 130,
+          "xor": 130,
+          "inv": 130,
+          "left": 130,
+          "slice": 130,
+          "mux": 130,
+          "cat": 130,
+          "local": 130,
+          "compare": 2,
+          "shared": 8,
+          "capture": 130,
+          "negative": 130,
+          "comb": 130
+        },
+        "states": {
+          "add": 130,
+          "sub": 130,
+          "and": 130,
+          "or": 130,
+          "xor": 130,
+          "inv": 130,
+          "left": 130,
+          "slice": 130,
+          "mux": 130,
+          "cat": 130,
+          "local": 130,
+          "compare": 2,
+          "shared": 8,
+          "capture": 130,
+          "negative": 130
+        },
+        "blocks": [
+          {
+            "name": "comb",
+            "source": ""
+          },
+          {
+            "name": "arith",
+            "source": ""
+          },
+          {
+            "name": "lo",
+            "source": ""
+          },
+          {
+            "name": "hi",
+            "source": ""
+          },
+          {
+            "name": "neg",
+            "source": ""
+          }
+        ],
+        "backend": "fused-simd",
+        "state_word_rules": 67,
+        "check_rules": 0,
+        "simd_families": [
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 0
+          },
+          {
+            "tasks": 3,
+            "parameters": 2,
+            "first_lane": 8
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 16
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 24
+          },
+          {
+            "tasks": 3,
+            "parameters": 2,
+            "first_lane": 32
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 40
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 48
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 56
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 64
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 72
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 80
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 88
+          },
+          {
+            "tasks": 4,
+            "parameters": 2,
+            "first_lane": 96
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 104
+          },
+          {
+            "tasks": 4,
+            "parameters": 2,
+            "first_lane": 112
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 120
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 128
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 136
+          },
+          {
+            "tasks": 3,
+            "parameters": 1,
+            "first_lane": 144
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 152
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 160
+          },
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 168
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 176
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 184
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 192
+          },
+          {
+            "tasks": 4,
+            "parameters": 3,
+            "first_lane": 200
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 208
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 216
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 224
+          },
+          {
+            "tasks": 2,
+            "parameters": 2,
+            "first_lane": 232
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 240
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 248
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 256
+          },
+          {
+            "tasks": 4,
+            "parameters": 2,
+            "first_lane": 264
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 272
+          }
+        ],
+        "descriptor_words": 1400,
+        "barriers_per_edge": 2,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 8,
+        "scheduled_lanes": 280,
+        "active_rules": 67
+      },
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 400,
+        "trace": 1,
+        "gpu_ms": 1.84917,
+        "submit_wait_ms": 3.16245,
+        "process_ms": 297.605,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 666.2361540074926
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "counter",
+      "edges": 2000,
+      "trace": false,
+      "samples": 5,
+      "gpu_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 3.88135,
+          "submit_wait_ms": 4.9032,
+          "process_ms": 90.6316,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 128.76186598441564
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 3.63422,
+          "submit_wait_ms": 4.99331,
+          "process_ms": 86.7737,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 124.9527359905187
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 3.53172,
+          "submit_wait_ms": 4.79002,
+          "process_ms": 93.1479,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 131.22684400877915
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 4.26323,
+          "submit_wait_ms": 5.27032,
+          "process_ms": 89.6347,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 125.21692301379517
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 3.44891,
+          "submit_wait_ms": 4.22229,
+          "process_ms": 84.8415,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 122.63461900874972
+        }
+      ],
+      "host": {
+        "samples": 5,
+        "inner_ms": [
+          0.273188,
+          0.224132,
+          0.29136599999999996,
+          0.223131,
+          0.22501400000000002
+        ],
+        "median_inner_ms": 0.22501400000000002,
+        "invocation_ms": [
+          2.0483000262174755,
+          1.539641001727432,
+          1.8579009920358658,
+          1.433148980140686,
+          1.1952669883612543
+        ],
+        "median_invocation_ms": 1.539641001727432
+      },
+      "median_gpu_ms": 3.63422,
+      "median_gpu_invocation_ms": 125.21692301379517,
+      "execution": {
+        "model": "R64Counter",
+        "input_words": 7,
+        "state_words": 9,
+        "observation_words": 18,
+        "lanes": 32,
+        "shared_bytes": 0,
+        "inputs": {
+          "rst_i": 1,
+          "enable_i": 1,
+          "increment_i": 2,
+          "write_i": 1,
+          "write_value_i": 64
+        },
+        "outputs": {
+          "value_o": 64,
+          "near_q1": 3,
+          "near_q2": 3,
+          "near_q3": 3,
+          "near_q4": 3,
+          "near_q5": 3,
+          "near_q6": 3,
+          "near_q7": 3
+        },
+        "states": {
+          "value_o": 64,
+          "near_q1": 3,
+          "near_q2": 3,
+          "near_q3": 3,
+          "near_q4": 3,
+          "near_q5": 3,
+          "near_q6": 3,
+          "near_q7": 3
+        },
+        "blocks": [
+          {
+            "name": "step_select",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:9"
+          },
+          {
+            "name": "low_byte",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:21"
+          },
+          {
+            "name": "next_bank1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary1_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary1_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary1_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary1_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank1_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary2_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary2_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary2_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary2_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank2_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank3",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary3_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary3_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary3_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary3_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank3_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank4",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary4_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary4_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary4_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary4_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank4_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank5",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary5_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary5_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary5_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary5_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank5_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank6",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary6_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary6_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary6_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary6_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank6_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "next_bank7",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:29"
+          },
+          {
+            "name": "running_summary7_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near0",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary7_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near1",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "running_summary7_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "writing_summary7_2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64CounterNear.v:8"
+          },
+          {
+            "name": "g_bank7_g_near2",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:33"
+          },
+          {
+            "name": "value_register",
+            "source": "npc/rv64/vsrc/chengyue64/control/R64Counter.v:40"
+          }
+        ],
+        "backend": "wave-simd",
+        "state_word_rules": 9,
+        "check_rules": 0,
+        "simd_families": [
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 0
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 1
+          },
+          {
+            "tasks": 7,
+            "parameters": 3,
+            "first_lane": 2
+          }
+        ],
+        "descriptor_words": 45,
+        "barriers_per_edge": 0,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 32,
+        "scheduled_lanes": 9,
+        "active_rules": 9,
+        "state_register_rounds": 1,
+        "shader_target": "cs_6_6"
+      },
+      "trace_specialized": true,
+      "compile_seconds": 0.6181126189767383,
+      "baseline_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.3856,
+          "submit_wait_ms": 64.1687,
+          "process_ms": 289.407,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 487.97694098902866
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 59.859,
+          "submit_wait_ms": 62.4703,
+          "process_ms": 280.957,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 483.41582698049024
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.1411,
+          "submit_wait_ms": 62.6454,
+          "process_ms": 280.859,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 482.7107619785238
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.8304,
+          "submit_wait_ms": 63.4981,
+          "process_ms": 290.004,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 492.2788749972824
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.8874,
+          "submit_wait_ms": 63.1336,
+          "process_ms": 280.75,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 481.13829700741917
+        }
+      ],
+      "baseline_median_gpu_ms": 60.3856,
+      "baseline_median_invocation_ms": 483.41582698049024,
+      "kernel_speedup_vs_baseline": 16.615835034752987,
+      "process_speedup_vs_baseline": 3.860626945187211,
+      "gpu_inner_over_host_inner": 16.151083932555306
+    },
+    {
+      "name": "queue1",
+      "edges": 1500,
+      "trace": false,
+      "samples": 5,
+      "gpu_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 6.81719,
+          "submit_wait_ms": 9.89492,
+          "process_ms": 180.747,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 441.8247879948467
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 5.4388,
+          "submit_wait_ms": 7.21955,
+          "process_ms": 175.309,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 416.2265390041284
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 5.24031,
+          "submit_wait_ms": 7.35272,
+          "process_ms": 208.032,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 457.8711159992963
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 5.45641,
+          "submit_wait_ms": 7.06714,
+          "process_ms": 167.718,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 427.8803230263293
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 5.1799,
+          "submit_wait_ms": 6.78534,
+          "process_ms": 181.102,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 436.41165099688806
+        }
+      ],
+      "host": {
+        "samples": 5,
+        "inner_ms": [
+          0.34942700000000004,
+          0.351459,
+          0.353695,
+          0.35852100000000003,
+          0.416027
+        ],
+        "median_inner_ms": 0.353695,
+        "invocation_ms": [
+          1.992056000744924,
+          1.7871810123324394,
+          1.6812309913802892,
+          1.6818250005599111,
+          1.6778720018919557
+        ],
+        "median_invocation_ms": 1.6818250005599111
+      },
+      "median_gpu_ms": 5.4388,
+      "median_gpu_invocation_ms": 436.41165099688806,
+      "execution": {
+        "model": "R64LsuRequestQueue",
+        "input_words": 27,
+        "state_words": 47,
+        "observation_words": 70,
+        "lanes": 128,
+        "shared_bytes": 192,
+        "inputs": {
+          "rst_i": 1,
+          "flush_i": 1,
+          "kill_mask_i": 64,
+          "cancel_candidates_i": 64,
+          "cancel_active_i": 1,
+          "in_fire_i": 2,
+          "in_tag_i": 24,
+          "in_data_i": 386,
+          "in_age_i": 64,
+          "age_clear_i": 32,
+          "out_ready_i": 2
+        },
+        "outputs": {
+          "in_ready_o": 2,
+          "out_occupied_o": 2,
+          "out_valid_o": 2,
+          "out_tag_o": 24,
+          "out_data_o": 386,
+          "out_age_o": 64,
+          "reuse_block_o": 64,
+          "held_age_o": 32,
+          "idle_o": 1
+        },
+        "states": {
+          "valid_q0": 2,
+          "valid_q1": 2,
+          "head_q": 2,
+          "tag_q0_0": 12,
+          "rob_slot_q0_0": 64,
+          "data_q0_0": 193,
+          "age_q0_0": 32,
+          "tag_q0_1": 12,
+          "rob_slot_q0_1": 64,
+          "data_q0_1": 193,
+          "age_q0_1": 32,
+          "tag_q1_0": 12,
+          "rob_slot_q1_0": 64,
+          "data_q1_0": 193,
+          "age_q1_0": 32,
+          "tag_q1_1": 12,
+          "rob_slot_q1_1": 64,
+          "data_q1_1": 193,
+          "age_q1_1": 32
+        },
+        "blocks": [
+          {
+            "name": "continuous_ports",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:37"
+          },
+          {
+            "name": "g_lane0_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane0_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "g_lane1_g_storage1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:48"
+          },
+          {
+            "name": "occupancy_next",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:61"
+          },
+          {
+            "name": "occupancy_registers",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:83"
+          },
+          {
+            "name": "g_cancel_contract",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:89"
+          },
+          {
+            "name": "g_head_equivalence0",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "g_head_equivalence1",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:97"
+          },
+          {
+            "name": "reference_reuse",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:102"
+          },
+          {
+            "name": "protocol_checks",
+            "source": "npc/rv64/vsrc/chengyue64/lsu/R64LsuRequestQueue.v:109"
+          }
+        ],
+        "backend": "fused-simd",
+        "state_word_rules": 47,
+        "check_rules": 6,
+        "simd_families": [
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 0
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 8
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 16
+          },
+          {
+            "tasks": 8,
+            "parameters": 5,
+            "first_lane": 24
+          },
+          {
+            "tasks": 12,
+            "parameters": 3,
+            "first_lane": 32
+          },
+          {
+            "tasks": 4,
+            "parameters": 4,
+            "first_lane": 48
+          },
+          {
+            "tasks": 4,
+            "parameters": 6,
+            "first_lane": 56
+          },
+          {
+            "tasks": 12,
+            "parameters": 4,
+            "first_lane": 64
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 80
+          },
+          {
+            "tasks": 2,
+            "parameters": 3,
+            "first_lane": 88
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 96
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 104
+          },
+          {
+            "tasks": 1,
+            "parameters": 0,
+            "first_lane": 112
+          }
+        ],
+        "descriptor_words": 960,
+        "barriers_per_edge": 2,
+        "retained_combinational_words": 0,
+        "shared_candidate_words": 0,
+        "independent_simulation_instances": 1,
+        "wave_size": 8,
+        "scheduled_lanes": 120,
+        "active_rules": 53
+      },
+      "trace_specialized": true,
+      "compile_seconds": 3.999495107011171,
+      "baseline_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 35.2306,
+          "submit_wait_ms": 38.2848,
+          "process_ms": 260.24,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 522.8884230018593
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 35.7407,
+          "submit_wait_ms": 38.0433,
+          "process_ms": 270.649,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 534.3377160024829
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 35.621,
+          "submit_wait_ms": 37.7912,
+          "process_ms": 259.107,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 521.2899520120118
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 35.85,
+          "submit_wait_ms": 38.4616,
+          "process_ms": 253.461,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 523.6249770096038
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 35.6158,
+          "submit_wait_ms": 37.7972,
+          "process_ms": 257.43,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 531.5335589984898
+        }
+      ],
+      "baseline_median_gpu_ms": 35.621,
+      "baseline_median_invocation_ms": 523.6249770096038,
+      "kernel_speedup_vs_baseline": 6.549422666764729,
+      "process_speedup_vs_baseline": 1.1998418828037605,
+      "gpu_inner_over_host_inner": 15.377090431021077
+    }
+  ],
+  "negative_checks": {
+    "credit": {
+      "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+      "vendor_id": 32902,
+      "device_id": 32081,
+      "hardware": true,
+      "integrated": true,
+      "cycles": 4,
+      "trace": 1,
+      "gpu_ms": 0.080625,
+      "submit_wait_ms": 1.6083,
+      "process_ms": 217.561,
+      "status": 1,
+      "failure_cycle": 3,
+      "failure_block": 11,
+      "failure_phase": 1,
+      "invocation_ms": 612.6434690086171
+    },
+    "prepared_cancel": {
+      "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+      "vendor_id": 32902,
+      "device_id": 32081,
+      "hardware": true,
+      "integrated": true,
+      "cycles": 2,
+      "trace": 1,
+      "gpu_ms": 0.0761979,
+      "submit_wait_ms": 1.26896,
+      "process_ms": 211.713,
+      "status": 1,
+      "failure_cycle": 1,
+      "failure_block": 7,
+      "failure_phase": 1,
+      "invocation_ms": 607.0865249785129
+    }
+  },
+  "temporary_compilation_files_removed": true,
+  "speed_scope": "single module, one instance; GPU timestamp vs generated C++ semantic loop; not whole CPU or Verilator",
+  "additional_gpu_check_phases": [
+    {
+      "backend": "simd",
+      "case": "pre",
+      "phase": 0,
+      "cycle": 0,
+      "final_state": [
+        5
+      ]
+    },
+    {
+      "backend": "simd",
+      "case": "post",
+      "phase": 2,
+      "cycle": 1,
+      "final_state": [
+        7
+      ]
+    },
+    {
+      "backend": "wave",
+      "case": "pre",
+      "phase": 0,
+      "cycle": 0,
+      "final_state": [
+        5
+      ]
+    },
+    {
+      "backend": "wave",
+      "case": "post",
+      "phase": 2,
+      "cycle": 1,
+      "final_state": [
+        7
+      ]
+    }
+  ]
+}

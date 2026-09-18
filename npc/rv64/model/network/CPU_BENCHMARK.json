@@ -1,0 +1,220 @@
+{
+  "status": "pass",
+  "cases": {
+    "program": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 0.33114929299335927,
+            "eval_calls": 3238,
+            "eval_seconds": 0.244156839,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.3267586010042578,
+            "eval_calls": 3238,
+            "eval_seconds": 0.240105481,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.3202394449908752,
+            "eval_calls": 3238,
+            "eval_seconds": 0.237522788,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ],
+        "model": [
+          {
+            "wall_seconds": 0.30253435802296735,
+            "eval_calls": 3238,
+            "eval_seconds": 0.220243089,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.30552086399984546,
+            "eval_calls": 3238,
+            "eval_seconds": 0.217167727,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.279763804981485,
+            "eval_calls": 3238,
+            "eval_seconds": 0.19820529,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ]
+      },
+      "rtl_eval_median": 0.240105481,
+      "model_eval_median": 0.217167727,
+      "eval_speedup": 1.1056222962632012,
+      "rtl_wall_median": 0.3267586010042578,
+      "model_wall_median": 0.30253435802296735,
+      "wall_speedup": 1.08007104759801
+    },
+    "throughput": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 1.351353168982314,
+            "eval_calls": 17221,
+            "eval_seconds": 1.258496999,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.338502568018157,
+            "eval_calls": 17221,
+            "eval_seconds": 1.247004639,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3401203439862002,
+            "eval_calls": 17221,
+            "eval_seconds": 1.248249889,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ],
+        "model": [
+          {
+            "wall_seconds": 1.4120396520011127,
+            "eval_calls": 17221,
+            "eval_seconds": 1.31689831,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.404897242988227,
+            "eval_calls": 17221,
+            "eval_seconds": 1.311130223,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.412812747003045,
+            "eval_calls": 17221,
+            "eval_seconds": 1.318846893,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ]
+      },
+      "rtl_eval_median": 1.248249889,
+      "model_eval_median": 1.31689831,
+      "eval_speedup": 0.947871129852084,
+      "rtl_wall_median": 1.3401203439862002,
+      "model_wall_median": 1.4120396520011127,
+      "wall_speedup": 0.949067076187988
+    },
+    "lsu_contention": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 6.5514194179850165,
+            "eval_calls": 88321,
+            "eval_seconds": 6.44515109,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.713614638982108,
+            "eval_calls": 88321,
+            "eval_seconds": 6.603640752,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.704684092022944,
+            "eval_calls": 88321,
+            "eval_seconds": 6.596014314,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ],
+        "model": [
+          {
+            "wall_seconds": 6.166545307991328,
+            "eval_calls": 88321,
+            "eval_seconds": 6.053586978,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.182807799981674,
+            "eval_calls": 88321,
+            "eval_seconds": 6.071092178,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.204136048996588,
+            "eval_calls": 88321,
+            "eval_seconds": 6.092997297,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ]
+      },
+      "rtl_eval_median": 6.596014314,
+      "model_eval_median": 6.071092178,
+      "eval_speedup": 1.0864625541187096,
+      "rtl_wall_median": 6.704684092022944,
+      "model_wall_median": 6.182807799981674,
+      "wall_speedup": 1.0844076524654085
+    },
+    "backend_network": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 1.0712952129833866,
+            "eval_calls": 13075,
+            "eval_seconds": 0.984558903,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          },
+          {
+            "wall_seconds": 1.080480583012104,
+            "eval_calls": 13075,
+            "eval_seconds": 0.993850951,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          },
+          {
+            "wall_seconds": 1.0696655699866824,
+            "eval_calls": 13075,
+            "eval_seconds": 0.980829578,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          }
+        ],
+        "model": [
+          {
+            "wall_seconds": 0.913596716010943,
+            "eval_calls": 13075,
+            "eval_seconds": 0.825425842,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          },
+          {
+            "wall_seconds": 0.9151784660061821,
+            "eval_calls": 13075,
+            "eval_seconds": 0.826230269,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          },
+          {
+            "wall_seconds": 0.9028324570099358,
+            "eval_calls": 13075,
+            "eval_seconds": 0.813919399,
+            "terminal": "commits=722 cycles=4354 dual=167 traps=1 reads=392 writes=0"
+          }
+        ]
+      },
+      "rtl_eval_median": 0.984558903,
+      "model_eval_median": 0.825425842,
+      "eval_speedup": 1.1927890464568227,
+      "rtl_wall_median": 1.0712952129833866,
+      "model_wall_median": 0.913596716010943,
+      "wall_speedup": 1.1726128106731883
+    }
+  },
+  "scope": "full original DiffTest; equal steady_clock eval timing adapters; no verbose trace",
+  "configuration": {
+    "date": "2026-09-17",
+    "model_compiler": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+    "rtl_host_compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "verilator": "Verilator 5.020 2024-01-01 rev (Debian 5.020-1)",
+    "model_flags": "-O2 -std=c++17",
+    "rtl_host_flags": "-O2",
+    "samples_per_engine": 3,
+    "stalls": false,
+    "verbose": false,
+    "assertions": "enabled on both engines",
+    "reference": "same original full NEMU DiffTest",
+    "report_directory": "/home/lyg/PA/ysyx-workbench/tmp/rv64-whole-network-20260917/speed"
+  }
+}

@@ -1,0 +1,774 @@
+{
+  "status": "pass",
+  "cases": {
+    "pointer_barrier-plain": {
+      "accepted": true,
+      "instructions": 195,
+      "terminal_cycle": 2288,
+      "events": 196,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 195,
+        "cycles": 2288,
+        "dual": 1,
+        "traps": 1,
+        "reads": 144,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.6233705740014557,
+      "model_wall_seconds": 0.5723689220030792
+    },
+    "pointer_barrier-stalls": {
+      "accepted": true,
+      "instructions": 195,
+      "terminal_cycle": 2311,
+      "events": 196,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 195,
+        "cycles": 2311,
+        "dual": 1,
+        "traps": 1,
+        "reads": 144,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.6231737819907721,
+      "model_wall_seconds": 0.5714535120059736
+    },
+    "independent-plain": {
+      "accepted": true,
+      "instructions": 1027,
+      "terminal_cycle": 2040,
+      "events": 1028,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 1027,
+        "cycles": 2040,
+        "dual": 513,
+        "traps": 1,
+        "reads": 528,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.5705693989875726,
+      "model_wall_seconds": 0.5203967110137455
+    },
+    "independent-stalls": {
+      "accepted": true,
+      "instructions": 1027,
+      "terminal_cycle": 2520,
+      "events": 1028,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 1027,
+        "cycles": 2520,
+        "dual": 462,
+        "traps": 1,
+        "reads": 526,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.671127716981573,
+      "model_wall_seconds": 0.5689370190084446
+    },
+    "dependency-plain": {
+      "accepted": true,
+      "instructions": 514,
+      "terminal_cycle": 1591,
+      "events": 515,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 514,
+        "cycles": 1591,
+        "dual": 1,
+        "traps": 1,
+        "reads": 288,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.4688080720079597,
+      "model_wall_seconds": 0.46811892799451016
+    },
+    "dependency-stalls": {
+      "accepted": true,
+      "instructions": 514,
+      "terminal_cycle": 1595,
+      "events": 515,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 514,
+        "cycles": 1595,
+        "dual": 1,
+        "traps": 1,
+        "reads": 286,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.46819357099593617,
+      "model_wall_seconds": 0.467927741992753
+    },
+    "multiply-plain": {
+      "accepted": true,
+      "instructions": 131,
+      "terminal_cycle": 1462,
+      "events": 132,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 131,
+        "cycles": 1462,
+        "dual": 2,
+        "traps": 1,
+        "reads": 96,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.4177852110005915,
+      "model_wall_seconds": 0.366675886005396
+    },
+    "multiply-stalls": {
+      "accepted": true,
+      "instructions": 131,
+      "terminal_cycle": 1465,
+      "events": 132,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 131,
+        "cycles": 1465,
+        "dual": 2,
+        "traps": 1,
+        "reads": 96,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.4173558430047706,
+      "model_wall_seconds": 0.3670144360221457
+    },
+    "load_chain-plain": {
+      "accepted": true,
+      "instructions": 131,
+      "terminal_cycle": 2084,
+      "events": 132,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 131,
+        "cycles": 2084,
+        "dual": 1,
+        "traps": 1,
+        "reads": 112,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.5685423169925343,
+      "model_wall_seconds": 0.5182042759843171
+    },
+    "load_chain-stalls": {
+      "accepted": true,
+      "instructions": 131,
+      "terminal_cycle": 2107,
+      "events": 132,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 131,
+        "cycles": 2107,
+        "dual": 1,
+        "traps": 1,
+        "reads": 112,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.56832992497948,
+      "model_wall_seconds": 0.5179364439973142
+    },
+    "stores-plain": {
+      "accepted": true,
+      "instructions": 132,
+      "terminal_cycle": 1648,
+      "events": 133,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 132,
+        "cycles": 1648,
+        "dual": 2,
+        "traps": 1,
+        "reads": 104,
+        "writes": 128
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.46802673701313324,
+      "model_wall_seconds": 0.4169864529976621
+    },
+    "stores-stalls": {
+      "accepted": true,
+      "instructions": 132,
+      "terminal_cycle": 1901,
+      "events": 133,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 132,
+        "cycles": 1901,
+        "dual": 2,
+        "traps": 1,
+        "reads": 104,
+        "writes": 128
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.5174924499879126,
+      "model_wall_seconds": 0.4672607950051315
+    },
+    "branch-plain": {
+      "accepted": true,
+      "instructions": 322,
+      "terminal_cycle": 2659,
+      "events": 323,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 322,
+        "cycles": 2659,
+        "dual": 128,
+        "traps": 1,
+        "reads": 216,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.6680805799842346,
+      "model_wall_seconds": 0.617687803984154
+    },
+    "branch-stalls": {
+      "accepted": true,
+      "instructions": 322,
+      "terminal_cycle": 2857,
+      "events": 323,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 322,
+        "cycles": 2857,
+        "dual": 113,
+        "traps": 1,
+        "reads": 216,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.7182399060111493,
+      "model_wall_seconds": 0.617566299973987
+    },
+    "mixed-plain": {
+      "accepted": true,
+      "instructions": 389,
+      "terminal_cycle": 2223,
+      "events": 390,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 389,
+        "cycles": 2223,
+        "dual": 129,
+        "traps": 1,
+        "reads": 240,
+        "writes": 64
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.6175911310128868,
+      "model_wall_seconds": 0.6171924090012908
+    },
+    "mixed-stalls": {
+      "accepted": true,
+      "instructions": 389,
+      "terminal_cycle": 2343,
+      "events": 390,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 389,
+        "cycles": 2343,
+        "dual": 114,
+        "traps": 1,
+        "reads": 240,
+        "writes": 64
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.6175086939765606,
+      "model_wall_seconds": 0.6174514390004333
+    },
+    "forward-plain": {
+      "accepted": true,
+      "instructions": 196,
+      "terminal_cycle": 1324,
+      "events": 197,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 196,
+        "cycles": 1324,
+        "dual": 66,
+        "traps": 1,
+        "reads": 136,
+        "writes": 64
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.4161311539937742,
+      "model_wall_seconds": 0.4165985269937664
+    },
+    "forward-stalls": {
+      "accepted": true,
+      "instructions": 196,
+      "terminal_cycle": 1351,
+      "events": 197,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 196,
+        "cycles": 1351,
+        "dual": 59,
+        "traps": 1,
+        "reads": 136,
+        "writes": 64
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.41608393800561316,
+      "model_wall_seconds": 0.41626006801379845
+    },
+    "load_banks-plain": {
+      "accepted": true,
+      "instructions": 259,
+      "terminal_cycle": 610,
+      "events": 260,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 259,
+        "cycles": 610,
+        "dual": 124,
+        "traps": 1,
+        "reads": 160,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.2152589149773121,
+      "model_wall_seconds": 0.2654790380038321
+    },
+    "load_banks-stalls": {
+      "accepted": true,
+      "instructions": 259,
+      "terminal_cycle": 723,
+      "events": 260,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 259,
+        "cycles": 723,
+        "dual": 113,
+        "traps": 1,
+        "reads": 159,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.2654694840020966,
+      "model_wall_seconds": 0.2656275409972295
+    },
+    "divide-plain": {
+      "accepted": true,
+      "instructions": 68,
+      "terminal_cycle": 784,
+      "events": 69,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 68,
+        "cycles": 784,
+        "dual": 2,
+        "traps": 1,
+        "reads": 64,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.2655530479969457,
+      "model_wall_seconds": 0.26572786999167874
+    },
+    "divide-stalls": {
+      "accepted": true,
+      "instructions": 68,
+      "terminal_cycle": 787,
+      "events": 69,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 68,
+        "cycles": 787,
+        "dual": 2,
+        "traps": 1,
+        "reads": 64,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.2658525620063301,
+      "model_wall_seconds": 0.26545649001491256
+    },
+    "compressed-plain": {
+      "accepted": true,
+      "instructions": 195,
+      "terminal_cycle": 302,
+      "events": 196,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 195,
+        "cycles": 302,
+        "dual": 65,
+        "traps": 1,
+        "reads": 77,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.16510677098995075,
+      "model_wall_seconds": 0.16485377799835987
+    },
+    "compressed-stalls": {
+      "accepted": true,
+      "instructions": 195,
+      "terminal_cycle": 305,
+      "events": 196,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 195,
+        "cycles": 305,
+        "dual": 62,
+        "traps": 1,
+        "reads": 66,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.1652200180105865,
+      "model_wall_seconds": 0.16508167798747309
+    },
+    "core_program-plain": {
+      "accepted": true,
+      "instructions": 125,
+      "terminal_cycle": 1075,
+      "events": 128,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 125,
+        "cycles": 1075,
+        "dual": 39,
+        "traps": 3,
+        "reads": 68,
+        "writes": 8
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.3156220360251609,
+      "model_wall_seconds": 0.31575310000334866
+    },
+    "core_program-stalls": {
+      "accepted": true,
+      "instructions": 125,
+      "terminal_cycle": 1133,
+      "events": 128,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 125,
+        "cycles": 1133,
+        "dual": 37,
+        "traps": 3,
+        "reads": 68,
+        "writes": 8
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.36595567301264964,
+      "model_wall_seconds": 0.31588752500829287
+    },
+    "core_sv39-plain": {
+      "accepted": true,
+      "instructions": 56,
+      "terminal_cycle": 998,
+      "events": 58,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 56,
+        "cycles": 998,
+        "dual": 7,
+        "traps": 2,
+        "reads": 74,
+        "writes": 8
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.3153922419878654,
+      "model_wall_seconds": 0.31570437402115203
+    },
+    "core_sv39-stalls": {
+      "accepted": true,
+      "instructions": 56,
+      "terminal_cycle": 1080,
+      "events": 58,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 56,
+        "cycles": 1080,
+        "dual": 7,
+        "traps": 2,
+        "reads": 74,
+        "writes": 8
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.3655526810034644,
+      "model_wall_seconds": 0.31546770001295954
+    },
+    "core_sdtrig-plain": {
+      "accepted": true,
+      "instructions": 302,
+      "terminal_cycle": 4076,
+      "events": 315,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 302,
+        "cycles": 4076,
+        "dual": 45,
+        "traps": 13,
+        "reads": 136,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.018538609991083,
+      "model_wall_seconds": 0.8678821100038476
+    },
+    "core_sdtrig-stalls": {
+      "accepted": true,
+      "instructions": 302,
+      "terminal_cycle": 4207,
+      "events": 315,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 302,
+        "cycles": 4207,
+        "dual": 35,
+        "traps": 13,
+        "reads": 136,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.0184591239958536,
+      "model_wall_seconds": 0.9177842689969111
+    },
+    "core_lsu_contention-plain": {
+      "accepted": true,
+      "instructions": 4133,
+      "terminal_cycle": 29436,
+      "events": 4135,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 4133,
+        "cycles": 29436,
+        "dual": 1569,
+        "traps": 2,
+        "reads": 4544,
+        "writes": 868
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 6.285053204977885,
+      "model_wall_seconds": 6.252684009989025
+    },
+    "core_lsu_contention-stalls": {
+      "accepted": true,
+      "instructions": 4133,
+      "terminal_cycle": 36082,
+      "events": 4135,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 4133,
+        "cycles": 36082,
+        "dual": 1498,
+        "traps": 2,
+        "reads": 4544,
+        "writes": 868
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 8.21606307401089,
+      "model_wall_seconds": 7.302826769999228
+    },
+    "core_backend_network-plain": {
+      "accepted": true,
+      "instructions": 722,
+      "terminal_cycle": 4354,
+      "events": 723,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 722,
+        "cycles": 4354,
+        "dual": 167,
+        "traps": 1,
+        "reads": 392,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.1191513369849417,
+      "model_wall_seconds": 0.9183916330221109
+    },
+    "core_backend_network-stalls": {
+      "accepted": true,
+      "instructions": 722,
+      "terminal_cycle": 4439,
+      "events": 723,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 722,
+        "cycles": 4439,
+        "dual": 141,
+        "traps": 1,
+        "reads": 392,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.1185926159960218,
+      "model_wall_seconds": 0.968023074005032
+    },
+    "core_throughput-plain": {
+      "accepted": true,
+      "instructions": 8232,
+      "terminal_cycle": 5736,
+      "events": 8233,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 8232,
+        "cycles": 5736,
+        "dual": 4112,
+        "traps": 1,
+        "reads": 540,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.369976806017803,
+      "model_wall_seconds": 1.4696292970038485
+    },
+    "core_throughput-stalls": {
+      "accepted": true,
+      "instructions": 8232,
+      "terminal_cycle": 7068,
+      "events": 8233,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 8232,
+        "cycles": 7068,
+        "dual": 3778,
+        "traps": 1,
+        "reads": 539,
+        "writes": 0
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 1.6705696810095105,
+      "model_wall_seconds": 1.7706599029770587
+    },
+    "system_io-plain": {
+      "accepted": true,
+      "instructions": 136,
+      "terminal_cycle": 1504,
+      "events": 137,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 136,
+        "cycles": 1504,
+        "traps": 1,
+        "syscon_events": 1
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.46644972398644313,
+      "model_wall_seconds": 0.365613031986868
+    },
+    "system_io-stalls": {
+      "accepted": true,
+      "instructions": 136,
+      "terminal_cycle": 1565,
+      "events": 137,
+      "first_mismatch": null,
+      "same_terminal": true,
+      "retirement_and_trap_events_equal": true,
+      "reference_terminal": {
+        "commits": 136,
+        "cycles": 1565,
+        "traps": 1,
+        "syscon_events": 1
+      },
+      "scope": "complete program, original GPR/FPR/CSR/device DiffTest and RTL assertions",
+      "rtl_wall_seconds": 0.465893042011885,
+      "model_wall_seconds": 0.41614841198315844
+    }
+  },
+  "criterion": "all absolute retirement/trap events and natural terminal identical",
+  "instructions": 34530,
+  "target_cycles": 142071,
+  "date": "2026-09-17",
+  "implementation": "whole RTL word network with dirty groups and local intermediates",
+  "rtl": "chengyue64/R64SystemTestTop",
+  "zero_cycle_error": true,
+  "report_directory": "/home/lyg/PA/ysyx-workbench/tmp/rv64-whole-network-20260917/accepted-validation",
+  "limitations": [
+    "Only these completed programs, modes and current RTL configuration were validated.",
+    "No complete CoreMark/Dhrystone, Linux or tensor-system validation for this backend.",
+    "High-level transaction-protocol migration of production modules remains unfinished."
+  ]
+}

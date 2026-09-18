@@ -1,0 +1,440 @@
+{
+  "status": "pass",
+  "backend": "native WSL Direct3D12 HLSL",
+  "gpu_executed": true,
+  "whole_cpu_executed": false,
+  "tests": [
+    {
+      "name": "counter",
+      "parameters": {},
+      "edges": 2000,
+      "observations": 4000,
+      "rtl_observations": 3999,
+      "differences": 0,
+      "compile_seconds": 7.505230807990301,
+      "shared_bytes": 688,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 2000,
+        "trace": 1,
+        "gpu_ms": 60.4132,
+        "submit_wait_ms": 61.6306,
+        "process_ms": 296.246,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 509.6872840076685
+      }
+    },
+    {
+      "name": "queue0",
+      "parameters": {
+        "DATA_W": 157,
+        "TAG_W": 9,
+        "ROB_W": 5,
+        "AGE_W": 1,
+        "PREPARED_CANCEL": 0
+      },
+      "edges": 1500,
+      "observations": 3000,
+      "rtl_observations": 3000,
+      "differences": 0,
+      "compile_seconds": 1.8630434579972643,
+      "shared_bytes": 640,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1500,
+        "trace": 1,
+        "gpu_ms": 27.6264,
+        "submit_wait_ms": 28.9918,
+        "process_ms": 219.077,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 403.0396089947317
+      }
+    },
+    {
+      "name": "queue1",
+      "parameters": {
+        "DATA_W": 193,
+        "TAG_W": 12,
+        "ROB_W": 6,
+        "AGE_W": 32,
+        "PREPARED_CANCEL": 1
+      },
+      "edges": 1500,
+      "observations": 3000,
+      "rtl_observations": 3000,
+      "differences": 0,
+      "compile_seconds": 2.0985045899869874,
+      "shared_bytes": 836,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 1500,
+        "trace": 1,
+        "gpu_ms": 37.7102,
+        "submit_wait_ms": 39.3542,
+        "process_ms": 299.842,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 653.7691990088206
+      }
+    },
+    {
+      "name": "semantics",
+      "parameters": {},
+      "edges": 400,
+      "observations": 800,
+      "rtl_observations": 0,
+      "differences": 0,
+      "compile_seconds": 0.18287631499697454,
+      "shared_bytes": 904,
+      "device": {
+        "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+        "vendor_id": 32902,
+        "device_id": 32081,
+        "hardware": true,
+        "integrated": true,
+        "cycles": 400,
+        "trace": 1,
+        "gpu_ms": 6.21031,
+        "submit_wait_ms": 7.40337,
+        "process_ms": 230.096,
+        "status": 0,
+        "failure_cycle": 0,
+        "failure_block": 0,
+        "failure_phase": 0,
+        "invocation_ms": 475.7921139826067
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "counter",
+      "edges": 2000,
+      "trace": false,
+      "samples": 5,
+      "gpu_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.2844,
+          "submit_wait_ms": 61.3265,
+          "process_ms": 284.889,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 498.0469830043148
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.7776,
+          "submit_wait_ms": 62.1549,
+          "process_ms": 293.793,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 511.7064700170886
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.3045,
+          "submit_wait_ms": 61.7087,
+          "process_ms": 299.952,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 511.30421401467174
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 60.0765,
+          "submit_wait_ms": 61.6677,
+          "process_ms": 301.897,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 515.9620449994691
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 2000,
+          "trace": 0,
+          "gpu_ms": 59.9321,
+          "submit_wait_ms": 61.1705,
+          "process_ms": 286.182,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 493.59670700505376
+        }
+      ],
+      "host": {
+        "samples": 5,
+        "inner_ms": [
+          0.224392,
+          0.265851,
+          0.22329,
+          0.22379400000000002,
+          0.27404199999999995
+        ],
+        "median_inner_ms": 0.224392,
+        "invocation_ms": [
+          1.8095970153808594,
+          1.5501200105063617,
+          1.3451970007736236,
+          1.2615559971891344,
+          1.3881020131520927
+        ],
+        "median_invocation_ms": 1.3881020131520927
+      },
+      "median_gpu_ms": 60.2844,
+      "median_gpu_invocation_ms": 511.30421401467174,
+      "gpu_inner_over_host_inner": 268.6566366002353
+    },
+    {
+      "name": "queue1",
+      "edges": 1500,
+      "trace": false,
+      "samples": 5,
+      "gpu_samples": [
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 37.1839,
+          "submit_wait_ms": 38.8906,
+          "process_ms": 308.307,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 625.9874080133159
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 36.7255,
+          "submit_wait_ms": 38.4722,
+          "process_ms": 292.938,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 608.188441983657
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 36.5139,
+          "submit_wait_ms": 39.5939,
+          "process_ms": 297.779,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 618.7628180196043
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 36.5803,
+          "submit_wait_ms": 38.4825,
+          "process_ms": 298.259,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 618.26845901669
+        },
+        {
+          "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+          "vendor_id": 32902,
+          "device_id": 32081,
+          "hardware": true,
+          "integrated": true,
+          "cycles": 1500,
+          "trace": 0,
+          "gpu_ms": 36.5429,
+          "submit_wait_ms": 37.8681,
+          "process_ms": 291.832,
+          "status": 0,
+          "failure_cycle": 0,
+          "failure_block": 0,
+          "failure_phase": 0,
+          "invocation_ms": 613.7862729956396
+        }
+      ],
+      "host": {
+        "samples": 5,
+        "inner_ms": [
+          0.348717,
+          0.339746,
+          0.338447,
+          0.336293,
+          0.338152
+        ],
+        "median_inner_ms": 0.338447,
+        "invocation_ms": [
+          2.0591590146068484,
+          1.6951279831118882,
+          1.5593940042890608,
+          1.7477509973105043,
+          1.889113016659394
+        ],
+        "median_invocation_ms": 1.7477509973105043
+      },
+      "median_gpu_ms": 36.5803,
+      "median_gpu_invocation_ms": 618.26845901669,
+      "gpu_inner_over_host_inner": 108.08280173852923
+    }
+  ],
+  "negative_checks": {
+    "credit": {
+      "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+      "vendor_id": 32902,
+      "device_id": 32081,
+      "hardware": true,
+      "integrated": true,
+      "cycles": 4,
+      "trace": 1,
+      "gpu_ms": 0.220677,
+      "submit_wait_ms": 2.09088,
+      "process_ms": 275.856,
+      "status": 1,
+      "failure_cycle": 3,
+      "failure_block": 11,
+      "failure_phase": 1,
+      "invocation_ms": 632.8572900092695
+    },
+    "prepared_cancel": {
+      "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+      "vendor_id": 32902,
+      "device_id": 32081,
+      "hardware": true,
+      "integrated": true,
+      "cycles": 2,
+      "trace": 1,
+      "gpu_ms": 0.185052,
+      "submit_wait_ms": 1.77461,
+      "process_ms": 261.41,
+      "status": 1,
+      "failure_cycle": 1,
+      "failure_block": 7,
+      "failure_phase": 1,
+      "invocation_ms": 619.565488974331
+    }
+  },
+  "temporary_compilation_files_removed": true,
+  "speed_scope": "single module, one instance; GPU timestamp vs generated C++ semantic loop; not whole CPU or Verilator",
+  "one_off_probe_and_build_files_removed": [
+    {
+      "file": "device_probe.cpp",
+      "bytes": 1709
+    },
+    {
+      "file": "device_probe",
+      "bytes": 39104
+    },
+    {
+      "file": "counter.hlsl",
+      "bytes": 43986
+    },
+    {
+      "file": "counter.dxil",
+      "bytes": 25184
+    },
+    {
+      "file": "counter.json",
+      "bytes": 9049
+    },
+    {
+      "file": "queue.hlsl",
+      "bytes": 27110
+    },
+    {
+      "file": "queue.dxil",
+      "bytes": 27844
+    },
+    {
+      "file": "queue.json",
+      "bytes": 2358
+    },
+    {
+      "file": "input.bin",
+      "bytes": 896
+    },
+    {
+      "file": "output.bin",
+      "bytes": 4660
+    }
+  ]
+}

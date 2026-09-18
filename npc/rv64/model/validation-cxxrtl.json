@@ -1,0 +1,80 @@
+{
+  "scope": "Three independently executed complete microbenchmarks only; no full-benchmark or speed acceptance.",
+  "build": "Partial optimization: LSU O1, DCache O0; runtime forced inline removed for those modules.",
+  "binary": "/home/lyg/PA/ysyx-workbench/tmp/rv64-perf-model-20260917/cxxrtl-hierarchy/quick-check/r64-cxxrtl-partial-opt",
+  "date": "2026-09-17",
+  "reports": {
+    "compressed": {
+      "accepted": true,
+      "scope": "complete_program",
+      "reference": {
+        "instructions": 195,
+        "natural_end": true,
+        "terminal_cycle_index": 302,
+        "host_seconds": 0.16412977899017278
+      },
+      "candidate": {
+        "instructions": 195,
+        "natural_end": true,
+        "terminal_cycle_index": 302,
+        "host_seconds": 16.993553566018818
+      },
+      "same_instruction_stream": true,
+      "same_terminal_cycle": true,
+      "retirement_cycle_mismatches": 0,
+      "maximum_absolute_cycle_error": 0,
+      "first_instruction_mismatch": null,
+      "first_cycle_mismatch": null,
+      "execution_speedup": 0.009658355349429392,
+      "cycle_convention": "Same harness: cycle 0 after reset; compare every absolute retirement timestamp and terminal cycle index."
+    },
+    "load_banks": {
+      "accepted": true,
+      "scope": "complete_program",
+      "reference": {
+        "instructions": 259,
+        "natural_end": true,
+        "terminal_cycle_index": 610,
+        "host_seconds": 0.21427220100304112
+      },
+      "candidate": {
+        "instructions": 259,
+        "natural_end": true,
+        "terminal_cycle_index": 610,
+        "host_seconds": 34.41586555700633
+      },
+      "same_instruction_stream": true,
+      "same_terminal_cycle": true,
+      "retirement_cycle_mismatches": 0,
+      "maximum_absolute_cycle_error": 0,
+      "first_instruction_mismatch": null,
+      "first_cycle_mismatch": null,
+      "execution_speedup": 0.0062259715841846645,
+      "cycle_convention": "Same harness: cycle 0 after reset; compare every absolute retirement timestamp and terminal cycle index."
+    },
+    "divide": {
+      "accepted": true,
+      "scope": "complete_program",
+      "reference": {
+        "instructions": 68,
+        "natural_end": true,
+        "terminal_cycle_index": 784,
+        "host_seconds": 0.26463976700324565
+      },
+      "candidate": {
+        "instructions": 68,
+        "natural_end": true,
+        "terminal_cycle_index": 784,
+        "host_seconds": 33.24403400198207
+      },
+      "same_instruction_stream": true,
+      "same_terminal_cycle": true,
+      "retirement_cycle_mismatches": 0,
+      "maximum_absolute_cycle_error": 0,
+      "first_instruction_mismatch": null,
+      "first_cycle_mismatch": null,
+      "execution_speedup": 0.007960519081031722,
+      "cycle_convention": "Same harness: cycle 0 after reset; compare every absolute retirement timestamp and terminal cycle index."
+    }
+  }
+}

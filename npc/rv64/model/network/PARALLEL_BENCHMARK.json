@@ -1,0 +1,416 @@
+{
+  "status": "pass",
+  "scope": "single simulated CPU latency, original complete DiffTest and RTL assertions",
+  "gpu_execution": false,
+  "samples_per_engine": 3,
+  "cases": {
+    "program": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 0.3170633390254807,
+            "eval_calls": 3238,
+            "eval_seconds": 0.241542065,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.31041700500645675,
+            "eval_calls": 3238,
+            "eval_seconds": 0.235400264,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.3059973439958412,
+            "eval_calls": 3238,
+            "eval_seconds": 0.229700055,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ],
+        "serial": [
+          {
+            "wall_seconds": 0.2751861349970568,
+            "eval_calls": 3238,
+            "eval_seconds": 0.196399378,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.2643413929909002,
+            "eval_calls": 3238,
+            "eval_seconds": 0.188074142,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.268032805994153,
+            "eval_calls": 3238,
+            "eval_seconds": 0.192423596,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ],
+        "parallel_1": [
+          {
+            "wall_seconds": 0.2833661090116948,
+            "eval_calls": 3238,
+            "eval_seconds": 0.207205641,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.2793378720234614,
+            "eval_calls": 3238,
+            "eval_seconds": 0.202919989,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.28394034001394175,
+            "eval_calls": 3238,
+            "eval_seconds": 0.207365946,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ],
+        "parallel_2": [
+          {
+            "wall_seconds": 0.2663589139992837,
+            "eval_calls": 3238,
+            "eval_seconds": 0.19173723,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.2772069300117437,
+            "eval_calls": 3238,
+            "eval_seconds": 0.200419903,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.27148088000831194,
+            "eval_calls": 3238,
+            "eval_seconds": 0.196677996,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ],
+        "parallel_4": [
+          {
+            "wall_seconds": 0.28346460801549256,
+            "eval_calls": 3238,
+            "eval_seconds": 0.207065575,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.3136438470100984,
+            "eval_calls": 3238,
+            "eval_seconds": 0.235655602,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          },
+          {
+            "wall_seconds": 0.33738739500404336,
+            "eval_calls": 3238,
+            "eval_seconds": 0.260752343,
+            "terminal": "commits=125 cycles=1075 dual=39 traps=3 reads=68 writes=8"
+          }
+        ]
+      },
+      "medians": {
+        "rtl": {
+          "eval_seconds": 0.235400264,
+          "wall_seconds": 0.31041700500645675,
+          "speedup_vs_rtl": 1.0,
+          "speedup_vs_serial": 0.817431521657087
+        },
+        "serial": {
+          "eval_seconds": 0.192423596,
+          "wall_seconds": 0.268032805994153,
+          "speedup_vs_rtl": 1.2233440643111149,
+          "speedup_vs_serial": 1.0
+        },
+        "parallel_1": {
+          "eval_seconds": 0.207205641,
+          "wall_seconds": 0.2833661090116948,
+          "speedup_vs_rtl": 1.1360707308156732,
+          "speedup_vs_serial": 0.9286600262007346
+        },
+        "parallel_2": {
+          "eval_seconds": 0.196677996,
+          "wall_seconds": 0.27148088000831194,
+          "speedup_vs_rtl": 1.196881546423729,
+          "speedup_vs_serial": 0.9783687037364364
+        },
+        "parallel_4": {
+          "eval_seconds": 0.235655602,
+          "wall_seconds": 0.3136438470100984,
+          "speedup_vs_rtl": 0.9989164781238683,
+          "speedup_vs_serial": 0.8165458167211319
+        }
+      }
+    },
+    "throughput": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 1.3185896729992237,
+            "eval_calls": 17221,
+            "eval_seconds": 1.233625027,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3190827360085677,
+            "eval_calls": 17221,
+            "eval_seconds": 1.235236825,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3242618149961345,
+            "eval_calls": 17221,
+            "eval_seconds": 1.236554214,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ],
+        "serial": [
+          {
+            "wall_seconds": 1.3644587600138038,
+            "eval_calls": 17221,
+            "eval_seconds": 1.275776272,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3608258280146401,
+            "eval_calls": 17221,
+            "eval_seconds": 1.273986822,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3551270079915412,
+            "eval_calls": 17221,
+            "eval_seconds": 1.269835512,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ],
+        "parallel_1": [
+          {
+            "wall_seconds": 1.4749875520064961,
+            "eval_calls": 17221,
+            "eval_seconds": 1.388201835,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.4828277110063937,
+            "eval_calls": 17221,
+            "eval_seconds": 1.396510174,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.4946708089846652,
+            "eval_calls": 17221,
+            "eval_seconds": 1.407023415,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ],
+        "parallel_2": [
+          {
+            "wall_seconds": 1.3538763299875427,
+            "eval_calls": 17221,
+            "eval_seconds": 1.268025925,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.360795585991582,
+            "eval_calls": 17221,
+            "eval_seconds": 1.27399036,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.2035215420182794,
+            "eval_calls": 17221,
+            "eval_seconds": 1.116795215,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ],
+        "parallel_4": [
+          {
+            "wall_seconds": 1.3675382650108077,
+            "eval_calls": 17221,
+            "eval_seconds": 1.279808807,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3697039789985865,
+            "eval_calls": 17221,
+            "eval_seconds": 1.282139031,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          },
+          {
+            "wall_seconds": 1.3044575370149687,
+            "eval_calls": 17221,
+            "eval_seconds": 1.217249116,
+            "terminal": "commits=8232 cycles=5736 dual=4112 traps=1 reads=540 writes=0"
+          }
+        ]
+      },
+      "medians": {
+        "rtl": {
+          "eval_seconds": 1.235236825,
+          "wall_seconds": 1.3190827360085677,
+          "speedup_vs_rtl": 1.0,
+          "speedup_vs_serial": 1.0313705001468036
+        },
+        "serial": {
+          "eval_seconds": 1.273986822,
+          "wall_seconds": 1.3608258280146401,
+          "speedup_vs_rtl": 0.9695836751755664,
+          "speedup_vs_serial": 1.0
+        },
+        "parallel_1": {
+          "eval_seconds": 1.396510174,
+          "wall_seconds": 1.4828277110063937,
+          "speedup_vs_rtl": 0.8845168821519807,
+          "speedup_vs_serial": 0.9122646191333798
+        },
+        "parallel_2": {
+          "eval_seconds": 1.268025925,
+          "wall_seconds": 1.3538763299875427,
+          "speedup_vs_rtl": 0.9741416170178067,
+          "speedup_vs_serial": 1.0047009267574714
+        },
+        "parallel_4": {
+          "eval_seconds": 1.279808807,
+          "wall_seconds": 1.3675382650108077,
+          "speedup_vs_rtl": 0.9651729369604191,
+          "speedup_vs_serial": 0.9954508947210268
+        }
+      }
+    },
+    "lsu_contention": {
+      "samples": {
+        "rtl": [
+          {
+            "wall_seconds": 6.513964237004984,
+            "eval_calls": 88321,
+            "eval_seconds": 6.413238194,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.510486512008356,
+            "eval_calls": 88321,
+            "eval_seconds": 6.409754519,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.483579138992354,
+            "eval_calls": 88321,
+            "eval_seconds": 6.380172463,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ],
+        "serial": [
+          {
+            "wall_seconds": 5.815146612003446,
+            "eval_calls": 88321,
+            "eval_seconds": 5.714042523,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 5.937635729002068,
+            "eval_calls": 88321,
+            "eval_seconds": 5.830628852,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 5.840430828975514,
+            "eval_calls": 88321,
+            "eval_seconds": 5.738378493,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ],
+        "parallel_1": [
+          {
+            "wall_seconds": 6.347102561994689,
+            "eval_calls": 88321,
+            "eval_seconds": 6.246108154,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.392111036984716,
+            "eval_calls": 88321,
+            "eval_seconds": 6.285116745,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.280293065006845,
+            "eval_calls": 88321,
+            "eval_seconds": 6.180324011,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ],
+        "parallel_2": [
+          {
+            "wall_seconds": 5.725354086986044,
+            "eval_calls": 88321,
+            "eval_seconds": 5.619956003,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 5.580183471000055,
+            "eval_calls": 88321,
+            "eval_seconds": 5.475829888,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 5.498869861999992,
+            "eval_calls": 88321,
+            "eval_seconds": 5.394643987,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ],
+        "parallel_4": [
+          {
+            "wall_seconds": 8.046935547987232,
+            "eval_calls": 88321,
+            "eval_seconds": 7.939000759,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.602603706007358,
+            "eval_calls": 88321,
+            "eval_seconds": 6.499017305,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          },
+          {
+            "wall_seconds": 6.164319242001511,
+            "eval_calls": 88321,
+            "eval_seconds": 6.058652839,
+            "terminal": "commits=4133 cycles=29436 dual=1569 traps=2 reads=4544 writes=868"
+          }
+        ]
+      },
+      "medians": {
+        "rtl": {
+          "eval_seconds": 6.409754519,
+          "wall_seconds": 6.510486512008356,
+          "speedup_vs_rtl": 1.0,
+          "speedup_vs_serial": 0.8952571390979349
+        },
+        "serial": {
+          "eval_seconds": 5.738378493,
+          "wall_seconds": 5.840430828975514,
+          "speedup_vs_rtl": 1.1169975153815634,
+          "speedup_vs_serial": 1.0
+        },
+        "parallel_1": {
+          "eval_seconds": 6.246108154,
+          "wall_seconds": 6.347102561994689,
+          "speedup_vs_rtl": 1.0261997328520802,
+          "speedup_vs_serial": 0.9187126369762184
+        },
+        "parallel_2": {
+          "eval_seconds": 5.475829888,
+          "wall_seconds": 5.580183471000055,
+          "speedup_vs_rtl": 1.1705539890942647,
+          "speedup_vs_serial": 1.0479468154362066
+        },
+        "parallel_4": {
+          "eval_seconds": 6.499017305,
+          "wall_seconds": 6.602603706007358,
+          "speedup_vs_rtl": 0.986265187210484,
+          "speedup_vs_serial": 0.8829609498939471
+        }
+      }
+    }
+  }
+}

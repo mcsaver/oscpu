@@ -1,0 +1,154 @@
+{
+  "status": "pass_for_scopes_below",
+  "command": "make -C npc/rv64/model test-behavior",
+  "tests_passed": 25,
+  "tests_skipped": 0,
+  "counter": {
+    "cycles": 2000,
+    "observations": 3999,
+    "posedge_blocks": 22,
+    "compared": "value_o and all 21 cached near-wrap bits",
+    "oracle": "Icarus executing unchanged production R64Counter.v and R64CounterNear.v",
+    "seed": 2049,
+    "block_and_patch_order": "shuffled each edge",
+    "differences": 0
+  },
+  "lsu_request_queue": {
+    "cycles": 6000,
+    "observations": 12000,
+    "cycles_per_configuration": 1500,
+    "output_fields": 9,
+    "state_fields": 19,
+    "oracle": "Icarus executing unchanged production R64LsuRequestQueue.v with R64_ASSERT",
+    "initial_condition": "Testbench explicitly zero-initializes all retained queue state including unreset storage; RTL source unchanged",
+    "block_and_patch_order": "shuffled each edge",
+    "configurations": [
+      {
+        "DATA_W": 157,
+        "TAG_W": 9,
+        "ROB_W": 5,
+        "AGE_W": 1,
+        "PREPARED_CANCEL": 0,
+        "seed": 831
+      },
+      {
+        "DATA_W": 157,
+        "TAG_W": 9,
+        "ROB_W": 5,
+        "AGE_W": 32,
+        "PREPARED_CANCEL": 1,
+        "seed": 832
+      },
+      {
+        "DATA_W": 193,
+        "TAG_W": 12,
+        "ROB_W": 6,
+        "AGE_W": 7,
+        "PREPARED_CANCEL": 0,
+        "seed": 833
+      },
+      {
+        "DATA_W": 1,
+        "TAG_W": 9,
+        "ROB_W": 3,
+        "AGE_W": 1,
+        "PREPARED_CANCEL": 1,
+        "seed": 834
+      }
+    ],
+    "coverage": "all configurations exercised push, pop, simultaneous push/pop, full, stall, cancel, flush, age clear, unpublished payload capture",
+    "negative_cases": "credit violation for both cancel modes and prepared-cancel mismatch rejected by both original RTL and model",
+    "differences": 0
+  },
+  "generated_host_semantics": {
+    "mixed_edges": 400,
+    "counter_cycles": 1000,
+    "queue_cycles": 700,
+    "queue_rtl_observations": 1400,
+    "queue_parameters": {
+      "DATA_W": 193,
+      "TAG_W": 9,
+      "ROB_W": 5,
+      "AGE_W": 32,
+      "PREPARED_CANCEL": 1
+    },
+    "undefined_behavior_sanitizer": true,
+    "assertion_failure": "credit violation detected at cycle 3 before commit",
+    "differences": 0
+  },
+  "cuda": {
+    "compiled_and_linked_models": [
+      "counter",
+      "queue DATA_W=193 AGE_W=32 PREPARED_CANCEL=1",
+      "mixed-edge wide integer semantics"
+    ],
+    "compiler": "CUDA 12.0 nvcc with g++-12",
+    "target": "sm_70",
+    "execution_shape": "one CUDA CTA; behavioral combinational levels, independent NBA candidates, unique state-field committers, multiple edges per kernel",
+    "shared_storage_limit_bytes": 49152,
+    "executed": false,
+    "reason_not_executed": "No available CUDA device in this environment; no security policy changes or Windows executable probes attempted"
+  },
+  "gpu_executed": true,
+  "whole_cpu_behavior_executed": false,
+  "rtl_automatically_parsed": false,
+  "speed_comparison": "Historical single-module A/B: IGPU_OPTIMIZATION.json. Connected LSU terminal: TERMINAL_GPU_VALIDATION.json; GPU inner loop still 3.57x slower than generated C++ semantic loop. No whole-CPU or Verilator speed claim.",
+  "temporary_compilation_files": "TemporaryDirectory automatically removes test compilation files",
+  "igpu_validation": {
+    "report": "IGPU_OPTIMIZATION.json",
+    "status": "pass",
+    "backend": "WSL Direct3D12 fused SIMD / register wave",
+    "adapter": "Intel(R) Arc(TM) 130T GPU (16GB)",
+    "rtl_cycles": 5000,
+    "rtl_observations": 9999,
+    "additional_mixed_edges": 400,
+    "whole_cpu_executed": false,
+    "additional_check_phase_cases": 4
+  },
+  "fused_gpu_semantics": {
+    "tests_passed": 3,
+    "compared": "fused state transitions and projected native words vs original ordered interpreter",
+    "coverage": [
+      "counter and wide queue",
+      "mixed posedge/negedge arithmetic",
+      "guarded checks reading old state",
+      "blocking self-alias and sampled dynamic NBA address"
+    ],
+    "differences": 0
+  },
+  "igpu_historical_baseline_report": "IGPU_VALIDATION.json",
+  "igpu_regression": {
+    "report": "IGPU_REGRESSION.json",
+    "status": "pass",
+    "rtl_cycles": 5000,
+    "rtl_observations": 9999,
+    "mixed_edges": 400,
+    "additional_check_phase_cases": 6
+  },
+  "lsu_terminal_network": {
+    "report": "TERMINAL_GPU_VALIDATION.json",
+    "status": "pass",
+    "configurations": 2,
+    "cycles_per_configuration": 1200,
+    "rtl_observations": 4800,
+    "state_fields_per_configuration": 69,
+    "differences": 0,
+    "gpu_executed": true,
+    "internal_feedback_on_gpu": true,
+    "independent_simulation_instances": 1,
+    "host_dispatches_per_run": 1,
+    "native_load_format_edges": 1800,
+    "native_wide_integer_mixed_edges": 400,
+    "full_network_state_held_on_credit_failure": true,
+    "whole_cpu_executed": false
+  },
+  "lsu_terminal_performance": {
+    "cycles": 1200,
+    "samples": 5,
+    "trace": false,
+    "gpu_inner_ms": 5.07937,
+    "host_inner_ms": 1.42146,
+    "gpu_over_host": 3.5733471219731827,
+    "scope": "connected LSU terminal behavioral slice, not full CPU or Verilator comparison"
+  }
+}

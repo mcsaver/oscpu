@@ -1,0 +1,72 @@
+{
+  "protocol": "r64net-v0",
+  "owner_bits": 16,
+  "payload_bits": 64,
+  "cancel_ports": 2,
+  "inputs": [
+    "source0",
+    "source1",
+    "source2"
+  ],
+  "outputs": [
+    "sink0",
+    "sink1"
+  ],
+  "nodes": [
+    {
+      "id": "queue0",
+      "kind": "queue",
+      "depth": 2
+    },
+    {
+      "id": "queue1",
+      "kind": "queue",
+      "depth": 2
+    },
+    {
+      "id": "queue2",
+      "kind": "queue",
+      "depth": 2
+    },
+    {
+      "id": "arbiter",
+      "kind": "rr_hold",
+      "inputs": 3,
+      "outputs": 2
+    }
+  ],
+  "links": [
+    [
+      "source0",
+      "queue0.in"
+    ],
+    [
+      "source1",
+      "queue1.in"
+    ],
+    [
+      "source2",
+      "queue2.in"
+    ],
+    [
+      "queue0.out",
+      "arbiter.in0"
+    ],
+    [
+      "queue1.out",
+      "arbiter.in1"
+    ],
+    [
+      "queue2.out",
+      "arbiter.in2"
+    ],
+    [
+      "arbiter.out0",
+      "sink0"
+    ],
+    [
+      "arbiter.out1",
+      "sink1"
+    ]
+  ]
+}

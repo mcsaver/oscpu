@@ -1,0 +1,170 @@
+{
+  "date": "2026-09-17",
+  "scope": "Protocol network prototype, not production CPU; no whole-core CPI claim.",
+  "configurations": {
+    "default": {
+      "status": "pass",
+      "target_cycles_checked": 4382,
+      "signals_per_cycle": 48,
+      "engines_checked": [
+        "cpp",
+        "verilator",
+        "icarus"
+      ],
+      "independent_reference": true,
+      "cycle_mismatches": 0,
+      "statistics": {
+        "max_inflight": 8,
+        "cancelled": 715,
+        "output0_backpressure_cycles": 1280,
+        "output0_max_backpressure_run": 31,
+        "output1_backpressure_cycles": 1284,
+        "output1_max_backpressure_run": 31,
+        "dual_output_cycles": 684,
+        "source0_backpressure_cycles": 2621,
+        "source0_max_backpressure_run": 30,
+        "queue0_occupancy_sum": 7253,
+        "queue0_arbitration_wait_cycles": 3141,
+        "source1_backpressure_cycles": 2538,
+        "source1_max_backpressure_run": 31,
+        "queue1_occupancy_sum": 7181,
+        "queue1_arbitration_wait_cycles": 3115,
+        "source2_backpressure_cycles": 2584,
+        "source2_max_backpressure_run": 31,
+        "queue2_occupancy_sum": 7218,
+        "queue2_arbitration_wait_cycles": 3130,
+        "accepted": 3640,
+        "source0_accepted": 1214,
+        "delivered": 2917,
+        "source1_accepted": 1224,
+        "source2_accepted": 1202,
+        "simultaneous_push_pop": 268,
+        "hold_checks": 19152,
+        "full_queue_pop_without_credit": 2710,
+        "cancelled_offer": 320,
+        "reset_discarded": 8,
+        "reset_with_inflight": 1
+      },
+      "maximum_head_wait_continuous_contention": 3,
+      "benchmark": {
+        "cpp_median_seconds": 0.916898241,
+        "verilator_median_seconds": 1.576801194,
+        "verilator_over_cpp": 1.719712312110325,
+        "scope": "same generated network and feedback driver; initialization excluded; assertions and output checksum enabled; no detailed logging"
+      },
+      "benchmark_cycles_per_sample": 10000000,
+      "benchmark_samples": 3,
+      "build_seconds": {
+        "cpp": 0.6459932830184698,
+        "verilator": 3.3215354350104462,
+        "icarus": 0.01186861001770012
+      },
+      "temporary_build_cleaned": true
+    },
+    "permuted_depths": {
+      "status": "pass",
+      "target_cycles_checked": 4391,
+      "signals_per_cycle": 48,
+      "engines_checked": [
+        "cpp",
+        "verilator",
+        "icarus"
+      ],
+      "independent_reference": true,
+      "cycle_mismatches": 0,
+      "statistics": {
+        "max_inflight": 10,
+        "cancelled": 845,
+        "output0_backpressure_cycles": 1306,
+        "output0_max_backpressure_run": 31,
+        "output1_backpressure_cycles": 1316,
+        "output1_max_backpressure_run": 31,
+        "dual_output_cycles": 708,
+        "source0_backpressure_cycles": 2515,
+        "source0_max_backpressure_run": 32,
+        "queue0_occupancy_sum": 11379,
+        "queue0_arbitration_wait_cycles": 3205,
+        "source1_backpressure_cycles": 2852,
+        "source1_max_backpressure_run": 34,
+        "queue1_occupancy_sum": 3208,
+        "queue1_arbitration_wait_cycles": 2154,
+        "source2_backpressure_cycles": 2358,
+        "source2_max_backpressure_run": 28,
+        "queue2_occupancy_sum": 15373,
+        "queue2_arbitration_wait_cycles": 3206,
+        "accepted": 3753,
+        "source0_accepted": 1289,
+        "delivered": 2898,
+        "source1_accepted": 1054,
+        "source2_accepted": 1410,
+        "full_queue_pop_without_credit": 2668,
+        "simultaneous_push_pop": 278,
+        "hold_checks": 18461,
+        "cancelled_offer": 271,
+        "reset_discarded": 10,
+        "reset_with_inflight": 1
+      },
+      "maximum_head_wait_continuous_contention": 3,
+      "benchmark": {
+        "cpp_median_seconds": 0.95171794,
+        "verilator_median_seconds": 1.785313214,
+        "verilator_over_cpp": 1.8758847962874379,
+        "scope": "same generated network and feedback driver; initialization excluded; assertions and output checksum enabled; no detailed logging"
+      },
+      "benchmark_cycles_per_sample": 10000000,
+      "benchmark_samples": 3,
+      "build_seconds": {
+        "cpp": 0.731146923993947,
+        "verilator": 3.53458376598428,
+        "icarus": 0.011564535991055891
+      },
+      "temporary_build_cleaned": true
+    },
+    "single_lane": {
+      "status": "pass",
+      "target_cycles_checked": 4359,
+      "signals_per_cycle": 20,
+      "engines_checked": [
+        "cpp",
+        "verilator",
+        "icarus"
+      ],
+      "independent_reference": true,
+      "cycle_mismatches": 0,
+      "statistics": {
+        "max_inflight": 2,
+        "cancelled": 336,
+        "output0_backpressure_cycles": 1145,
+        "output0_max_backpressure_run": 32,
+        "dual_output_cycles": 0,
+        "source0_backpressure_cycles": 1973,
+        "source0_max_backpressure_run": 29,
+        "queue0_occupancy_sum": 2520,
+        "queue0_arbitration_wait_cycles": 987,
+        "accepted": 1533,
+        "source0_accepted": 1533,
+        "full_queue_pop_without_credit": 1352,
+        "delivered": 1195,
+        "hold_checks": 3863,
+        "cancelled_offer": 275,
+        "reset_discarded": 2,
+        "reset_with_inflight": 1
+      },
+      "maximum_head_wait_continuous_contention": 0,
+      "benchmark": {
+        "cpp_median_seconds": 0.186220948,
+        "verilator_median_seconds": 0.718992215,
+        "verilator_over_cpp": 3.8609631339649284,
+        "scope": "same generated network and feedback driver; initialization excluded; assertions and output checksum enabled; no detailed logging"
+      },
+      "benchmark_cycles_per_sample": 10000000,
+      "benchmark_samples": 3,
+      "build_seconds": {
+        "cpp": 0.5541852320020553,
+        "verilator": 3.4138657650037203,
+        "icarus": 0.006356041005346924
+      },
+      "temporary_build_cleaned": true
+    }
+  }
+}
