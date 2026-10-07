@@ -9,39 +9,39 @@ module AxiToUart #(
   input clk,
   input rst,
 
-  input s_axi_arvalid_i,
-  output s_axi_arready_o,
-  input [ADDR_W-1:0] s_axi_araddr_i,
-  input [2:0] s_axi_arsize_i,
-  output reg s_axi_rvalid_o,
-  input s_axi_rready_i,
+  input                   s_axi_arvalid_i,
+  output                  s_axi_arready_o,
+  input      [ADDR_W-1:0] s_axi_araddr_i,
+  input      [       2:0] s_axi_arsize_i,
+  output reg              s_axi_rvalid_o,
+  input                   s_axi_rready_i,
   output reg [DATA_W-1:0] s_axi_rdata_o,
-  output [1:0] s_axi_rresp_o,
+  output     [       1:0] s_axi_rresp_o,
 
-  input s_axi_awvalid_i,
-  output s_axi_awready_o,
-  input [ADDR_W-1:0] s_axi_awaddr_i,
-  input [2:0] s_axi_awsize_i,
-  input s_axi_wvalid_i,
-  output s_axi_wready_o,
-  input [DATA_W-1:0] s_axi_wdata_i,
-  input [STRB_W-1:0] s_axi_wstrb_i,
-  output reg s_axi_bvalid_o,
-  input s_axi_bready_i,
-  output [1:0] s_axi_bresp_o,
+  input                   s_axi_awvalid_i,
+  output                  s_axi_awready_o,
+  input      [ADDR_W-1:0] s_axi_awaddr_i,
+  input      [       2:0] s_axi_awsize_i,
+  input                   s_axi_wvalid_i,
+  output                  s_axi_wready_o,
+  input      [DATA_W-1:0] s_axi_wdata_i,
+  input      [STRB_W-1:0] s_axi_wstrb_i,
+  output reg              s_axi_bvalid_o,
+  input                   s_axi_bready_i,
+  output     [       1:0] s_axi_bresp_o,
 
-  output uart_tx_valid_o,
-  output [7:0] uart_tx_data_o,
-  output uart_access_valid_o,
-  output uart_access_write_o,
-  output [11:0] uart_access_addr_o,
+  output              uart_tx_valid_o,
+  output [       7:0] uart_tx_data_o,
+  output              uart_access_valid_o,
+  output              uart_access_write_o,
+  output [      11:0] uart_access_addr_o,
   output [DATA_W-1:0] uart_access_wdata_o,
   output [STRB_W-1:0] uart_access_wstrb_o,
   output [DATA_W-1:0] uart_access_rdata_o,
-  input uart_rx_valid_i,
-  input [7:0] uart_rx_data_i,
-  output uart_rx_ready_o,
-  output uart_irq_o
+  input               uart_rx_valid_i,
+  input  [       7:0] uart_rx_data_i,
+  output              uart_rx_ready_o,
+  output              uart_irq_o
 );
 
   localparam integer LANE_BITS = $clog2(STRB_W);
@@ -72,25 +72,18 @@ module AxiToUart #(
   wire [DATA_W-1:0] native_write_data_w = write_data_w >> write_lane_shift_w;
   wire [STRB_W-1:0] native_write_strb_w = write_strb_w >> write_lane_w;
   wire [DATA_W-1:0] uart_rdata_w;
-  wire unused_addr_hi_w = |{
-      s_axi_araddr_i[ADDR_W-1:12],
-      s_axi_awaddr_i[ADDR_W-1:12],
-      s_axi_awsize_i
-  };
+  wire unused_addr_hi_w =
+      |{s_axi_araddr_i[ADDR_W-1:12], s_axi_awaddr_i[ADDR_W-1:12], s_axi_awsize_i};
 
   assign s_axi_arready_o = !ar_pending_q && !s_axi_rvalid_o;
   assign s_axi_rresp_o = 2'b00;
   assign s_axi_awready_o = !aw_seen_q && !s_axi_bvalid_o;
   assign s_axi_wready_o = !w_seen_q && !s_axi_bvalid_o;
   assign s_axi_bresp_o = 2'b00;
-  assign uart_access_addr_o = write_done_w ? write_addr_low_w
-                                           : araddr_low_q;
-  assign uart_access_wdata_o = write_done_w ? native_write_data_w
-                                            : {DATA_W{1'b0}};
-  assign uart_access_wstrb_o = write_done_w ? native_write_strb_w
-                                            : {STRB_W{1'b0}};
-  assign uart_access_rdata_o = read_apply_w ? uart_rdata_w
-                                         : {DATA_W{1'b0}};
+  assign uart_access_addr_o = write_done_w ? write_addr_low_w : araddr_low_q;
+  assign uart_access_wdata_o = write_done_w ? native_write_data_w : {DATA_W{1'b0}};
+  assign uart_access_wstrb_o = write_done_w ? native_write_strb_w : {STRB_W{1'b0}};
+  assign uart_access_rdata_o = read_apply_w ? uart_rdata_w : {DATA_W{1'b0}};
 
   Uart #(
     .DATA_W(DATA_W),
@@ -145,9 +138,9 @@ module AxiToUart #(
       end
 
       if (read_apply_w) begin
-        ar_pending_q <= 1'b0;
+        ar_pending_q   <= 1'b0;
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= uart_rdata_w << read_lane_shift_w;
+        s_axi_rdata_o  <= uart_rdata_w << read_lane_shift_w;
       end
 
       if (aw_fire_w) begin
@@ -156,8 +149,8 @@ module AxiToUart #(
       end
 
       if (w_fire_w) begin
-        wdata_q <= s_axi_wdata_i;
-        wstrb_q <= s_axi_wstrb_i;
+        wdata_q  <= s_axi_wdata_i;
+        wstrb_q  <= s_axi_wstrb_i;
         w_seen_q <= 1'b1;
       end
 

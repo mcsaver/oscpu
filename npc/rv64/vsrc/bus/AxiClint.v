@@ -11,41 +11,41 @@ module AxiClint #(
   input clk,
   input rst,
 
-  input s_axi_arvalid_i,
-  output s_axi_arready_o,
-  input [ADDR_W-1:0] s_axi_araddr_i,
-  input [2:0] s_axi_arsize_i,
-  output reg s_axi_rvalid_o,
-  input s_axi_rready_i,
+  input                   s_axi_arvalid_i,
+  output                  s_axi_arready_o,
+  input      [ADDR_W-1:0] s_axi_araddr_i,
+  input      [       2:0] s_axi_arsize_i,
+  output reg              s_axi_rvalid_o,
+  input                   s_axi_rready_i,
   output reg [DATA_W-1:0] s_axi_rdata_o,
-  output [1:0] s_axi_rresp_o,
+  output     [       1:0] s_axi_rresp_o,
 
-  input s_axi_awvalid_i,
-  output s_axi_awready_o,
-  input [ADDR_W-1:0] s_axi_awaddr_i,
-  input [2:0] s_axi_awsize_i,
-  input s_axi_wvalid_i,
-  output s_axi_wready_o,
-  input [DATA_W-1:0] s_axi_wdata_i,
-  input [STRB_W-1:0] s_axi_wstrb_i,
-  output reg s_axi_bvalid_o,
-  input s_axi_bready_i,
-  output [1:0] s_axi_bresp_o,
+  input                   s_axi_awvalid_i,
+  output                  s_axi_awready_o,
+  input      [ADDR_W-1:0] s_axi_awaddr_i,
+  input      [       2:0] s_axi_awsize_i,
+  input                   s_axi_wvalid_i,
+  output                  s_axi_wready_o,
+  input      [DATA_W-1:0] s_axi_wdata_i,
+  input      [STRB_W-1:0] s_axi_wstrb_i,
+  output reg              s_axi_bvalid_o,
+  input                   s_axi_bready_i,
+  output     [       1:0] s_axi_bresp_o,
 
-  output [63:0] mtime_o,
-  output msip_irq_o,
-  output reg mtip_irq_o,
-  output timer_wait_o
+  output     [63:0] mtime_o,
+  output            msip_irq_o,
+  output reg        mtip_irq_o,
+  output            timer_wait_o
 );
 
-  localparam integer LANE_BITS = $clog2(STRB_W);
+  localparam integer        LANE_BITS          = $clog2(STRB_W);
 
-  localparam [15:0] CLINT_MSIP_OFFSET      = 16'h0000;
-  localparam [15:0] CLINT_MTIMECMP_LO      = 16'h4000;
-  localparam [15:0] CLINT_MTIMECMP_HI      = 16'h4004;
-  localparam [15:0] CLINT_MTIME_LO         = 16'hbff8;
-  localparam [15:0] CLINT_MTIME_HI         = 16'hbffc;
-  localparam [31:0] MTIME_DIVISOR_SAFE     = (MTIME_DIVISOR == 32'd0) ? 32'd1 : MTIME_DIVISOR;
+  localparam         [15:0] CLINT_MSIP_OFFSET  = 16'h0000;
+  localparam         [15:0] CLINT_MTIMECMP_LO  = 16'h4000;
+  localparam         [15:0] CLINT_MTIMECMP_HI  = 16'h4004;
+  localparam         [15:0] CLINT_MTIME_LO     = 16'hbff8;
+  localparam         [15:0] CLINT_MTIME_HI     = 16'hbffc;
+  localparam         [31:0] MTIME_DIVISOR_SAFE = (MTIME_DIVISOR == 32'd0) ? 32'd1 : MTIME_DIVISOR;
 
   reg [15:0] araddr_low_q;
   reg ar_seen_q;
@@ -75,12 +75,8 @@ module AxiClint #(
   wire [STRB_W-1:0] native_write_strb_w = write_strb_w >> write_lane_w;
   wire [63:0] write_data_pad_w;
   wire [7:0] write_strb_pad_w;
-  wire unused_addr_hi_w = |{
-      s_axi_araddr_i[ADDR_W-1:16],
-      s_axi_awaddr_i[ADDR_W-1:16],
-      s_axi_arsize_i,
-      s_axi_awsize_i
-  };
+  wire unused_addr_hi_w =
+      |{s_axi_araddr_i[ADDR_W-1:16], s_axi_awaddr_i[ADDR_W-1:16], s_axi_arsize_i, s_axi_awsize_i};
 
   assign s_axi_arready_o = !ar_seen_q && !s_axi_rvalid_o;
   assign s_axi_rresp_o = 2'b00;
@@ -88,7 +84,7 @@ module AxiClint #(
   assign s_axi_wready_o = !w_seen_q && !s_axi_bvalid_o;
   assign s_axi_bresp_o = 2'b00;
   assign mtime_o = mtime_q;
-  assign timer_wait_o=mtimecmp_q!=64'hffffffffffffffff&&!mtip_irq_o;
+  assign timer_wait_o = mtimecmp_q != 64'hffffffffffffffff && !mtip_irq_o;
   // msip_irq_o 直连寄存器 msip_q,本就无组合锥,毋需再打拍。
   assign msip_irq_o = msip_q;
   // Register the timer comparison before the core interrupt-input boundary.
@@ -96,7 +92,7 @@ module AxiClint #(
   wire mtip_irq_next_w = (mtime_q >= mtimecmp_q);
 
   assign write_data_pad_w[31:0] = native_write_data_w[31:0];
-  assign write_strb_pad_w[3:0] = native_write_strb_w[3:0];
+  assign write_strb_pad_w[3:0]  = native_write_strb_w[3:0];
   generate
     if (DATA_W > 32) begin : gen_clint_data_high_lanes
       assign write_data_pad_w[63:32] = native_write_data_w[63:32];
@@ -117,8 +113,8 @@ module AxiClint #(
     input [7:0] strb;
     begin
       // 固定 8-lane byte-enable mux，替代仿真式循环，便于综合审查每个 byte 的来源。
-      apply_wstrb64_aligned[7:0]   = strb[0] ? new_value[7:0]   : old_value[7:0];
-      apply_wstrb64_aligned[15:8]  = strb[1] ? new_value[15:8]  : old_value[15:8];
+      apply_wstrb64_aligned[7:0]   = strb[0] ? new_value[7:0] : old_value[7:0];
+      apply_wstrb64_aligned[15:8]  = strb[1] ? new_value[15:8] : old_value[15:8];
       apply_wstrb64_aligned[23:16] = strb[2] ? new_value[23:16] : old_value[23:16];
       apply_wstrb64_aligned[31:24] = strb[3] ? new_value[31:24] : old_value[31:24];
       apply_wstrb64_aligned[39:32] = strb[4] ? new_value[39:32] : old_value[39:32];
@@ -135,8 +131,8 @@ module AxiClint #(
     begin
       // *_HI 寄存器只消费写数据低 4 lane，高 4 lane 被显式忽略。
       apply_wstrb64_high_word[31:0]  = old_value[31:0];
-      apply_wstrb64_high_word[39:32] = strb[0] ? new_value[7:0]   : old_value[39:32];
-      apply_wstrb64_high_word[47:40] = strb[1] ? new_value[15:8]  : old_value[47:40];
+      apply_wstrb64_high_word[39:32] = strb[0] ? new_value[7:0] : old_value[39:32];
+      apply_wstrb64_high_word[47:40] = strb[1] ? new_value[15:8] : old_value[47:40];
       apply_wstrb64_high_word[55:48] = strb[2] ? new_value[23:16] : old_value[55:48];
       apply_wstrb64_high_word[63:56] = strb[3] ? new_value[31:24] : old_value[63:56];
     end
@@ -155,12 +151,14 @@ module AxiClint #(
     input [15:0] addr_low;
     begin
       case (addr_low)
-        CLINT_MSIP_OFFSET: read_clint_word = {{(DATA_W-1){1'b0}}, msip_q};
+        CLINT_MSIP_OFFSET: read_clint_word = {{(DATA_W - 1) {1'b0}}, msip_q};
         CLINT_MTIMECMP_LO: read_clint_word = mtimecmp_q[DATA_W-1:0];
-        CLINT_MTIMECMP_HI: read_clint_word = {{(DATA_W-32){1'b0}},mtimecmp_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
-        CLINT_MTIME_LO:    read_clint_word = mtime_q[DATA_W-1:0];
-        CLINT_MTIME_HI:    read_clint_word = {{(DATA_W-32){1'b0}},mtime_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
-        default:           read_clint_word = {DATA_W{1'b0}};
+        CLINT_MTIMECMP_HI:
+        read_clint_word = {{(DATA_W - 32) {1'b0}}, mtimecmp_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
+        CLINT_MTIME_LO: read_clint_word = mtime_q[DATA_W-1:0];
+        CLINT_MTIME_HI:
+        read_clint_word = {{(DATA_W - 32) {1'b0}}, mtime_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
+        default: read_clint_word = {DATA_W{1'b0}};
       endcase
     end
   endfunction
@@ -191,11 +189,9 @@ module AxiClint #(
         mtime_div_q <= mtime_div_q + 32'd1;
       end
 
-      if (s_axi_rvalid_o && s_axi_rready_i)
-        s_axi_rvalid_o <= 1'b0;
+      if (s_axi_rvalid_o && s_axi_rready_i) s_axi_rvalid_o <= 1'b0;
 
-      if (s_axi_bvalid_o && s_axi_bready_i)
-        s_axi_bvalid_o <= 1'b0;
+      if (s_axi_bvalid_o && s_axi_bready_i) s_axi_bvalid_o <= 1'b0;
 
       // Capture the physical request before selecting a timer/register value.
       // Its address remains authoritative after the Fabric reuses its AR pins.
@@ -215,8 +211,8 @@ module AxiClint #(
       end
 
       if (w_fire_w) begin
-        wdata_q <= s_axi_wdata_i;
-        wstrb_q <= s_axi_wstrb_i;
+        wdata_q  <= s_axi_wdata_i;
+        wstrb_q  <= s_axi_wstrb_i;
         w_seen_q <= 1'b1;
       end
 
@@ -225,21 +221,18 @@ module AxiClint #(
         aw_seen_q <= 1'b0;
         w_seen_q <= 1'b0;
         case (write_addr_low_w)
-          CLINT_MSIP_OFFSET: msip_q <= apply_msip_wstrb_bit(
-              msip_q, native_write_data_w[0], native_write_strb_w[0]);
-          CLINT_MTIMECMP_LO: mtimecmp_q <= apply_wstrb64_aligned(mtimecmp_q,
-                                                                 write_data_pad_w,
-                                                                 write_strb_pad_w);
-          CLINT_MTIMECMP_HI: mtimecmp_q <= apply_wstrb64_high_word(mtimecmp_q,
-                                                                   write_data_pad_w,
-                                                                   write_strb_pad_w);
-          CLINT_MTIME_LO: mtime_q <= apply_wstrb64_aligned(mtime_q,
-                                                           write_data_pad_w,
-                                                           write_strb_pad_w);
-          CLINT_MTIME_HI: mtime_q <= apply_wstrb64_high_word(mtime_q,
-                                                             write_data_pad_w,
-                                                             write_strb_pad_w);
-          default: begin end
+          CLINT_MSIP_OFFSET:
+          msip_q <= apply_msip_wstrb_bit(msip_q, native_write_data_w[0], native_write_strb_w[0]);
+          CLINT_MTIMECMP_LO:
+          mtimecmp_q <= apply_wstrb64_aligned(mtimecmp_q, write_data_pad_w, write_strb_pad_w);
+          CLINT_MTIMECMP_HI:
+          mtimecmp_q <= apply_wstrb64_high_word(mtimecmp_q, write_data_pad_w, write_strb_pad_w);
+          CLINT_MTIME_LO:
+          mtime_q <= apply_wstrb64_aligned(mtime_q, write_data_pad_w, write_strb_pad_w);
+          CLINT_MTIME_HI:
+          mtime_q <= apply_wstrb64_high_word(mtime_q, write_data_pad_w, write_strb_pad_w);
+          default: begin
+          end
         endcase
       end
     end

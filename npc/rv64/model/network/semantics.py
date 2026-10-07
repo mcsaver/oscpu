@@ -3,6 +3,7 @@
 State references mean old-Q; next-state is assigned once. Combinational nodes
 are topologically sorted and checked before either backend is emitted.
 """
+
 from dataclasses import dataclass
 import re
 
@@ -144,7 +145,7 @@ class IR:
             else:
                 if expr.op not in {"not", "and", "or", "eq", "lt", "resize", "add", "sub", "mux"}:
                     raise ValueError("unknown operation")
-                arity = {"not":1, "resize":1, "mux":3}
+                arity = {"not": 1, "resize": 1, "mux": 3}
                 if len(expr.args) != arity.get(expr.op, 2):
                     raise ValueError("invalid expression arity")
                 for arg in expr.args:
@@ -180,12 +181,14 @@ class IR:
         for expr in list(self.next.values()) + list(self.outputs.values()) + self.assertions:
             check(expr)
         needed = set()
+
         def reach(expr):
             if expr.op == "ref" and expr.value in self.wires and expr.value not in needed:
                 needed.add(expr.value)
                 reach(self.wires[expr.value])
             for arg in expr.args:
                 reach(arg)
+
         for expr in list(self.next.values()) + list(self.outputs.values()) + self.assertions:
             reach(expr)
         return [name for name in ordered if name in needed]
@@ -194,7 +197,16 @@ class IR:
 def validate_config(cfg):
     if cfg.get("protocol") != "r64net-v0":
         raise ValueError("unsupported protocol")
-    allowed = {"protocol", "owner_bits", "payload_bits", "cancel_ports", "inputs", "outputs", "nodes", "links"}
+    allowed = {
+        "protocol",
+        "owner_bits",
+        "payload_bits",
+        "cancel_ports",
+        "inputs",
+        "outputs",
+        "nodes",
+        "links",
+    }
     if set(cfg) != allowed:
         raise ValueError("missing or unknown network fields")
     for field in ("owner_bits", "payload_bits"):
@@ -213,15 +225,29 @@ def validate_config(cfg):
     if len(arbiters) != 1 or len(queues) != len(inputs) or len(nodes) != len(queues) + 1:
         raise ValueError("v0 requires one queue per input and one rr_hold")
     arb = arbiters[0]
-    if set(arb) != {"id", "kind", "inputs", "outputs"} or arb["inputs"] != len(inputs) or arb["outputs"] != len(outputs):
+    if (
+        set(arb) != {"id", "kind", "inputs", "outputs"}
+        or arb["inputs"] != len(inputs)
+        or arb["outputs"] != len(outputs)
+    ):
         raise ValueError("arbiter port counts do not match")
     for q in queues:
-        if set(q) != {"id", "kind", "depth"} or type(q["depth"]) is not int or not 1 <= q["depth"] <= 8:
+        if (
+            set(q) != {"id", "kind", "depth"}
+            or type(q["depth"]) is not int
+            or not 1 <= q["depth"] <= 8
+        ):
             raise ValueError("queue depth must be 1..8")
-    source_ports = set(inputs) | {q["id"] + ".out" for q in queues} | {
-        arb["id"] + ".out" + str(i) for i in range(len(outputs))}
-    dest_ports = set(outputs) | {q["id"] + ".in" for q in queues} | {
-        arb["id"] + ".in" + str(i) for i in range(len(inputs))}
+    source_ports = (
+        set(inputs)
+        | {q["id"] + ".out" for q in queues}
+        | {arb["id"] + ".out" + str(i) for i in range(len(outputs))}
+    )
+    dest_ports = (
+        set(outputs)
+        | {q["id"] + ".in" for q in queues}
+        | {arb["id"] + ".in" + str(i) for i in range(len(inputs))}
+    )
     forward, reverse = {}, {}
     for edge in cfg["links"]:
         if not isinstance(edge, list) or len(edge) != 2:
@@ -254,9 +280,13 @@ def validate_config(cfg):
             raise ValueError("arbiter outputs must connect to external sinks")
         sink_for_lane.append(outputs.index(dst))
     return {
-        "n": len(inputs), "m": len(outputs), "depths": [by_id[q]["depth"] for q in queue_for_input],
-        "input_for_arb": input_for_arb, "sink_for_lane": sink_for_lane,
-        "owner_bits": cfg["owner_bits"], "payload_bits": cfg["payload_bits"],
+        "n": len(inputs),
+        "m": len(outputs),
+        "depths": [by_id[q]["depth"] for q in queue_for_input],
+        "input_for_arb": input_for_arb,
+        "sink_for_lane": sink_for_lane,
+        "owner_bits": cfg["owner_bits"],
+        "payload_bits": cfg["payload_bits"],
         "cancel_ports": cfg["cancel_ports"],
     }
 
@@ -273,8 +303,10 @@ def build(cfg):
     owner = [ir.input(f"src{i}_owner", tw) for i in range(n)]
     data = [ir.input(f"src{i}_data", dw) for i in range(n)]
     sink_ready = [ir.input(f"sink{i}_ready") for i in range(m)]
-    cancel = [(ir.input(f"cancel{i}_valid"), ir.input(f"cancel{i}_owner", tw))
-              for i in range(cfg["cancel_ports"])]
+    cancel = [
+        (ir.input(f"cancel{i}_valid"), ir.input(f"cancel{i}_owner", tw))
+        for i in range(cfg["cancel_ports"])
+    ]
 
     def killed(tag):
         return O(*(A(valid, ir.eq(tag, who)) for valid, who in cancel))
@@ -286,8 +318,10 @@ def build(cfg):
     ht = [ir.reg(f"hold{o}_owner", tw) for o in range(m)]
     hd = [ir.reg(f"hold{o}_data", dw) for o in range(m)]
     rr = ir.reg("rr", bits(n - 1))
-    qlive = [A(enabled, ir.inv(ir.eq(count[i], C(0, count[i].width))), ir.inv(killed(qt[i][0])))
-             for i in range(n)]
+    qlive = [
+        A(enabled, ir.inv(ir.eq(count[i], C(0, count[i].width))), ir.inv(killed(qt[i][0])))
+        for i in range(n)
+    ]
     picks = [[C(0) for _ in range(n)] for _ in range(m)]
     chosen = [C(0) for _ in range(n)]
     pointer = rr
@@ -337,13 +371,22 @@ def build(cfg):
             put = A(push, ir.eq(size, C(dest, width)))
             ir.update(qt[i][dest], M(put, owner[i], nt), rst)
             ir.update(qd[i][dest], M(put, data[i], nd), rst)
-        for key, value in {"valid":live_in, "ready":ready, "fire":push,
-                           "owner":M(live_in, owner[i], C(0, tw)),
-                           "data":M(live_in, data[i], C(0, dw))}.items():
+        for key, value in {
+            "valid": live_in,
+            "ready": ready,
+            "fire": push,
+            "owner": M(live_in, owner[i], C(0, tw)),
+            "data": M(live_in, data[i], C(0, dw)),
+        }.items():
             ir.output(f"in{i}_{key}", value)
-        for key, value in {"valid":qlive[i], "ready":qready[i], "fire":pop,
-                           "owner":M(qlive[i], qt[i][0], C(0, tw)),
-                           "data":M(qlive[i], qd[i][0], C(0, dw)), "count":count[i]}.items():
+        for key, value in {
+            "valid": qlive[i],
+            "ready": qready[i],
+            "fire": pop,
+            "owner": M(qlive[i], qt[i][0], C(0, tw)),
+            "data": M(qlive[i], qd[i][0], C(0, dw)),
+            "count": count[i],
+        }.items():
             ir.output(f"q{i}_{key}", value)
         occupancy = ir.add(occupancy, count[i], cw)
     for lane in range(m):
@@ -357,10 +400,14 @@ def build(cfg):
         ir.update(hv[lane], O(A(live, ir.inv(sink_ready[sink])), take), rst)
         ir.update(ht[lane], nt, rst)
         ir.update(hd[lane], nd, rst)
-        for key, value in {"valid":live, "ready":A(enabled, sink_ready[sink]),
-                           "fire":A(live, sink_ready[sink]),
-                           "owner":M(live, ht[lane], C(0, tw)),
-                           "data":M(live, hd[lane], C(0, dw)), "occupied":hv[lane]}.items():
+        for key, value in {
+            "valid": live,
+            "ready": A(enabled, sink_ready[sink]),
+            "fire": A(live, sink_ready[sink]),
+            "owner": M(live, ht[lane], C(0, tw)),
+            "data": M(live, hd[lane], C(0, dw)),
+            "occupied": hv[lane],
+        }.items():
             ir.output(f"out{sink}_{key}", value)
         cancel_count = ir.add(cancel_count, A(enabled, hv[lane], killed(ht[lane])), cw)
         occupancy = ir.add(occupancy, hv[lane], cw)
