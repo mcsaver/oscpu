@@ -9,7 +9,7 @@ if [[ "${1:-}" == --help ]]; then
     printf '%s\n' 'Usage: scripts/run_qwen_compiled_model.sh [NEW_RUN_DIRECTORY]' \
         'Uses the configured tmp/build/npu-compiled-backend-cmake tree.' \
         'Overrides: NPU_COMPILED_BUILD_DIR, NPU_COMPILED_CMAKE, NPU_LLAMA_BUILD_BIN.' \
-        'A fresh build tree also needs NPU_BOOTSTRAP_MANIFEST and NPU_STEADY_MANIFEST.'
+        'Canonical manifests default to compiler/fixtures/qwen-strict-manifests; override with NPU_BOOTSTRAP_MANIFEST and NPU_STEADY_MANIFEST.'
     exit 0
 fi
 readonly run_root="$(realpath -m -- "${1:-tmp/acceptance/qwen-compiled-$(date -u +%Y%m%dT%H%M%SZ)-${BASHPID}}")"
@@ -21,7 +21,7 @@ trap 'rc=$?; trap - EXIT; task_run_status_finalize "$rc" 0; exit $?' EXIT
 task_run_status_install_signal_traps
 cp -- "${BASH_SOURCE[0]}" "$run_root/runner.sh"
 readonly build_dir="$(realpath -m -- "${NPU_COMPILED_BUILD_DIR:-tmp/build/npu-compiled-backend-cmake}")"
-readonly llama_bin="$(realpath -m -- "${NPU_LLAMA_BUILD_BIN:-tmp/build/llama.cpp/bin}")"
+readonly llama_bin="$(realpath -m -- "${NPU_LLAMA_BUILD_BIN:-tools/llama.cpp/bin}")"
 readonly cmake="${NPU_COMPILED_CMAKE:-${PROJECT_ROOT}/tools/cmake-python/cmake/data/bin/cmake}"
 readonly model="${PROJECT_ROOT}/models/Qwen3.5-0.8B-Q8_0.gguf"
 readonly oracle="${PROJECT_ROOT}/tests/vectors/qwen35_08b_q8_0/strict-smoke-oracle.json"
@@ -41,8 +41,8 @@ task_run_status_stage build-backend
 if [[ ! -f "$build_dir/CMakeCache.txt" ]]; then
     "$cmake" -S runtime/llama-npu-backend -B "$build_dir" \
         -DLLAMA_BUILD_BIN="$llama_bin" \
-        -DNPU_Q8_GEMV_MANIFEST="${NPU_BOOTSTRAP_MANIFEST:?canonical bootstrap manifest required}" \
-        -DNPU_QWEN_STEADY_MANIFEST="${NPU_STEADY_MANIFEST:?canonical steady manifest required}" \
+        -DNPU_Q8_GEMV_MANIFEST="${NPU_BOOTSTRAP_MANIFEST:-${PROJECT_ROOT}/compiler/fixtures/qwen-strict-manifests/dispatch.manifest.json}" \
+        -DNPU_QWEN_STEADY_MANIFEST="${NPU_STEADY_MANIFEST:-${PROJECT_ROOT}/compiler/fixtures/qwen-strict-manifests/steady.manifest.json}" \
         > "$run_root/configure.log" 2>&1
 fi
 "$cmake" --build "$build_dir" --target ggml-npu-model -j 8 > "$run_root/build.log" 2>&1

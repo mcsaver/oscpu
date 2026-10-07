@@ -5,6 +5,7 @@
 ***************************************************************************************/
 
 #include <device/map.h>
+#include <device/net-user.h>
 #include <device/virtio.h>
 #include <isa.h>
 #include <memory/host.h>
@@ -21,10 +22,7 @@
 #include <time.h>
 #include <unistd.h>
 
-// 当前 virtio-net 闭合 hostless 数据路径：Linux 可枚举的 Virtio 1.x
-// MMIO 网卡、稳定 MAC/link-up、TX/RX split virtqueue，以及固定 10.0.2.2
-// 的 ARP/ICMP/DHCP/DNS/TCP responder；真实 TAP/NAT/packet backend 留给后续切片，
-// 避免现在假装已经具备外网能力。
+// Virtio 1.x MMIO/split queues shared by hostless tests, TAP and libslirp NAT.
 #define VIRTIO_NET_F_MTU 3
 #define VIRTIO_NET_F_MAC 5
 #define VIRTIO_NET_F_MRG_RXBUF 15
@@ -303,7 +301,8 @@ static bool virtio_net_tap_enabled(void) {
 }
 
 static const char *virtio_net_backend_name(void) {
-  return virtio_net_tap_enabled() ? "tap" : "hostless-responder";
+  return net_user_enabled() ? "user-slirp" :
+      (virtio_net_tap_enabled() ? "tap" : "hostless-responder");
 }
 
 void virtio_net_set_tap(const char *ifname) {
@@ -830,6 +829,7 @@ static void virtio_net_tap_tx(const uint8_t *frame, uint32_t len) {
 }
 
 void virtio_net_update(void) {
+  if (net_user_enabled()) { net_user_poll(); return; }
   if (!virtio_net_tap_enabled()) return;
 
   for (int i = 0; i < VIRTIO_NET_RX_PENDING_CAP; i++) {
@@ -2005,7 +2005,9 @@ static uint32_t virtio_net_handle_tx_chain(VirtqueueState *q, uint16_t head) {
   if (copied) {
     net_stats.tx_packets++;
     net_stats.tx_bytes += frame_len;
-    if (virtio_net_tap_enabled()) {
+    if (net_user_enabled()) {
+      net_user_input(frame, frame_len);
+    } else if (virtio_net_tap_enabled()) {
       virtio_net_tap_tx(frame, frame_len);
     } else {
       virtio_net_handle_frame(frame, frame_len);
@@ -2404,24 +2406,27 @@ void virtio_net_dump_machine_info(FILE *out) {
   bool tap_enabled = virtio_net_tap_enabled();
   fprintf(out, "device.virtio_net.backend=%s\n", virtio_net_backend_name());
   fprintf(out, "device.virtio_net.host_packet_backend=%s\n",
-      tap_enabled ? "tap" : "unsupported");
+      net_user_enabled() ? "user-slirp" : (tap_enabled ? "tap" : "unsupported"));
   fprintf(out, "device.virtio_net.tap=%s\n", tap_enabled ? "enabled" : "unsupported");
   fprintf(out, "device.virtio_net.tap.ifname=%s\n",
       tap_enabled ? tap_ifname : "none");
-  fprintf(out, "device.virtio_net.slirp_nat=unsupported\n");
-  fprintf(out, "device.virtio_net.host_port_forward=unsupported\n");
+  fprintf(out, "device.virtio_net.hostless_responder=%s\n",
+      (tap_enabled || net_user_enabled()) ? "disabled" : "enabled");
+  fprintf(out, "device.virtio_net.slirp_nat=%s\n", net_user_enabled() ? "enabled" : (ISDEF(CONFIG_NET_SLIRP) ? "disabled" : "unsupported"));
+  fprintf(out, "device.virtio_net.host_port_forward=%s\n", net_user_ssh_port() ? "loopback-ssh" : (ISDEF(CONFIG_NET_SLIRP) ? "disabled" : "unsupported"));
+  fprintf(out, "device.virtio_net.ssh_host_port=%u\n", net_user_ssh_port());
   fprintf(out, "device.virtio_net.external_network=%s\n",
-      tap_enabled ? "tap-config-dependent" : "unsupported");
+      net_user_enabled() ? "user-nat" : (tap_enabled ? "tap-config-dependent" : "unsupported"));
   fprintf(out, "device.virtio_net.external_mirror=%s\n",
-      tap_enabled ? "tap-config-dependent" : "unsupported");
+      net_user_enabled() ? "user-nat" : (tap_enabled ? "tap-config-dependent" : "unsupported"));
   fprintf(out, "device.virtio_net.mac=%s\n", mac);
   fprintf(out, "device.virtio_net.host_mac=%s\n", host_mac);
   fprintf(out, "device.virtio_net.host_ip=%s\n", host_ip);
   fprintf(out, "device.virtio_net.guest_ip=%s\n", guest_ip);
   fprintf(out, "device.virtio_net.subnet_mask=%s\n", subnet_mask);
   fprintf(out, "device.virtio_net.link_up=1\n");
-  fprintf(out, "device.virtio_net.dhcp=hostless\n");
-  fprintf(out, "device.virtio_net.dns=nemu.local\n");
+  fprintf(out, "device.virtio_net.dhcp=%s\n", net_user_enabled() ? "libslirp" : "hostless");
+  fprintf(out, "device.virtio_net.dns=%s\n", net_user_enabled() ? "10.0.2.3-host-resolver" : "nemu.local");
   fprintf(out, "device.virtio_net.ntp=hostless 10.0.2.2:123\n");
   fprintf(out, "device.virtio_net.icmp_echo=hostless\n");
   fprintf(out, "device.virtio_net.tcp_http=/nemu-health\n");
@@ -2574,19 +2579,20 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
   virtio_net_format_ip(virtio_net_subnet_mask, subnet_mask, sizeof(subnet_mask));
 
   bool tap_enabled = virtio_net_tap_enabled();
-  const char *hostless_bool = tap_enabled ? "false" : "true";
+  const char *hostless_bool = (tap_enabled || net_user_enabled()) ? "false" : "true";
+  const char *user_bool = net_user_enabled() ? "true" : "false";
 
   /*
-   * 默认 backend 仍是 hostless-responder；只有显式 --net-tap 成功打开后，
-   * QMP 才报告 TAP packet backend，避免把未配置的宿主网络写成已完成。
+   * Only report the backend that was successfully initialized. Hostless service
+   * descriptions below are inactive when hostless-responder is false.
    */
   snprintf(out, out_size,
       "{\"return\":[{\"id\":\"net0\",\"type\":\"%s\","
       "\"peer\":\"virtio-net0\",\"nemu\":{\"backend\":\"%s\","
       "\"host-packet-backend\":%s,\"tap\":%s,\"tap-ifname\":\"%s\","
-      "\"slirp-nat\":false,"
-      "\"host-port-forward\":false,\"external-network\":false,"
-      "\"external-mirror\":false,"
+      "\"slirp-nat\":%s,\"hostless-responder\":%s,\"ssh-host-port\":%u,"
+      "\"host-port-forward\":%s,\"external-network\":%s,"
+      "\"external-mirror\":%s,"
       "\"model\":\"virtio-net-mmio\",\"mac\":\"%s\",\"host-mac\":\"%s\","
       "\"host-ip\":\"%s\",\"guest-ip\":\"%s\",\"subnet-mask\":\"%s\","
       "\"dhcp\":%s,\"dns\":%s,\"ntp\":%s,\"ntp-server\":\"10.0.2.2\","
@@ -2655,13 +2661,18 @@ void virtio_net_qmp_query_netdev(char *out, size_t out_size) {
       "\"ctrl-vlan-commands\":%" PRIu64 ","
       "\"ctrl-announce-commands\":%" PRIu64 ","
       "\"ctrl-errors\":%" PRIu64 "}}}]}",
-      tap_enabled ? "tap" : "hostless",
+      net_user_enabled() ? "user" : (tap_enabled ? "tap" : "hostless"),
       virtio_net_backend_name(),
-      tap_enabled ? "true" : "false",
+      (tap_enabled || net_user_enabled()) ? "true" : "false",
       tap_enabled ? "true" : "false",
       tap_enabled ? tap_ifname : "none",
+      user_bool, hostless_bool, net_user_ssh_port(),
+      net_user_ssh_port() ? "true" : "false",
+      (tap_enabled || net_user_enabled()) ? "true" : "false",
+      (tap_enabled || net_user_enabled()) ? "true" : "false",
       mac, host_mac, host_ip, guest_ip, subnet_mask,
-      hostless_bool, hostless_bool, hostless_bool, hostless_bool, hostless_bool,
+      tap_enabled ? "false" : "true", tap_enabled ? "false" : "true",
+      hostless_bool, hostless_bool, hostless_bool,
       VIRTIO_NET_TCP_HTTP_SEGMENT_PAYLOAD_MAX,
       VIRTIO_NET_MTU, VIRTIO_NET_LINK_SPEED_MBIT, VIRTIO_NET_CONFIG_BYTES,
       transport.device_status,
@@ -3008,7 +3019,9 @@ static void virtio_net_io_handler(uint32_t offset, int len, bool is_write) {
 void init_virtio_net() {
   net_base = new_space(0x1000);
   virtio_net_reset();
+  Assert(!(tap_requested && net_user_requested()), "--net-tap and --net-user are mutually exclusive");
   virtio_net_tap_open_if_requested();
+  net_user_init(virtio_net_enqueue_rx_frame);
 #ifdef NEMU_HAS_PORT_IO
   add_pio_map("virtio-net", DEV_VIRTIO_NET_MMIO, net_base, 0x1000,
       virtio_net_io_handler);

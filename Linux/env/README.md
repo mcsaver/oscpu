@@ -8,6 +8,12 @@
 [`../Makefile`](../Makefile)，可随时用 `make -C Linux help` 和
 `make -C Linux ARCH=<平台> paths` 从实际工程查询。
 
+本机通过 `Linux/local.mk`（或长期目录内的 `config/local.mk`）覆盖 `ENV_ROOT` 为
+`/home/lyg/ysyx-system-data/ubuntu2204`。本目录内的旧资料仍保留，但不再是当前 NEMU
+启动的实物来源。长期目录中的下载包、源码、镜像、配置与用户写入层不可作为缓存清理；
+只有 build/log 等可再生产物属于清理范围，详见
+[固定系统资料目录与国内源](../README-COMMANDS.md#固定系统资料目录与国内源)。
+
 默认布局：
 
 - `src/opensbi/`：OpenSBI 源码；NEMU/NPC 共享源码，不在这里放平台构建输出
@@ -36,7 +42,7 @@
 
 - `make -C Linux qemu-build`：把 QEMU riscv64-softmmu 构建/安装到 `tools/qemu/`
 - `make -C Linux ARCH=riscv64-npc BOOT=ubuntu-shell run`：用 NPC/Verilator 启动 Ubuntu shell initramfs gate
-- `make -C Linux ARCH=riscv64-nemu run`：用 NEMU 的默认 **headless** profile 启动完整 Ubuntu rootfs；`MAX_CYCLES=0` 为无限预算，只使用当前终端里的 `ttyS0`，不会打开 VGA/SDL
+- `make -C Linux ARCH=riscv64-nemu run`：默认启动 NEMU 性能模式 + VGA + full 文本系统（保存的启动选择可覆盖）；`MAX_CYCLES=0` 为无限预算。强制串口需显式设置 `LINUX_RUN_MODE=serial`
 - `make -C Linux run-ubuntu-gui`：启动隔离的 800×600 simplefb/fbcon/tty1 profile；SDL 键盘通过标准 virtio-input 进入 guest，同时保留当前终端里的 `ttyS0`，形成双控制台
 - `make -C Linux check-nemu-gui`：在 Xvfb 中自动验证 framebuffer 画面、tty1/getty、真实宿主按键注入、guest 命令执行和正常关机；这是自动 gate，通常不会弹出肉眼可见的窗口
 - `make -C Linux check-nemu-virtio-input`：用裸机 payload 验证 virtio-input event/status 双队列、坏描述符、repeat 过滤和 PLIC IRQ7
@@ -48,7 +54,7 @@
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-systemd-image`：无 sudo/debootstrap/qemu-user-static 时，用 apt 沙箱下载 jammy/riscv64 的 systemd 相关 deb 并解包进 rootfs，形成 systemd gate 候选镜像
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-flavors-check`：不下载、不重建镜像，只检查 `systemd-minimal/interactive/full` flavor manifest 的包清单、镜像大小、recommends 策略和 required path 格式
 - `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-interactive-image`：在最小 systemd rootfs 上增加 `curl/wget/ping/ssh/htop/less/strace` 等串口调试常用工具，默认镜像大小 4G，生成独立 `ubuntu-22.04-riscv64-interactive.ext4` 与 `rootfs-interactive`
-- `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-full-image`：在 interactive 基础上增加 `ubuntu-standard/openssh-server/sudo/locales/tzdata/man-db/cron/rsyslog/systemd-timesyncd/gpgv/ubuntu-keyring` 等更接近完整 server 用户态的包，默认镜像大小 8G，生成独立 `ubuntu-22.04-riscv64-full.ext4` 与 `rootfs-full`；它仍不是桌面 Ubuntu，也不证明 NEMU 已具备 SMP/PCI/TAP/NAT/snapshot
+- `make -C Linux ARCH=riscv64-nemu ubuntu-rootfs-full-image`：在 interactive 基础上增加 `ubuntu-standard/openssh-server/sudo/locales/tzdata/man-db/cron/rsyslog/systemd-timesyncd/gpgv/ubuntu-keyring` 等更接近完整 server 用户态的包，默认镜像大小 8G，生成独立 `ubuntu-22.04-riscv64-full.ext4` 与 `rootfs-full`；该目标仅构建用户态镜像，不代表 SMP/PCI/整机快照；默认 GUI/full 的 NAT/SSH 由独立 libslirp 后端提供
 - `make -C Linux ARCH=riscv64-nemu check-ubuntu-rootfs-full`：检查 full flavor 独立 ext4；失败会重建对应 flavor 后复查，最终仍不满足才失败
 - `make -C Linux ARCH=riscv64-nemu check-nemu-systemd-guest-full`：用 full flavor 独立 ext4 启动 NEMU focused guest gate；缺镜像时先构建 full rootfs
 - `make -C Linux ARCH=riscv64-nemu check-nemu-systemd-guest-full-soak`：用 full flavor 独立 ext4 运行重型稳定性 gate，默认复用 300s soak、32MiB rootfs stress、256 个元数据文件、128 轮进程循环、1024 行 UART RX stress 和 4 个 4MiB 并发 direct IO job，并保留 full 用户态 runtime hard gate；这是 full server-like rootfs 的长稳态入口，不等于多小时/QEMU 等价签核

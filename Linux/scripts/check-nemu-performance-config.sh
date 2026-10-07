@@ -189,10 +189,18 @@ legacy_device_opts=(
   CONFIG_DEVICE_MAP_LEGACY
   CONFIG_HAS_TIMER
   CONFIG_HAS_KEYBOARD
-  CONFIG_HAS_VGA
-  CONFIG_HAS_VIRTIO_INPUT
   CONFIG_HAS_AUDIO
 )
+
+# VGA/input are deliberate devices in the GUI performance profile.
+if [[ ${NEMU_DISPLAY:-0} == 1 ]]; then
+  for opt in CONFIG_HAS_VGA CONFIG_VGA_SHOW_SCREEN CONFIG_VGA_AUTO_SCANOUT CONFIG_HAS_VIRTIO_INPUT; do
+    require_config_enabled "$opt"
+    require_autoconf_define "$opt"
+  done
+else
+  legacy_device_opts+=(CONFIG_HAS_VGA CONFIG_HAS_VIRTIO_INPUT)
+fi
 
 for opt in "${debug_opts[@]}"; do
   reject_config_enabled "$opt"

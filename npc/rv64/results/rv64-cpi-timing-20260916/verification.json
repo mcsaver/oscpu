@@ -1,0 +1,231 @@
+{
+  "stage": "held-ready",
+  "functional_status": "PASS",
+  "timing_selection_pending": false,
+  "strict_lint": {
+    "returncode": 0,
+    "seconds": 64.89074897766113
+  },
+  "build": {
+    "returncode": 0,
+    "seconds": 151.7162857055664
+  },
+  "module_and_matrix_run": {
+    "returncode": 0,
+    "seconds": 700.7112240791321
+  },
+  "default_module_tests": {
+    "passed": 135,
+    "failed": 0,
+    "evidence": "134 original/default tests in frozen candidate regression, plus enabled Service request-hint default variant and modified-test production integration."
+  },
+  "production_integration": {
+    "returncode": 0,
+    "seconds": 6.329243574000429
+  },
+  "software": {
+    "official": {
+      "passed": 177,
+      "failed": 0
+    },
+    "act4": {
+      "passed": 101,
+      "failed": 0
+    },
+    "am": {
+      "passed": 74,
+      "failed": 0
+    }
+  },
+  "directed": {
+    "passed": 10,
+    "failed": 0,
+    "simulation_binary": "held-ready/sim"
+  },
+  "throughput": {
+    "scope": "Real full SystemTop, full NEMU comparison; hot independent ALU body.",
+    "rounds": [
+      {
+        "iteration": 0,
+        "body_instructions": 1024,
+        "body_cycles": 1961,
+        "steady_instructions": 768,
+        "steady_cycles": 1465,
+        "steady_cpi": 1.9075520833333333,
+        "sustained_dual_retirement": false
+      },
+      {
+        "iteration": 1,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 2,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 3,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 4,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 5,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 6,
+        "body_instructions": 1024,
+        "body_cycles": 512,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      },
+      {
+        "iteration": 7,
+        "body_instructions": 1024,
+        "body_cycles": 522,
+        "steady_instructions": 768,
+        "steady_cycles": 384,
+        "steady_cpi": 0.5,
+        "sustained_dual_retirement": true
+      }
+    ]
+  },
+  "hint_directed": [
+    {
+      "name": "misaligned-hint",
+      "returncode": 0,
+      "passed": true,
+      "command": [
+        "vvp",
+        "/home/lyg/PA/ysyx-workbench/tmp/rv64-cpi-timing-20260916/held-ready/misaligned-hint.vvp"
+      ]
+    },
+    {
+      "name": "service-hint",
+      "returncode": 0,
+      "passed": true,
+      "command": [
+        "vvp",
+        "/home/lyg/PA/ysyx-workbench/tmp/rv64-cpi-timing-20260916/held-ready/service-hint.vvp"
+      ]
+    },
+    {
+      "name": "service-hint-negative",
+      "returncode": 1,
+      "passed": true,
+      "command": [
+        "vvp",
+        "/home/lyg/PA/ysyx-workbench/tmp/rv64-cpi-timing-20260916/held-ready/service-hint.vvp",
+        "+bad-request-hint"
+      ]
+    },
+    {
+      "name": "service-generic",
+      "returncode": 0,
+      "passed": true,
+      "command": [
+        "vvp",
+        "/home/lyg/PA/ysyx-workbench/tmp/rv64-cpi-timing-20260916/held-ready/service-generic.vvp"
+      ]
+    }
+  ],
+  "event_count_actual_slice_cases": 16384,
+  "benchmarks": {
+    "coremark": {
+      "returncode": 0,
+      "counters": {
+        "commits": 3218524,
+        "cycles": 9241964,
+        "dual": 1253394,
+        "traps": 1,
+        "reads": 2416,
+        "writes": 148105
+      },
+      "cpi": 2.8714914041343174,
+      "matches_early_request_counters_and_all_profile": true
+    },
+    "dhrystone": {
+      "returncode": 0,
+      "counters": {
+        "commits": 4260670,
+        "cycles": 14568135,
+        "dual": 1734504,
+        "traps": 1,
+        "reads": 1184,
+        "writes": 601192
+      },
+      "cpi": 3.419212236573121,
+      "matches_early_request_counters_and_all_profile": true
+    }
+  },
+  "timing": {
+    "status": "FAIL",
+    "engine": "OpenSTA",
+    "worst_setup": {
+      "endpoint": "_1688361_/D",
+      "startpoint": "rst_i",
+      "group": "core_clock",
+      "check_type": "check",
+      "delay_type": "max",
+      "slack_ns": -2.174
+    },
+    "worst_hold": {
+      "endpoint": "_1760167_/D",
+      "startpoint": "rst_i",
+      "group": "core_clock",
+      "check_type": "check",
+      "delay_type": "min",
+      "slack_ns": -0.03666
+    },
+    "required_uncertainty_ns": 0.05,
+    "global_setup_slack_ns": -2.173909903,
+    "global_hold_slack_ns": -0.036660694,
+    "report": "/home/lyg/PA/ysyx-workbench/tmp/rv64-cpi-timing-20260916/held-ready/sta/R64SystemTop-1000MHz/opensta.rpt",
+    "scope": "pre-layout mapped STA; real Liberty ICG checks included; no extracted interconnect",
+    "setup_improvement_vs_baseline_ps": 20.282506999999672
+  },
+  "limitations": [
+    "1ns mapped setup/hold status remains original STA verdict; no timing waiver",
+    "layout/post-route STA not performed",
+    "full Linux L2/L3 and full NPU workloads not rerun in this optimization turn",
+    "no fresh same-image old-rv64core performance comparison"
+  ],
+  "production_source_match": {
+    "stage": "held-ready",
+    "source_and_header_count": 90,
+    "byte_identical_count": 89,
+    "all_nonblank_lines_equal": true,
+    "format_only_file": "npc/rv64/vsrc/rebuild/lsu/R64MemoryService.v",
+    "format_only_change": "Removed spaces from one newly inserted blank separator; all nonblank source lines unchanged.",
+    "timing_selection_pending": false
+  }
+}

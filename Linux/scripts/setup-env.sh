@@ -24,7 +24,9 @@ PACKAGES=(
   verilator gdb-multiarch
   gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu
   gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf
-  debootstrap qemu-user-static e2fsprogs
+  debootstrap qemu-user-static e2fsprogs fakeroot openssh-client
+  pkg-config libglib2.0-dev libsdl2-dev libreadline-dev
+  xvfb xauth imagemagick libx11-dev libxtst-dev
 )
 
 HOST_COMMANDS=(
@@ -76,4 +78,4 @@ fi
 
 echo "[setup-env] 环境根目录：$ENV_ROOT"
 echo "[setup-env] 本地 Python：$PY_VENV/bin/python3"
-echo "[setup-env] 下一步可执行：make -C Linux ARCH=riscv64-npc prepare"
+echo "[setup-env] 下一步可执行：make -C Linux ARCH=riscv64-nemu prepare"

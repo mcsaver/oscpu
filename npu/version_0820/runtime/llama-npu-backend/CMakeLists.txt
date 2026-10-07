@@ -9,7 +9,7 @@ get_filename_component(NPU_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSO
 get_filename_component(NPU_WORKBENCH_ROOT "${NPU_PROJECT_ROOT}/../.." ABSOLUTE)
 set(NPU_NPC_RTL_ROOT "${NPU_WORKBENCH_ROOT}/npc/rv64/vsrc")
 set(LLAMA_SOURCE_DIR "${NPU_PROJECT_ROOT}/third_party/llama.cpp" CACHE PATH "Pinned llama.cpp source")
-set(LLAMA_BUILD_BIN "${NPU_PROJECT_ROOT}/tmp/build/llama.cpp/bin" CACHE PATH "Pinned llama.cpp libraries")
+set(LLAMA_BUILD_BIN "${NPU_PROJECT_ROOT}/tools/llama.cpp/bin" CACHE PATH "Pinned llama.cpp libraries")
 set(NPU_VERILATED_MDIR "${NPU_PROJECT_ROOT}/tmp/build/npu-backend-verilated"
     CACHE PATH "Verilator generated model directory")
 set(NPU_SYSTEM_VERILATED_MDIR
@@ -429,10 +429,10 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
     "${NPU_SYSTEM_VERILATED_MDIR}")
 
 set(NPU_Q8_GEMV_MANIFEST
-    "${NPU_PROJECT_ROOT}/tmp/logs/qwen-graph-manifest-v5/dispatch.manifest.json"
+    "${NPU_PROJECT_ROOT}/compiler/fixtures/qwen-strict-manifests/dispatch.manifest.json"
     CACHE FILEPATH "Canonical Qwen dispatch manifest used for NPU profile generation")
 set(NPU_QWEN_STEADY_MANIFEST
-    "${NPU_PROJECT_ROOT}/tmp/logs/qwen-graph-manifest-v5/steady.manifest.json"
+    "${NPU_PROJECT_ROOT}/compiler/fixtures/qwen-strict-manifests/steady.manifest.json"
     CACHE FILEPATH "Canonical Qwen steady-state dispatch manifest used for NPU profile generation")
 set(NPU_Q8_GEMV_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(NPU_F32_ALU_GENERATED_HEADER

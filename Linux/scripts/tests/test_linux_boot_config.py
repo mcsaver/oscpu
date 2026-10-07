@@ -146,6 +146,7 @@ class LinuxBootConfigTest(unittest.TestCase):
     def common_make_assignments(self) -> list[str]:
         generic_root = self.guest_artifact_root / "generic"
         return [
+            "LINUX_LOCAL_CONFIG=/dev/null",
             f"LINUX_BOOT_CONFIG={self.boot_config}",
             f"LINUX_BOOT_CONFIG_OUTPUT_DIR={self.boot_config_output_dir}",
             f"LINUX_BOOT_CONFIG_LOCK={self.boot_config_lock}",
@@ -301,54 +302,84 @@ class LinuxBootConfigTest(unittest.TestCase):
         self.assertEqual(Path(values["UBUNTU_ROOTFS_DIR"]).name, expected["directory"])
         self.assertEqual(values["RUN_ROOTFS"], values["UBUNTU_ROOTFS_IMAGE"])
 
+    def assert_default_gui_full(self, values: dict[str, str]) -> None:
+        self.require_values(
+            values, ARCH="riscv64-nemu", BOOT="ubuntu-rootfs",
+            LINUX_RUN_MODE="gui", LINUX_GUEST_PID1="/lib/systemd/systemd",
+            LINUX_CONSOLE="ttyS0 + SDL simplefb/fbcon tty1 with virtio-input",
+            UBUNTU_ROOTFS_FLAVOR="full", LINUX_FEATURE_PROFILE="display",
+            NEMU_DEFCONFIG="riscv64-linux-gui_defconfig",
+            NEMU_DISPLAY="1", NEMU_VIRTIO_INPUT="1",
+            NEMU_ROOTFS_BOOTARGS_EXTRA="console=tty0",
+            NEMU_RUN_ROOTFS_OVERLAY_RESET="0",
+        )
+        self.assertEqual(Path(values["RUN_ROOTFS"]).name,
+                         "ubuntu-22.04-riscv64-full-gui.ext4")
+        self.assertEqual(values["RUN_ROOTFS"], values["UBUNTU_ROOTFS_IMAGE"])
+
+    def test_rootfs_refresh_publishes_configured_stamp(self):
+        stamp = self.test_root / "actual-build-profile"
+        result = self.run_make(
+            "__refresh-ubuntu-rootfs-profile", "-n",
+            f"UBUNTU_ROOTFS_BUILD_STAMP={stamp}",
+        )
+        self.assertIn(f"UBUNTU_ROOTFS_BUILD_STAMP='{stamp}'", result.stdout)
+        self.assertNotIn("UBUNTU_ROOTFS_BUILD_STAMP='__refresh-", result.stdout)
+
+    def test_persistent_run_keeps_backing_after_build_script_changes(self):
+        backing = self.test_root / "existing.ext4"
+        backing.write_bytes(b"existing user backing")
+        overlay = self.test_root / "user.raw"
+        overlay.with_suffix(".raw.meta").write_bytes(b"identity is checked by NEMU")
+        stamp = self.test_root / "not-built-profile"
+        before = backing.stat()
+        result = self.run_make(
+            str(stamp),
+            "ARCH=riscv64-nemu",
+            f"UBUNTU_ROOTFS_BUILD_STAMP={stamp}",
+            f"UBUNTU_ROOTFS_IMAGE={backing}",
+            f"NEMU_RUN_ROOTFS_OVERLAY={overlay}",
+            "UBUNTU_ROOTFS_KEEP_PERSISTENT=1",
+        )
+        self.assertIn("preserving existing backing", result.stdout)
+        self.assertEqual(backing.read_bytes(), b"existing user backing")
+        self.assertEqual(backing.stat().st_mtime_ns, before.st_mtime_ns)
+        self.assertFalse(stamp.exists(), "reuse must not claim a new build succeeded")
+
     def test_missing_config_uses_documented_built_in_defaults(self) -> None:
         self.assertFalse(self.boot_config.exists())
         values = self.show_boot()
-
-        self.require_values(
-            values,
-            LINUX_BOOT_CONFIG_STATE="built-in defaults",
-            ARCH="riscv64-npc",
-            BOOT="ubuntu-rootfs",
-            LINUX_RUN_MODE="serial",
-            LINUX_GUEST_PID1=(
-                "/usr/local/sbin/ysyx-npc-systemd-wrapper -> "
-                "/lib/systemd/systemd"
-            ),
-            LINUX_CONSOLE="ttyS0 serial/headless",
-            UBUNTU_ROOTFS_FLAVOR="systemd-minimal",
-            LINUX_FEATURE_PROFILE="headless",
-            NEMU_DEFCONFIG="riscv64-linux_defconfig",
-            NEMU_DISPLAY="0",
-            NEMU_VIRTIO_INPUT="0",
-            NEMU_ROOTFS_BOOTARGS_EXTRA="",
-        )
-        self.assert_rootfs_bundle(values, "systemd-minimal")
-        self.assertFalse(
-            self.boot_config.exists(), "show-boot must not create a missing config"
-        )
+        self.require_values(values, LINUX_BOOT_CONFIG_STATE="built-in defaults")
+        self.assert_default_gui_full(values)
+        self.assertFalse(self.boot_config.exists(), "show-boot must not create config")
 
     def test_boot_defconfig_is_noninteractive_and_matches_fallback(self) -> None:
         self.run_make("boot-defconfig", timeout=60.0)
         self.assertTrue(self.boot_config.is_file())
         generated = self.boot_config.read_text(encoding="utf-8")
         for symbol in (
-            "CONFIG_LINUX_RUN_PLATFORM_NPC=y",
+            "CONFIG_LINUX_RUN_PLATFORM_NEMU=y",
             "CONFIG_LINUX_RUN_BOOT_UBUNTU_ROOTFS=y",
-            "CONFIG_LINUX_RUN_CONSOLE_SERIAL=y",
-            "CONFIG_LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL=y",
+            "CONFIG_LINUX_RUN_CONSOLE_GUI=y",
+            "CONFIG_LINUX_RUN_ROOTFS_FULL=y",
         ):
             self.assertIn(symbol, generated)
+        values = self.show_boot()
+        self.require_values(values, LINUX_BOOT_CONFIG_STATE="loaded")
+        self.assert_default_gui_full(values)
 
+    def test_local_settings_can_restore_nemu_gui_default(self) -> None:
+        local = self.test_root / "local.mk"
+        local.write_text(
+            f"LINUX_BOOT_DEFCONFIG := {LINUX_HOME}/configs/boot_nemu_gui_defconfig\n",
+            encoding="utf-8",
+        )
+        self.run_make("boot-defconfig", f"LINUX_LOCAL_CONFIG={local}", timeout=60.0)
         values = self.show_boot()
         self.require_values(
-            values,
-            LINUX_BOOT_CONFIG_STATE="loaded",
-            ARCH="riscv64-npc",
-            BOOT="ubuntu-rootfs",
-            LINUX_RUN_MODE="serial",
+            values, ARCH="riscv64-nemu", LINUX_RUN_MODE="gui",
+            NEMU_DEFCONFIG="riscv64-linux-gui_defconfig", NEMU_DISPLAY="1",
         )
-        self.assert_rootfs_bundle(values, "systemd-minimal")
 
     def test_each_saved_rootfs_flavor_selects_one_coherent_artifact_bundle(self) -> None:
         for flavor in ROOTFS_EXPECTATIONS:
@@ -467,13 +498,13 @@ class LinuxBootConfigTest(unittest.TestCase):
             self.gui_platform_root
             / "images"
             / "ubuntu2204"
-            / "ubuntu-22.04-riscv64-gui.ext4"
+            / "ubuntu-22.04-riscv64-full-gui.ext4"
         )
         expected_gui_cpio = (
             self.gui_platform_root
             / "images"
             / "ubuntu2204"
-            / "ubuntu-22.04-riscv64-gui-rootfs.cpio"
+            / "ubuntu-22.04-riscv64-full-gui-rootfs.cpio"
         )
         self.require_values(
             values,
@@ -485,7 +516,7 @@ class LinuxBootConfigTest(unittest.TestCase):
             LINUX_CONSOLE=(
                 "ttyS0 + SDL simplefb/fbcon tty1 with virtio-input"
             ),
-            UBUNTU_ROOTFS_FLAVOR="systemd-minimal",
+            UBUNTU_ROOTFS_FLAVOR="full",
             LINUX_FEATURE_PROFILE="display",
             NEMU_DEFCONFIG="riscv64-linux-gui_defconfig",
             NEMU_CONFIG_DIR=str(self.gui_nemu_config),
@@ -498,7 +529,8 @@ class LinuxBootConfigTest(unittest.TestCase):
             OPENSBI_BUILD_ROOT=str(self.gui_opensbi_build),
             LOG_DIR=str(self.gui_log_dir),
             NEMU_RUN_ROOTFS_OVERLAY=str(
-                self.gui_log_dir / "rootfs-overlay.raw"
+                self.guest_artifact_root / "generic" / "env" / "state"
+                / "nemu-full-gui" / "rootfs-overlay.raw"
             ),
             UBUNTU_ROOTFS_IMAGE=str(expected_gui_image),
             UBUNTU_ROOTFS_CPIO_IMAGE=str(expected_gui_cpio),
@@ -509,6 +541,20 @@ class LinuxBootConfigTest(unittest.TestCase):
             RUN_ROOTFS=str(expected_gui_image),
             RUN_INITRD="",
         )
+
+    def test_gui_flavors_have_separate_images_and_persistent_overlays(self) -> None:
+        images, overlays = set(), set()
+        for flavor in ROOTFS_EXPECTATIONS:
+            self.write_boot_config(platform="nemu", boot="ubuntu-rootfs",
+                                   console="gui", rootfs=flavor)
+            values = self.normalize_boot_config()
+            self.require_values(values, UBUNTU_ROOTFS_FLAVOR=flavor,
+                                LINUX_RUN_MODE="gui",
+                                NEMU_RUN_ROOTFS_OVERLAY_RESET="0")
+            images.add(values["RUN_ROOTFS"])
+            overlays.add(values["NEMU_RUN_ROOTFS_OVERLAY"])
+        self.assertEqual(len(images), 3)
+        self.assertEqual(len(overlays), 3)
 
     def test_explicit_invalid_combinations_fail_before_any_build(self) -> None:
         self.write_boot_config(
@@ -538,16 +584,6 @@ class LinuxBootConfigTest(unittest.TestCase):
                     "LINUX_RUN_MODE=gui",
                 ),
                 "requires BOOT=ubuntu-rootfs",
-            ),
-            (
-                "gui-with-full-rootfs",
-                (
-                    "ARCH=riscv64-nemu",
-                    "BOOT=ubuntu-rootfs",
-                    "LINUX_RUN_MODE=gui",
-                    "UBUNTU_ROOTFS_FLAVOR=full",
-                ),
-                "supports only systemd-minimal",
             ),
             (
                 "unknown-rootfs-flavor",

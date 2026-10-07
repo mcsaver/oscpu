@@ -1,0 +1,4 @@
+#!/bin/bash
+runtime="$(cd "$(dirname "$0")/runtime" && pwd)"
+export LD_LIBRARY_PATH="$runtime/opt/or-tools/lib:$runtime/usr/lib/x86_64-linux-gnu:$runtime/usr/lib"
+exec "$runtime/usr/bin/openroad" "$@"

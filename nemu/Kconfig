@@ -643,6 +643,15 @@ config VGA_SHOW_SCREEN
   bool "Enable SDL SCREEN"
   default y
 
+config VGA_REFRESH_HZ
+  depends on VGA_SHOW_SCREEN
+  int "Maximum framebuffer refresh rate (Hz)"
+  range 30 240
+  default 60
+  help
+    Host wall-clock presentation limit. Clean frames are never uploaded.
+    The guest's rendering speed can be lower than this limit.
+
 config VGA_AUTO_SCANOUT
   depends on VGA_SHOW_SCREEN
   bool "Refresh SDL after framebuffer writes without vgactl sync"
@@ -705,6 +714,15 @@ menuconfig HAS_VIRTIO_NET
   depends on !SOC_SIM
   bool "Enable virtio-mmio network device"
   default n
+
+config NET_SLIRP
+  depends on HAS_VIRTIO_NET && !TARGET_AM
+  bool "Enable libslirp user-mode IPv4 networking"
+  default n
+  help
+    --net-user enables DHCP/DNS/NAT without host TAP or root permissions.
+    --ssh-port forwards a loopback host TCP port to guest port 22.
+    Requires libslirp development files; Linux prepare manages a local copy.
 
 menuconfig HAS_VIRTIO_INPUT
   depends on ISA_riscv && !SOC_SIM && HAS_VGA && VGA_SHOW_SCREEN

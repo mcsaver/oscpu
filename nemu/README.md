@@ -4,6 +4,22 @@ NEMU(NJU Emulator) is a simple but complete full-system emulator designed for te
 Currently it supports x86, mips32, riscv32 and riscv64.
 To build programs run above NEMU, refer to the [AM project](https://github.com/NJU-ProjectN/abstract-machine).
 
+## Ubuntu 22.04 单核文本系统
+
+工作区的日常入口是 `make -C Linux ARCH=riscv64-nemu run`。默认使用
+`riscv64-linux-gui_defconfig` 性能模式，关闭 trace/DiffTest/watchpoint/
+调试统计，提供 800×600 VGA tty1、virtio-input 和 full Ubuntu 用户态。
+配置、固定资料目录、国内源、SSH 与持久化说明见
+[Linux 命令手册](../Linux/README-COMMANDS.md#full-文本系统的日常使用)。
+
+GUI 配置包含可选 `CONFIG_NET_SLIRP`：`--net-user` 开启 IPv4 NAT，
+`--ssh-port=2222` 将本机 127.0.0.1 的端口转发到 guest 10.0.2.15:22。
+未传 `--net-user` 时仍保留原 hostless 测试后端，TAP 与 user 后端互斥。
+网络 I/O 和 guest virtqueue 更新在主线程完成，socket poll 周期为 1 ms。
+`CONFIG_VGA_REFRESH_HZ=120` 限制最大画面提交频率，SDL streaming texture
+只更新变动扫描行；输入单独以 4 ms 轮询，legacy timer 保持原有频率。
+这里提供完整单核文本工作流，不宣称 SMP、PCI、桌面或 QEMU 等价能力。
+
 ## Configuration policy
 
 [`Kconfig`](./Kconfig) is the only Kconfig entry in NEMU. It contains choices that

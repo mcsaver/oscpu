@@ -22,6 +22,7 @@
 #include <memory/vaddr.h>
 #include <platform/platform-map.h>
 #include <device/map.h>
+#include <device/net-user.h>
 #include <ftrace.h>
 #include <utils.h>
 
@@ -618,6 +619,8 @@ static int parse_args(int argc, char *argv[]) {
     OPT_QMP,
     OPT_GDBSTUB,
     OPT_NET_TAP,
+    OPT_NET_USER,
+    OPT_SSH_PORT,
     OPT_TOHOST,
   };
   const struct option table[] = {
@@ -638,6 +641,8 @@ static int parse_args(int argc, char *argv[]) {
     {"monitor-cmd", required_argument, NULL, OPT_MONITOR_CMD},
     {"qmp"      , required_argument, NULL, OPT_QMP},
     {"gdbstub"  , required_argument, NULL, OPT_GDBSTUB},
+    {"net-user" , no_argument, NULL, OPT_NET_USER},
+    {"ssh-port" , required_argument, NULL, OPT_SSH_PORT},
     {"net-tap"  , required_argument, NULL, OPT_NET_TAP},
     {"tohost"   , required_argument, NULL, OPT_TOHOST},
     {"help"     , no_argument      , NULL, 'h'},
@@ -693,6 +698,16 @@ static int parse_args(int argc, char *argv[]) {
         paddr_tohost_set_addr((paddr_t)addr);
         break;
       }
+      case OPT_NET_USER:
+      case OPT_SSH_PORT:
+#ifdef CONFIG_NET_SLIRP
+        if (o == OPT_NET_USER) net_user_request();
+        else net_user_set_ssh_port(optarg);
+#else
+        printf("--net-user/--ssh-port requires CONFIG_NET_SLIRP\n");
+        exit(1);
+#endif
+        break;
       case OPT_NET_TAP:
 #ifdef CONFIG_HAS_VIRTIO_NET
         virtio_net_set_tap(optarg);
@@ -714,6 +729,8 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t   --monitor-cmd=CMD    run one SDB command after init and exit (repeatable)\n");
         printf("\t   --qmp=PORT           wait for startup QMP, then same-socket runtime query/stop/cont/events/device introspection/quit (exclusive with --gdbstub)\n");
         printf("\t   --gdbstub=PORT       wait for a startup GDB remote client on localhost (exclusive with --qmp)\n");
+        printf("\t   --net-user           IPv4 user NAT with DHCP/DNS (no host root needed)\n");
+        printf("\t   --ssh-port=PORT      forward 127.0.0.1:PORT to guest SSH; requires --net-user\n");
         printf("\t   --net-tap=IFNAME     attach virtio-net to an existing host TAP interface\n");
         printf("\t   --tohost=ADDR        stop when a riscv-tests/ACT4 tohost word becomes non-zero\n");
         printf("\t   --block=FILE         attach block image (Linux path placeholder)\n");

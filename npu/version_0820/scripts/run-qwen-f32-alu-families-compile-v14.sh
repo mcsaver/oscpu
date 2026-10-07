@@ -204,8 +204,8 @@ resolve_tools() {
     if [[ -z "${CMAKE_EXE}" ]]; then
         if [[ -x "${NPU_ROOT}/tools/cmake-python/bin/cmake" ]]; then
             CMAKE_EXE="${NPU_ROOT}/tools/cmake-python/bin/cmake"
-        elif [[ -x "${NPU_ROOT}/tmp/tools/cmake-3.31.12/bin/cmake" ]]; then
-            CMAKE_EXE="${NPU_ROOT}/tmp/tools/cmake-3.31.12/bin/cmake"
+        elif [[ -x "${NPU_ROOT}/tools/cmake-3.31.12/bin/cmake" ]]; then
+            CMAKE_EXE="${NPU_ROOT}/tools/cmake-3.31.12/bin/cmake"
         else
             CMAKE_EXE="$(resolve_command cmake)"
         fi
@@ -234,8 +234,8 @@ check_direct_inputs() {
     require_regular "${CMAKE_SOURCE_DIR}/ggml-npu.cpp"
     require_regular "${CMAKE_SOURCE_DIR}/test-backend.cpp"
     require_regular "${NPU_ROOT}/third_party/llama.cpp/ggml/src/ggml-backend-impl.h"
-    require_regular "${NPU_ROOT}/tmp/build/llama.cpp/bin/libggml-base.so"
-    require_regular "${NPU_ROOT}/tmp/build/llama.cpp/bin/libggml.so"
+    require_regular "${NPU_ROOT}/tools/llama.cpp/bin/libggml-base.so"
+    require_regular "${NPU_ROOT}/tools/llama.cpp/bin/libggml.so"
     require_regular "${VERILATOR_ROOT}/include/verilated.cpp"
     require_regular "${VERILATOR_ROOT}/include/verilated_threads.cpp"
     require_regular "${VERILATOR_ROOT}/include/verilated_std.sv"
@@ -317,7 +317,7 @@ CONFIGURE_COMMAND=(
     "-DNPU_VERILATED_MDIR=${VERILATED_DIR}"
     "-DNPU_VERILATOR_JOBS=${JOBS}"
     "-DLLAMA_SOURCE_DIR=${NPU_ROOT}/third_party/llama.cpp"
-    "-DLLAMA_BUILD_BIN=${NPU_ROOT}/tmp/build/llama.cpp/bin"
+    "-DLLAMA_BUILD_BIN=${NPU_ROOT}/tools/llama.cpp/bin"
     "-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG"
 )
 BUILD_COMMAND=(

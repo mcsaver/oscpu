@@ -27,7 +27,7 @@ CPU 算术单元和存储数组进入真实映射，不使用占位黑盒；测�
 | `SYNTH_MAX_FANOUT` | `8`，ABC 真实缓冲树的扇出目标 |
 | `SYNTH_MAP_DELAY_PS` | `600`，ABC 映射目标；并不改变 1 ns 时钟约束 |
 | `STA_RESULT_ROOT` | 默认 `build/chengyue64/sta/`，相对于 RV64 工程 |
-| `OPENSTA` | 默认工作区 `tmp/rv64-opensta/build/sta` |
+| `OPENSTA` | 默认工作区 `tool/opensta/bin/sta` |
 
 SDC 包含 50 ps 时钟不确定度、最大 400 ps I/O 延迟、最小 0 ps I/O 延迟，
 以及 20 fF 输出负载。实际端口由 [prepare_sdc.py](prepare_sdc.py) 从映射后的顶层枚举。

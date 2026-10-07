@@ -62,12 +62,17 @@ tmp_dir="$(prepare_tmp_dir TMP "${TMP:-${runtime_tmp}}")"
 temp_dir="$(prepare_tmp_dir TEMP "${TEMP:-${runtime_tmp}}")"
 cache_dir="$(prepare_tmp_dir XDG_CACHE_HOME \
     "${XDG_CACHE_HOME:-${project_tmp}/cache}")"
-llama_build_dir="$(resolve_tmp_path LLAMA_BUILD_DIR \
-    "${LLAMA_BUILD_DIR:-${project_tmp}/build/llama.cpp}")"
-manifest="$(resolve_tmp_path NPU_MANIFEST \
-    "${NPU_MANIFEST:-${project_tmp}/logs/qwen-graph-manifest-v5/dispatch.manifest.json}")"
-steady_manifest="$(resolve_tmp_path NPU_STEADY_MANIFEST \
-    "${NPU_STEADY_MANIFEST:-${project_tmp}/logs/qwen-graph-manifest-v5/steady.manifest.json}")"
+# Inputs may live outside tmp; relative overrides remain relative to this project.
+resolve_input_path() {
+    local raw_path="$1"
+    case "${raw_path}" in
+        /*) realpath -m -- "${raw_path}" ;;
+        *) realpath -m -- "${project_root}/${raw_path}" ;;
+    esac
+}
+llama_build_dir="$(resolve_input_path "${LLAMA_BUILD_DIR:-${project_root}/tools/llama.cpp}")"
+manifest="$(resolve_input_path "${NPU_MANIFEST:-${project_root}/compiler/fixtures/qwen-strict-manifests/dispatch.manifest.json}")"
+steady_manifest="$(resolve_input_path "${NPU_STEADY_MANIFEST:-${project_root}/compiler/fixtures/qwen-strict-manifests/steady.manifest.json}")"
 if [[ ! -f "${manifest}" ]]; then
     printf 'missing NPU manifest: %s\n' "${manifest}" >&2
     exit 2

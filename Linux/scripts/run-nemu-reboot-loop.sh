@@ -14,7 +14,7 @@ unchanged.
 
 Options:
   --reboot-exit-code CODE  Guest reboot status (default: 32)
-  --max-boots COUNT        Maximum total command invocations (default: 2)
+  --max-boots COUNT        Maximum total command invocations; 0 means unlimited (default: 2)
   -h, --help               Show this help
 
 Example:
@@ -74,8 +74,8 @@ if [[ ! $reboot_exit_code =~ ^[0-9]+$ ]] ||
     "$reboot_exit_code" >&2
   exit 2
 fi
-if [[ ! $max_boots =~ ^[0-9]+$ ]] || (( max_boots < 1 )); then
-  printf '[nemu-reboot-loop] max boots must be a positive integer: %s\n' \
+if [[ ! $max_boots =~ ^[0-9]+$ ]] || (( max_boots < 0 )); then
+  printf '[nemu-reboot-loop] max boots must be a non-negative integer (0 = unlimited): %s\n' \
     "$max_boots" >&2
   exit 2
 fi
@@ -133,12 +133,16 @@ while :; do
   if (( status != reboot_exit_code )); then
     exit "$status"
   fi
-  if (( boot >= max_boots )); then
+  if (( max_boots != 0 && boot >= max_boots )); then
     printf '[nemu-reboot-loop] reboot limit reached after %d boot(s)\n' \
       "$boot" >&2
     exit "$status"
   fi
 
-  printf '[nemu-reboot-loop] reboot %d/%d\n' "$boot" "$max_reboots" >&2
+  if (( max_boots == 0 )); then
+    printf '[nemu-reboot-loop] reboot %d/unlimited\n' "$boot" >&2
+  else
+    printf '[nemu-reboot-loop] reboot %d/%d\n' "$boot" "$max_reboots" >&2
+  fi
   boot=$((boot + 1))
 done

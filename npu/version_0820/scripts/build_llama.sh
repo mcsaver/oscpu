@@ -74,6 +74,7 @@ export PYTHONPATH="${project_root}/tools/cmake-python"
 
 "${cmake_bin}" --fresh -S "${source_dir}" -B "${build_dir}" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON \
     -DBUILD_SHARED_LIBS=ON \
     -DGGML_BACKEND_DL=ON \
     -DGGML_NATIVE=OFF \
@@ -95,6 +96,13 @@ parallelism="${NPU_BUILD_JOBS:-$(nproc)}"
 "${cmake_bin}" --build "${build_dir}" --clean-first \
     --target llama-cli llama-completion llama-bench \
     --parallel "${parallelism}"
+
+# Publish the default dependency build; caller-selected isolated builds stay private.
+if [[ -z "${LLAMA_BUILD_DIR:-}" ]]; then
+    install_bin="${project_root}/tools/llama.cpp/bin"
+    mkdir -p -- "${install_bin}"
+    cp -a -- "${build_dir}/bin/." "${install_bin}/"
+fi
 
 if [[ -n "${llama_log_dir}" ]]; then
     "${build_dir}/bin/llama-cli" --version 2>&1 \

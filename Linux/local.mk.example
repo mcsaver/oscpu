@@ -1,0 +1,11 @@
+# Copy to Linux/local.mk. Use an absolute directory outside build/tmp/cache.
+ENV_ROOT := $(HOME)/ysyx-system-data/ubuntu2204
+LINUX_BOOT_DEFCONFIG := $(LINUX_HOME)/configs/boot_nemu_gui_defconfig
+UBUNTU_MIRROR := https://mirrors.ustc.edu.cn/ubuntu-ports
+UBUNTU_BASE_URL := https://mirrors.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu-base/releases/22.04/release
+export LINUX_TARBALL_URL := https://mirrors.tuna.tsinghua.edu.cn/kernel/v6.x/linux-6.6.tar.xz
+export UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED := 0
+export PIP_INDEX_URL := https://pypi.tuna.tsinghua.edu.cn/simple
+# Keep user writes separate from disposable run logs; don't reset on each boot.
+NEMU_RUN_ROOTFS_OVERLAY_RESET := 0
+LINUX_BOOT_CONFIG := $(ENV_ROOT)/config/boot.config

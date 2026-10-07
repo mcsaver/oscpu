@@ -198,7 +198,7 @@ L2 all、L3 all 和 NPU 主工作流均通过。默认 Linux 与 NPU 消费者�
 
 ### 本次工作区的主要验证记录
 
-记录目录为 `tmp/rv64-replacement-20260915/`：
+本地保留的原始记录目录为 `npc/rv64/results/rv64-replacement-20260915/`（由 Git 忽略，新克隆不包含这些日志）：
 
 | 结果 | 记录 |
 | --- | --- |

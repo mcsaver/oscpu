@@ -14,7 +14,7 @@
 ***************************************************************************************/
 
 // 一个典型的 framebuffer 设备模型：一块显存，加一组控制寄存器，再加一个提交刷新用的 sync 标志。
-// 之所以补这段说明，是为了明确 guest 负责写像素、NEMU 负责在设备更新阶段按 sync 提交整帧。
+// guest 写像素；NEMU 按 legacy sync 或 Linux 脏区域，在配置的刷新上限内提交。
 
 #include <common.h>
 #include <device/map.h>
@@ -45,6 +45,17 @@ static uint32_t *vgactl_port_base = NULL;
  * guest 契约共用同一个 SDL presenter，同时不要求 Linux 使用 NEMU 私有驱动。
  */
 static bool vmem_dirty = false;
+static uint32_t dirty_first_row = SCREEN_H;
+static uint32_t dirty_last_row;
+#ifdef CONFIG_VGA_SHOW_SCREEN
+static uint64_t last_present_us;
+#endif
+
+void vga_request_redraw(void) {
+  vmem_dirty = true;
+  dirty_first_row = 0;
+  dirty_last_row = SCREEN_H - 1;
+}
 
 static const IoRegisterDescriptor vga_control_registers[]
     __attribute__((unused)) = {
@@ -75,9 +86,12 @@ static const IoAccessPolicy vga_control_mmio_policy
 };
 
 static void vmem_io_handler(uint32_t offset, int len, bool is_write) {
-  (void)offset;
-  (void)len;
-  if (is_write) vmem_dirty = true;
+  if (!is_write) return;
+  uint32_t first = offset / (SCREEN_W * sizeof(uint32_t));
+  uint32_t last = (offset + (uint32_t)len - 1) / (SCREEN_W * sizeof(uint32_t));
+  if (first < dirty_first_row) dirty_first_row = first;
+  if (last > dirty_last_row) dirty_last_row = last;
+  vmem_dirty = true;
 }
 
 #ifdef CONFIG_VGA_SHOW_SCREEN
@@ -102,21 +116,32 @@ static void init_screen() {
       "SDL 窗口/renderer 创建失败: %s", SDL_GetError());
   SDL_SetWindowTitle(window, title);
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-      SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
+      SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
   Assert(texture != NULL, "SDL framebuffer texture 创建失败: %s", SDL_GetError());
   SDL_RenderPresent(renderer);
 }
 
 static inline void update_screen() {
-  int rc = SDL_UpdateTexture(texture, NULL, vmem,
-      SCREEN_W * sizeof(uint32_t));
-  Assert(rc == 0, "SDL framebuffer 上传失败: %s", SDL_GetError());
-  rc = SDL_RenderClear(renderer);
-  Assert(rc == 0, "SDL renderer 清屏失败: %s", SDL_GetError());
+  // Lock only modified scanlines; pixels outside the rectangle stay in texture.
+  // Legacy sync with no tracked writes still presents a complete frame.
+  uint32_t first = vmem_dirty ? dirty_first_row : 0;
+  uint32_t last = vmem_dirty ? dirty_last_row : SCREEN_H - 1;
+  SDL_Rect rect = {0, (int)first, SCREEN_W, (int)(last - first + 1)};
+  void *pixels = NULL;
+  int pitch = 0;
+  int rc = SDL_LockTexture(texture, &rect, &pixels, &pitch);
+  Assert(rc == 0, "SDL framebuffer lock failed: %s", SDL_GetError());
+  for (uint32_t row = first; row <= last; row++) {
+    memcpy((uint8_t *)pixels + (row - first) * pitch,
+        (uint8_t *)vmem + row * SCREEN_W * sizeof(uint32_t),
+        SCREEN_W * sizeof(uint32_t));
+  }
+  SDL_UnlockTexture(texture);
   rc = SDL_RenderCopy(renderer, texture, NULL, NULL);
-  Assert(rc == 0, "SDL framebuffer 呈现失败: %s", SDL_GetError());
+  Assert(rc == 0, "SDL framebuffer present failed: %s", SDL_GetError());
   SDL_RenderPresent(renderer);
 }
+
 #else
 static void init_screen() {}
 
@@ -126,21 +151,22 @@ static inline void update_screen() {
 #endif
 #endif
 
-void vga_update_screen() {
-  // 只有 guest 显式写了 sync 才刷新，目的是避免每次设备轮询都整屏重绘。
-  // 这样改完后，屏幕更新频率由 guest 提交控制，既正确也更省宿主开销。
-  // 修复：update_screen() 仅在 CONFIG_VGA_SHOW_SCREEN 下定义；不显示屏(如 difftest
-  // 共享库构建)时本函数应为 no-op，否则 implicit-declaration 编译失败(warning-as-error)。
+void vga_update_screen(uint64_t now_us) {
 #ifdef CONFIG_VGA_SHOW_SCREEN
   bool auto_scanout_dirty = false;
 #ifdef CONFIG_VGA_AUTO_SCANOUT
   auto_scanout_dirty = vmem_dirty;
 #endif
-  if (vgactl_port_base[1] != 0 || auto_scanout_dirty) {
-    update_screen();
-    vgactl_port_base[1] = 0;
-    vmem_dirty = false;
-  }
+  if (vgactl_port_base[1] == 0 && !auto_scanout_dirty) return;
+  if (now_us - last_present_us < 1000000u / CONFIG_VGA_REFRESH_HZ) return;
+  update_screen();
+  last_present_us = now_us;
+  vgactl_port_base[1] = 0;
+  vmem_dirty = false;
+  dirty_first_row = SCREEN_H;
+  dirty_last_row = 0;
+#else
+  (void)now_us;
 #endif
 }
 
@@ -162,6 +188,6 @@ void init_vga() {
   IFDEF(CONFIG_VGA_SHOW_SCREEN, init_screen());
   IFDEF(CONFIG_VGA_SHOW_SCREEN, {
     memset(vmem, 0, screen_size());
-    vmem_dirty = true;
+    vga_request_redraw();
   });
 }

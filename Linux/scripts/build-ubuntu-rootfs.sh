@@ -4,11 +4,13 @@ set -euo pipefail
 RELEASE=${UBUNTU_RELEASE:-jammy}
 VERSION=${UBUNTU_BASE_VERSION:-22.04.5}
 ARCH=${UBUNTU_ARCH:-riscv64}
-MIRROR=${UBUNTU_MIRROR:-http://ports.ubuntu.com/ubuntu-ports}
+MIRROR=${UBUNTU_MIRROR:-https://mirrors.ustc.edu.cn/ubuntu-ports}
 BASE_URL=${UBUNTU_BASE_URL:-https://cdimages.ubuntu.com/ubuntu-base/releases/22.04/release}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
+ROOTFS_SSH_AUTHORIZED_KEYS=${UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS:-}
+ROOTFS_FULL_SERVICES_SCRIPT="$SCRIPT_DIR/install-nemu-full-services.sh"
 ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
 ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
 source "$ROOTFS_FLAVOR_SCRIPT"
@@ -204,6 +206,7 @@ done
 # pathname equality and pre-existing hard-link equality before creating any
 # publish temporary, so a public output override cannot replace its own source.
 READ_INPUTS=(
+  "$ROOTFS_FULL_SERVICES_SCRIPT"
   "$TARBALL"
   "$SHA_FILE"
   "$ROOTFS_FLAVOR_SCRIPT"
@@ -214,6 +217,9 @@ READ_INPUTS=(
   "$ROOTFS_NPC_GENERATOR_SKIP_SRC"
   "$ROOTFS_NPC_STRICT_CHECK_SRC"
 )
+if [[ -n $ROOTFS_SSH_AUTHORIZED_KEYS ]]; then
+  READ_INPUTS+=("$ROOTFS_SSH_AUTHORIZED_KEYS")
+fi
 if [[ -n $EXPECTED_PROFILE_STAMP ]]; then
   READ_INPUTS+=("$EXPECTED_PROFILE_STAMP")
 fi
@@ -505,7 +511,7 @@ download_ubuntu_base() {
   if [ ! -f "$TARBALL" ]; then
     echo "[ubuntu-rootfs] download: $BASE_URL/$FILENAME"
     DOWNLOAD_TEMP=$(mktemp "$(dirname -- "$TARBALL")/.${FILENAME}.tmp.XXXXXX")
-    if ! curl -fL --retry 5 --retry-delay 2 "$BASE_URL/$FILENAME" -o "$DOWNLOAD_TEMP"; then
+    if ! curl -fL --connect-timeout 15 --speed-limit 1024 --speed-time 30 --retry 3 --retry-delay 2 "$BASE_URL/$FILENAME" -o "$DOWNLOAD_TEMP"; then
       rm -f -- "$DOWNLOAD_TEMP"
       DOWNLOAD_TEMP=
       return 1
@@ -518,7 +524,7 @@ download_ubuntu_base() {
   if [ ! -f "$SHA_FILE" ]; then
     echo "[ubuntu-rootfs] download: $BASE_URL/SHA256SUMS"
     DOWNLOAD_TEMP=$(mktemp "$(dirname -- "$SHA_FILE")/.SHA256SUMS.tmp.XXXXXX")
-    if ! curl -fL --retry 5 --retry-delay 2 "$BASE_URL/SHA256SUMS" -o "$DOWNLOAD_TEMP"; then
+    if ! curl -fL --connect-timeout 15 --speed-limit 1024 --speed-time 30 --retry 3 --retry-delay 2 "$BASE_URL/SHA256SUMS" -o "$DOWNLOAD_TEMP"; then
       rm -f -- "$DOWNLOAD_TEMP"
       DOWNLOAD_TEMP=
       return 1
@@ -1693,6 +1699,7 @@ fi
     "${sudo_cmd[@]}" cp "$ROOTFS_PROBE_BIN" "$ROOTFS/ysyx-rootfs-probe"
     "${sudo_cmd[@]}" chmod 0755 "$ROOTFS/ysyx-rootfs-probe"
   fi
+  "${sudo_cmd[@]}" bash "$ROOTFS_FULL_SERVICES_SCRIPT" "$ROOTFS" "$ROOTFS_FLAVOR" "$ROOTFS_NEMU_LOGIN_MARKER" "$ROOTFS_SSH_AUTHORIZED_KEYS"
   "${sudo_cmd[@]}" truncate -s "$IMAGE_SIZE" "$IMAGE"
   "${sudo_cmd[@]}" mkfs.ext4 -F -d "$ROOTFS" "$IMAGE"
   "${sudo_cmd[@]}" bash -c '
@@ -2669,12 +2676,14 @@ if [ "$ROOTFS_NPC_PRESEED_SYSTEMD_UPDATE" = "1" ]; then
   touch "$ROOTFS/etc/.updated" "$ROOTFS/var/.updated"
 fi
 
+bash "$ROOTFS_FULL_SERVICES_SCRIPT" "$ROOTFS" "$ROOTFS_FLAVOR" "$ROOTFS_NEMU_LOGIN_MARKER" "$ROOTFS_SSH_AUTHORIZED_KEYS"
 truncate -s "$IMAGE_SIZE" "$IMAGE"
 mkfs.ext4 -F -d "$ROOTFS" "$IMAGE"
 (cd "$ROOTFS" && find . -print0 | sort -z | cpio --quiet --null -o --format=newc > "$CPIO")
 FAKEROOT
 
   ROOTFS="$ROOTFS" WORK="$WORK" TARBALL="$TARBALL" IMAGE="$IMAGE" CPIO="$CPIO" IMAGE_SIZE="$IMAGE_SIZE" \
+    ROOTFS_FULL_SERVICES_SCRIPT="$ROOTFS_FULL_SERVICES_SCRIPT" ROOTFS_SSH_AUTHORIZED_KEYS="$ROOTFS_SSH_AUTHORIZED_KEYS" \
     ROOTFS_STATIC_INIT="$ROOTFS_STATIC_INIT" ROOTFS_INIT_BIN="$ROOTFS_INIT_BIN" \
     ROOTFS_PROBE_ENABLE="$ROOTFS_PROBE_ENABLE" ROOTFS_PROBE_BIN="$ROOTFS_PROBE_BIN" \
     ROOTFS_SYSTEMD_OVERLAY="$ROOTFS_SYSTEMD_OVERLAY" \

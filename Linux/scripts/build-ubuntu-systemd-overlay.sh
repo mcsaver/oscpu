@@ -3,7 +3,7 @@ set -euo pipefail
 
 RELEASE=${UBUNTU_RELEASE:-jammy}
 ARCH=${UBUNTU_ARCH:-riscv64}
-MIRROR=${UBUNTU_MIRROR:-http://ports.ubuntu.com/ubuntu-ports}
+MIRROR=${UBUNTU_MIRROR:-https://mirrors.ustc.edu.cn/ubuntu-ports}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 LINUX_HOME=$(cd -- "$SCRIPT_DIR/.." && pwd)
 ENV_ROOT=${YSYX_LINUX_ENV_ROOT:-"$LINUX_HOME/env"}
@@ -14,7 +14,7 @@ ROOTFS_FLAVOR=${UBUNTU_ROOTFS_FLAVOR:-systemd-minimal}
 ROOTFS_FLAVOR_SCRIPT=${UBUNTU_ROOTFS_FLAVOR_SCRIPT:-"$SCRIPT_DIR/ubuntu-rootfs-flavors.sh"}
 source "$ROOTFS_FLAVOR_SCRIPT"
 ROOTFS_FLAVOR=$(ubuntu_rootfs_flavor_normalize "$ROOTFS_FLAVOR")
-APT_TRUSTED=${UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED:-1}
+APT_TRUSTED=${UBUNTU_SYSTEMD_OVERLAY_APT_TRUSTED:-0}
 APT_COMPONENTS=${UBUNTU_SYSTEMD_OVERLAY_COMPONENTS:-"main universe"}
 APT_NO_RECOMMENDS=${UBUNTU_SYSTEMD_OVERLAY_NO_RECOMMENDS:-$(ubuntu_rootfs_flavor_no_recommends "$ROOTFS_FLAVOR")}
 OVERLAY_PACKAGES=${UBUNTU_SYSTEMD_OVERLAY_PACKAGES:-$(ubuntu_rootfs_flavor_packages "$ROOTFS_FLAVOR")}
@@ -35,6 +35,8 @@ ROOTFS_REAL=$(realpath -m -- "$ROOTFS")
 APT_ROOT_REAL=$(realpath -m -- "$APT_ROOT")
 WORK_LEXICAL=$(realpath -ms -- "$WORK")
 APT_ROOT_LEXICAL=$(realpath -ms -- "$APT_ROOT")
+APT_SAVED_PACKAGES="$APT_ROOT/packages"
+APT_REUSE_HELPER="$SCRIPT_DIR/reuse-apt-archives.py"
 APT_ARCHIVES="$APT_ROOT/cache/archives"
 APT_ARCHIVES_REAL=$(realpath -m -- "$APT_ARCHIVES")
 APT_SOURCES_LIST="$APT_ROOT/etc/apt/sources.list"
@@ -81,6 +83,7 @@ APT_MUTABLE_DIRS=(
   "$APT_ROOT/state/lists"
   "$APT_ROOT/state/lists/partial"
   "$APT_ROOT/cache"
+  "$APT_SAVED_PACKAGES"
   "$APT_ARCHIVES"
   "$APT_ARCHIVES/partial"
 )
@@ -192,7 +195,7 @@ if [ ! -d "$ROOTFS" ] || [ ! -f "$ROOTFS/etc/os-release" ]; then
   exit 1
 fi
 
-for tool in apt-get dpkg-deb flock mktemp realpath sort; do
+for tool in apt-get dpkg-deb flock mktemp realpath sort python3; do
   if ! command -v "$tool" >/dev/null; then
     echo "[ubuntu-systemd-overlay] missing tool: $tool" >&2
     exit 1
@@ -263,7 +266,7 @@ esac
 validate_apt_root_chain
 validate_apt_layout
 mkdir -p "$APT_ROOT/etc/apt" "$APT_ROOT/state/lists/partial" \
-  "$APT_ARCHIVES/partial"
+  "$APT_ARCHIVES/partial" "$APT_SAVED_PACKAGES"
 validate_apt_root_chain
 validate_apt_layout
 
@@ -307,6 +310,9 @@ apt_opts=(
   -o "Dir::State::status=$STATUS_FILE"
   -o "Dir::Cache=$APT_ROOT/cache"
   -o "Debug::NoLocking=1"
+  -o "Acquire::Retries=3"
+  -o "Acquire::http::Timeout=30"
+  -o "Acquire::https::Timeout=30"
 )
 
 echo "[ubuntu-systemd-overlay] flavor: $ROOTFS_FLAVOR"
@@ -318,6 +324,9 @@ validate_apt_layout
   echo "[ubuntu-systemd-overlay] apt archives changed before cleanup: $APT_ARCHIVES" >&2
   exit 1
 }
+# Keep durable package inputs outside cache/. Only the current APT closure is
+# restored below, so removing packages from a flavor still removes their payload.
+python3 "$APT_REUSE_HELPER" save "$APT_SAVED_PACKAGES" "$APT_ARCHIVES"
 # Pin cleanup to the verified directory inode.  Even if a non-cooperating
 # process swaps the pathname after cd, ./ remains the opened working directory
 # and rm cannot traverse a replacement symlink to an external archive tree.
@@ -332,14 +341,33 @@ validate_apt_layout
 echo "[ubuntu-systemd-overlay] apt update for $RELEASE/$ARCH"
 apt-get "${apt_opts[@]}" update
 
+# Ubuntu Base's installed package records survive minimization, so ordinary
+# apt install skips their missing manuals/docs/translations. Full must unpack
+# every Base package again, including packages whose version is unchanged.
+if [[ $ROOTFS_FLAVOR == full ]]; then
+  base_packages=$(dpkg-query --admindir="$ROOTFS/var/lib/dpkg" \
+    -W -f='${Package} ${Status}\n' | awk '$2 == "install" && $4 == "installed" { print $1 }')
+  OVERLAY_PACKAGES="$OVERLAY_PACKAGES $base_packages"
+fi
+
 install_opts=(--yes --download-only)
+if [[ $ROOTFS_FLAVOR == full ]]; then
+  install_opts+=(--reinstall)
+fi
 if [ "$APT_NO_RECOMMENDS" = "1" ]; then
   install_opts+=(--no-install-recommends)
 fi
 
+# Resolve with an empty transaction cache; validate the selected saved files
+# against APT's index digest before reuse. APT retains its normal verification.
+# shellcheck disable=SC2086
+apt-get "${apt_opts[@]}" "${install_opts[@]}" --print-uris install $OVERLAY_PACKAGES |
+  python3 "$APT_REUSE_HELPER" restore "$APT_SAVED_PACKAGES" "$APT_ARCHIVES"
+
 echo "[ubuntu-systemd-overlay] download packages: $OVERLAY_PACKAGES"
 # shellcheck disable=SC2086
 apt-get "${apt_opts[@]}" "${install_opts[@]}" install $OVERLAY_PACKAGES
+python3 "$APT_REUSE_HELPER" save "$APT_SAVED_PACKAGES" "$APT_ARCHIVES"
 
 shopt -s nullglob
 debs=("$APT_ARCHIVES"/*.deb)
@@ -448,9 +476,31 @@ for deb in "${debs[@]}"; do
   dpkg_info_install_records "$deb" "$DPKG_INFO_DIR"
 done
 
+# All Base and selected full packages have now been restored from verified
+# archives. Future dpkg installs must retain those contents too.
+if [[ $ROOTFS_FLAVOR == full ]]; then
+  rm -f -- "$ROOTFS/etc/dpkg/dpkg.cfg.d/excludes" \
+    "$ROOTFS/etc/update-motd.d/60-unminimize"
+fi
+
 mkdir -p "$ROOTFS/etc/apt" "$ROOTFS/etc/systemd/system" \
   "$ROOTFS/var/lib/systemd" "$ROOTFS/run" "$ROOTFS/run/lock"
 cp "$APT_SOURCES_LIST" "$ROOTFS/etc/apt/sources.list"
+# Retain verified indices already downloaded by the host build. Re-downloading
+# and decompressing all of jammy in the interpreter needlessly penalizes first
+# boot. APT still refreshes InRelease and changed indices normally in the guest.
+if [[ $ROOTFS_FLAVOR == full && $APT_TRUSTED == 0 ]]; then
+  mkdir -p "$ROOTFS/var/lib/apt/lists/partial"
+  for index in "$APT_ROOT/state/lists/"*; do
+    [[ -f $index && ! -L $index ]] || continue
+    case "${index##*/}" in
+      *_InRelease|*_Release|*_Release.gpg|*_Packages*|*_Translation-en*|*_Commands-*)
+        cp -p "$index" "$ROOTFS/var/lib/apt/lists/"
+        ;;
+    esac
+  done
+fi
+
 
 # systemd 在首次启动时可以填充空 machine-id；显式放一个文件比缺文件更接近真实 rootfs。
 if [ ! -e "$ROOTFS/etc/machine-id" ]; then

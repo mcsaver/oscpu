@@ -273,6 +273,12 @@ if [ "$REQUIRE_SYSTEMD" = "1" ] && [ -n "$systemd_bin" ]; then
     fi
   done
   if [ "$ROOTFS_FLAVOR" = "full" ]; then
+    for minimized_path in /etc/dpkg/dpkg.cfg.d/excludes /etc/update-motd.d/60-unminimize; do
+      if rootfs_has "$minimized_path"; then
+        echo "[ubuntu-rootfs-check] INVALID full rootfs still minimized: $minimized_path"
+        systemd_missing=1
+      fi
+    done
     if rootfs_has /lib/riscv64-linux-gnu/security/pam_systemd.so; then
       echo "[ubuntu-rootfs-check] OK      PAM systemd session module: /lib/riscv64-linux-gnu/security/pam_systemd.so"
     else

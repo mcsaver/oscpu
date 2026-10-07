@@ -1,0 +1,11 @@
+{
+  "tmp/chengyue64-release-20260916": "npc/rv64/results/chengyue64-release-20260916",
+  "tmp/pdfs": "deliverables/pdf-previews",
+  "tmp/rv64-behavior-20260917": "npc/rv64/results/rv64-behavior-20260917",
+  "tmp/rv64-cpi-timing-20260916": "npc/rv64/results/rv64-cpi-timing-20260916",
+  "tmp/rv64-network-20260917": "npc/rv64/results/rv64-network-20260917",
+  "tmp/rv64-parallel-model-20260917": "npc/rv64/results/rv64-parallel-model-20260917",
+  "tmp/rv64-perf-model-20260917": "npc/rv64/results/rv64-perf-model-20260917",
+  "tmp/rv64-replacement-20260915": "npc/rv64/results/rv64-replacement-20260915",
+  "tmp/rv64-whole-network-20260917": "npc/rv64/results/rv64-whole-network-20260917"
+}

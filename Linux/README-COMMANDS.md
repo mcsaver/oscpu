@@ -10,6 +10,130 @@
 [env/README.md](env/README.md)。目标和变量的最终事实来源是
 [Makefile](Makefile)；文档与实现有冲突时，以 Makefile 为准并同步修正文档。
 
+## 固定系统资料目录与国内源
+
+本机可通过 `local.mk` 配置长期目录；若该文件被清理，Makefile 还会查找
+`$HOME/ysyx-system-data/ubuntu2204/config/local.mk`。显式
+`LINUX_LOCAL_CONFIG=/dev/null` 可禁用本机配置。命令行变量仍可覆盖配置值。
+模板见 [local.mk.example](local.mk.example)。
+
+当前机器使用 `/home/lyg/ysyx-system-data/ubuntu2204`，不属于工程的编译缓存。
+目录中 `config/local.mk` 是本机路径/镜像源配置，`config/boot.config` 保存启动选择。
+已选定 NEMU 性能模式 + VGA + full 文本用户态：`CONFIG_PERFORMANCE=y`，关闭 trace、DiffTest、
+watchpoint、调试统计与 ASAN，启用 800×600 VGA、fbcon/tty1 和 virtio-input。
+GUI 自动检查也要求性能配置通过。该 VGA 窗口是 Ubuntu 文本控制台。
+
+在仓库根目录使用：
+
+```sh
+make -C Linux show-boot
+make -C Linux ARCH=riscv64-nemu run
+# 恢复本机配置指定的 NEMU + VGA 默认项：
+make -C Linux boot-defconfig
+# 强制图形入口，不受临时的串口选择影响：
+make -C Linux run-ubuntu-gui
+```
+
+单独 `make ARCH=riscv64-nemu` 仍只显示帮助，需要带 `run` 才启动。
+
+长期目录内的保留范围：
+
+| 路径（相对长期目录） | 内容与清理规则 |
+| --- | --- |
+| `config/` | 启动选择、国内源与目录配置；保留 |
+| `downloads/` | Linux 源码压缩包、Ubuntu Base 与 SHA256SUMS；保留 |
+| `src/`、`tools/` | 外部源码、本地工具；保留 |
+| `platforms/nemu/images/` | ext4/cpio、rootfs 构建资料；保留 |
+| `…/work-full-gui/apt-systemd-overlay/full/packages/` | full 用户态的 .deb 输入；包数量随源更新变化，保留 |
+| `state/nemu-full-gui/` | full 用户态的磁盘写入层及元数据；保留；旧最小版位于 `state/nemu-gui/` |
+| `platforms/*/build/` | 可重新编译的内核/OpenSBI 输出；停止构建与运行后可清理 |
+| `platforms/*/logs/` | 日志与自动检查的临时磁盘层；停止运行后可清理 |
+
+当前启动以 `make paths` 显示的长期目录为准。旧 `Linux/env` 仍保留历史输入和其他平台资料；
+其中已停用的 NEMU 编译目录可清理，不能把整个目录当作可删除的缓存。
+`make clean` 仅清前端构建目录；`make clean-logs` 不触及上述独立的用户磁盘写入层。
+默认用户 overlay 设置为 `reset=0`，下次启动保留写入；若以后主动重建了基础 ext4，
+旧 overlay 会因 backing 不匹配而拒绝复用。普通 `make run` 检测到已有用户
+overlay 时会保留它绑定的基础镜像，构建脚本更新不会自动替换这块磁盘的 backing。
+显式 `prepare` 用于重建：重建已有磁盘前应先导出完整磁盘或备份 overlay 与基础镜像，
+再迁移用户数据。不要把重置写入层当成普通缓存清理。
+
+只清旧产物、并希望下一次直接启动时，应保留当前 `make show-boot` 列出的
+模拟器、内核 Image、OpenSBI、DTB、ext4/cpio 和对应配置；保留现用编译目录也能避免
+重新编译。优先清理旧配置生成的对象目录、诊断用镜像和已结束自动检查的临时 overlay。
+`maintenance/` 中既有测试文件，也有完整用户磁盘备份，不应整目录删除。
+APT 的 `cache/*.bin` 可重新生成；`cache/archives/*.deb` 只有在 `packages/`
+中存在校验一致的副本时才可清理，`packages/`、签名索引和下载目录应保留。
+
+默认国内源在 `config/local.mk` 中维护：Ubuntu Base 使用清华
+`ubuntu-cdimage/ubuntu-base/releases/22.04/release`，RISC-V APT 使用中科大
+`ubuntu-ports`（不是 x86 的 `ubuntu` 源），Linux tarball 使用清华 `kernel/v6.x`。
+APT 保持签名检查，Ubuntu Base 继续校验 SHA256。下载包含连接/低速超时。
+
+APT 重建会先解析当前所需包，再按索引中的摘要恢复匹配的已存 .deb，避免把旧 flavor
+的额外包解包进新镜像。缓存目录清空后可以重新从 `packages/` 恢复；版本升级、缺包
+或索引刷新仍可能访问国内源，不承诺完全离线构建。full 镜像同时保留构建时
+已验证的 APT 索引，guest 的 apt update 仍正常校验 InRelease 并刷新变化项。直接执行 `scripts/*.sh` 时不读取
+Make 的本机配置，应优先走上述 Make 入口。
+
+## Full 文本系统的日常使用
+
+默认组合为单核 RV64、1 GiB RAM、8 GiB 稀疏 ext4、Ubuntu 22.04 full 用户态，
+提供 VGA shell、systemd、APT、OpenSSH、sudo、cron 和日志服务。这里的 full 是
+单核文本系统范围；不包含 GNOME、SMP、PCI 或整机快照。full 构建会从国内签名源
+重新解包 Ubuntu Base 的全部已安装包及 full 所需包，恢复其 man 手册、文档和包内
+翻译文件；恢复成功后移除 dpkg 的精简排除规则及 `60-unminimize` 登录提示。
+后续 APT 安装同样保留这些内容。它不预装所有可选语言包或桌面软件。
+
+mini 启动方式继续保留，并使用独立的镜像与写入层。在仓库根目录执行
+`make -C Linux menuconfig`，进入 `Default make run selection → Ubuntu rootfs flavor`：
+
+- `Full text system`：默认的完整文本用户态，恢复包内容，不显示 minimized 提示。
+- `Mini system: systemd-minimal`：保留 Ubuntu Base 精简规则，较小的 2 GiB 镜像。
+- `interactive tools`：保留原有中间配置。
+
+保存后执行 `make -C Linux run`。两种主要配置都支持 VGA shell。一次性启动 mini
+可用 `make -C Linux LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run`；
+恢复 full 默认项可用 `make -C Linux boot-defconfig`。预置配置分别位于
+`configs/boot_nemu_gui_defconfig` 和 `configs/boot_nemu_mini_defconfig`。
+
+默认 GUI/full 启用 libslirp 用户态 IPv4 NAT，guest 由 DHCP 取得
+`10.0.2.15/24`，网关 `10.0.2.2`，DNS `10.0.2.3`。不需要 sudo、
+TAP 或宿主防火墙改动。无网络参数的底层 NEMU 和原有 headless 测试仍使用
+hostless responder。TAP 仍是显式选项，不能与 `--net-user` 同时使用。
+
+从 WSL 另一个终端连接：
+
+```sh
+ssh -p 2222 -i /home/lyg/ysyx-system-data/ubuntu2204/config/ssh/id_ed25519 root@127.0.0.1
+```
+
+首次构建生成本机专用 Ed25519 密钥，只有公钥写入镜像。默认仅监听
+`127.0.0.1:2222`，关闭 SSH 密码认证。端口冲突时显式指定
+`NEMU_RUN_NET_ARGS='--net-user --ssh-port=2223'`。私钥保留在 `config/ssh/`。
+guest 内的 `apt update` / `apt install <包名>` 使用中科大 ubuntu-ports，
+保留 Ubuntu 签名校验。登录时关闭可选的海外新版本公告查询，不影响 APT 安全更新。
+网络或国内镜像故障仍会导致命令失败，不能以 hostless
+仓库测试代替真实外网测试。
+
+首次 `apt update` 在下载结束后还会生成 command-not-found 数据库、计算 Ubuntu
+附加包的缓存；首次更新在 NEMU 解释器中可能耗时数十分钟。可在另一个 shell 中用
+`ps -eo pid,etime,pcpu,args` 区分下载进程和这些本地计算。生成结果会保存在用户
+写入层；不要为了这类等待关闭 APT 签名或 HTTPS 证书检查。
+
+`systemctl reboot` 通过 OpenSBI SRST 退出并由宿主启动新的 NEMU 进程，
+继续使用同一写入层；`systemctl poweroff` 正常关机。交互式 run 默认 `NEMU_RUN_MAX_BOOTS=0`，
+允许反复重启直至正常关机；自动检查单独使用有限预算。再次执行 make run 同样保留数据。
+
+VGA 默认刷新上限 `CONFIG_VGA_REFRESH_HZ=120`，只上传发生变化的扫描行；
+键盘事件以 4 ms 周期独立轮询。实际帧率还受 guest 绘制速度和宿主显示器限制，
+120 是上限，不是实时帧率保证。性能模式仍关闭全部 trace/调试统计。
+
+libslirp 优先使用系统开发包；本机 Ubuntu 24.04 amd64 可从中科大镜像下载经过
+固定 SHA256 校验的包并解压到 `tools/libslirp/`，不安装进宿主系统。
+下载包保留在 `downloads/libslirp/`。其他宿主需提供 libslirp 4.7+ / glib 开发库
+或设置 `NEMU_SLIRP_PREFIX`。
+
 ## 1. 命令应该在哪里执行
 
 从仓库根目录进入本目录后执行：
@@ -42,14 +166,15 @@ Make 变量可以放在目标前后。为了便于复制和审查，本手册统
 | 按保存项启动 | `make run` | 使用 `Linux/.config`；没有配置文件时使用内建 fallback |
 | 强制 NPC 默认 flavor 串口 Ubuntu | `make ARCH=riscv64-npc BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run` | 四项都由命令行指定，不受保存项影响；当前终端为 `ttyS0` |
 | 强制 NEMU 串口 Ubuntu | `make ARCH=riscv64-nemu BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial run` | 当前终端中的 `ttyS0`；不会打开 SDL |
-| 强制 NEMU 可见图形 Ubuntu | `make run-ubuntu-gui` | 固定 NEMU/systemd-minimal GUI；当前终端 `ttyS0` + SDL 窗口 `tty1` |
+| 强制 NEMU 可见图形 Ubuntu | `make run-ubuntu-gui` | 固定 NEMU/GUI，默认 full，可指定其他 flavor；当前终端 `ttyS0` + SDL 窗口 `tty1` |
+| 验证 full 文本系统 | `make check-nemu-full-system` | 独立写入层和 Xvfb；真实 NAT/HTTPS/APT/SSH、用户/sudo、服务、重启持久化及自然关机；需要国内源可达 |
 | 自动验证 GUI | `make check-nemu-gui` | Xvfb 内自动运行；通常没有可见窗口，结果在日志和截图中 |
 | 验证 NEMU systemd | `make check-nemu-systemd-guest` | 自动串口 gate，完成后自然关机 |
 | 跑当前 NEMU 演进聚合 | `make check-nemu-evolution` | block、reboot、systemd、持久化四组 gate |
 | 仅准备当前启动资源 | `make ARCH=riscv64-nemu prepare` | 构建，不启动 guest |
 | 检查已有产物 | `make ARCH=riscv64-nemu check` | 只检查当前组合的实物，不补建 |
 | 清 NEMU 前端构建目录 | `make ARCH=riscv64-nemu clean` | 只删除本次解析出的 `BUILD_DIR` |
-| 清 NEMU 日志 | `make ARCH=riscv64-nemu clean-logs` | 删除 NEMU 的 Linux 前端 `LOG_ROOT`；不传 ARCH 会清 NPC 前端日志 |
+| 清 NEMU 日志 | `make ARCH=riscv64-nemu clean-logs` | 删除 NEMU 的 Linux 前端 `LOG_ROOT`；未传 ARCH 时使用 NEMU fallback，仍建议显式传入 |
 
 ## 3. 最重要的默认契约
 
@@ -58,17 +183,17 @@ Make 变量可以放在目标前后。为了便于复制和审查，本手册统
 `make run` 才等价于内建 fallback：
 
 ```sh
-make ARCH=riscv64-npc BOOT=ubuntu-rootfs \
-  LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run
+make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
+  LINUX_RUN_MODE=gui LINUX_RUN_ROOTFS_FLAVOR=full run
 ```
 
 | 项目 | 无 `Linux/.config` 时的 fallback | 影响 |
 | --- | --- | --- |
 | 默认目标 | `help` | 裸 `make` 不会构建或启动 |
-| `ARCH` | `riscv64-npc` | 默认选择 NPC RV64 Verilator |
+| `ARCH` | `riscv64-nemu` | 默认选择 NEMU 性能模式 |
 | `BOOT` | `ubuntu-rootfs` | Ubuntu ext4/virtio-blk 磁盘启动链；不是 initramfs |
-| `LINUX_RUN_MODE` | `serial` | 使用 `ttyS0` 串口/headless 控制台 |
-| `LINUX_RUN_ROOTFS_FLAVOR` | `systemd-minimal` | 默认 2 GiB systemd 用户态，不是 `full` flavor 或桌面 Ubuntu |
+| `LINUX_RUN_MODE` | `gui` | VGA 文本控制台 tty1，并保留 ttyS0 |
+| `LINUX_RUN_ROOTFS_FLAVOR` | `full` | 默认 8 GiB ext4、1 GiB RAM、单核 Ubuntu 文本系统 |
 | 串口 NEMU `LINUX_FEATURE_PROFILE` | `headless` | Linux 内核不启用 FB/VT 图形控制台 |
 | 串口 NEMU `NEMU_DEFCONFIG` | `riscv64-linux_defconfig` | NEMU 构建不含 VGA/SDL |
 | 串口 NEMU `NEMU_DISPLAY` | `0` | DTB 不启用 simplefb/virtio-input GUI 节点 |
@@ -78,8 +203,8 @@ make ARCH=riscv64-npc BOOT=ubuntu-rootfs \
 | `JOBS` | 宿主 `nproc` | Linux/OpenSBI 等构建并行度 |
 | `EXTRA_ARGS` | 空 | 追加给模拟器的命令行参数 |
 | `BOOTARGS_EXTRA` | 空 | 追加给 Linux bootargs |
-| `NEMU_RUN_ROOTFS_OVERLAY_RESET` | `1` | 普通 NEMU rootfs 每次新命令默认重置运行 overlay |
-| `NEMU_RUN_MAX_BOOTS` | `2` | 一次 `run` 最多允许 boot1 + 一次 reboot |
+| `NEMU_RUN_ROOTFS_OVERLAY_RESET` | `0` | 默认复用写入层，保留装包、配置和用户文件 |
+| `NEMU_RUN_MAX_BOOTS` | `0` | 交互式 run 允许反复重启；非零值限制总启动次数 |
 | Linux | 6.6 | 内核源码基线 |
 | OpenSBI | 1.8 | 固件源码基线 |
 | Ubuntu | jammy / 22.04.5 / riscv64 | rootfs 下载和构建基线 |
@@ -115,8 +240,8 @@ make show-boot
 - 已有 kernel、OpenSBI、DTB 或 rootfs 产物。
 
 `menuconfig` 本身也不构建这些产物；之后的 `run` 或 `prepare` 才按有效选择补建。
-没有 `Linux/.config` 不是错误，Makefile 会使用 NPC + `ubuntu-rootfs` + `serial` +
-`systemd-minimal` 的内建 fallback。
+没有启动配置不是错误，Makefile 会使用 NEMU + `ubuntu-rootfs` + `gui` +
+`full` 的内建 fallback。
 
 首次构建 `menuconfig` 需要 ncurses 开发头文件；使用
 `YSYX_LINUX_INSTALL_HOST_PACKAGES=1 make setup-env` 时会安装 `libncurses-dev`。
@@ -170,7 +295,7 @@ flavor 仍可来自保存项。需要完全确定本次组合时，把四项都�
 
 | 值 | 启动内容 | 预期 PID 1 / 边界 |
 | --- | --- | --- |
-| `ubuntu-rootfs` | OpenSBI + Linux + DTB + Ubuntu ext4/virtio-blk | NEMU 为 `/lib/systemd/systemd`；NPC 先经工程 wrapper 再进入 systemd。默认 flavor 是 `systemd-minimal`，不是桌面 Ubuntu |
+| `ubuntu-rootfs` | OpenSBI + Linux + DTB + Ubuntu ext4/virtio-blk | NEMU 为 `/lib/systemd/systemd`；NPC 先经工程 wrapper 再进入 systemd。默认 flavor 是 `full`，提供文本系统 |
 | `ubuntu-shell` | Ubuntu Base shell initramfs | `/init` 完成 `/bin/sh -c` marker 后进入交互 `/bin/sh`；内存文件系统，退出后修改丢失 |
 | `ubuntu-probe` | Ubuntu os-release probe initramfs | syscall-only `/init` 打印 `/etc/os-release` 后等待；它不是 Ubuntu shell，NEMU 下通常需手动终止 |
 | `busybox-initramfs` | BusyBox initramfs | `rdinit=/bin/sh`；最小 BusyBox shell，不是 Ubuntu/systemd，退出后修改丢失 |
@@ -199,7 +324,7 @@ make run-ubuntu-gui
 这个 wrapper 会作为一个整体切换：
 
 - `ARCH=riscv64-nemu` 与 `BOOT=ubuntu-rootfs`；
-- `LINUX_RUN_MODE=gui` 与 `systemd-minimal` rootfs flavor；
+- `LINUX_RUN_MODE=gui`，默认 `full`，可用 `LINUX_RUN_ROOTFS_FLAVOR` 指定其他 flavor；
 - NEMU GUI defconfig、独立 NEMU 配置目录和构建目录；
 - Linux `display` profile、独立内核 `O=` 目录；
 - `NEMU_DISPLAY=1`、simple-framebuffer 与标准 virtio-input；
@@ -224,8 +349,8 @@ GUI 正常时同时存在两个控制台：
 simplefb/fbcon 负责显示，virtio-input 负责键盘。它不是桌面 Ubuntu、DRM
 `virtio-gpu`、3D 图形或 GPU 加速环境。
 
-当前 GUI 组合只支持 **NEMU + `ubuntu-rootfs` + `systemd-minimal`**。显式设置
-`LINUX_RUN_MODE=gui` 却同时选择 NPC、initramfs/kernel 或 interactive/full 时，
+当前 GUI 支持 **NEMU + `ubuntu-rootfs` + 三种 rootfs flavor**。显式设置
+`LINUX_RUN_MODE=gui` 却同时选择 NPC 或 initramfs/kernel 时，
 Makefile 会拒绝该不一致组合。若只是想可靠地打开屏幕，直接使用
 `make run-ubuntu-gui`，不要手工拼装底层 NEMU/Linux/DTB/rootfs 变量。
 
@@ -233,7 +358,7 @@ Makefile 会拒绝该不一致组合。若只是想可靠地打开屏幕，直�
 另需 Xvfb、Xauth、ImageMagick 以及 X11/XTest 开发包。Debian/Ubuntu 宿主通常需：
 
 ```sh
-sudo apt install libsdl2-dev xvfb xauth imagemagick libx11-dev libxtst-dev
+sudo apt install libsdl2-dev libglib2.0-dev pkg-config openssh-client xvfb xauth imagemagick libx11-dev libxtst-dev
 ```
 
 当前 `setup-env` 只覆盖基础 Linux bring-up 依赖，不保证上述 GUI 依赖齐全。
@@ -269,7 +394,7 @@ make ARCH=<平台> BOOT=<启动场景> \
 - poweroff：正常退出；
 - reboot：NEMU 返回专用状态 32，wrapper 启动一个新的 NEMU 进程；
 - 其他非零状态：命令失败；
-- 默认最多两次启动，可用 `NEMU_RUN_MAX_BOOTS` 覆盖。
+- 交互式 run 默认不限重启次数；可用 `NEMU_RUN_MAX_BOOTS` 设置总启动次数上限。
 
 常用示例：
 
@@ -326,7 +451,7 @@ simplefb/fbcon；看到终端中的 `ttyS0` 日志并不否定 SDL 窗口中的 
 
 ### 启动别名
 
-这些便捷目标不读取 `Linux/.config`；`ARCH` 来自命令行，否则使用内建 NPC
+这些便捷目标不读取 `Linux/.config`；`ARCH` 来自命令行，否则使用内建 NEMU
 fallback。它们的控制台边界是：
 
 | 目标 | 等价场景 |
@@ -337,15 +462,14 @@ fallback。它们的控制台边界是：
 | `run-busybox-initramfs` | 强制 `BOOT=busybox-initramfs` 和 `LINUX_RUN_MODE=serial` |
 | `run-kernel` | 强制 `BOOT=kernel` 和 `LINUX_RUN_MODE=serial` |
 
-`make run-ubuntu-shell` 的平台 fallback 始终是 NPC；若要指定 NEMU，应写：
+`make run-ubuntu-shell` 的平台 fallback 为 NEMU；也可显式指定：
 
 ```sh
 make ARCH=riscv64-nemu run-ubuntu-shell
 ```
 
-`run-ubuntu-gui` 不是普通别名。它固定选择 NEMU、`ubuntu-rootfs`、GUI 和
-`systemd-minimal`，并切换整套隔离 profile；保存项不能把它改回 NPC、串口或
-interactive/full。
+`run-ubuntu-gui` 固定选择 NEMU、`ubuntu-rootfs` 和 GUI，并切换整套隔离
+profile；flavor 默认 full，命令行 `LINUX_RUN_ROOTFS_FLAVOR` 可覆盖。
 
 ## 6. 准备与构建目标
 
@@ -399,7 +523,7 @@ GUI 入口又在 NEMU 平台内使用独立路径，避免 headless/GUI 配置�
 
 | 目标 | 结果 |
 | --- | --- |
-| `ubuntu-rootfs-image` | 默认 systemd-minimal Ubuntu ext4 及配套 cpio |
+| `ubuntu-rootfs-image` | 构建当前指定 flavor 的 Ubuntu ext4 及配套 cpio；日常准备优先使用 `prepare` |
 | `ubuntu-rootfs-systemd-image` | 构建 systemd-minimal 候选 ext4 及配套 cpio |
 | `ubuntu-rootfs-systemd-overlay` | `systemd-image` 的兼容入口；它会走同一完整配方，不是“仅修改现有镜像”的轻量命令 |
 | `ubuntu-rootfs-systemd-strict-image` | 构建独立严格验证 ext4/cpio，由 systemd one-shot 完成检查和关机 |
@@ -426,8 +550,9 @@ make ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
   LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=full paths
 ```
 
-GUI 是例外且有意受限：GUI 使用自己隔离、带 tty1 autologin 契约的
-systemd-minimal image/cpio/rootfs-dir；不能将 interactive/full 与 GUI 混用。
+GUI 使用自己隔离、带 tty1 autologin 契约的 image/cpio/rootfs-dir。
+full 使用 `*-full-gui.ext4`，interactive 使用 `*-interactive-gui.ext4`，
+systemd-minimal 保留 `*-gui.ext4`，三者也有独立的 state 写入层。
 serial/headless 高级用法仍可显式覆盖 `UBUNTU_ROOTFS_IMAGE` 等具体路径，但这会
 接管原子映射，调用者必须自行保证 image、cpio、rootfs-dir 和检查对象一致。
 GUI coherent bundle 会强制使用 GUI 专用 image/cpio/dir；需要自定义 GUI 产物时，
@@ -703,13 +828,13 @@ DTB、可选 initrd/rootfs 实物存在，并在有 rootfs 时执行基本检查
 ### `clean`
 
 `clean` 不读取保存的启动配置，只删除本命令解析到的 `BUILD_DIR`。未显式传
-`ARCH` 时使用 NPC fallback，所以：
+`ARCH` 时使用 NEMU fallback，所以：
 
 ```sh
 make clean
 ```
 
-上例清理 NPC 顶层 build。它不等于清理 Linux `O=`、OpenSBI、rootfs、GUI 或
+上例清理 `Linux/build/riscv64-nemu`。它不等于清理 Linux `O=`、OpenSBI、rootfs、GUI 或
 全部平台产物。清理前显式传 `ARCH`，不要依赖保存项猜测删除范围。
 
 ### `clean-logs`
@@ -721,33 +846,22 @@ make ARCH=riscv64-nemu clean-logs
 make ARCH=riscv64-npc clean-logs
 ```
 
-不要省略 ARCH 后再假定清的是 NEMU；`clean-logs` 不读取保存项，裸命令会使用
-NPC fallback。
+`clean-logs` 不读取保存项，裸命令使用 NEMU fallback；建议始终显式传入
+ARCH，尤其不要因菜单中选择了 NPC 就假定会清理 NPC。
 
 ## 16. NEMU rootfs overlay 与持久化
 
-普通 NEMU `ubuntu-rootfs` 运行不会直接写 backing ext4，而是在日志目录创建
-sparse overlay 和 sidecar。默认 `NEMU_RUN_ROOTFS_OVERLAY_RESET=1`，含义是
-每次新的 `make ... run` 在 boot1 前重置 overlay；同一次命令内的 reboot
-仍复用它。
+NEMU `ubuntu-rootfs` 运行不直接写 backing ext4，而是在 `ENV_ROOT/state/`
+创建 sparse overlay 和 sidecar。默认 `NEMU_RUN_ROOTFS_OVERLAY_RESET=0`，
+同一启动命令内的 reboot 和两次独立 make run 都保留写入。GUI/full 使用
+`state/nemu-full-gui/`；串口按 flavor 使用 `state/nemu-<flavor>-serial/`。
 
-因此，在 guest 中创建的文件默认不会跨两次独立的 `make run` 保留。需要手工
-连续调试并保留上次修改时：
+先用 `paths` 查看实际写入层。镜像重建后，旧 overlay 的 backing 身份会不匹配；
+先备份基础镜像、overlay 和 meta，再显式选择新写入层。只有有意丢弃 guest
+修改时才使用 `NEMU_RUN_ROOTFS_OVERLAY_RESET=1`。
 
-```sh
-make \
-  ARCH=riscv64-nemu \
-  NEMU_RUN_ROOTFS_OVERLAY_RESET=0 \
-  run
-```
-
-先用 `paths` 查看 `NEMU_RUN_ROOTFS_OVERLAY`，不要误删 backing 镜像。
-需要验证跨重启持久化语义时，使用隔离的
-`make check-nemu-reboot-persistence`，不要用日常运行目录替代 gate。
-
-`run-ubuntu-gui` 也使用自己的 GUI overlay，并同样默认在每次独立调用前重置；
-人工连续调试可用 `NEMU_RUN_ROOTFS_OVERLAY_RESET=0 make run-ubuntu-gui`。自动
-`check-nemu-gui` 使用单独的 check overlay 和截图目录，不是持久化工作区。
+`check-nemu-gui`、`check-nemu-full-system` 和
+`check-nemu-reboot-persistence` 各用独立的检查目录，不占用日常工作区。
 
 NPC 当前没有这层 NEMU overlay：NPC `ubuntu-rootfs` 把所选 ext4 直接交给可写
 virtio-blk 后端，guest 写入会改变该镜像。需要隔离 NPC 实验时，先复制镜像，
@@ -778,7 +892,7 @@ virtio-blk 后端，guest 写入会改变该镜像。需要隔离 NPC 实验时�
 | 误用/误解 | 实际结果 | 正确做法 |
 | --- | --- | --- |
 | 裸 `make` 会启动 Ubuntu | 只显示 help | 使用 `make run` 或明确 ARCH/BOOT |
-| 裸 `make run` 永远是 NPC | 它优先使用 `Linux/.config` | 先用 `make show-boot` 查看；无配置时才 fallback 到 NPC |
+| 裸 `make run` 永远是 NPC | 它优先使用 `LINUX_BOOT_CONFIG` 指向的配置 | 先用 `make show-boot` 查看；无配置时默认 NEMU + VGA + full |
 | `menuconfig` 会改 Linux/NEMU/NPC `.config` | 它只保存宿主启动编排 | 组件配置仍由各自 defconfig/构建目标维护 |
 | `ARCH=riscv64-nemu` 单独决定是否启用 VGA | 它只覆盖平台，控制台可来自保存项 | 强制 GUI 用 `run-ubuntu-gui`；强制 headless 加 `LINUX_RUN_MODE=serial` |
 | 给普通 run 加 `NEMU_DISPLAY=1` | 只改一部分契约，可能配置错配 | 使用完整 GUI wrapper |
@@ -792,7 +906,7 @@ virtio-blk 后端，guest 写入会改变该镜像。需要隔离 NPC 实验时�
 | 只设置 flavor 仍会启动默认 ext4 | 启动 flavor 现在会原子选择匹配 image/cpio/dir/check | 用 `show-boot`/`paths` 核对 `RUN_ROOTFS`；不要再手工拼半套变量 |
 | `ubuntu-rootfs-systemd-overlay` 只是轻量 overlay | 与 systemd-image 共用完整配方 | 把它视为兼容入口 |
 | `check` 是完整验收 | 只检查当前组合实物 | 使用对应 `check-nemu-*` 或 `check-npc-*` |
-| 保存了 NEMU 后裸 `make clean-logs` 会清 NEMU | 清理目标不读取保存项，仍使用 NPC fallback | 总是显式传要清理的 `ARCH` |
+| `make clean-logs` 跟随菜单选择平台 | 清理目标不读取保存项，未传 ARCH 时使用 NEMU fallback | 总是显式传要清理的 `ARCH` |
 | `show-nemu-tap-setup` 会配置宿主 | 只打印计划 | 审查后由用户明确执行特权命令 |
 
 ## 19. 面向用户与内部目标的边界

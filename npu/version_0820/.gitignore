@@ -9,3 +9,7 @@
 *.vcd
 *.fst
 *.log
+
+# Reusable local dependencies and retained generated results.
+/tools/cmake-3.31.12/
+/tools/llama.cpp/

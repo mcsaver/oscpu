@@ -1,0 +1,863 @@
+{
+  "startpoint": "rst_i",
+  "endpoint": "_1688361_/D",
+  "slack_ns": -2.174,
+  "data_arrival_ns": 3.088,
+  "cells": {
+    "_0750436_": {
+      "text": "  MUX4X1P4H7L _0750436_ (\n    .A(core_backend_cancel_candidates_o_10_),\n    .B(core_backend_cancel_candidates_o_14_),\n    .C(core_backend_cancel_candidates_o_11_),\n    .D(core_backend_cancel_candidates_o_15_),\n    .S0(_0007123_),\n    .S1(_0007120_),\n    .Y(_0007194_)\n  );\n",
+      "connections": {
+        "A": "core_backend_cancel_candidates_o_10_",
+        "B": "core_backend_cancel_candidates_o_14_",
+        "C": "core_backend_cancel_candidates_o_11_",
+        "D": "core_backend_cancel_candidates_o_15_",
+        "S0": "_0007123_",
+        "S1": "_0007120_",
+        "Y": "_0007194_"
+      }
+    },
+    "_0750438_": {
+      "text": "  MUX4X1P4H7L _0750438_ (\n    .A(_0007192_),\n    .B(_0007193_),\n    .C(_0007194_),\n    .D(_0007195_),\n    .S0(_0007141_),\n    .S1(_0007131_),\n    .Y(_0007196_)\n  );\n",
+      "connections": {
+        "A": "_0007192_",
+        "B": "_0007193_",
+        "C": "_0007194_",
+        "D": "_0007195_",
+        "S0": "_0007141_",
+        "S1": "_0007131_",
+        "Y": "_0007196_"
+      }
+    },
+    "_0750441_": {
+      "text": "  AOI221X4H7L _0750441_ (\n    .A0(_0007189_),\n    .A1(_0007190_),\n    .B0(_0007191_),\n    .B1(_0007196_),\n    .C0(_0007198_),\n    .Y(_0007199_)\n  );\n",
+      "connections": {
+        "A0": "_0007189_",
+        "A1": "_0007190_",
+        "B0": "_0007191_",
+        "B1": "_0007196_",
+        "C0": "_0007198_",
+        "Y": "_0007199_"
+      }
+    },
+    "_0750465_": {
+      "text": "  NOR2BX1P4H7L _0750465_ (\n    .AN(_0007199_),\n    .B(_0007216_),\n    .Z(_0007222_)\n  );\n",
+      "connections": {
+        "AN": "_0007199_",
+        "B": "_0007216_",
+        "Z": "_0007222_"
+      }
+    },
+    "_0750466_": {
+      "text": "  BUFX3H7L _0750466_ (\n    .A(_0007222_),\n    .Y(_0007223_)\n  );\n",
+      "connections": {
+        "A": "_0007222_",
+        "Y": "_0007223_"
+      }
+    },
+    "_0750467_": {
+      "text": "  NOR2X3H7L _0750467_ (\n    .A(_0007201_),\n    .B(_0007223_),\n    .Y(_0007224_)\n  );\n",
+      "connections": {
+        "A": "_0007201_",
+        "B": "_0007223_",
+        "Y": "_0007224_"
+      }
+    },
+    "_0750468_": {
+      "text": "  BUFX3P5H7L _0750468_ (\n    .A(_0007224_),\n    .Y(_0007225_)\n  );\n",
+      "connections": {
+        "A": "_0007224_",
+        "Y": "_0007225_"
+      }
+    },
+    "_0750508_": {
+      "text": "  MUX2X0P5H7L _0750508_ (\n    .A(_0007264_),\n    .B(core_backend_execute_in_class_i_0_),\n    .S0(_0007225_),\n    .Y(_0007265_)\n  );\n",
+      "connections": {
+        "A": "_0007264_",
+        "B": "core_backend_execute_in_class_i_0_",
+        "S0": "_0007225_",
+        "Y": "_0007265_"
+      }
+    },
+    "_0750509_": {
+      "text": "  NOR2BX1P4H7L _0750509_ (\n    .AN(_0007263_),\n    .B(_0007265_),\n    .Z(_0007266_)\n  );\n",
+      "connections": {
+        "AN": "_0007263_",
+        "B": "_0007265_",
+        "Z": "_0007266_"
+      }
+    },
+    "_0753158_": {
+      "text": "  MUX2X0P5H7L _0753158_ (\n    .A(_0008896_),\n    .B(_0007266_),\n    .S0(_0008919_),\n    .Y(_0008920_)\n  );\n",
+      "connections": {
+        "A": "_0008896_",
+        "B": "_0007266_",
+        "S0": "_0008919_",
+        "Y": "_0008920_"
+      }
+    },
+    "_0753159_": {
+      "text": "  AND3X1P4H7L _0753159_ (\n    .A(core_backend_execute_lsu_ready_i_0_),\n    .B(_0007275_),\n    .C(_0008920_),\n    .Y(_0008921_)\n  );\n",
+      "connections": {
+        "A": "core_backend_execute_lsu_ready_i_0_",
+        "B": "_0007275_",
+        "C": "_0008920_",
+        "Y": "_0008921_"
+      }
+    },
+    "_0753160_": {
+      "text": "  BUFX3H7L _0753160_ (\n    .A(_0008921_),\n    .Y(core_backend_execute_lsu_fire_o_1_)\n  );\n",
+      "connections": {
+        "A": "_0008921_",
+        "Y": "core_backend_execute_lsu_fire_o_1_"
+      }
+    },
+    "_0944232_": {
+      "text": "  BUFX1P4H7L _0944232_ (\n    .A(core_backend_execute_clmul_flush_i),\n    .Y(_0167126_)\n  );\n",
+      "connections": {
+        "A": "core_backend_execute_clmul_flush_i",
+        "Y": "_0167126_"
+      }
+    },
+    "_0944233_": {
+      "text": "  BUFX1P4H7L _0944233_ (\n    .A(_0167126_),\n    .Y(_0167127_)\n  );\n",
+      "connections": {
+        "A": "_0167126_",
+        "Y": "_0167127_"
+      }
+    },
+    "_0944234_": {
+      "text": "  BUFX1P4H7L _0944234_ (\n    .A(_0167127_),\n    .Y(_0167128_)\n  );\n",
+      "connections": {
+        "A": "_0167127_",
+        "Y": "_0167128_"
+      }
+    },
+    "_0944297_": {
+      "text": "  AOI2BB1X0P5H7L _0944297_ (\n    .A0N(_0167128_),\n    .A1N(core_backend_rob_plan_younger_q_15_),\n    .B0(_0167174_),\n    .Y(_0167175_)\n  );\n",
+      "connections": {
+        "A0N": "_0167128_",
+        "A1N": "core_backend_rob_plan_younger_q_15_",
+        "B0": "_0167174_",
+        "Y": "_0167175_"
+      }
+    },
+    "_0944298_": {
+      "text": "  BUFX1P4H7L _0944298_ (\n    .A(_0167175_),\n    .Y(core_backend_cancel_candidates_o_15_)\n  );\n",
+      "connections": {
+        "A": "_0167175_",
+        "Y": "core_backend_cancel_candidates_o_15_"
+      }
+    },
+    "_1029236_": {
+      "text": "  NAND2BX0P5H7L _1029236_ (\n    .AN(rst_i),\n    .B(core_commit_event_valid_q),\n    .Y(_0226673_)\n  );\n",
+      "connections": {
+        "AN": "rst_i",
+        "B": "core_commit_event_valid_q",
+        "Y": "_0226673_"
+      }
+    },
+    "_1029253_": {
+      "text": "  AOI21X0P5H7L _1029253_ (\n    .A0(_0226684_),\n    .A1(_0226686_),\n    .B0(_0226673_),\n    .Y(_0226687_)\n  );\n",
+      "connections": {
+        "A0": "_0226684_",
+        "A1": "_0226686_",
+        "B0": "_0226673_",
+        "Y": "_0226687_"
+      }
+    },
+    "_1029254_": {
+      "text": "  BUFX1P4H7L _1029254_ (\n    .A(_0226687_),\n    .Y(core_backend_execute_clmul_flush_i)\n  );\n",
+      "connections": {
+        "A": "_0226687_",
+        "Y": "core_backend_execute_clmul_flush_i"
+      }
+    },
+    "_1632477_": {
+      "text": "  NOR4BX0P5H7L _1632477_ (\n    .AN(core_backend_execute_lsu_fire_o_1_),\n    .B(core_backend_execute_in_mem_slot_i_8_),\n    .C(core_backend_execute_in_mem_slot_i_7_),\n    .D(_0626010_),\n    .Y(_0626011_)\n  );\n",
+      "connections": {
+        "AN": "core_backend_execute_lsu_fire_o_1_",
+        "B": "core_backend_execute_in_mem_slot_i_8_",
+        "C": "core_backend_execute_in_mem_slot_i_7_",
+        "D": "_0626010_",
+        "Y": "_0626011_"
+      }
+    },
+    "_1632478_": {
+      "text": "  NAND2X0P5H7L _1632478_ (\n    .A(core_backend_execute_in_mem_slot_i_9_),\n    .B(_0626011_),\n    .Y(_0626012_)\n  );\n",
+      "connections": {
+        "A": "core_backend_execute_in_mem_slot_i_9_",
+        "B": "_0626011_",
+        "Y": "_0626012_"
+      }
+    },
+    "_1633112_": {
+      "text": "  OR2X0P5H7L _1633112_ (\n    .A(core_backend_execute_in_mem_slot_i_6_),\n    .B(_0626012_),\n    .Y(_0626635_)\n  );\n",
+      "connections": {
+        "A": "core_backend_execute_in_mem_slot_i_6_",
+        "B": "_0626012_",
+        "Y": "_0626635_"
+      }
+    },
+    "_1652359_": {
+      "text": "  NOR4X0P5H7L _1652359_ (\n    .A(_0626635_),\n    .B(_0641096_),\n    .C(_0641097_),\n    .D(_0641098_),\n    .Y(_0641099_)\n  );\n",
+      "connections": {
+        "A": "_0626635_",
+        "B": "_0641096_",
+        "C": "_0641097_",
+        "D": "_0641098_",
+        "Y": "_0641099_"
+      }
+    },
+    "_1652360_": {
+      "text": "  NAND4X0P5H7L _1652360_ (\n    .A(_0626634_),\n    .B(_0626626_),\n    .C(_0626648_),\n    .D(_0641099_),\n    .Y(_0641100_)\n  );\n",
+      "connections": {
+        "A": "_0626634_",
+        "B": "_0626626_",
+        "C": "_0626648_",
+        "D": "_0641099_",
+        "Y": "_0641100_"
+      }
+    },
+    "_1652361_": {
+      "text": "  BUFX1H7L _1652361_ (\n    .A(_0641100_),\n    .Y(_0641101_)\n  );\n",
+      "connections": {
+        "A": "_0641100_",
+        "Y": "_0641101_"
+      }
+    },
+    "_1653050_": {
+      "text": "  NAND2X0P5H7L _1653050_ (\n    .A(_0641101_),\n    .B(_0641579_),\n    .Y(_0641594_)\n  );\n",
+      "connections": {
+        "A": "_0641101_",
+        "B": "_0641579_",
+        "Y": "_0641594_"
+      }
+    },
+    "_1653052_": {
+      "text": "  OA221X1P4H7L _1653052_ (\n    .A0(_0633562_),\n    .A1(_0641579_),\n    .B0(_0641593_),\n    .B1(_0641594_),\n    .C0(_0641595_),\n    .Y(_0641596_)\n  );\n",
+      "connections": {
+        "A0": "_0633562_",
+        "A1": "_0641579_",
+        "B0": "_0641593_",
+        "B1": "_0641594_",
+        "C0": "_0641595_",
+        "Y": "_0641596_"
+      }
+    },
+    "_1653053_": {
+      "text": "  AOI31X0P5H7L _1653053_ (\n    .A0(_0641577_),\n    .A1(_0641578_),\n    .A2(_0634194_),\n    .B0(_0641596_),\n    .Y(_0641597_)\n  );\n",
+      "connections": {
+        "A0": "_0641577_",
+        "A1": "_0641578_",
+        "A2": "_0634194_",
+        "B0": "_0641596_",
+        "Y": "_0641597_"
+      }
+    },
+    "_1653054_": {
+      "text": "  BUFX1P4H7L _1653054_ (\n    .A(_0641597_),\n    .Y(_0621032_)\n  );\n",
+      "connections": {
+        "A": "_0641597_",
+        "Y": "_0621032_"
+      }
+    },
+    "_1688361_": {
+      "text": "  DFFQX1H7L _1688361_ (\n    .CK(_0669340_),\n    .D(_0621032_),\n    .Q(core_memory_unit_lsu_cause_q_16__4_)\n  );\n",
+      "connections": {
+        "CK": "_0669340_",
+        "D": "_0621032_",
+        "Q": "core_memory_unit_lsu_cause_q_16__4_"
+      }
+    }
+  },
+  "path": [
+    {
+      "instance": "",
+      "cell": "R64SystemTop",
+      "verilog_src": "",
+      "pin": "rst_i",
+      "arrival": 4e-10,
+      "capacitance": 2.015e-13,
+      "slew": 5e-11
+    },
+    {
+      "instance": "_1029236_",
+      "cell": "NAND2BX0P5H7L",
+      "verilog_src": "",
+      "pin": "_1029236_/AN",
+      "net": "rst_i",
+      "arrival": 4e-10,
+      "slew": 5e-11
+    },
+    {
+      "instance": "_1029236_",
+      "cell": "NAND2BX0P5H7L",
+      "verilog_src": "",
+      "pin": "_1029236_/Y",
+      "net": "_2614095_",
+      "arrival": 4.7e-10,
+      "capacitance": 3.223e-15,
+      "slew": 6.679e-11
+    },
+    {
+      "instance": "_1029253_",
+      "cell": "AOI21X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1029253_/B0",
+      "net": "_2614095_",
+      "arrival": 4.7e-10,
+      "slew": 6.679e-11
+    },
+    {
+      "instance": "_1029253_",
+      "cell": "AOI21X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1029253_/Y",
+      "net": "_2614080_",
+      "arrival": 5.217e-10,
+      "capacitance": 9.624e-16,
+      "slew": 5.709e-11
+    },
+    {
+      "instance": "_1029254_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_1029254_/A",
+      "net": "_2614080_",
+      "arrival": 5.217e-10,
+      "slew": 5.709e-11
+    },
+    {
+      "instance": "_1029254_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_1029254_/Y",
+      "net": "_2038387_",
+      "arrival": 9.684e-10,
+      "capacitance": 7.41e-14,
+      "slew": 7.939e-10
+    },
+    {
+      "instance": "_0944232_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944232_/A",
+      "net": "_2038387_",
+      "arrival": 9.684e-10,
+      "slew": 7.939e-10
+    },
+    {
+      "instance": "_0944232_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944232_/Y",
+      "net": "_2680257_",
+      "arrival": 1.058e-09,
+      "capacitance": 6.44e-15,
+      "slew": 9.06e-11
+    },
+    {
+      "instance": "_0944233_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944233_/A",
+      "net": "_2680257_",
+      "arrival": 1.058e-09,
+      "slew": 9.06e-11
+    },
+    {
+      "instance": "_0944233_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944233_/Y",
+      "net": "_2680256_",
+      "arrival": 1.133e-09,
+      "capacitance": 6.869e-15,
+      "slew": 7.956e-11
+    },
+    {
+      "instance": "_0944234_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944234_/A",
+      "net": "_2680256_",
+      "arrival": 1.133e-09,
+      "slew": 7.956e-11
+    },
+    {
+      "instance": "_0944234_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944234_/Y",
+      "net": "_2680255_",
+      "arrival": 1.206e-09,
+      "capacitance": 6.659e-15,
+      "slew": 7.718e-11
+    },
+    {
+      "instance": "_0944297_",
+      "cell": "AOI2BB1X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0944297_/A0N",
+      "net": "_2680255_",
+      "arrival": 1.206e-09,
+      "slew": 7.718e-11
+    },
+    {
+      "instance": "_0944297_",
+      "cell": "AOI2BB1X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0944297_/Y",
+      "net": "_2680203_",
+      "arrival": 1.266e-09,
+      "capacitance": 9.624e-16,
+      "slew": 4.777e-11
+    },
+    {
+      "instance": "_0944298_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944298_/A",
+      "net": "_2680203_",
+      "arrival": 1.266e-09,
+      "slew": 4.777e-11
+    },
+    {
+      "instance": "_0944298_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0944298_/Y",
+      "net": "_2043536_",
+      "arrival": 1.491e-09,
+      "capacitance": 3.457e-14,
+      "slew": 3.735e-10
+    },
+    {
+      "instance": "_0750436_",
+      "cell": "MUX4X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750436_/D",
+      "net": "_2043536_",
+      "arrival": 1.491e-09,
+      "slew": 3.735e-10
+    },
+    {
+      "instance": "_0750436_",
+      "cell": "MUX4X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750436_/Y",
+      "net": "_1817968_",
+      "arrival": 1.606e-09,
+      "capacitance": 6.6e-16,
+      "slew": 3.227e-11
+    },
+    {
+      "instance": "_0750438_",
+      "cell": "MUX4X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750438_/C",
+      "net": "_1817968_",
+      "arrival": 1.606e-09,
+      "slew": 3.227e-11
+    },
+    {
+      "instance": "_0750438_",
+      "cell": "MUX4X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750438_/Y",
+      "net": "_1817966_",
+      "arrival": 1.692e-09,
+      "capacitance": 2.241e-15,
+      "slew": 4.366e-11
+    },
+    {
+      "instance": "_0750441_",
+      "cell": "AOI221X4H7L",
+      "verilog_src": "",
+      "pin": "_0750441_/B1",
+      "net": "_1817966_",
+      "arrival": 1.692e-09,
+      "slew": 4.366e-11
+    },
+    {
+      "instance": "_0750441_",
+      "cell": "AOI221X4H7L",
+      "verilog_src": "",
+      "pin": "_0750441_/Y",
+      "net": "_1817963_",
+      "arrival": 1.727e-09,
+      "capacitance": 4.656e-15,
+      "slew": 4.578e-11
+    },
+    {
+      "instance": "_0750465_",
+      "cell": "NOR2BX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750465_/AN",
+      "net": "_1817963_",
+      "arrival": 1.727e-09,
+      "slew": 4.578e-11
+    },
+    {
+      "instance": "_0750465_",
+      "cell": "NOR2BX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750465_/Z",
+      "net": "_1817938_",
+      "arrival": 1.772e-09,
+      "capacitance": 1.921e-15,
+      "slew": 4.372e-11
+    },
+    {
+      "instance": "_0750466_",
+      "cell": "BUFX3H7L",
+      "verilog_src": "",
+      "pin": "_0750466_/A",
+      "net": "_1817938_",
+      "arrival": 1.772e-09,
+      "slew": 4.372e-11
+    },
+    {
+      "instance": "_0750466_",
+      "cell": "BUFX3H7L",
+      "verilog_src": "",
+      "pin": "_0750466_/Y",
+      "net": "_1817936_",
+      "arrival": 1.837e-09,
+      "capacitance": 8.556e-15,
+      "slew": 3.915e-11
+    },
+    {
+      "instance": "_0750467_",
+      "cell": "NOR2X3H7L",
+      "verilog_src": "",
+      "pin": "_0750467_/B",
+      "net": "_1817936_",
+      "arrival": 1.837e-09,
+      "slew": 3.915e-11
+    },
+    {
+      "instance": "_0750467_",
+      "cell": "NOR2X3H7L",
+      "verilog_src": "",
+      "pin": "_0750467_/Y",
+      "net": "_1817935_",
+      "arrival": 1.876e-09,
+      "capacitance": 3.011e-15,
+      "slew": 4.628e-11
+    },
+    {
+      "instance": "_0750468_",
+      "cell": "BUFX3P5H7L",
+      "verilog_src": "",
+      "pin": "_0750468_/A",
+      "net": "_1817935_",
+      "arrival": 1.876e-09,
+      "slew": 4.628e-11
+    },
+    {
+      "instance": "_0750468_",
+      "cell": "BUFX3P5H7L",
+      "verilog_src": "",
+      "pin": "_0750468_/Y",
+      "net": "_1817934_",
+      "arrival": 1.958e-09,
+      "capacitance": 1.811e-14,
+      "slew": 9.794e-11
+    },
+    {
+      "instance": "_0750508_",
+      "cell": "MUX2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0750508_/S0",
+      "net": "_1817934_",
+      "arrival": 1.958e-09,
+      "slew": 9.794e-11
+    },
+    {
+      "instance": "_0750508_",
+      "cell": "MUX2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0750508_/Y",
+      "net": "_1817890_",
+      "arrival": 2.041e-09,
+      "capacitance": 2.574e-15,
+      "slew": 3.833e-11
+    },
+    {
+      "instance": "_0750509_",
+      "cell": "NOR2BX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750509_/B",
+      "net": "_1817890_",
+      "arrival": 2.041e-09,
+      "slew": 3.833e-11
+    },
+    {
+      "instance": "_0750509_",
+      "cell": "NOR2BX1P4H7L",
+      "verilog_src": "",
+      "pin": "_0750509_/Z",
+      "net": "_1817889_",
+      "arrival": 2.082e-09,
+      "capacitance": 1.701e-15,
+      "slew": 4.969e-11
+    },
+    {
+      "instance": "_0753158_",
+      "cell": "MUX2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0753158_/B",
+      "net": "_1817889_",
+      "arrival": 2.082e-09,
+      "slew": 4.969e-11
+    },
+    {
+      "instance": "_0753158_",
+      "cell": "MUX2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_0753158_/Y",
+      "net": "_1816052_",
+      "arrival": 2.131e-09,
+      "capacitance": 8.053e-16,
+      "slew": 2.563e-11
+    },
+    {
+      "instance": "_0753159_",
+      "cell": "AND3X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0753159_/C",
+      "net": "_1816052_",
+      "arrival": 2.131e-09,
+      "slew": 2.563e-11
+    },
+    {
+      "instance": "_0753159_",
+      "cell": "AND3X1P4H7L",
+      "verilog_src": "",
+      "pin": "_0753159_/Y",
+      "net": "_1816051_",
+      "arrival": 2.184e-09,
+      "capacitance": 9.658e-16,
+      "slew": 2.685e-11
+    },
+    {
+      "instance": "_0753160_",
+      "cell": "BUFX3H7L",
+      "verilog_src": "",
+      "pin": "_0753160_/A",
+      "net": "_1816051_",
+      "arrival": 2.184e-09,
+      "slew": 2.685e-11
+    },
+    {
+      "instance": "_0753160_",
+      "cell": "BUFX3H7L",
+      "verilog_src": "",
+      "pin": "_0753160_/Y",
+      "net": "_2029323_",
+      "arrival": 2.225e-09,
+      "capacitance": 2.653e-15,
+      "slew": 2.454e-11
+    },
+    {
+      "instance": "_1632477_",
+      "cell": "NOR4BX0P5H7L",
+      "verilog_src": "",
+      "pin": "_1632477_/AN",
+      "net": "_2029323_",
+      "arrival": 2.225e-09,
+      "slew": 2.454e-11
+    },
+    {
+      "instance": "_1632477_",
+      "cell": "NOR4BX0P5H7L",
+      "verilog_src": "",
+      "pin": "_1632477_/Y",
+      "net": "_2170386_",
+      "arrival": 2.398e-09,
+      "capacitance": 3.327e-15,
+      "slew": 2.457e-10
+    },
+    {
+      "instance": "_1632478_",
+      "cell": "NAND2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1632478_/B",
+      "net": "_2170386_",
+      "arrival": 2.398e-09,
+      "slew": 2.457e-10
+    },
+    {
+      "instance": "_1632478_",
+      "cell": "NAND2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1632478_/Y",
+      "net": "_2170385_",
+      "arrival": 2.455e-09,
+      "capacitance": 1.84e-15,
+      "slew": 7.477e-11
+    },
+    {
+      "instance": "_1633112_",
+      "cell": "OR2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1633112_/B",
+      "net": "_2170385_",
+      "arrival": 2.455e-09,
+      "slew": 7.477e-11
+    },
+    {
+      "instance": "_1633112_",
+      "cell": "OR2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1633112_/Y",
+      "net": "_2169693_",
+      "arrival": 2.531e-09,
+      "capacitance": 2.889e-15,
+      "slew": 4.035e-11
+    },
+    {
+      "instance": "_1652359_",
+      "cell": "NOR4X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1652359_/A",
+      "net": "_2169693_",
+      "arrival": 2.531e-09,
+      "slew": 4.035e-11
+    },
+    {
+      "instance": "_1652359_",
+      "cell": "NOR4X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1652359_/Y",
+      "net": "_2153620_",
+      "arrival": 2.642e-09,
+      "capacitance": 1.656e-15,
+      "slew": 1.504e-10
+    },
+    {
+      "instance": "_1652360_",
+      "cell": "NAND4X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1652360_/D",
+      "net": "_2153620_",
+      "arrival": 2.642e-09,
+      "slew": 1.504e-10
+    },
+    {
+      "instance": "_1652360_",
+      "cell": "NAND4X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1652360_/Y",
+      "net": "_2153619_",
+      "arrival": 2.809e-09,
+      "capacitance": 6.572e-15,
+      "slew": 2.359e-10
+    },
+    {
+      "instance": "_1652361_",
+      "cell": "BUFX1H7L",
+      "verilog_src": "",
+      "pin": "_1652361_/A",
+      "net": "_2153619_",
+      "arrival": 2.809e-09,
+      "slew": 2.359e-10
+    },
+    {
+      "instance": "_1652361_",
+      "cell": "BUFX1H7L",
+      "verilog_src": "",
+      "pin": "_1652361_/Y",
+      "net": "_2153618_",
+      "arrival": 2.907e-09,
+      "capacitance": 7.01e-15,
+      "slew": 5.971e-11
+    },
+    {
+      "instance": "_1653050_",
+      "cell": "NAND2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1653050_/A",
+      "net": "_2153618_",
+      "arrival": 2.907e-09,
+      "slew": 5.971e-11
+    },
+    {
+      "instance": "_1653050_",
+      "cell": "NAND2X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1653050_/Y",
+      "net": "_2153070_",
+      "arrival": 2.953e-09,
+      "capacitance": 2.288e-15,
+      "slew": 6.72e-11
+    },
+    {
+      "instance": "_1653052_",
+      "cell": "OA221X1P4H7L",
+      "verilog_src": "",
+      "pin": "_1653052_/B1",
+      "net": "_2153070_",
+      "arrival": 2.953e-09,
+      "slew": 6.72e-11
+    },
+    {
+      "instance": "_1653052_",
+      "cell": "OA221X1P4H7L",
+      "verilog_src": "",
+      "pin": "_1653052_/Y",
+      "net": "_2153068_",
+      "arrival": 3.029e-09,
+      "capacitance": 8.074e-16,
+      "slew": 2.662e-11
+    },
+    {
+      "instance": "_1653053_",
+      "cell": "AOI31X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1653053_/B0",
+      "net": "_2153068_",
+      "arrival": 3.029e-09,
+      "slew": 2.662e-11
+    },
+    {
+      "instance": "_1653053_",
+      "cell": "AOI31X0P5H7L",
+      "verilog_src": "",
+      "pin": "_1653053_/Y",
+      "net": "_2153067_",
+      "arrival": 3.046e-09,
+      "capacitance": 9.617e-16,
+      "slew": 5.285e-11
+    },
+    {
+      "instance": "_1653054_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_1653054_/A",
+      "net": "_2153067_",
+      "arrival": 3.046e-09,
+      "slew": 5.285e-11
+    },
+    {
+      "instance": "_1653054_",
+      "cell": "BUFX1P4H7L",
+      "verilog_src": "",
+      "pin": "_1653054_/Y",
+      "net": "_2175918_",
+      "arrival": 3.088e-09,
+      "capacitance": 8.169e-16,
+      "slew": 1.483e-11
+    },
+    {
+      "instance": "_1688361_",
+      "cell": "DFFQX1H7L",
+      "verilog_src": "",
+      "pin": "_1688361_/D",
+      "net": "_2175918_",
+      "arrival": 3.088e-09,
+      "slew": 1.483e-11
+    }
+  ]
+}

@@ -4,7 +4,7 @@ menu "Default make run selection"
 
 choice
 	prompt "Simulation platform"
-	default LINUX_RUN_PLATFORM_NPC
+	default LINUX_RUN_PLATFORM_NEMU
 	help
 	  Select the default platform used by `make run`.  Explicit ARCH=...
 	  assignments on the make command line still take precedence.
@@ -58,6 +58,7 @@ endchoice
 
 choice
 	prompt "Console profile"
+	default LINUX_RUN_CONSOLE_GUI if LINUX_RUN_PLATFORM_NEMU && LINUX_RUN_BOOT_UBUNTU_ROOTFS
 	default LINUX_RUN_CONSOLE_SERIAL
 	help
 	  The graphical profile is a coherent bundle: isolated NEMU, Linux,
@@ -79,21 +80,29 @@ endchoice
 
 choice
 	prompt "Ubuntu rootfs flavor"
-	default LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL
-	depends on LINUX_RUN_BOOT_UBUNTU_ROOTFS && !LINUX_RUN_CONSOLE_GUI
+	default LINUX_RUN_ROOTFS_FULL
+	depends on LINUX_RUN_BOOT_UBUNTU_ROOTFS
 	help
-	  Select the ext4 userspace image used by a serial/headless Ubuntu run.
-	  The GUI profile currently has its own validated systemd-minimal image,
-	  so interactive/full are deliberately unavailable with GUI selected.
+	  Select the ext4 userspace for either serial or VGA text console.
+	  Each flavor has isolated images and writable overlays.
 
 config LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL
-	bool "systemd-minimal (2 GiB image)"
+	bool "Mini system: systemd-minimal (2 GiB image)"
+	help
+	  Keep the small Ubuntu Base/systemd userspace and its minimization.
+	  Supports serial or VGA shell. Its image and writable disk are separate
+	  from full, so selecting mini does not reset the full system's data.
 
 config LINUX_RUN_ROOTFS_INTERACTIVE
 	bool "interactive tools (4 GiB image)"
 
 config LINUX_RUN_ROOTFS_FULL
-	bool "full server userspace (8 GiB image)"
+	bool "Full text system: restored manuals/docs/translations (8 GiB image)"
+	help
+	  Restore Ubuntu Base package contents and remove dpkg minimization
+	  exclusions. Includes systemd, APT, SSH and text administration tools.
+	  The minimized login notice is removed after content restoration.
+	  No GNOME desktop is installed. NEMU defaults to performance mode.
 
 endchoice
 

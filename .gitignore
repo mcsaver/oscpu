@@ -190,3 +190,33 @@ build/**
 
 # Testbench 从子目录启动时产生的误置 task-run；正式证据统一写到仓库根 .github/task-runs/。
 npc/rv64/testbench/.github/
+
+# Reusable local dependencies and retained generated results.
+/tool/opensta/bin/
+/tool/openroad/runtime/
+# Keep result summaries and relocation metadata, not raw simulation/STA outputs.
+/npc/rv64/results/*
+!/npc/rv64/results/README.md
+!/npc/rv64/results/path-relocations.json
+!/npc/rv64/results/rv64-cpi-timing-20260916/
+/npc/rv64/results/rv64-cpi-timing-20260916/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/REPORT.md
+!/npc/rv64/results/rv64-cpi-timing-20260916/comparison.json
+!/npc/rv64/results/rv64-cpi-timing-20260916/verification.json
+!/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/
+/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/sta/
+/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/sta/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/sta/R64SystemTop-1000MHz/
+/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/sta/R64SystemTop-1000MHz/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/split-hint/sta/R64SystemTop-1000MHz/critical-path.json
+!/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/
+/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/sta/
+/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/sta/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/sta/R64SystemTop-1000MHz/
+/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/sta/R64SystemTop-1000MHz/*
+!/npc/rv64/results/rv64-cpi-timing-20260916/held-ready/sta/R64SystemTop-1000MHz/critical-path.json
+
+# Rendered paper previews are reproducible local review artifacts.
+/deliverables/pdf-previews/

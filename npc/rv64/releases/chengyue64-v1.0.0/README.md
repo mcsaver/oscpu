@@ -64,7 +64,8 @@ setup slack 为 **−2.173909903 ns**，hold slack 为 **−0.036660694 ns**，*
 面积仅记录；后续以时序与 CPI 为优先优化目标。本版正式化不代表 1 GHz 已闭合或物理签核通过。
 
 数据见 [performance-comparison-20260916.json](performance-comparison-20260916.json)；
-优化实现与原始报告见 [2026-09-16 优化记录](../../../../tmp/rv64-cpi-timing-20260916/REPORT.md)。
+优化实现与历史结果摘要见 [2026-09-16 优化记录](../../results/rv64-cpi-timing-20260916/REPORT.md)；
+原始网表和日志保留在本地，Git 保存范围见 [结果目录说明](../../results/README.md)。
 
 ## 本次迁移验证
 

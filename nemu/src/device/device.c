@@ -43,15 +43,17 @@ void goldfish_rtc_update();
 
 void send_key(uint8_t, bool);
 void virtio_input_send_sdl_key(uint32_t, bool);
-void vga_update_screen();
+void vga_update_screen(uint64_t now_us);
+void vga_request_redraw();
 
 // 先按 guest 指令数做粗粒度节流，避免每条指令都查询一次宿主时间。
 // policy header 会在 performance 构建中增大该间隔；真正的可见刷新仍由
-// 下面的 60Hz host time gate 控制。
+// VGA 配置的刷新上限控制，输入轮询与 legacy timer 单独计时。
 
 void device_update_after_inst(uint64_t attempted) {
   static uint64_t skip = 0;
   static uint64_t last = 0;
+  static uint64_t last_input = 0;
 
   if (attempted == 0) {
     return;
@@ -90,51 +92,63 @@ void device_update_after_inst(uint64_t attempted) {
   IFDEF(CONFIG_HAS_VIRTIO_INPUT, virtio_input_update());
 
   uint64_t now = get_time();
+  uint64_t visible_start = profile_on ? now : 0;
+  // Input latency is independent of the presentation and legacy timer cadence.
+  if (now - last_input >= 4000) {
+    last_input = now;
+    IFDEF(CONFIG_HAS_SERIAL, serial_poll_input());
+#ifdef NEMU_HAS_SDL
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+      switch (event.type) {
+#ifdef CONFIG_HAS_VGA
+        case SDL_WINDOWEVENT:
+          if (event.window.event == SDL_WINDOWEVENT_EXPOSED)
+            vga_request_redraw();
+          break;
+#endif
+        case SDL_QUIT:
+          nemu_state.state = NEMU_QUIT;
+          break;
+#if defined(CONFIG_HAS_KEYBOARD) || defined(CONFIG_HAS_VIRTIO_INPUT)
+        // 同一个 SDL 事件可同时送往 legacy AM keyboard 和标准 virtio-input。
+        case SDL_KEYDOWN:
+        case SDL_KEYUP: {
+          bool is_keydown = (event.key.type == SDL_KEYDOWN);
+#ifdef CONFIG_HAS_KEYBOARD
+          uint8_t k = event.key.keysym.scancode;
+          send_key(k, is_keydown);
+#endif
+#ifdef CONFIG_HAS_VIRTIO_INPUT
+          // Linux input core 负责 EV_REP；过滤 SDL 自动重复，避免双重 repeat。
+          if (event.key.repeat == 0) {
+            virtio_input_send_sdl_key(event.key.keysym.scancode, is_keydown);
+          }
+#endif
+          break;
+        }
+#endif
+        default: break;
+      }
+    }
+#endif
+  }
+  IFDEF(CONFIG_HAS_VGA, vga_update_screen(now));
+
   if (now - last < 1000000 / TIMER_HZ) {
     if (profile_on) {
       nemu_profile_count(NEMU_PROFILE_DEVICE_TIME_SKIPS, 1);
+      nemu_profile_count(NEMU_PROFILE_DEVICE_VISIBLE_US, get_time() - visible_start);
       nemu_profile_count(NEMU_PROFILE_DEVICE_INTERVAL_US,
           get_time() - interval_start);
     }
     return;
   }
   last = now;
-  uint64_t visible_start = profile_on ? get_time() : 0;
-
-  // UART RX 来自宿主 stdin/FIFO，需要在 guest 没有主动轮询寄存器时也能触发中断。
-  IFDEF(CONFIG_HAS_SERIAL, serial_poll_input());
+  // RTC keeps its legacy cadence; visible cost also includes input/VGA above.
   IFDEF(CONFIG_HAS_GOLDFISH_RTC, goldfish_rtc_update());
-  IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
-#ifdef NEMU_HAS_SDL
-  SDL_Event event;
-  while (SDL_PollEvent(&event)) {
-    switch (event.type) {
-      case SDL_QUIT:
-        nemu_state.state = NEMU_QUIT;
-        break;
-#if defined(CONFIG_HAS_KEYBOARD) || defined(CONFIG_HAS_VIRTIO_INPUT)
-      // 同一个 SDL 事件可同时送往 legacy AM keyboard 和标准 virtio-input。
-      case SDL_KEYDOWN:
-      case SDL_KEYUP: {
-        bool is_keydown = (event.key.type == SDL_KEYDOWN);
-#ifdef CONFIG_HAS_KEYBOARD
-        uint8_t k = event.key.keysym.scancode;
-        send_key(k, is_keydown);
-#endif
-#ifdef CONFIG_HAS_VIRTIO_INPUT
-        // Linux input core 负责 EV_REP；过滤 SDL 自动重复，避免双重 repeat。
-        if (event.key.repeat == 0) {
-          virtio_input_send_sdl_key(event.key.keysym.scancode, is_keydown);
-        }
-#endif
-        break;
-      }
-#endif
-      default: break;
-    }
-  }
-#endif
+
   if (profile_on) {
     nemu_profile_count(NEMU_PROFILE_DEVICE_VISIBLE_TICKS, 1);
     nemu_profile_count(NEMU_PROFILE_DEVICE_VISIBLE_US, get_time() - visible_start);

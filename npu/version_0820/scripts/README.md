@@ -1,5 +1,9 @@
 # NPU script entry points
 
+## Persistent dependencies
+
+Reusable llama.cpp libraries are stored in `tools/llama.cpp/bin`; `build_llama.sh` publishes them after building. CMake installations remain in `tools/cmake-python` and `tools/cmake-3.31.12`. Canonical bootstrap/steady manifests live in `compiler/fixtures/qwen-strict-manifests` and pass the existing bundle identity check. The current backend compile entry uses these persistent inputs independently of `tmp`. Some older runners and tests still use `tmp/logs` defaults; check their input arguments before removing old build or test directories.
+
 ## Current compile entry
 
 The recommended entry point for the current Qwen F32 ALU/backend compile is:

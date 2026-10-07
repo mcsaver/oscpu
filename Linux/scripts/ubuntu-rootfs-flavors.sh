@@ -181,6 +181,9 @@ EOF
 /etc/login.defs|Ubuntu full login defaults
 /usr/bin/ssh-keygen|Ubuntu full command ssh-keygen
 /usr/bin/man|Ubuntu full command man
+/usr/share/man/man1/bash.1.gz|Ubuntu full restored bash manual
+/usr/share/man/man8/apt-get.8.gz|Ubuntu full restored apt-get manual
+/usr/share/doc/bash/COMPAT.gz|Ubuntu full restored bash documentation
 /usr/sbin/locale-gen|Ubuntu full locale command locale-gen
 /usr/bin/localedef|Ubuntu full locale command localedef
 /usr/share/i18n/SUPPORTED|Ubuntu full locale supported database

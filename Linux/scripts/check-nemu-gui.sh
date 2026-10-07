@@ -118,7 +118,10 @@ wait_for_log() {
   local timeout=$2
   local deadline=$((SECONDS + timeout))
   while [ "$SECONDS" -lt "$deadline" ]; do
-    if grep -qaE "$pattern" "$CONSOLE_LOG"; then
+    # Full Ubuntu bash emits bracketed-paste control sequences around prompts.
+    # Match rendered serial lines, while retaining anchors to reject echoed probes.
+    if LC_ALL=C sed -E 's/\x1B\[[0-?]*[ -/]*[@-~]//g; s/\r//g' "$CONSOLE_LOG" |
+        grep -aE "$pattern" >/dev/null; then
       return 0
     fi
     if ! kill -0 "$nemu_pid" 2>/dev/null; then

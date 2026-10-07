@@ -41,6 +41,17 @@ endif
 endif
 SRCS-$(CONFIG_HAS_VIRTIO_RNG) += src/device/rng.c
 SRCS-$(CONFIG_HAS_VIRTIO_NET) += src/device/net.c
+ifeq ($(CONFIG_NET_SLIRP),y)
+SRCS-y += src/device/net-user.c
+NEMU_SLIRP_PREFIX ?= $(HOME)/ysyx-system-data/ubuntu2204/tools/libslirp
+ifneq ($(shell pkg-config --atleast-version=4.7 slirp && echo yes),)
+CFLAGS += $(shell pkg-config --cflags slirp)
+LIBS += $(shell pkg-config --libs slirp)
+else
+CFLAGS += -I$(NEMU_SLIRP_PREFIX)/usr/include
+LIBS += $(NEMU_SLIRP_PREFIX)/usr/lib/x86_64-linux-gnu/libslirp.a $(shell pkg-config --libs glib-2.0)
+endif
+endif
 SRCS-$(CONFIG_HAS_VIRTIO_INPUT) += src/device/virtio-input.c
 SRCS-$(CONFIG_HAS_GOLDFISH_RTC) += src/device/goldfish_rtc.c
 SRCS-$(CONFIG_HAS_SDCARD) += src/device/sdcard.c

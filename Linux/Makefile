@@ -1,7 +1,7 @@
 # RV64 Linux/Ubuntu bring-up 顶层入口。
 #
 # 命令规范：
-#   ARCH 表示仿真/目标架构，基准值是 riscv64-npc。
+#   ARCH 表示仿真/目标架构，默认 riscv64-nemu + VGA + full 用户态。
 #   BOOT 表示启动场景，默认 ubuntu-rootfs，即完整 Ubuntu rootfs 路线。
 #   已闭合的 shell initramfs gate 必须显式选择 BOOT=ubuntu-shell。
 
@@ -11,6 +11,10 @@ LINUX_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 REPO_ROOT := $(abspath $(LINUX_HOME)/..)
 # 工作区根：通用工具(tool/kconfig 等)定位锚点，独立于 nemu
 YSYX_HOME ?= $(REPO_ROOT)
+
+# Machine-local durable inputs and mirror settings survive build/cache cleanup.
+LINUX_LOCAL_CONFIG ?= $(if $(wildcard $(LINUX_HOME)/local.mk),$(LINUX_HOME)/local.mk,$(HOME)/ysyx-system-data/ubuntu2204/config/local.mk)
+-include $(LINUX_LOCAL_CONFIG)
 
 # Linux/ 顶层 Kconfig 只保存 host launch/orchestration 默认值；它与 Linux
 # kernel、NEMU、NPC 各自的 .config 完全分离。命令行变量继续拥有更高优先级。
@@ -23,10 +27,10 @@ ifeq ($(LINUX_BOOT_CONFIG_ACTIVE),1)
 -include $(LINUX_BOOT_CONFIG)
 endif
 
-LINUX_BOOT_DEFAULT_ARCH := $(if $(filter y,$(CONFIG_LINUX_RUN_PLATFORM_NEMU)),riscv64-nemu,riscv64-npc)
+LINUX_BOOT_DEFAULT_ARCH := $(if $(filter y,$(CONFIG_LINUX_RUN_PLATFORM_NPC)),riscv64-npc,riscv64-nemu)
 LINUX_BOOT_DEFAULT_BOOT := $(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_UBUNTU_SHELL)),ubuntu-shell,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_UBUNTU_PROBE)),ubuntu-probe,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_BUSYBOX_INITRAMFS)),busybox-initramfs,$(if $(filter y,$(CONFIG_LINUX_RUN_BOOT_KERNEL)),kernel,ubuntu-rootfs))))
-LINUX_BOOT_DEFAULT_RUN_MODE := $(if $(filter y,$(CONFIG_LINUX_RUN_CONSOLE_GUI)),gui,serial)
-LINUX_BOOT_DEFAULT_ROOTFS_FLAVOR := $(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_INTERACTIVE)),interactive,$(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_FULL)),full,systemd-minimal))
+LINUX_BOOT_DEFAULT_RUN_MODE := $(if $(filter y,$(CONFIG_LINUX_RUN_CONSOLE_SERIAL)),serial,gui)
+LINUX_BOOT_DEFAULT_ROOTFS_FLAVOR := $(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_INTERACTIVE)),interactive,$(if $(filter y,$(CONFIG_LINUX_RUN_ROOTFS_SYSTEMD_MINIMAL)),systemd-minimal,full))
 LINUX_BOOT_CONFIG_STATE := $(if $(wildcard $(LINUX_BOOT_CONFIG)),loaded,built-in defaults)
 
 ARCH ?= $(LINUX_BOOT_DEFAULT_ARCH)
@@ -65,6 +69,13 @@ NEMU_DEFCONFIG ?= riscv64-linux_defconfig
 NEMU_SAFE_FLOCK := $(NEMU_HOME)/scripts/safe-flock.py
 
 ENV_ROOT ?= $(LINUX_HOME)/env
+export YSYX_LINUX_ENV_ROOT := $(ENV_ROOT)
+export LINUX_TARBALL_URL ?= https://mirrors.tuna.tsinghua.edu.cn/kernel/v6.x/linux-$(patsubst v%,%,$(LINUX_REF)).tar.xz
+NEMU_GUI_ROOTFS_FLAVOR ?= $(LINUX_CANONICAL_ROOTFS_FLAVOR)
+NEMU_GUI_FLAVOR_SUFFIX = $(if $(filter systemd-minimal,$(NEMU_GUI_ROOTFS_FLAVOR)),,-$(NEMU_GUI_ROOTFS_FLAVOR))
+NEMU_SSH_KEY ?= $(ENV_ROOT)/config/ssh/id_ed25519
+UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS ?=
+export NEMU_SLIRP_PREFIX ?= $(ENV_ROOT)/tools/libslirp
 NEMU_GUI_PLATFORM_ROOT ?= $(ENV_ROOT)/platforms/nemu
 NEMU_GUI_BUILD_DIR ?= $(NEMU_HOME)/build/riscv64-linux-gui
 NEMU_GUI_CONFIG_DIR ?= $(NEMU_HOME)/build/config-riscv64-linux-gui
@@ -72,17 +83,20 @@ NEMU_GUI_SIM ?= $(NEMU_GUI_BUILD_DIR)/riscv64-nemu-interpreter
 NEMU_GUI_FRONT_BUILD_DIR ?= $(LINUX_HOME)/build/riscv64-nemu-gui
 NEMU_GUI_KERNEL_BUILD_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/build/linux-gui
 NEMU_GUI_OPENSBI_BUILD_ROOT ?= $(NEMU_GUI_PLATFORM_ROOT)/build/opensbi-gui
-NEMU_GUI_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu-gui
-NEMU_GUI_ROOTFS_OVERLAY ?= $(NEMU_GUI_LOG_DIR)/rootfs-overlay.raw
+NEMU_GUI_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu$(NEMU_GUI_FLAVOR_SUFFIX)-gui
+NEMU_GUI_ROOTFS_OVERLAY ?= $(ENV_ROOT)/state/nemu$(NEMU_GUI_FLAVOR_SUFFIX)-gui/rootfs-overlay.raw
 NEMU_GUI_SCREENSHOT ?= $(NEMU_GUI_LOG_DIR)/tty1.png
-NEMU_GUI_CHECK_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu-gui-check
+NEMU_GUI_CHECK_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/riscv64-nemu-ubuntu$(NEMU_GUI_FLAVOR_SUFFIX)-gui-check
 NEMU_GUI_CHECK_ROOTFS_OVERLAY ?= $(NEMU_GUI_CHECK_LOG_DIR)/rootfs-overlay.raw
 NEMU_GUI_CHECK_SCREENSHOT ?= $(NEMU_GUI_CHECK_LOG_DIR)/tty1.png
-NEMU_GUI_ROOTFS_WORK ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/work-gui
+NEMU_GUI_ROOTFS_WORK ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/work$(NEMU_GUI_FLAVOR_SUFFIX)-gui
 NEMU_GUI_CHECK_TIMEOUT ?= 1800
 NEMU_GUI_BOOT_TIMEOUT ?= 900
 NEMU_GUI_POWEROFF_TIMEOUT ?= 180
 NEMU_GUI_MAX_CYCLES ?= 50000000000
+NEMU_FULL_CHECK_LOG_DIR ?= $(NEMU_GUI_PLATFORM_ROOT)/logs/linux-front/nemu-full-system-check
+NEMU_FULL_CHECK_SSH_PORT ?= 2224
+NEMU_FULL_CHECK_BOOT_TIMEOUT ?= 900
 NEMU_RETIRE_BUILD_DIR ?= $(NEMU_HOME)/build/riscv64-retirement-smoke
 NEMU_RETIRE_CONFIG_DIR ?= $(NEMU_HOME)/build/config-riscv64-retirement-smoke
 NEMU_RETIRE_SIM ?= $(NEMU_RETIRE_BUILD_DIR)/riscv64-nemu-interpreter
@@ -333,12 +347,12 @@ UBUNTU_ROOTFS_SYSTEMD_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64.ext4
 UBUNTU_ROOTFS_SYSTEMD_STRICT_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict.ext4
 UBUNTU_ROOTFS_INTERACTIVE_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive.ext4
 UBUNTU_ROOTFS_FULL_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full.ext4
-UBUNTU_ROOTFS_GUI_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-gui.ext4
+UBUNTU_ROOTFS_GUI_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64$(NEMU_GUI_FLAVOR_SUFFIX)-gui.ext4
 UBUNTU_ROOTFS_SYSTEMD_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-rootfs.cpio
 UBUNTU_ROOTFS_SYSTEMD_STRICT_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-strict-rootfs.cpio
 UBUNTU_ROOTFS_INTERACTIVE_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-interactive-rootfs.cpio
 UBUNTU_ROOTFS_FULL_CPIO_IMAGE ?= $(UBUNTU_IMAGE_DIR)/ubuntu-22.04-riscv64-full-rootfs.cpio
-UBUNTU_ROOTFS_GUI_CPIO_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64-gui-rootfs.cpio
+UBUNTU_ROOTFS_GUI_CPIO_IMAGE ?= $(NEMU_GUI_PLATFORM_ROOT)/images/ubuntu2204/ubuntu-22.04-riscv64$(NEMU_GUI_FLAVOR_SUFFIX)-gui-rootfs.cpio
 UBUNTU_ROOTFS_SYSTEMD_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs
 UBUNTU_ROOTFS_SYSTEMD_STRICT_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-strict
 UBUNTU_ROOTFS_INTERACTIVE_DIR ?= $(UBUNTU_IMAGE_DIR)/rootfs-interactive
@@ -359,8 +373,8 @@ UBUNTU_ROOTFS_NPC_STRICT_CHECK_SRC ?= $(SCRIPT_DIR)/npc-systemd-strict-check.sh
 UBUNTU_RELEASE ?= jammy
 UBUNTU_BASE_VERSION ?= 22.04.5
 UBUNTU_ARCH ?= riscv64
-UBUNTU_MIRROR ?= http://ports.ubuntu.com/ubuntu-ports
-UBUNTU_BASE_URL ?= https://cdimages.ubuntu.com/ubuntu-base/releases/22.04/release
+UBUNTU_MIRROR ?= https://mirrors.ustc.edu.cn/ubuntu-ports
+UBUNTU_BASE_URL ?= https://mirrors.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu-base/releases/22.04/release
 UBUNTU_BASE_TARBALL ?= $(ENV_ROOT)/downloads/ubuntu-base-$(UBUNTU_BASE_VERSION)-base-$(UBUNTU_ARCH).tar.gz
 UBUNTU_BASE_SHA_FILE ?= $(ENV_ROOT)/downloads/SHA256SUMS
 UBUNTU_ROOTFS_DEFAULT_CROSS_COMPILE := $(if $(shell test -x '$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-gcc' && printf 1),$(ENV_ROOT)/toolchains/riscv64-linux-gnu/bin/riscv64-linux-gnu-,riscv64-linux-gnu-)
@@ -372,6 +386,9 @@ UBUNTU_ROOTFS_PROFILE_INPUTS := \
   $(SCRIPT_DIR)/build-ubuntu-rootfs.sh \
   $(SCRIPT_DIR)/check-ubuntu-rootfs.sh \
   $(UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT) \
+  $(SCRIPT_DIR)/reuse-apt-archives.py \
+  $(SCRIPT_DIR)/install-nemu-full-services.sh \
+  $(UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS) \
   $(UBUNTU_ROOTFS_FLAVOR_SCRIPT) \
   $(UBUNTU_ROOTFS_INIT_SRC) \
   $(UBUNTU_ROOTFS_PROBE_SRC) \
@@ -396,7 +413,7 @@ NEMU_GUI_RUN_ARGS = \
 	NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
 	NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
 	NEMU_SIM='$(NEMU_GUI_SIM)' \
-	NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=1 \
 	NEMU_ROOTFS_BOOTARGS_EXTRA=console=tty0 \
 	LOG_DIR='$(NEMU_GUI_LOG_DIR)' \
 	NEMU_RUN_ROOTFS_OVERLAY='$(NEMU_GUI_ROOTFS_OVERLAY)' \
@@ -404,7 +421,8 @@ NEMU_GUI_RUN_ARGS = \
 	UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
 	UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
 	UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
-	UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	UBUNTU_ROOTFS_FLAVOR=$(NEMU_GUI_ROOTFS_FLAVOR) \
+	UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS='$(if $(filter full,$(NEMU_GUI_ROOTFS_FLAVOR)),$(NEMU_SSH_KEY).pub,)' \
 	UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
 	UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
 	UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
@@ -497,7 +515,7 @@ $(error unsupported BOOT=$(BOOT); supported: $(SUPPORTED_BOOTS))
 endif
 
 LINUX_CANONICAL_ROOTFS_FLAVOR := $(if $(filter minimal systemd-minimal,$(LINUX_RUN_ROOTFS_FLAVOR)),systemd-minimal,$(if $(filter interactive,$(LINUX_RUN_ROOTFS_FLAVOR)),interactive,$(if $(filter standard full,$(LINUX_RUN_ROOTFS_FLAVOR)),full,)))
-LINUX_EFFECTIVE_ROOTFS_FLAVOR := $(if $(filter ubuntu-rootfs,$(BOOT)),$(if $(filter gui,$(LINUX_RUN_MODE)),systemd-minimal,$(LINUX_CANONICAL_ROOTFS_FLAVOR)),systemd-minimal)
+LINUX_EFFECTIVE_ROOTFS_FLAVOR := $(if $(filter ubuntu-rootfs,$(BOOT)),$(LINUX_CANONICAL_ROOTFS_FLAVOR),systemd-minimal)
 
 ifneq ($(strip $(filter $(LINUX_BOOT_SELECTION_GOALS),$(MAKECMDGOALS))),)
 ifeq ($(filter $(LINUX_RUN_MODE),$(SUPPORTED_RUN_MODES)),)
@@ -512,9 +530,6 @@ $(error LINUX_RUN_MODE=gui requires ARCH=riscv64-nemu; use ARCH=riscv64-nemu or 
 endif
 ifneq ($(BOOT),ubuntu-rootfs)
 $(error LINUX_RUN_MODE=gui requires BOOT=ubuntu-rootfs; use BOOT=ubuntu-rootfs or LINUX_RUN_MODE=serial)
-endif
-ifneq ($(LINUX_CANONICAL_ROOTFS_FLAVOR),systemd-minimal)
-$(error LINUX_RUN_MODE=gui currently supports only systemd-minimal; use UBUNTU_ROOTFS_FLAVOR=systemd-minimal or LINUX_RUN_MODE=serial)
 endif
 endif
 endif
@@ -577,9 +592,10 @@ LOG_DIR ?= $(LOG_ROOT)/$(ARCH)-$(RUN_NAME)
 LOG_FILE ?= $(LOG_DIR)/$(if $(filter riscv64-nemu,$(ARCH)),nemu,npc).log
 CONSOLE_LOG ?= $(LOG_DIR)/console.log
 # 默认 NEMU rootfs run 使用 sparse overlay，避免日常 make run 污染基准 Ubuntu ext4。
-NEMU_RUN_ROOTFS_OVERLAY ?= $(if $(and $(filter riscv64-nemu,$(ARCH)),$(strip $(RUN_ROOTFS))),$(LOG_DIR)/rootfs-overlay.raw,)
-NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 1
-NEMU_RUN_MAX_BOOTS ?= 2
+NEMU_RUN_ROOTFS_OVERLAY ?= $(if $(and $(filter riscv64-nemu,$(ARCH)),$(strip $(RUN_ROOTFS))),$(ENV_ROOT)/state/nemu-$(UBUNTU_ROOTFS_FLAVOR)-$(LINUX_RUN_MODE)/rootfs-overlay.raw,)
+NEMU_RUN_ROOTFS_OVERLAY_RESET ?= 0
+NEMU_RUN_NET_ARGS ?= $(if $(and $(filter gui,$(LINUX_RUN_MODE)),$(filter full,$(UBUNTU_ROOTFS_FLAVOR))),--net-user --ssh-port=2222,)
+NEMU_RUN_MAX_BOOTS ?= 0
 RUN_SIM := $(if $(filter riscv64-nemu,$(ARCH)),$(NEMU_SIM),$(NPC_SIM))
 PROGRESS_OPT := $(if $(strip $(PROGRESS)),--progress=$(PROGRESS),--no-progress)
 EXPECT_ENV := $(if $(strip $(RUN_EXPECT)),NPC_GUEST_EXPECT='$(RUN_EXPECT)',)
@@ -628,7 +644,7 @@ help:
 	@printf '%s\n' '  make show-boot'
 	@printf '%s\n' '      只解析并显示实际镜像、PID 1、控制台和构建 profile；不会构建或启动。'
 	@printf '%s\n' '  make run'
-	@printf '%s\n' '      使用 Linux/.config 中保存的启动项；没有配置时使用 NPC + systemd-minimal + 串口。'
+	@printf '%s\n' '      使用 Linux/.config 中保存的启动项；没有配置时使用 NEMU 性能模式 + full + VGA。'
 	@printf '%s\n' '  make boot-defconfig'
 	@printf '%s\n' '      无交互恢复并保存上述默认启动项。'
 	@printf '%s\n' '  make check-boot-config'
@@ -637,7 +653,7 @@ help:
 	@printf '%s\n' '命令规范:'
 	@printf '%s\n' '  ARCH=riscv64-npc 表示使用 NPC RV64 Verilator 目标'
 	@printf '%s\n' '  ARCH=riscv64-nemu 表示使用 NEMU RV64 Linux 参考入口'
-	@printf '%s\n' '  BOOT=ubuntu-rootfs 表示 Ubuntu ext4/virtio-blk 磁盘路线，默认 flavor 为 systemd-minimal'
+	@printf '%s\n' '  BOOT=ubuntu-rootfs 表示 Ubuntu ext4/virtio-blk 磁盘路线，默认 flavor 为 full'
 	@printf '%s\n' ''
 	@printf '%s\n' '常用命令:'
 	@printf '%s\n' '  make ARCH=riscv64-npc BOOT=ubuntu-rootfs LINUX_RUN_MODE=serial LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run'
@@ -646,6 +662,8 @@ help:
 	@printf '%s\n' '      强制用 NEMU headless profile 启动同一 flavor；不会打开 VGA/SDL。'
 	@printf '%s\n' '  make run-ubuntu-gui'
 	@printf '%s\n' '      启动隔离的 NEMU GUI profile：当前终端保留 ttyS0，SDL 显示 simplefb/fbcon/tty1。'
+	@printf '%s\n' '  make check-nemu-full-system'
+	@printf '%s\n' '      在独立写入层验证 full GUI 的真实 NAT/HTTPS/APT/SSH、服务管理、持久化重启及关机。'
 	@printf '%s\n' '  make check-nemu-gui'
 	@printf '%s\n' '      在 Xvfb 中自动验证 GUI/键盘闭环，通常不会弹出可见窗口；人工交互请用 run-ubuntu-gui。'
 	@printf '%s\n' '  make check-nemu-retirement-sdtrig'
@@ -777,7 +795,7 @@ ifeq ($(ARCH),riscv64-nemu)
 	  --load=$(DTB_ADDR):'$(RUN_DTB)' \
 	  $(INITRD_LOAD) \
 	  $(ROOTFS_BLOCK) \
-	  $(ROOTFS_OVERLAY) \
+	  $(ROOTFS_OVERLAY) $(NEMU_RUN_NET_ARGS) \
 	  $(EXTRA_ARGS) 2>&1 | tee '$(CONSOLE_LOG)'
 else
 	@set -o pipefail; \
@@ -807,11 +825,11 @@ run-ubuntu-rootfs:
 	+$(MAKE) ARCH=$(ARCH) BOOT=ubuntu-rootfs LINUX_RUN_MODE=$(LINUX_RUN_MODE) \
 	  LINUX_RUN_ROOTFS_FLAVOR='$(LINUX_RUN_ROOTFS_FLAVOR)' run
 
-# 显示 profile 与默认 headless Ubuntu 使用独立的 NEMU Kconfig/build、
+# 显示 profile 与 headless Ubuntu 使用独立的 NEMU Kconfig/build、
 # kernel、OpenSBI、DTB、rootfs、overlay 和日志产物。
 run-ubuntu-gui:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs \
-	  LINUX_RUN_MODE=gui LINUX_RUN_ROOTFS_FLAVOR=systemd-minimal run
+	  LINUX_RUN_MODE=gui LINUX_RUN_ROOTFS_FLAVOR='$(LINUX_RUN_ROOTFS_FLAVOR)' run
 
 check-nemu-gui:
 	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs __check-nemu-gui \
@@ -823,7 +841,7 @@ check-nemu-gui:
 	  NEMU_BUILD_DIR='$(NEMU_GUI_BUILD_DIR)' \
 	  NEMU_CONFIG_DIR='$(NEMU_GUI_CONFIG_DIR)' \
 	  NEMU_SIM='$(NEMU_GUI_SIM)' \
-	  NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=0 \
+	  NEMU_DISPLAY=1 NEMU_VIRTIO_INPUT=1 NEMU_PERFORMANCE_REQUIRED=1 \
 	  NEMU_ROOTFS_BOOTARGS_EXTRA=console=tty0 \
 	  NEMU_GUI_LOG_DIR='$(NEMU_GUI_CHECK_LOG_DIR)' \
 	  NEMU_GUI_ROOTFS_OVERLAY='$(NEMU_GUI_CHECK_ROOTFS_OVERLAY)' \
@@ -832,10 +850,26 @@ check-nemu-gui:
 	  UBUNTU_ROOTFS_CPIO_IMAGE='$(UBUNTU_ROOTFS_GUI_CPIO_IMAGE)' \
 	  UBUNTU_ROOTFS_DIR='$(UBUNTU_ROOTFS_GUI_DIR)' \
 	  UBUNTU_ROOTFS_WORK='$(NEMU_GUI_ROOTFS_WORK)' \
-	  UBUNTU_ROOTFS_FLAVOR=systemd-minimal \
+	  UBUNTU_ROOTFS_FLAVOR='$(NEMU_GUI_ROOTFS_FLAVOR)' \
+	  UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS='$(if $(filter full,$(NEMU_GUI_ROOTFS_FLAVOR)),$(NEMU_SSH_KEY).pub,)' \
 	  UBUNTU_ROOTFS_VT_AUTOLOGIN=1 \
 	  UBUNTU_ROOTFS_REQUIRE_VT_AUTOLOGIN=1 \
 	  UBUNTU_ROOTFS_CHECK_TARGET=check-ubuntu-rootfs
+
+.PHONY: check-nemu-full-system __check-nemu-full-system
+check-nemu-full-system: override NEMU_GUI_ROOTFS_FLAVOR := full
+check-nemu-full-system:
+	+$(MAKE) ARCH=riscv64-nemu BOOT=ubuntu-rootfs LINUX_RUN_MODE=gui \
+	  LINUX_RUN_ROOTFS_FLAVOR=full $(NEMU_GUI_RUN_ARGS) __check-nemu-full-system
+
+__check-nemu-full-system: $(RUN_DEPS) check-nemu-performance-config check-nemu-kernel-config check-nemu-gui-config
+	NEMU_SIM='$(NEMU_SIM)' LINUX_IMAGE='$(LINUX_IMAGE)' \
+	RUN_FW='$(RUN_FW)' RUN_DTB='$(RUN_DTB)' RUN_ROOTFS='$(RUN_ROOTFS)' \
+	NEMU_SSH_KEY='$(NEMU_SSH_KEY)' \
+	NEMU_FULL_CHECK_LOG_DIR='$(NEMU_FULL_CHECK_LOG_DIR)' \
+	NEMU_FULL_CHECK_SSH_PORT='$(NEMU_FULL_CHECK_SSH_PORT)' \
+	NEMU_FULL_CHECK_BOOT_TIMEOUT='$(NEMU_FULL_CHECK_BOOT_TIMEOUT)' \
+	  python3 '$(SCRIPT_DIR)/check-nemu-full-system.py'
 
 check-nemu-virtio-input:
 	+$(MAKE) ARCH=riscv64-nemu __check-nemu-virtio-input \
@@ -961,6 +995,8 @@ __show-boot:
 	@printf 'RUN_ROOTFS=%s\n' '$(RUN_ROOTFS)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
+	@printf 'NEMU_RUN_NET_ARGS=%s\n' '$(NEMU_RUN_NET_ARGS)'
+	@printf 'NEMU_SSH_KEY=%s\n' '$(NEMU_SSH_KEY)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
 
 # The native core is defined by vsrc/filelist.mk, not the old OoO
@@ -973,7 +1009,11 @@ nemu-linux-defconfig:
 	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' \
 	  NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' $(NEMU_DEFCONFIG)
 
-sim: nemu-linux-defconfig
+nemu-libslirp: nemu-linux-defconfig
+	@if grep -qx CONFIG_NET_SLIRP=y '$(NEMU_CONFIG_DIR)/.config'; then bash '$(SCRIPT_DIR)/prepare-nemu-libslirp.sh'; fi
+
+.PHONY: nemu-libslirp
+sim: nemu-linux-defconfig nemu-libslirp
 	+$(MAKE) -C '$(NEMU_HOME)' NEMU_HOME='$(NEMU_HOME)' \
 	  NEMU_CONFIG_DIR='$(NEMU_CONFIG_DIR)' BUILD_DIR='$(NEMU_BUILD_DIR)' -j'$(JOBS)'
 
@@ -982,6 +1022,7 @@ check-sim: sim
 
 check-nemu-performance-config: nemu-linux-defconfig
 	NEMU_PERFORMANCE_REQUIRED='$(NEMU_PERFORMANCE_REQUIRED)' \
+	NEMU_DISPLAY='$(NEMU_DISPLAY)' \
 	NEMU_CONFIG='$(NEMU_CONFIG_DIR)/.config' \
 	NEMU_AUTOCONF='$(NEMU_CONFIG_DIR)/include/generated/autoconf.h' \
 	NEMU_POLICY_HEADER='$(NEMU_HOME)/include/nemu-config.h' \
@@ -1706,7 +1747,19 @@ $(UBUNTU_SHELL_INITRD):
 	  UBUNTU_INITRD_IMAGE='$(UBUNTU_SHELL_INITRD)' \
 	  bash '$(SCRIPT_DIR)/build-ubuntu-base-initramfs.sh'
 
+# A persistent disk is bound to the exact backing inode/timestamps. Ordinary
+# run must not silently replace that backing after a build-script edit.
+UBUNTU_ROOTFS_KEEP_PERSISTENT ?= $(if $(filter __run,$(MAKECMDGOALS)),1,0)
 $(UBUNTU_ROOTFS_BUILD_STAMP): FORCE $(UBUNTU_ROOTFS_PROFILE_INPUTS)
+	@if [[ '$(UBUNTU_ROOTFS_KEEP_PERSISTENT)' == 1 && '$(ARCH)' == riscv64-nemu && \
+	    -f '$(NEMU_RUN_ROOTFS_OVERLAY).meta' && -f '$(UBUNTU_ROOTFS_IMAGE)' ]]; then \
+	  printf '%s\n' '[ubuntu-rootfs] preserving existing backing for the persistent user disk'; \
+	else \
+	  $(MAKE) --no-print-directory UBUNTU_ROOTFS_KEEP_PERSISTENT=0 __refresh-ubuntu-rootfs-profile; \
+	fi
+
+.PHONY: __refresh-ubuntu-rootfs-profile
+__refresh-ubuntu-rootfs-profile:
 	@set -e -o pipefail; expected=$$(mktemp); \
 	  cleanup_expected() { status=$$?; trap - EXIT HUP INT TERM; \
 	    rm -f -- "$$expected"; exit "$$status"; }; \
@@ -1721,6 +1774,7 @@ $(UBUNTU_ROOTFS_BUILD_STAMP): FORCE $(UBUNTU_ROOTFS_PROFILE_INPUTS)
 	  'UBUNTU_MIRROR=$(UBUNTU_MIRROR)' \
 	  'UBUNTU_BASE_URL=$(UBUNTU_BASE_URL)' \
 	  'UBUNTU_ROOTFS_FLAVOR=$(UBUNTU_ROOTFS_FLAVOR)' \
+	  'UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS=$(UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS)' \
 	  'UBUNTU_ROOTFS_ARTIFACT_SUFFIX=$(UBUNTU_ROOTFS_ARTIFACT_SUFFIX)' \
 	  'UBUNTU_ROOTFS_WORK=$(UBUNTU_ROOTFS_WORK)' \
 	  'UBUNTU_ROOTFS_IMAGE=$(UBUNTU_ROOTFS_IMAGE)' \
@@ -1772,6 +1826,7 @@ $(UBUNTU_ROOTFS_BUILD_STAMP): FORCE $(UBUNTU_ROOTFS_PROFILE_INPUTS)
 	  UBUNTU_MIRROR='$(UBUNTU_MIRROR)' \
 	  UBUNTU_BASE_URL='$(UBUNTU_BASE_URL)' \
 	  UBUNTU_ROOTFS_FLAVOR='$(UBUNTU_ROOTFS_FLAVOR)' \
+	  UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS='$(UBUNTU_ROOTFS_SSH_AUTHORIZED_KEYS)' \
 	  UBUNTU_ROOTFS_ARTIFACT_SUFFIX='$(UBUNTU_ROOTFS_ARTIFACT_SUFFIX)' \
 	  UBUNTU_ROOTFS_WORK='$(UBUNTU_ROOTFS_WORK)' \
 	  UBUNTU_ROOTFS_IMAGE='$(UBUNTU_ROOTFS_IMAGE)' \
@@ -1813,7 +1868,7 @@ $(UBUNTU_ROOTFS_BUILD_STAMP): FORCE $(UBUNTU_ROOTFS_PROFILE_INPUTS)
 	  UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT='$(UBUNTU_ROOTFS_SYSTEMD_OVERLAY_SCRIPT)' \
 	  UBUNTU_ROOTFS_SYSTEMD_OVERLAY=1 \
 	  UBUNTU_ROOTFS_REQUIRE_SYSTEMD=1 \
-	  UBUNTU_ROOTFS_BUILD_STAMP='$@' \
+	  UBUNTU_ROOTFS_BUILD_STAMP='$(UBUNTU_ROOTFS_BUILD_STAMP)' \
 	  UBUNTU_ROOTFS_EXPECTED_PROFILE_STAMP="$$expected" \
 	  CROSS_COMPILE='$(UBUNTU_ROOTFS_CROSS_COMPILE)' \
 	  CC='$(UBUNTU_ROOTFS_CC)' \
@@ -2070,6 +2125,8 @@ __paths:
 	@printf 'NEMU_SYSTEMD_ROOTFS_CHECK_TARGET=%s\n' '$(NEMU_SYSTEMD_ROOTFS_CHECK_TARGET)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY)'
 	@printf 'NEMU_RUN_ROOTFS_OVERLAY_RESET=%s\n' '$(NEMU_RUN_ROOTFS_OVERLAY_RESET)'
+	@printf 'NEMU_RUN_NET_ARGS=%s\n' '$(NEMU_RUN_NET_ARGS)'
+	@printf 'NEMU_SSH_KEY=%s\n' '$(NEMU_SSH_KEY)'
 	@printf 'NEMU_RUN_MAX_BOOTS=%s\n' '$(NEMU_RUN_MAX_BOOTS)'
 	@printf 'NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY=%s\n' '$(NEMU_REBOOT_PERSIST_ROOTFS_OVERLAY)'
 	@printf 'LOG_DIR=%s\n' '$(LOG_DIR)'
@@ -2092,3 +2149,9 @@ clean:
 
 clean-logs:
 	rm -rf '$(LOG_ROOT)'
+
+# Only the public key is copied into a full GUI rootfs.
+$(NEMU_SSH_KEY).pub:
+	@mkdir -p '$(dir $(NEMU_SSH_KEY))'
+	@test -f '$(NEMU_SSH_KEY)' || ssh-keygen -q -t ed25519 -N '' -C nemu-local -f '$(NEMU_SSH_KEY)'
+	@test -f '$@' || ssh-keygen -y -f '$(NEMU_SSH_KEY)' > '$@'
