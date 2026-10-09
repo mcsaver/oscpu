@@ -56,4 +56,10 @@ make -C npc switch BACKEND=single
 ## RV64 正式主线与旧核归档
 
 `make -C npc BACKEND=rv64 lint` 和 `make -C npc/rv64` 使用承岳64。
+
+工程使用方式见 [RV64 项目说明](rv64/README.md)；源码职责与各域拓扑从
+[RTL 目录说明](rv64/vsrc/README.md)进入，系统边界见[架构入口](rv64/ARCHITECTURE.md)，
+分配、执行、完成、退休与恢复的跨域连接见[全核拓扑](rv64/vsrc/TOPOLOGY.md)。
+各域文档按生产配置和真实实例说明接口，目录位置不等于实例子树。
+
 旧 rv64core 独立源码包位于 [pack/rv64core-legacy-20260916](pack/rv64core-legacy-20260916/README.md)。

@@ -8,7 +8,8 @@
 
 | 要了解的内容 | 文档入口 | 对应目录职责 |
 | --- | --- | --- |
-| CPU、系统顶层与模块连接 | [架构入口](ARCHITECTURE.md) | `vsrc/` 保存主线 RTL 和就近维护的模块说明 |
+| CPU、系统边界与设计资料 | [架构入口](ARCHITECTURE.md) | 汇总当前实现、系统接入及功能/性能证据入口 |
+| RTL 文件职责、实例层级与模块连接 | [RTL 目录](vsrc/README.md)、[全核拓扑](vsrc/TOPOLOGY.md) | `vsrc/` 保存主线 RTL、模块清单和源码旁的各域拓扑 |
 | 设计规范、取舍与文献 | [设计文档](design/README.md) | `design/` 区分主线设计、共享 IP 规范和旧核资料 |
 | 模块、整核、软件回归 | [验证入口](testbench/chengyue64/README.md) | `testbench/` 保存具体测试用例、oracle 和回归脚本 |
 | NEMU 参考接口、CSR 比较与比较时机 | [DiffTest](difftest/README.md) | `difftest/src/r64_difftest.cpp` 实现参考模型适配及状态比较 |
@@ -21,6 +22,22 @@
 `sim/src/r64_sim_main.cpp` 采集 RTL 退休和 trap 事件，通过独立的 DiffTest 接口调用 NEMU。
 `testbench` 使用这套运行设施组织用例，三者通过 [sim/build.mk](sim/build.mk) 共享构建规则。
 生产 RTL 仍位于 `vsrc/`，仿真专用封装位于 `sim/vsrc/`。
+
+## RTL 结构与拓扑
+
+从[全核拓扑](vsrc/TOPOLOGY.md)查看分配、执行、完成、退休和恢复之间的连接，
+再按下表进入各域；查找源码文件与模块声明时使用 [RTL 目录](vsrc/README.md)和[模块清单](vsrc/MODULES.md)。
+
+| 模块域 | 详细入口 | 重点 |
+| --- | --- | --- |
+| 取指与后端 | [Frontend](vsrc/frontend/TOPOLOGY.md)、[Backend](vsrc/backend/TOPOLOGY.md) | 取指/预测、原子分配、重命名、发射、操作数、整数执行与完成 |
+| 浮点与提交控制 | [FP](vsrc/fp/TOPOLOGY.md)、[Control](vsrc/control/TOPOLOGY.md) | 浮点数值流水、Serial、CSR、精确退休与 trap |
+| 翻译、访存与缓存 | [Memory](vsrc/memory/TOPOLOGY.md)、[LSU/Cache](vsrc/lsu/TOPOLOGY.md) | I/D 翻译与保护、LSQ、转发、PTE 服务、I/D cache |
+| 总线与系统装配 | [BUS](vsrc/bus/TOPOLOGY.md)、[Platform](vsrc/platform/README.md) | AXI 事务、Fabric/设备、默认系统与可选 Tensor/GMEM 接入 |
+
+2026-10-09 已按当前 RTL 统一整理各域的生产配置、文件职责、真实实例、接收/取消边界、
+状态与信用归属、现有验证入口。目录归属与实例层级分别说明；容量及模块通用默认值须结合生产参数阅读。
+历史候选和测量标注在各域文档中，本次文档更新没有产生新的功能、CPI 或 STA 结论。
 
 ## 常用命令
 
