@@ -5,6 +5,7 @@
 `define R64_UOP_W 218
 `define R64_U_PC 63:0
 `define R64_U_ARG 127:64
+`define R64_UOP_CMD_LO 128
 `define R64_U_CMD 191:128
 `define R64_U_LEN 195:192
 `define R64_U_FUNC 203:196

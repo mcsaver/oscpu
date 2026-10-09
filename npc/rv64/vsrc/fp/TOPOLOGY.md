@@ -1,20 +1,20 @@
 # 当前 FP 结构与网络拓扑
 
 依据 **2026-10-09 工作区生产 RTL** 核对，入口为 [R64CoreTop.fp](../core/R64CoreTop.v)。
-本文沿现有实现整理浮点执行的文件职责、实际实例、数据流、接收边沿、完成预约和取消关系；本次仅更新文档。
+本文沿现有实现整理浮点执行的文件职责、实际实例、数据流、接收边沿、完成预约和取消关系。
 [全核拓扑](../TOPOLOGY.md)负责系统连接，[Backend 拓扑](../backend/TOPOLOGY.md)负责发射、PRF、写回和 ROB，
 [模块清单](../MODULES.md)列源码声明。整数 ALU/MUL/DIV/CLMUL 的 owner 与执行路径见 Backend 的 BE-06/BE-07。
 
 ## 1. 实际边界与生产配置
 
 `R64FpExecute` 是 CoreTop 下与 Backend、Memory、Serial、Commit 同级的实例。
-它接收 Backend 已读取的操作数和完整 ROB tag，内部只有局部执行 owner；Rename 映射、FPR 数据、
+它只接收 command32、Backend 已读取的操作数和完整 ROB tag，内部只有局部执行 owner；Rename 映射、FPR 数据、
 目的寄存器身份及 ROB 完成资格仍在 Backend，架构 fflags 更新属于顺序 Commit/CSR。
 
 | 项目 | 当前核心配置 / 含义 |
 | --- | --- |
 | CoreTop → FP | `Q_CREDIT_INGRESS=1`、`RAW_FAST_DISPATCH=1`、`RAW_FMA_DISPATCH=1`；三个参数的模块默认值均为 0，本文按生产实例展开 |
-| 身份与输入 | tag9 = generation4 + ROB slot5；每条输入为 UOP218、3×64 bit 操作数；FP 入口保存 command32 及所需控制，不复制整个 UOP |
+| 身份与输入 | tag9 = generation4 + ROB slot5；每条输入为 command32、3×64 bit 操作数；CoreTop 从 Backend UOP 的 CMD 低 32 位投影到 `in_command_i`，FP 不依赖完整 UOP 布局 |
 | 动态权限 | `fp_enabled_i = mstatus_o[14:13] != 0`；`frm_i` 来自 CSR。动态 rounding 与 FP 合法性在入口真实接受时一起捕获 |
 | FP 入口 | 2 个固定槽，每拍最多接收 1 条、从 head 向一个子路径分派 1 条 |
 | FMA | 19 个固定推进数值阶段，22 份总预约信用及 terminal 槽；FADD/FSUB、FMUL 与 fused 运算共用数据通路 |
@@ -28,6 +28,9 @@
 数值级数、完成容量和出口数量是不同事实。22/14 份预约分别覆盖子路径在途与等待输出的工作，
 不能与 19/10 个数值位置相加；两个 front 缓存只是 terminal/completion 的投影。
 三条路径可以同时有在途工作，公共入口与出口仍各为每拍最多 1 条。
+
+FP 的接口只包含本域实际消费的操作、操作数、事务身份与动态权限。UOP 字段投影由调用边界负责；
+此接口收窄不改变 `in_fire_i/in_ready_o`、两槽入口信用、动态 rounding 捕获、RAW 分派、kill/flush 或结果返回时序。
 
 来源：[CoreTop](../core/R64CoreTop.v)、[FP Execute](R64FpExecute.v)、
 [Backend 字段定义](../backend/R64Uop.vh)。
@@ -206,7 +209,7 @@ fflags 都必须与 token 同步，不能因取消或数据路径整理而另立
 | 入口与路径压力 | ingress valid/head、path、in_fire/ready、dispatch | 按路径的占用、满队列释放等待、head 阻塞导致其他路径闲置的工作负载统计 |
 | 数值服务与本地等待 | FMA token/credit、Fast slot/done/head、Long phase、各路径 out_valid/ready | 按指令/格式/特殊数的接受 → 数值完成 → FP 输出 → ROB 完成分布；固定数值阶段不能代替退休延迟 |
 | 四源归并与全核 WB | selected_mask、next_q、output_credit；[CPI_PROFILE](../../sim/vsrc/R64CpiProfile.svh) 有全局 wb_backpressure | 每源等待、四源同时就绪频度、局部和全核嵌套仲裁损失；全局任一源反压不能单独归因 FP |
-| 功能与物理边界 | 以下模块向量、取消/反压、WB 与 Backend 接入用例 | 本次未运行 FP 回归、数值性能基准、综合或 STA；整数 CoreMark/Dhrystone CPI 不能代替 FP correctness 或 FP 性能结论 |
+| 功能与物理边界 | 以下模块向量、取消/反压、WB 与 Backend 接入用例 | 本轮7项 FP 定向回归通过（Execute、Q-credit及向量、Fast/FMA raw owner、WB、Backend接入）；未运行数值性能基准、综合或 STA，不能外推 FP PPA |
 
 与上述边界直接相关的已有入口：
 

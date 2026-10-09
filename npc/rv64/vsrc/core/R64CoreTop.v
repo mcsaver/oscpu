@@ -96,24 +96,12 @@ module R64CoreTop #(
   wire [1:0] rob_valid, rob_ready, retire_fire, rob_exception, rob_write, rob_fp;
   wire [17:0] rob_tag;
   wire [2*M-1:0] rob_meta;
-  wire [127:0] rob_data, rob_tval, retire_npc;
+  wire [127:0] rob_data, rob_tval;
   wire [11:0] rob_cause;
   wire [9:0] rob_arch, rob_flags;
-  wire commit1_allow, serial_commit;
-  wire [8:0] serial_commit_tag;
-  wire [1:0] retired_count;
-  wire fp_dirty;
-  wire [4:0] fp_flags;
-  wire trap, trap_interrupt, trap_prepare;
-  wire csr_query, csr_query_valid, return_prepare;
-  wire [5:0] trap_cause;
-  wire [63:0] trap_pc, trap_tval, trap_target;
-  wire irq_pending, wfi_wake;
-  wire [5:0] irq_cause;
+  wire commit1_allow;
   wire [2:0] frm;
   wire pbmt_enable;
-  wire [127:0] pmp_config;
-  wire [863:0] pmp_address;
   wire [15:0] pmp_active;
   wire [895:0] pmp_lower, pmp_upper;
   wire [63:0] pmp_permission;
@@ -155,13 +143,6 @@ module R64CoreTop #(
     execute_breakpoint[1] ? fetch_pc[127:64] : fetch_tval[127:64],
     execute_breakpoint[0] ? fetch_pc[63:0] : fetch_tval[63:0]
   };
-  wire [63:0] csr_select;
-  wire [11:0] csr_address;
-  wire [2:0] csr_operation;
-  wire [4:0] csr_rs1;
-  wire [63:0] csr_operand, csr_read, csr_write_value, return_target;
-  wire csr_commit, csr_illegal, return_supervisor;
-  wire [1:0] return_commit;
   wire icache_invalidate, tlb_invalidate, tlb_all_vaddr, tlb_all_asid;
   wire [26:0] tlb_vpn;
   wire [15:0] tlb_asid;
@@ -182,14 +163,6 @@ module R64CoreTop #(
   wire read_error, write_error;
   assign protocol_error_o = read_error || write_error;
 
-  R64PmpDecode pmp_decode (
-    .config_i(pmp_config),
-    .address_i(pmp_address),
-    .active_o(pmp_active),
-    .lower_o(pmp_lower),
-    .upper_o(pmp_upper),
-    .permission_o(pmp_permission)
-  );
   R64FetchProtectionPrepare fetch_protection (
     .address_i(fetch_protect_addr),
     .privilege_i(fetch_protect_priv),
@@ -376,7 +349,7 @@ module R64CoreTop #(
     .in_fire_i(fp_fire),
     .in_ready_o(fp_ready),
     .in_tag_i(fp_tag),
-    .in_uop_i(fp_uop),
+    .in_command_i(fp_uop[`R64_UOP_CMD_LO+:32]),
     .in_operand_i(fp_operand),
     .fp_enabled_i(mstatus_o[14:13] != 0),
     .frm_i(frm),
@@ -385,164 +358,108 @@ module R64CoreTop #(
     .out_tag_o(external_tag[18+:9]),
     .out_result_o(external_result[2*R+:R])
   );
-  R64Serial serial (
-    .csr_query_o(csr_query),
-    .csr_query_valid_i(csr_query_valid),
-    .return_prepare_o(return_prepare),
+  R64Control #(
+    .RESET_PC(RESET_PC)
+  ) control (
     .clk_i(clk_i),
     .rst_i(rst_i),
-    .flush_i(full_flush),
-    .kill_mask_i(kill_mask),
-    .fire_i(serial_fire),
-    .ready_o(serial_ready),
-    .tag_i(serial_tag),
-    .head_tag_i(head_tag),
-    .uop_i(serial_uop),
-    .operand_i(serial_operand),
-    .memory_idle_i(memory_idle),
-    .wfi_wake_i(!wfi_wait_i || wfi_wake || irq_timer_i),
-    .result_valid_o(external_valid[3]),
-    .result_ready_i(external_ready[3]),
-    .result_tag_o(external_tag[27+:9]),
-    .result_o(external_result[3*R+:R]),
-    .commit_i(serial_commit),
-    .commit_tag_i(serial_commit_tag),
-    .privilege_i(privilege_o),
-    .mstatus_i(mstatus_o),
-    .csr_address_o(csr_address),
-    .csr_select_o(csr_select),
-    .csr_operation_o(csr_operation),
-    .csr_rs1_o(csr_rs1),
-    .csr_operand_o(csr_operand),
-    .csr_commit_o(csr_commit),
-    .csr_read_i(csr_read),
-    .csr_write_value_i(csr_write_value),
-    .csr_illegal_i(csr_illegal),
-    .return_supervisor_o(return_supervisor),
-    .return_commit_o(return_commit),
-    .return_target_i(return_target),
-    .icache_invalidate_o(icache_invalidate),
-    .tlb_invalidate_o(tlb_invalidate),
-    .tlb_all_vaddr_o(tlb_all_vaddr),
-    .tlb_all_asid_o(tlb_all_asid),
-    .tlb_vpn_o(tlb_vpn),
-    .tlb_asid_o(tlb_asid),
-    .tensor_cmd_valid_o(tensor_cmd_valid_o),
-    .tensor_cmd_ready_i(tensor_cmd_ready_i),
-    .tensor_cmd_tag_o(tensor_cmd_tag_o),
-    .tensor_cmd_o(tensor_cmd_o),
-    .tensor_operand_o(tensor_operand_o),
-    .tensor_pair_o(tensor_pair_o),
-    .tensor_class_o(tensor_class_o),
-    .tensor_terminal_valid_i(tensor_terminal_valid_i),
-    .tensor_terminal_ready_o(tensor_terminal_ready_o),
-    .tensor_terminal_tag_i(tensor_terminal_tag_i),
-    .tensor_error_i(tensor_error_i),
-    .tensor_error_code_i(tensor_error_code_i),
-    .irrevocable_o(serial_irrevocable),
-    .reuse_block_o(serial_reuse),
-    .idle_o(serial_idle)
-  );
-  R64Csr csr (
-    .query_i(csr_query),
-    .query_valid_o(csr_query_valid),
-    .trap_prepare_i(trap_prepare),
-    .return_prepare_i(return_prepare),
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .count_enable_i(run_i),
-    .time_i(time_i),
-    .retired_i(retired_count),
-    .address_i(csr_address),
-    .select_i(csr_select),
-    .operation_i(csr_operation),
-    .rs1_i(csr_rs1),
-    .operand_i(csr_operand),
-    .commit_i(csr_commit),
-    .read_o(csr_read),
-    .illegal_o(csr_illegal),
-    .fp_dirty_i(fp_dirty),
-    .fp_flags_i(fp_flags),
-    .trap_i(trap),
-    .trap_interrupt_i(trap_interrupt),
-    .trap_cause_i(trap_cause),
-    .trap_pc_i(trap_pc),
-    .trap_tval_i(trap_tval),
-    .return_i(return_commit),
-    .return_target_o(return_target),
+    .run_i(run_i),
     .irq_software_i(irq_software_i),
     .irq_timer_i(irq_timer_i),
     .irq_external_i(irq_external_i),
     .irq_supervisor_external_i(irq_supervisor_external_i),
-    .wfi_wake_o(wfi_wake),
-    .irq_pending_o(irq_pending),
-    .irq_cause_o(irq_cause),
-    .trap_target_o(trap_target),
-    .privilege_o(privilege_o),
-    .mstatus_o(mstatus_o),
-    .satp_o(satp_o),
-    .frm_o(frm),
-    .pbmt_enable_o(pbmt_enable),
-    .pmp_config_o(pmp_config),
-    .pmp_address_o(pmp_address),
-    .write_value_o(csr_write_value),
-    .commit_value_i(csr_operand),
-    .return_supervisor_i(return_supervisor),
-    .trigger_enable_o(trigger_enable),
-    .trigger_address_o(trigger_address)
-  );
-  R64Commit #(
-    .SCRATCH_READ_RESUME(1),
-    .RESET_PC(RESET_PC),
-    .HEAD_SERIAL_ISSUE(1),
-    .HEAD_SERIAL_STOP(1),
-    .HEAD_EXCEPTION_STOP(1),
-    .HEAD_SERIAL_CLASS(1)
-  ) commit (
-    .trap_prepare_o(trap_prepare),
-    .clk_i(clk_i),
-    .rst_i(rst_i),
+    .wfi_wait_i(wfi_wait_i),
+    .time_i(time_i),
     .rob_valid_i(rob_valid),
     .rob_serial_i(rob_serial),
+    .rob_exception_i(rob_exception),
+    .rob_write_i(rob_write),
+    .rob_fp_i(rob_fp),
     .rob_ready_o(rob_ready),
     .commit1_allow_o(commit1_allow),
     .rob_tag_i(rob_tag),
     .rob_meta_i(rob_meta),
     .rob_data_i(rob_data),
-    .rob_exception_i(rob_exception),
-    .rob_cause_i(rob_cause),
     .rob_tval_i(rob_tval),
-    .rob_rd_write_i(rob_write),
-    .rob_rd_fp_i(rob_fp),
-    .rob_fflags_i(rob_flags),
-    .retire_ready_i(trace_ready_i),
-    .rob_empty_i(rob_count_o == 0),
+    .rob_cause_i(rob_cause),
+    .rob_arch_i(rob_arch),
+    .rob_flags_i(rob_flags),
+    .rob_count_i(rob_count_o),
+    .head_tag_i(head_tag),
     .head_serial_i(head_serial),
-    .head_exception_i(head_exception_raw),
+    .head_exception_raw_i(head_exception_raw),
     .recover_i(recover),
+    .kill_mask_i(kill_mask),
+    .serial_fire_i(serial_fire),
+    .serial_ready_o(serial_ready),
+    .serial_tag_i(serial_tag),
+    .serial_uop_i(serial_uop),
+    .serial_operand_i(serial_operand),
+    .serial_result_valid_o(external_valid[3]),
+    .serial_result_ready_i(external_ready[3]),
+    .serial_result_tag_o(external_tag[27+:9]),
+    .serial_result_o(external_result[3*R+:R]),
+    .memory_idle_i(memory_idle),
     .lsu_irrevocable_i(lsu_irrevocable),
-    .serial_irrevocable_i(serial_irrevocable),
-    .irq_pending_i(irq_pending),
-    .irq_cause_i(irq_cause),
-    .trap_target_i(trap_target),
-    .retire_fire_o(retire_fire),
-    .retire_npc_o(retire_npc),
-    .retired_count_o(retired_count),
-    .fp_dirty_o(fp_dirty),
-    .fp_flags_o(fp_flags),
-    .serial_commit_o(serial_commit),
-    .serial_tag_o(serial_commit_tag),
-    .trap_o(trap),
-    .trap_interrupt_o(trap_interrupt),
-    .trap_cause_o(trap_cause),
-    .trap_pc_o(trap_pc),
-    .trap_tval_o(trap_tval),
+    .serial_irrevocable_o(serial_irrevocable),
+    .serial_idle_o(serial_idle),
+    .serial_reuse_o(serial_reuse),
     .stop_birth_o(stop_birth),
     .full_flush_o(full_flush),
-    .redirect_o(control_redirect),
-    .redirect_target_o(control_target),
+    .control_redirect_o(control_redirect),
     .effect_allow_o(effect_allow),
-    .serial_allow_o(serial_allow)
+    .serial_allow_o(serial_allow),
+    .control_target_o(control_target),
+    .retire_fire_o(retire_fire),
+    .privilege_o(privilege_o),
+    .mstatus_o(mstatus_o),
+    .satp_o(satp_o),
+    .trigger_address_o(trigger_address),
+    .pmp_permission_o(pmp_permission),
+    .frm_o(frm),
+    .trigger_enable_o(trigger_enable),
+    .pbmt_enable_o(pbmt_enable),
+    .icache_invalidate_o(icache_invalidate),
+    .tlb_invalidate_o(tlb_invalidate),
+    .tlb_all_vaddr_o(tlb_all_vaddr),
+    .tlb_all_asid_o(tlb_all_asid),
+    .pmp_active_o(pmp_active),
+    .tlb_asid_o(tlb_asid),
+    .pmp_lower_o(pmp_lower),
+    .pmp_upper_o(pmp_upper),
+    .tlb_vpn_o(tlb_vpn),
+    .tensor_cmd_valid_o(tensor_cmd_valid_o),
+    .tensor_pair_o(tensor_pair_o),
+    .tensor_terminal_ready_o(tensor_terminal_ready_o),
+    .tensor_cmd_ready_i(tensor_cmd_ready_i),
+    .tensor_terminal_valid_i(tensor_terminal_valid_i),
+    .tensor_error_i(tensor_error_i),
+    .tensor_cmd_tag_o(tensor_cmd_tag_o),
+    .tensor_terminal_tag_i(tensor_terminal_tag_i),
+    .tensor_cmd_o(tensor_cmd_o),
+    .tensor_operand_o(tensor_operand_o),
+    .tensor_class_o(tensor_class_o),
+    .tensor_error_code_i(tensor_error_code_i),
+    .trace_ready_i(trace_ready_i),
+    .trace_valid_o(trace_valid_o),
+    .trace_rd_write_o(trace_rd_write_o),
+    .trace_rd_fp_o(trace_rd_fp_o),
+    .trace_pc_o(trace_pc_o),
+    .trace_raw_o(trace_raw_o),
+    .trace_npc_o(trace_npc_o),
+    .trace_data_o(trace_data_o),
+    .trace_length_o(trace_length_o),
+    .trace_rd_arch_o(trace_rd_arch_o),
+    .trace_fflags_o(trace_fflags_o),
+    .trace_kind_o(trace_kind_o),
+    .trap_valid_o(trap_valid_o),
+    .trap_interrupt_o(trap_interrupt_o),
+    .trap_cause_o(trap_cause_o),
+    .trap_pc_o(trap_pc_o),
+    .trap_tval_o(trap_tval_o),
+    .trap_raw_o(trap_raw_o),
+    .trap_target_o(trap_target_o),
+    .trap_length_o(trap_length_o)
   );
   R64Memory #(
     .HEAD_AUTHORIZED_QUERY(1),
@@ -711,30 +628,6 @@ module R64CoreTop #(
     .bresp_i(bresp_i),
     .protocol_error_o(write_error)
   );
-  assign trace_valid_o = retire_fire;
-  assign trace_npc_o = retire_npc;
-  assign trace_data_o = rob_data;
-  assign trace_rd_write_o = rob_write;
-  assign trace_rd_fp_o = rob_fp;
-  assign trace_rd_arch_o = rob_arch;
-  assign trace_fflags_o = rob_flags;
-  genvar lane;
-  generate
-    for (lane = 0; lane < 2; lane = lane + 1) begin : g_trace
-      assign trace_pc_o[lane*64+:64]   = rob_meta[lane*M+:64];
-      assign trace_raw_o[lane*64+:64]  = rob_meta[lane*M+64+:64];
-      assign trace_length_o[lane*4+:4] = rob_meta[lane*M+192+:4];
-      assign trace_kind_o[lane*8+:8]   = rob_meta[lane*M+196+:8];
-    end
-  endgenerate
-  assign trap_valid_o = trap;
-  assign trap_interrupt_o = trap_interrupt;
-  assign trap_cause_o = trap_cause;
-  assign trap_pc_o = trap_pc;
-  assign trap_tval_o = trap_tval;
-  assign trap_target_o = trap_target;
-  assign trap_raw_o = trap_interrupt ? 64'b0 : rob_meta[127:64];
-  assign trap_length_o = trap_interrupt ? 4'b0 : rob_meta[195:192];
 `ifdef R64_ASSERT
   always @(posedge clk_i)
     if (!rst_i) begin

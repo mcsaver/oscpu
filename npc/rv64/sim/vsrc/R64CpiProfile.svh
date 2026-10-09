@@ -117,7 +117,7 @@ final $display("CPI_PROFILE prediction_redirect=%0d", profile_prediction_redirec
 reg [63:0] profile_icache_fill_q;
 always @(posedge clk_i) begin
   if (rst_i) profile_icache_fill_q <= 0;
-  else if (run_i && (`R64_SYSTEM_HIER.core.frontend.u_cache.state_q == 2))
+  else if (run_i && (`R64_SYSTEM_HIER.core.frontend.access.u_cache.state_q == 2))
     profile_icache_fill_q <= profile_icache_fill_q + 64'd1;
 end
 final $display("CPI_PROFILE icache_fill=%0d", profile_icache_fill_q);

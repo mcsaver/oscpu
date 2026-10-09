@@ -104,15 +104,15 @@ module tb_r64_frontend_ingress;
     if (!rst) begin
       cycles = cycles + 1;
       if (cycles > 4000) $fatal(1, "ingress timeout");
-      if (holding && dut.if_req_payload_q !== held_payload)
+      if (holding && dut.access.if_req_payload_q !== held_payload)
         $fatal(1, "held context re-sampled CSR");
-      holding = dut.if_req_valid_q && !dut.if_req_ready_w;
-      held_payload = dut.if_req_payload_q;
+      holding = dut.access.if_req_valid_q && !dut.access.if_req_ready_w;
+      held_payload = dut.access.if_req_payload_q;
       if (holding) held_context = held_context + 1;
-      if (dut.if_req_valid_q) begin
+      if (dut.access.if_req_valid_q) begin
         if (dut.fetch_r_w) $fatal(1, "full ingress advertised same-edge borrowed credit");
         full_blocked = full_blocked + 1;
-        if (dut.if_req_ready_w && dut.fetch_v_w) release_waiter = release_waiter + 1;
+        if (dut.access.if_req_ready_w && dut.fetch_v_w) release_waiter = release_waiter + 1;
         if (tlinv || dut.stream_redirect_w) cancel_held = cancel_held + 1;
       end
       if (tlinv || dut.stream_redirect_w)
@@ -125,25 +125,25 @@ module tb_r64_frontend_ingress;
         poisons[accepted] = tlinv || dut.stream_redirect_w;
         accepted = accepted + 1;
       end
-      if (dut.u_translation.req_valid_i && dut.u_translation.req_ready_o) begin
+      if (dut.access.u_translation.req_valid_i && dut.access.u_translation.req_ready_o) begin
         if (translated >= accepted) $fatal(1, "translation accepted no ingress owner");
         actual_context = {
-          dut.u_translation.req_vaddr_i,
-          dut.u_translation.req_priv_i,
-          dut.u_translation.req_satp_i,
-          dut.u_translation.req_mstatus_i[19:17],
-          dut.u_translation.req_mstatus_i[12:11],
-          dut.u_translation.req_pbmt_enable_i
+          dut.access.u_translation.req_vaddr_i,
+          dut.access.u_translation.req_priv_i,
+          dut.access.u_translation.req_satp_i,
+          dut.access.u_translation.req_mstatus_i[19:17],
+          dut.access.u_translation.req_mstatus_i[12:11],
+          dut.access.u_translation.req_pbmt_enable_i
         };
         if (actual_context !== contexts[translated] ||
-            dut.u_translation.req_poison_i !== poisons[translated])
+            dut.access.u_translation.req_poison_i !== poisons[translated])
           $fatal(
               1,
               "wrong acceptance context/poison owner=%0d got%h expected%h poison%b/%b",
               translated,
               actual_context,
               contexts[translated],
-              dut.u_translation.req_poison_i,
+              dut.access.u_translation.req_poison_i,
               poisons[translated]
           );
         captured_va = contexts[translated][135:72];
@@ -152,13 +152,13 @@ module tb_r64_frontend_ingress;
         expected_priv[translated] = captured_priv;
         expected_pa[translated] = captured_priv == 3 ? captured_va :
             (captured_satp[43:0] == 1 ? 64'h80000000 : 64'hc0000000) + {34'b0, captured_va[29:0]};
-        if (dut.u_translation.req_poison_i) poisoned_dispatch = poisoned_dispatch + 1;
+        if (dut.access.u_translation.req_poison_i) poisoned_dispatch = poisoned_dispatch + 1;
         translated = translated + 1;
       end
       if (accepted - translated > 1) $fatal(1, "ingress capacity exceeded");
-      if (dut.translation_v_w && dut.translation_r_w) begin
+      if (dut.access.translation_v_w && dut.access.translation_r_w) begin
         if (responses >= translated || protect !== expected_pa[responses] ||
-            protectpriv !== expected_priv[responses] || dut.translation_fault_w)
+            protectpriv !== expected_priv[responses] || dut.access.translation_fault_w)
           $fatal(
               1,
               "translation response context/physical owner %0d PA%h expected%h",
@@ -203,7 +203,7 @@ module tb_r64_frontend_ingress;
   initial begin
     repeat (3) @(negedge clk);
     rst = 0;
-    wait (dut.if_req_valid_q && pte_active);
+    wait (dut.access.if_req_valid_q && pte_active);
     // The overflow owner remains old S/root1/PBMT0 while CSR inputs change.
     @(negedge clk);
     priv = 3;
@@ -248,7 +248,7 @@ module tb_r64_frontend_ingress;
     @(negedge clk);
     run = 0;
     repeat (150) @(negedge clk);
-    if (accepted != translated || translated != responses || dut.if_req_valid_q ||
+    if (accepted != translated || translated != responses || dut.access.if_req_valid_q ||
         held_context < 10 || poisoned_dispatch < 1 || old_pte < 2 || new_pte < 1 ||
         cancel_held < 2 || release_waiter < 1 || accept_with_sfence < 1)
       $fatal(

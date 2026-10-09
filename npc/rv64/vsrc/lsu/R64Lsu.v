@@ -342,33 +342,45 @@ module R64Lsu #(
   wire store_response_live_w = alive_q[mem_store_rsp_token_i] && !killed_w[mem_store_rsp_token_i];
   wire [INDEX_W-1:0] xslot_q[0:1];
   reg [INDEX_W-1:0] mslot_q[0:1];
-  reg [INDEX_W-1:0] xfifo_q[0:1][0:3];
   // Four immutable operation bits follow exactly the translation holder/FIFO
   // owner. Dynamic privilege, FS, trigger and A/D authorization are unchanged.
   wire [3:0] xprotection_q[0:1];
-  reg [3:0] xfifo_protection_q[0:1][0:3];
-  reg [1:0] xhead_q[0:1], xtail_q[0:1];
-  reg [2:0] xcount_q[0:1];
   wire [INDEX_W-1:0] response_slot_w[0:1];
+  wire [2*INDEX_W-1:0] translation_response_slot_w;
+  wire [7:0] translation_response_protection_w;
+  wire [1:0] translation_owner_credit_w;
   wire [1:0] xfire_w, mfire_w, xresponse_w;
+  R64LsuTranslationOwners #(
+    .INDEX_W(INDEX_W)
+  ) translation_owners (
+    .clk_i(clk_i),
+    .rst_i(rst_i),
+    .in_fire_i(xfire_w),
+    .in_ready_o(translation_owner_credit_w),
+    .in_slot_i({xslot_q[1], xslot_q[0]}),
+    .in_protection_i({xprotection_q[1], xprotection_q[0]}),
+    .rsp_valid_i(tr_rsp_valid_i),
+    .rsp_ready_o(tr_rsp_ready_o),
+    .rsp_fire_o(xresponse_w),
+    .rsp_slot_o(translation_response_slot_w),
+    .rsp_protection_o(translation_response_protection_w)
+  );
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_lane
       assign xkilled_w[g] = flush_i || kill_mask_i[xtag_q[g][ROB_W-1:0]];
       assign mkilled_w[g] = flush_i || kill_mask_i[mtag_q[g][ROB_W-1:0]];
-      assign tr_valid_o[g] = xvalid_q[g] && xcount_q[g] < 4;
+      assign tr_valid_o[g] = xvalid_q[g] && translation_owner_credit_w[g];
       assign tr_vaddr_o[g*64+:64] = va_q[xslot_q[g]];
       assign tr_request_protection_o[g*4+:4] = xprotection_q[g];
       assign tr_access_o[g*2+:2] = xprotection_q[g][3] ? 2'd2 : 2'd1;
       assign tr_ad_update_o[g] = xad_q[g];
       assign xfire_w[g] = tr_valid_o[g] && tr_ready_i[g];
-      assign response_slot_w[g] = xfifo_q[g][xhead_q[g]];
-      assign tr_rsp_ready_o[g] = xcount_q[g] != 0 && !rst_i;
-      assign xresponse_w[g] = tr_rsp_valid_i[g] && tr_rsp_ready_o[g];
-      assign tr_owner_size_o[g*5+:5] = 5'b00001 << xfifo_protection_q[g][xhead_q[g]][1:0];
-      assign tr_owner_access_o[g*3+:3] = {1'b0, xfifo_protection_q[g][xhead_q[g]][3:2]};
+      assign response_slot_w[g] = translation_response_slot_w[g*INDEX_W+:INDEX_W];
+      assign tr_owner_size_o[g*5+:5] = 5'b00001 << translation_response_protection_w[g*4+:2];
+      assign tr_owner_access_o[g*3+:3] = {1'b0, translation_response_protection_w[g*4+2+:2]};
 `ifdef R64_ASSERT
       always @(posedge clk_i)
-        if (!rst_i && xcount_q[g] != 0) begin
+        if (tr_rsp_ready_o[g]) begin
           if (tr_owner_size_o[g*5+:5] !== (5'b00001 << func_q[response_slot_w[g]][1:0]) ||
               tr_owner_access_o[g*3+:3] !==
               {1'b0, store_w[response_slot_w[g]], atomic_w[response_slot_w[g]] ?
@@ -737,7 +749,7 @@ module R64Lsu #(
       assign {xad_q[xq], xprotection_q[xq], xslot_q[xq]} =
           translation_request_data_w[xq*XREQUEST_W+:XREQUEST_W];
       assign xtag_q[xq] = translation_request_tag_w[xq*TAG_W+:TAG_W];
-      assign translation_pop_w[xq] = tr_ready_i[xq] && xcount_q[xq] < 4;
+      assign translation_pop_w[xq] = tr_ready_i[xq] && translation_owner_credit_w[xq];
     end
   endgenerate
   wire [1:0] trans_available_w, memory_available_w;
@@ -1942,9 +1954,6 @@ module R64Lsu #(
       for (n = 0; n < 2; n = n + 1) begin
         mslot_q[n]  <= 0;
         mtag_q[n]   <= 0;
-        xhead_q[n]  <= 0;
-        xtail_q[n]  <= 0;
-        xcount_q[n] <= 0;
       end
     end else begin
       if (prepared_valid_q && (prepared_killed_w || prepared_take_w)) begin
@@ -1978,20 +1987,6 @@ module R64Lsu #(
       end
       for (n = 0; n < 2; n = n + 1) begin
         if (descriptor_s_take_w[n] || mkilled_w[n]) mvalid_q[n] <= 0;
-        case ({
-          xfire_w[n], xresponse_w[n]
-        })
-          2'b10: xcount_q[n] <= xcount_q[n] + 1'b1;
-          2'b01: xcount_q[n] <= xcount_q[n] - 1'b1;
-          default: begin
-          end
-        endcase
-        if (xfire_w[n]) begin
-          xfifo_q[n][xtail_q[n]] <= xslot_q[n];
-          xfifo_protection_q[n][xtail_q[n]] <= xprotection_q[n];
-          xtail_q[n] <= xtail_q[n] + 1'b1;
-        end
-        if (xresponse_w[n]) xhead_q[n] <= xhead_q[n] + 1'b1;
         if (mfire_w[n]) begin
           mem_issued_q[physical_slot_w[n]] <= 1;
           effect_q[physical_slot_w[n]] <= side_effect_w[physical_slot_w[n]];
@@ -2214,11 +2209,6 @@ module R64Lsu #(
               $fatal(1, "R64Lsu translation queued slot lost unissued full-tag owner");
           end
       end
-      always @(posedge clk_i)
-        if (!rst_i) begin
-          if (xcount_q[qc] > 4 || (xfire_w[qc] && xcount_q[qc] == 4))
-            $fatal(1, "R64Lsu translation accepted FIFO capacity violation");
-        end
     end
   endgenerate
   integer holder_check;

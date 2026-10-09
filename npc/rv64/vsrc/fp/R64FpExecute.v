@@ -17,7 +17,7 @@ module R64FpExecute #(
   input                      in_fire_i,
   output                     in_ready_o,
   input  [        TAG_W-1:0] in_tag_i,
-  input  [   `R64_UOP_W-1:0] in_uop_i,
+  input  [             31:0] in_command_i,
   input  [            191:0] in_operand_i,
   input                      fp_enabled_i,
   input  [              2:0] frm_i,
@@ -29,7 +29,9 @@ module R64FpExecute #(
   // One encoding indexes every path payload, ready/valid bit and return rank.
   localparam [1:0] PATH_FMA = 2'd0, PATH_LONG = 2'd1, PATH_FAST = 2'd2, PATH_FAULT = 2'd3;
   localparam RETURN_TUPLE_W = TAG_W + `R64_RESULT_W;
-  wire [31:0] command = in_uop_i[159:128];
+  // The caller projects the FP command from its dispatch representation.
+  // This owner depends only on that operation, operands and transaction tag.
+  wire [31:0] command = in_command_i;
   wire fused = command[6:0] != 7'h53;
   wire [6:0] function_code = command[31:25];
   wire arithmetic = fused || function_code <= 7'h0d || function_code == 7'h2c ||

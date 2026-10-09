@@ -9,7 +9,7 @@
 当前实现保留第一轮基线B的普通RAM load-response bypass。
 第二轮固定槽CQ、第三轮CQ确值早唤醒/供值与同拍取消发布候选均已撤回；
 当前Completion仍为两条物理lane、各front+skid，共4项。历史实验统一列在文末。
-本次仅整理文档，未改RTL、未重跑动态回归或CPI/STA。
+本次将已接受翻译的返回 owner 账本提取为 `R64LsuTranslationOwners`；容量、寄存边沿和取消后排空语义保持。其定向验证与既有 LSU 回归见第 11 节；CPI/STA 未重测。
 
 **阅读图例。** [Q] 表示真实寄存状态；“组合”表示本级不保存事务；实线表示请求或数据流，
 虚线表示控制、信用或引用保护；双向边表示请求及其响应。模块层次与数据流分别绘制，
@@ -40,7 +40,8 @@ Dcache保存实际cache/AXI事务；这三种身份通过tag、slot与source tok
 | 文件 | 当前职责 / 实际使用方 |
 | --- | --- |
 | [R64LoadStore.v](R64LoadStore.v) | Memory.unit结构入口，连接四个子模块、汇总idle/drain、直接连接Dcache窄store响应 |
-| [R64Lsu.v](R64Lsu.v) | unit.lsu；reservation/bind、canonical row、顺序、翻译owner、转发/物理请求与完成仲裁 |
+| [R64Lsu.v](R64Lsu.v) | unit.lsu；reservation/bind、canonical row、顺序、翻译发出事实/响应消费、转发/物理请求与完成仲裁 |
+| [R64LsuTranslationOwners.v](R64LsuTranslationOwners.v) | translation_owners；已接受翻译的双 lane 顺序 owner 账本、Q 信用与返回 slot/protection；不保存 LSQ 生死或取消策略 |
 | [R64LsuOrderSelect.v](R64LsuOrderSelect.v) | LSU内6个选择器：allocation、translation、load、fault、prepare、event；最后一个按完成来源轮转，非ROB年龄 |
 | [R64LsuMetaRead.v](R64LsuMetaRead.v) | LSU内多处one-hot payload/年龄/索引/字节读取；head special与A/D replay是唯一候选编码 |
 | [R64LsuForwardByte.v](R64LsuForwardByte.v) | 每lane×8 byte，共16个；按older关系得到youngest store的one-hot winner |
@@ -134,6 +135,7 @@ R64CoreTop
    └─ unit : R64LoadStore
       ├─ lsu : R64Lsu
       │  ├─ translation_queue : R64LsuRequestQueue
+      │  ├─ translation_owners : R64LsuTranslationOwners ← 已接受翻译的返回归属
       │  ├─ request_queue     : R64LsuRequestQueue   ← descriptor
       │  ├─ forward_query     : R64LsuRequestQueue   ← 最终物理请求 / winner
       │  ├─ forwarding_results : R64LsuRequestQueue ← full-forward terminal
@@ -151,8 +153,8 @@ R64CoreTop
          └─ arithmetic_parts : R64DcacheAmoParts
 ```
 
-LSQ entry 阵列、older_q、mholder、prepared holder、translation owner FIFO、
-physical_hold 与 store_done 是 R64Lsu 内部寄存逻辑；full-forward 结果现在由 forwarding_results 双槽队列保存。
+LSQ entry 阵列、older_q、mholder、prepared holder、physical_hold 与 store_done 是 R64Lsu 内部寄存逻辑；
+已接受翻译的 owner FIFO 由 translation_owners 保存，full-forward 结果由 forwarding_results 双槽队列保存。
 
 目录里的 R64LsuSelect.v 和 R64LsuYoungestByte.v 仍列在主线 filelist，
 但当前 R64Lsu 没有实例化它们。当前选择网络使用 R64LsuOrderSelect，
@@ -168,7 +170,7 @@ flowchart TB
   LSQ["[Q] LSQ ×20<br/>state / tag / VA / PA / data / age"]
   XSEL("组合：NEW top-2 + head A/D replay")
   XQ["[Q] translation_queue<br/>2 lane × 2 槽"]
-  XF["[Q] xfifo：已接受翻译的 owner<br/>每 lane 深4"]
+  XF["[Q] translation_owners<br/>已接受翻译的 owner，每 lane 深4"]
   TR["外部 Translation + Protection"]
   RX("翻译响应按 FIFO head 定位 LSQ")
 
@@ -341,7 +343,7 @@ LSQ 在普通 load 被选择、成功翻译直入、或 prepared 授权时已经
 | LSQ entry 阵列 | 20项 | slot关联的tag、VA、PA、store data、mask、状态、forward数据 | 随翻译/完成/commit/pin等生命周期事件 |
 | older_q | 20×20关系位 | 每个row有哪些更老owner | reserve更新；复用slot清旧列 |
 | translation_queue | 2 lane ×2槽 | 10bit请求元数据：slot5+protection4+AD1；另tag9 | 翻译请求实际接受或取消 |
-| xfifo_q | 每lane4深，共8项 | 已接受翻译slot5及protection4 | 对应lane翻译响应实际接受，即使已kill |
+| translation_owners | 每lane4深，共8项 | 已接受翻译slot5及protection4；每lane head2、tail2、count3 | 对应lane翻译响应实际接受，即使已kill |
 | mholder | 每lane1项，共2项 | slot5、tag9、valid | descriptor捕获或取消；允许重新选择补入 |
 | request_queue / descriptor | 2 lane ×2槽 | data93 + tag9 + older20 | query捕获或取消 |
 | prepared holder | 1个候选 | slot/tag身份及完整data157 | 授权进入query、kill，或准备阶段被head候选替换 |
@@ -462,7 +464,7 @@ invalidate清valid并poison在途owner，待写数据不能重新建立valid；r
 | --- | --- | --- |
 | reservation信用 | FREE Q → allocation_select → Backend reserve_ready | birth时分配LSQ及年龄；不借用当拍释放。reserve_fire=birth与MEM类别的交集，lane0非MEM时可只有lane1 reserve |
 | bind | Backend slot/tag/uop/operand → 原已保留LSQ row | in_ready_o恒为2'b11；真正写入仍检查存活、slot、完整tag、NEW和未bound；VA/store/mask/misaligned直接使用该行的接受位写入，保持lane1优先级 |
-| 翻译信用 | translation_queue占用Q → translation_select；xfifo count → tr_valid | 请求队列容量与已接受翻译owner容量分开 |
+| 翻译信用 | translation_queue占用Q → translation_select；translation_owners count → tr_valid | 请求队列容量与已接受翻译owner容量分开；full时pop不借同拍信用 |
 | 普通load调度信用 | descriptor占用Q → mholder可用性 → load_select | 不从cache ready穿透回新load选择 |
 | descriptor出队 | query信用 + probe_allowed + prepared优先级 → descriptor_pop | 只有query实际捕获才转移descriptor |
 | query出队 | full时forwarding_results信用；否则physical_hold为空或旧holder实际发出 | 宽数据由驻留query预写，mask在query出队时发布；可早于物理接受 |
@@ -506,6 +508,13 @@ DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/C
 成功副作用保留RETIRE到commit；需要源保护的已提交store再转PINNED，直到无引用。
 已接受翻译/物理请求的dead owner必须等其响应，不能仅凭kill提前复用。
 
+`translation_owners` 仅在 `xfire_w = tr_valid_o && tr_ready_i` 时捕获 slot/protection，
+每 lane 的信用只看 `count_q < 4`；返回 ready 为 `!rst_i && count_q != 0`。
+响应实际接受时弹出同 lane 的队头，push/pop 同拍保持 count 并各自前移指针。
+该模块没有 kill/flush 端口，取消不抹去已接受事务。canonical `tr_issued_q`、row 存活、
+响应有效性判定和 ROB/LSQ 复用保护仍由 R64Lsu 维护，slot 在返回排空前不可复用。
+提取前后均为 8×(INDEX_W+4)+14 bit 状态；生产 INDEX_W=5 时共 86 bit，未增加流水级。
+
 ## 9. 阅读与性能解释边界
 
 - 20项是共享LSQ，load与store共用row；没有另一个独立深度的store buffer。
@@ -524,7 +533,7 @@ DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/C
 | ID / 对应源码 | 状态 owner、容量与真实寄存边界 | 同拍网络、握手与取消语义 | 可量化事实与待测量项 |
 | --- | --- | --- | --- |
 | LSU-01 canonical LSQ；`R64Lsu.v` 的 `gen_owner_state`、`older_q` | 20 row；每 row 完整 tag9，VA/PA/store/forward 各64，state3、mask8、forward_mask8 等；年龄20×20。reserve 边沿获得 slot；bind 在同 slot/full-tag 条件下登记 operand。 | FREE Q 产生分配信用；最多双 reserve/bind。kill 清存活不代表所有 owner 立即释放：已发翻译、物理访问或 pin 仍须完成原生命周期。`effect_q`/`mem_issued_q` 是实际握手后的事实。 | 20 row 与双入口为静态能力；逐状态占用分布、满表阻塞、由哪类 head 导致无法退休的周期分解 UNKNOWN。 |
-| LSU-02 翻译请求与返回 owner；`R64Lsu.v`、`R64LsuRequestQueue.v` | translation_queue 为2 lane×2槽，data10+tag9；xfifo 每 lane 深4，slot5+protection4。发给 MEM-01 的真实 `tr_valid && tr_ready` 登记 xfifo owner。 | 选择、queue 信用、xfifo 余量是不同边界。返回按原 lane FIFO head 找 canonical row；已 kill 也接收并 drain 翻译返回，不能提前复用被引用的 slot。 | outstanding 上限8个 xfifo记录不等于8个 walker；翻译命中/缺失/阻塞占比及往返延迟 UNKNOWN。 |
+| LSU-02 翻译请求与返回 owner；`R64Lsu.v`、`R64LsuRequestQueue.v`、`R64LsuTranslationOwners.v` | translation_queue 为2 lane×2槽，data10+tag9；translation_owners 每 lane 深4，slot5+protection4，加head/tail/count共86bit。发给 MEM-01 的真实 `tr_valid && tr_ready` 登记返回 owner。 | 选择、请求queue信用、已接受owner余量是不同边界。返回按原 lane FIFO head 找 canonical row；已 kill 也接收并 drain 翻译返回，不能提前复用被引用的 slot；full时不借同拍pop信用。 | outstanding 上限8个owner记录不等于8个 walker；提取未新增状态或流水级；翻译命中/缺失/阻塞占比及往返延迟 UNKNOWN。 |
 | LSU-03 普通 load descriptor；`R64Lsu.v` 的 `mholder`、`gen_descriptor_payload` | 两个 slot5/tag9 holder → request_queue 2×2槽，data93+tag9+age20。组合读取 row 形成 descriptor，实际入队边沿转移 owner。 | 信用由队列 Q 占用产生；宽 payload one-hot 准备与 valid 接受分开已经存在。kill/flush 抑制有效发布。descriptor 的年龄与 query pin 同为20位但语义不同。 | 每拍至多2个 descriptor；选择等待、descriptor→query 等待、被 older unknown store 阻塞比例 UNKNOWN。 |
 | LSU-04 store/特殊访问准备；`R64Lsu.v` 的 `prepared_*` | 单个 prepared owner，slot5+tag9+data157 与独立 valid。普通 store 可提前准备；head 特殊请求可替换尚未发布的准备项。 | payload 捕获不等于副作用授权；须 head+`effect_allow` 后进入 query lane0。取消的替换不能覆盖有效旧 payload；副作用已发出后按真实终端保持 owner。 | 提前准备已开启 `EARLY_STORE=1`、`HEAD_AUTHORIZED_QUERY=1`；store 地址与数据可用时差、准备命中率、head 等待 B 的归因周期 UNKNOWN。 |
 | LSU-05 转发资格、winner/pin；`R64Lsu.v`、`R64LsuForwardByte.v`、`R64LsuMetaRead.v` | query 为2×2槽，每项 data318（desc157+winner160+full1）+tag9+pin20。每 lane 8 byte×20候选 one-hot winner 在 query 边沿保存。 | word match、youngest 选择是组合；query 后按已保存 winner 读源 store。query pin 与 descriptor head 保守 pin 阻止源 slot/data 过早释放；已 commit 但被 pin 的 store 保持 PINNED。 | 2×8×20是结构宽度，不能等同实际门级延迟；全/部分/零转发比例、pin 寿命、CAM/fanout/PPA 分摊 UNKNOWN。 |
@@ -546,6 +555,7 @@ DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/C
 | --- | --- | --- |
 | reservation / bind | [tb_r64_lsu_reserve](../../testbench/chengyue64/modules/tb_r64_lsu_reserve.sv)、[tb_r64_lsu_direct_bind](../../testbench/chengyue64/modules/tb_r64_lsu_direct_bind.sv) | birth占槽、延后operand绑定、物理lane与slot/tag资格 |
 | 排序 / query / pin | [tb_r64_lsu_order_select](../../testbench/chengyue64/modules/tb_r64_lsu_order_select.sv)、[tb_r64_lsu_owner_bypass](../../testbench/chengyue64/modules/tb_r64_lsu_owner_bypass.sv)、[tb_r64_lsu_query_pin](../../testbench/chengyue64/modules/tb_r64_lsu_query_pin.sv) | older关系、未知属性屏障、翻译直入、源slot复用 |
+| 翻译返回 owner | [tb_r64_lsu_translation_owners](../../testbench/chengyue64/modules/tb_r64_lsu_translation_owners.sv)、[tb_r64_lsu](../../testbench/chengyue64/modules/tb_r64_lsu.sv) | Q信用、empty不旁路返回、双lane独立、slot/protection顺序与环回、取消后排空与canonical reuse保护 |
 | 请求队列 / descriptor | [tb_r64_lsu_request_queue](../../testbench/chengyue64/modules/tb_r64_lsu_request_queue.sv)、[tb_r64_lsu_descriptor_payload](../../testbench/chengyue64/modules/tb_r64_lsu_descriptor_payload.sv) | Q信用、有效发布、payload保持、引用和取消 |
 | CQ / WB需求 / bypass | [tb_r64_lsu_completion](../../testbench/chengyue64/modules/tb_r64_lsu_completion.sv)、[tb_r64_lsu_wb_request](../../testbench/chengyue64/modules/tb_r64_lsu_wb_request.sv)、[tb_r64_lsu_event_count](../../testbench/chengyue64/modules/tb_r64_lsu_event_count.sv)、[response_bypass用例片段](../../testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh) | front/skid、端口预测与真实捕获、六源数量、空raw旁路反例；bypass片段由tb_r64_lsu包含 |
 | LSU与物理服务 | [tb_r64_lsu](../../testbench/chengyue64/modules/tb_r64_lsu.sv)、[tb_r64_lsu_network](../../testbench/chengyue64/modules/tb_r64_lsu_network.sv)、[tb_r64_lsu_coupled](../../testbench/chengyue64/modules/tb_r64_lsu_coupled.sv) | drain/错误/背压、转发与真实Service/Dcache、窄store完成 |
@@ -555,7 +565,10 @@ DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/C
 运行方式见[验证平台](../../testbench/chengyue64/README.md)。LOAD_PROFILE实现位于
 [R64LoadCompletionProfile.svh](../../sim/vsrc/R64LoadCompletionProfile.svh)，记录部分普通load响应→CQ→ROB的
 逐tag延迟；它不能单独归因所有head等待，也不替代消费者issue或退休损失测量。
-本次只做源码交叉核对、链接和Markdown结构检查；以上测试未重跑，不增加动态功能或时序通过结论。
+本次提取已通过 `tb_r64_lsu_translation_owners`、`tb_r64_lsu`、
+`tb_r64_lsu_owner_bypass` 与 `tb_r64_lsu_descriptor_payload`（Icarus、`R64_ASSERT`）。
+其中 tb_r64_lsu 覆盖已取消翻译在返回前仍阻止复用；owner_bypass 覆盖双翻译返回、
+A/D 重走与 full-query。未运行的用例不能据此宣称通过，以上结果也不构成 CPI/STA 结论。
 
 ## 12. 历史实现与测量
 

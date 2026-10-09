@@ -20,7 +20,7 @@ module tb_r64_fp_execute;
     .in_fire_i(fire),
     .in_ready_o(credit),
     .in_tag_i(tag),
-    .in_uop_i(uop),
+    .in_command_i(uop[`R64_UOP_CMD_LO+:32]),
     .in_operand_i(operands),
     .fp_enabled_i(enabled),
     .frm_i(frm),

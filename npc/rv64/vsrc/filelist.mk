@@ -6,6 +6,7 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/frontend/R64PacketParse.v \
   $(R64_RTL_ROOT)/frontend/R64Rvc.v \
   $(R64_RTL_ROOT)/frontend/R64Predictor.v \
+  $(R64_RTL_ROOT)/frontend/R64FetchAccess.v \
   $(R64_RTL_ROOT)/frontend/R64Frontend.v \
   $(R64_RTL_ROOT)/backend/R64Decode.v \
   $(R64_RTL_ROOT)/backend/R64DecodeControl.v \
@@ -38,6 +39,7 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/fp/R64FpCompletion.v \
   $(R64_RTL_ROOT)/fp/R64FpExecute.v \
   $(R64_RTL_ROOT)/core/R64CoreTop.v \
+  $(R64_RTL_ROOT)/control/R64Control.v \
   $(R64_RTL_ROOT)/control/R64Commit.v \
   $(R64_RTL_ROOT)/control/R64CsrDecode.v \
   $(R64_RTL_ROOT)/control/R64TrapVector.v \
@@ -69,6 +71,7 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/lsu/R64LsuRequestQueue.v \
   $(R64_RTL_ROOT)/lsu/R64LsuMetaRead.v \
   $(R64_RTL_ROOT)/lsu/R64LsuCompletion.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuTranslationOwners.v \
   $(R64_RTL_ROOT)/lsu/R64Lsu.v \
   $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
   $(R64_RTL_ROOT)/lsu/R64Dcache.v \

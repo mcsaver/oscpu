@@ -29,7 +29,7 @@ module tb_r64_fp_writeback;
     .in_fire_i(iv && ir),
     .in_ready_o(ir),
     .in_tag_i(tag),
-    .in_uop_i(uop),
+    .in_command_i(uop[`R64_UOP_CMD_LO+:32]),
     .in_operand_i({64'b0, b, a}),
     .fp_enabled_i(1'b1),
     .frm_i(3'b0),

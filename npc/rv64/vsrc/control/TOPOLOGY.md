@@ -1,18 +1,18 @@
 # 当前提交、串行与 CSR 结构
 
 依据 **2026-10-09 工作区生产 RTL** 核对，入口为 [R64CoreTop](../core/R64CoreTop.v) 的
-`commit`、`serial` 和 `csr` 同级实例。本文整理精确退休、串行 owner、CSR 查询与架构副作用，
+`control : R64Control` 域及其 `commit`、`serial`、`csr` 子实例。本文整理精确退休、串行 owner、CSR 查询与架构副作用，
 与 [Backend 完成/恢复网络](../backend/TOPOLOGY.md)、[LSU 副作用和排空](../lsu/TOPOLOGY.md)配合阅读。
-本次仅更新文档，没有运行新的动态测试、CPI 或 STA；既有历史测量放在文末。
+本轮职责重构的验证范围汇总在[全核拓扑](../TOPOLOGY.md)；既有历史测量放在文末。
 
 ## 1. 实际边界、配置与文件职责
 
-控制域没有一个包住全部模块的顶层实例。ROB 保存在 Backend；Serial 由 Backend.Execute 接收已保持的操作数，
+控制域由 [R64Control](R64Control.v) 封闭 CSR 查询、准备和退休副作用协议。ROB 保存在 Backend；Serial 由 Backend.Execute 接收已保持的操作数，
 经普通 Writeback/ROB 完成后仍保留 owner，等待 Commit 的同 tag 退休。Commit 和 CSR 分别持有事件状态与架构状态。
 
 | 生产参数 / 边界 | 当前值与作用 |
 | --- | --- |
-| CoreTop → Commit | `HEAD_SERIAL_ISSUE=1`、`HEAD_SERIAL_STOP=1`、`HEAD_EXCEPTION_STOP=1`、`HEAD_SERIAL_CLASS=1` |
+| Control → Commit | `HEAD_SERIAL_ISSUE=1`、`HEAD_SERIAL_STOP=1`、`HEAD_EXCEPTION_STOP=1`、`HEAD_SERIAL_CLASS=1` |
 | 上述 head 模式 | 使用 ROB 常驻 head 的 serial/exception 摘要及已保存的 class；未完成的 head Serial 可发射，阻止年轻 birth |
 | scratch 恢复 | `SCRATCH_READ_RESUME=1`：只对4字节、零源掩码的 mscratch/sscratch CSRRS/CSRRC（含立即数形式）退休后继续；其他 Serial 保持重启策略 |
 | 复位地址 | `RESET_PC` 随 CoreTop 参数，默认 `0x80000000`；初始化最后退休 NPC，供空 ROB 中断捕获 |
@@ -25,14 +25,15 @@
 
 | 源码 | 生产职责 / 实例 |
 | --- | --- |
-| [R64Commit.v](R64Commit.v) | `CoreTop.commit`；检查退休前缀、Serial 独占、异常/中断捕获；持有 event Q 与 retired NPC，发布 trap/full flush/redirect、birth/effect/serial 授权 |
-| [R64Serial.v](R64Serial.v) | `CoreTop.serial`；单个 head owner 的 CSR、xRET、FENCE、SFENCE、WFI、ECALL/EBREAK及外部命令生命周期；结果完成和退休副作用分别授权 |
+| [R64Control.v](R64Control.v) | `CoreTop.control`；连接三个状态 owner，隐藏 CSR query/prepare/commit、退休反馈和原始 PMP；不增加流水状态 |
+| [R64Commit.v](R64Commit.v) | `CoreTop.control.commit`；检查退休前缀、Serial 独占、异常/中断捕获；持有 event Q 与 retired NPC，发布 trap/full flush/redirect、birth/effect/serial 授权 |
+| [R64Serial.v](R64Serial.v) | `CoreTop.control.serial`；单个 head owner 的 CSR、xRET、FENCE、SFENCE、WFI、ECALL/EBREAK及外部命令生命周期；结果完成和退休副作用分别授权 |
 | [R64CsrDecode.v](R64CsrDecode.v) | `serial.decode_csr`；组合地址→64-bit one-hot，随 Serial 接收边沿保存；CSR 内的 `check_select` 只在 `R64_ASSERT` 下对照 |
-| [R64Csr.v](R64Csr.v) | `CoreTop.csr`；特权/中断/委托/CSR/PMP/FP状态；查询快照、写租约和 trap/return 目标准备 |
+| [R64Csr.v](R64Csr.v) | `CoreTop.control.csr`；特权/中断/委托/CSR/PMP/FP状态；查询快照、写租约和 trap/return 目标准备 |
 | [R64TrapVector.v](R64TrapVector.v) | 生产使用 `csr.machine_vector/supervisor_vector : R64TrapVectorStage`，在既有 prepare 边沿寄存；组合 `R64TrapVector` 声明不能当作额外生产实例 |
 | [R64Counter.v](R64Counter.v)、[R64CounterNear.v](R64CounterNear.v) | `csr.cycles/retired`；按字节加法，保存低位距回绕的条件；软件写入同步更新摘要，通用增量支持0～3，当前退休输入最多2 |
 | [R64Trigger.v](R64Trigger.v) | `csr.trigger`；保存一个地址 trigger 的类型/权限/访问类，输出当前特权下的触发资格与地址；地址比较实际在 CoreTop 取指入口及 Memory/LSU |
-| [R64PmpDecode.v](../memory/R64PmpDecode.v) | `CoreTop.pmp_decode` 是 CSR 外部同级组合实例；把 CSR 的16项原始配置/地址译成范围和权限，交给取指/数据保护逻辑 |
+| [R64PmpDecode.v](../memory/R64PmpDecode.v) | `CoreTop.control.pmp_decode` 是 Control 内与 CSR 同级的组合实例；把 CSR 的16项原始配置/地址译成范围和权限，交给取指/数据保护逻辑 |
 
 ### 1.2 主要生产实例
 
@@ -41,18 +42,19 @@ R64CoreTop
 ├─ backend : R64Backend
 │  ├─ rob : R64Rob
 │  └─ execute : R64Execute → serial_fire / tag / operands
-├─ serial : R64Serial
-│  └─ decode_csr : R64CsrDecode
-├─ commit : R64Commit
-├─ csr : R64Csr
-│  ├─ trigger : R64Trigger
-│  ├─ cycles : R64Counter
-│  ├─ retired : R64Counter
-│  │  ├─ g_choice[0..3].summary : R64CounterNear
-│  │  └─ writing_summary : R64CounterNear
-│  ├─ machine_vector : R64TrapVectorStage
-│  └─ supervisor_vector : R64TrapVectorStage
-└─ pmp_decode : R64PmpDecode
+└─ control : R64Control
+   ├─ serial : R64Serial
+   │  └─ decode_csr : R64CsrDecode
+   ├─ commit : R64Commit
+   ├─ csr : R64Csr
+   │  ├─ trigger : R64Trigger
+   │  ├─ cycles : R64Counter
+   │  ├─ retired : R64Counter
+   │  │  ├─ g_choice[0..3].summary : R64CounterNear
+   │  │  └─ writing_summary : R64CounterNear
+   │  ├─ machine_vector : R64TrapVectorStage
+   │  └─ supervisor_vector : R64TrapVectorStage
+   └─ pmp_decode : R64PmpDecode
 ```
 
 两个 Counter 都有同样的 Near helper，图中只展开一侧。

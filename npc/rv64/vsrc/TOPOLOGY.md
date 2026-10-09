@@ -3,6 +3,93 @@
 范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。结构以当前 RTL 的实例化和参数为准；下面标有 2026-09 的实验说明保留历史含义，不是当前优化计划。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
 
 
+## 2026-10-09 全核职责重审与等行为重构
+
+本轮目标是让每个模块围绕完整职责和事务生命周期组织，减少不必要的内部协议外泄。
+容量、仲裁、寄存边沿、取消优先级和外部 ABI 保持原设计；文件变短不单独作为验收依据。
+
+| 域 | 源码重审结论 | 本轮处理与保留边界 |
+| --- | --- | --- |
+| CoreTop / Control | 顶层直接中转 CSR 查询/准备/退休、IRQ 判定及原始 PMP，了解过多控制域细节 | 新增 [R64Control](control/R64Control.v)，内部保留 Serial、CSR、Commit 三个状态 owner 和组合 PMP 译码；对外只保留执行、退休、恢复、上下文、失效与 Tensor 合同 |
+| Frontend | 取指访问 holder/翻译/Cache 与预测、对齐及指令 FIFO 同属一个实现体 | 新增 [R64FetchAccess](frontend/R64FetchAccess.v)，收拢请求上下文、poison、翻译与 ICache；Frontend 通过顺序 req/rsp 服务连接，继续拥有流调度和预测入队 |
+| Backend | birth、完成授权、恢复及 ready/bypass 依赖多，但对应共同指令身份 | 保留 ROB/Rename/IQ/LSQ 同边沿原子 birth，以及 ROB 对 WB/early wake 的权威授权；不为十几行组合逻辑添加 Admission/Wakeup 转接壳 |
+| FP | 数值单元和本地完成 owner 边界合理，入口却接收整条后端 UOP | [FpExecute](fp/R64FpExecute.v) 改为 command32；调用者从 UOP 投影。FMA/Fast/Long、动态 rounding、完成和取消周期保持 |
+| LSU | canonical row/年龄/effect/pin 应协同持有；翻译返回账本可独立 | 新增 [R64LsuTranslationOwners](lsu/R64LsuTranslationOwners.v)，封闭两路各4项已接受翻译的 slot/protection、指针、计数和信用；canonical LSQ 仍由 LSU 持有 |
+| 翻译/保护 | Memory/LoadStore 主要负责装配；ITLB/DTLB/PTE 的 owner 已各自明确 | 保留双数据翻译、三 PTE 端口、共享 PMP 事实和权限检查；ProtectionPrepare 仍在 CoreTop，使用同一翻译结果的 PA/privilege |
+| DCache / 物理服务 | refill、store-B、pending write、LR/SC 与物理 bank 强相关 | 保留 Split/Service/DCache 边界和普通 store 专用终端；不导出整张 LSQ 数组来拆物理响应逻辑 |
+| AXI / 平台 | ID、beat、Fabric slot 和设备副作用各有 owner，与 ROB kill 解耦正确 | 保留原模块；已接受 AR/AW/W 必须排空，平台地址图和可选 Tensor GMEM 接口不变 |
+
+新的实际子树：
+
+```text
+R64CoreTop
+├─ frontend : R64Frontend
+│  └─ access : R64FetchAccess
+│     ├─ u_translation : R64FetchTranslation
+│     └─ u_cache : R64ICache
+├─ backend : R64Backend
+│  └─ Decode / Rename / ROB / Issue / RegRead / Execute / Writeback
+├─ fp : R64FpExecute                 ← command32 / tag / operands
+├─ control : R64Control
+│  ├─ serial : R64Serial
+│  ├─ csr : R64Csr
+│  ├─ commit : R64Commit
+│  └─ pmp_decode : R64PmpDecode
+├─ memory : R64Memory
+│  └─ unit : R64LoadStore
+│     ├─ lsu : R64Lsu
+│     │  └─ translation_owners : R64LsuTranslationOwners
+│     └─ split / service / cache
+└─ read_bus / write_bus
+```
+
+可量化的结构结果：
+
+- Control 隐藏26个 CSR/return/退休反馈/IRQ准备/原始 PMP 私有命名网络；trap/trace 格式化也归入控制域。
+  Serial、CSR、Commit 的原状态 owner 没有合并或复制，Control 自身没有新增寄存器。
+- FetchAccess 收拢原有136-bit请求 payload与valid/poison共138 bit直接状态，Translation/ICache 子实例随其归属迁移。
+  空 holder 仍直通，阻塞时才保存；不向 Access 增加 run 冻结条件。
+- TranslationOwners 收拢原有8项 slot/protection 加两路指针/计数，生产 INDEX_W=5 时共86 bit。
+  信用仍只来自当前 count，满队列不能借同拍 pop 接新请求；无 flush/kill 清空接口。
+- FP command 输入由218 bit缩至32 bit，去掉186 bit无关 UOP 字段；这衡量协议依赖，并不代表节省186个物理单元。
+
+必要的耦合保持显式：`birth` 同时建立 ROB/Rename/IQ/LSQ，`full_flush` 不能代替选择性 kill，
+`reuse_block` 不能由完成 valid 推导；CSR/失效副作用仍等同 tag 真实退休，
+已接受的翻译、PTE、AXI 和 Tensor 事务继续排空。Serial 的 memory_idle 仍接 Memory.drain_idle，
+不接仅表示 LSQ owner 为空的 idle。
+
+后续可独立评估的职责边界包括：Issue+RegRead/PRF 的完整操作数分派域；Frontend 的
+Bundle→Token→Result→admission；LSU 已选元组后的完成仲裁/格式化域。
+这些是进一步维护性的候选，不是本轮已经完成的拆分。物理响应若直接导出20项 LSQ metadata 会增加耦合，
+因此保留 canonical row、转发 pin 和精确 effect 共同归属。
+
+### 本轮验证结果
+
+- `make -C npc/rv64 lint` 和 `make -C npc/rv64/sim tensor-lint` 通过，保留全部生产断言和既有真实 lint 诊断。
+- 27项累计定向测试通过，覆盖 Frontend ingress/恢复/保护、7项 FP、LSU reserve/bind/返回/进展，以及 CSR/Serial/Commit/trap。
+  [测试清单](../build/cohesion-20261009/module-summary.txt)和[执行日志](../build/cohesion-20261009/modules.log)保存了本次范围。
+- LSU 独立补充的 owner-bypass 与 descriptor-payload 两项通过，覆盖别名/部分转发/LR/AMO/IO/A-D/kill/满队列/双响应。
+- 从修改前源码独立构建 SystemTestTop 基线，与本轮 SystemTestTop 在相同镜像、参考库、单宿主线程和确定性停顿条件下比较。
+  6个程序×plain/stalls，共12组、24次执行，均通过 NEMU GPR/FPR/CSR 差分；
+  每条退休和 trap 的内容、顺序、发生周期逐行相同，最终周期/双退/读写计数也相同。
+- 静态复核确认 Control 的152个子模块命名连接及19个trace/trap赋值保持原映射，CoreTop公开参数/端口不变。
+  新模块进入生产filelist，仿真CSR快照和CPI观察跟随实际层级；`git diff --check`通过。
+
+| 程序 | 退休指令数（两模式相同） | plain 周期（A=B） | stalls 周期（A=B） | 逐事件轨迹 |
+| --- | ---: | ---: | ---: | --- |
+| program | 125 | 1074 | 1133 | 一致 |
+| sv39 | 56 | 993 | 1079 | 一致 |
+| sdtrig | 302 | 4075 | 4207 | 一致 |
+| lsu_contention | 4133 | 29426 | 36006 | 一致 |
+| backend_network | 722 | 4354 | 4439 | 一致 |
+| throughput | 8232 | 5736 | 7068 | 一致 |
+
+A/B 原始结果见[执行摘要](../build/cohesion-20261009/ab.log)与[逐组数据](../build/cohesion-20261009/ab/summary.json)；
+构建产物在 `build/cohesion-20261009/{baseline-system,candidate-system}`。
+这些是本轮已运行程序的行为与周期证据，不是穷尽等价证明。
+本轮未运行完整软件回归、Linux/Ubuntu、Tensor动态系统验证或新的综合/STA/PPA，历史性能表仍保持原测量范围。
+
+
 ## 2026-10-09 源码核对与读图规则
 
 当前源码保留第一轮普通 RAM load response bypass 基线 B；第二轮取消前仲裁 + 固定物理 CQ、
@@ -111,8 +198,9 @@ flowchart TB
 请求、返回、信用与取消是四张相互约束的网络。图中实线为主要请求/结果，虚线为提前唤醒、恢复、上下文与事件。ROB tag、LSQ slot/token、Fabric事务槽和 AXI ID 属于不同命名空间；只在明确接收边沿建立对应关系。
 
 Backend 边界内包含 DecodeStage、Rename、ROB、IQ、RegRead/PRF、Execute 和 Writeback；
-FP、Serial、Commit 与 CSR 是 CoreTop 同级实例；LSU 位于 `CoreTop.memory.unit.lsu`，
-I translation / ICache 位于 Frontend 内。数据翻译与保护先返回 LSU，再由 LSU 发物理请求至 Split/Service，
+FP 与 Control 是 CoreTop 的同级域；Serial、Commit、CSR 与 PMP 译码封闭在 `CoreTop.control`。
+LSU 位于 `CoreTop.memory.unit.lsu`，翻译返回归属由其 `translation_owners` 子模块持有；
+I translation / ICache 位于 `Frontend.access` 内。数据翻译与保护先返回 LSU，再由 LSU 发物理请求至 Split/Service，
 不能把 Translation 画成直接驱动 DCache 的流水级。图中的“写回发布”和“short-owner 查询授权”
 是接口逻辑视图，不是额外流水级或模块。WB 提供结果数据，ROB 授权后才更新 PRF、Rename ready 和 IQ；
 ALU 的 early wake / bypass 也先通过 ROB 的完整身份与目的寄存器检查，不设置 ROB done；

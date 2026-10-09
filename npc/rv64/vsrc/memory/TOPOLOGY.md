@@ -3,24 +3,24 @@
 依据 **2026-10-09 工作区生产 RTL** 核对。本文负责 `memory/` 目录的实际使用方、
 翻译与保护 owner、页表物理服务及 ICache；[LSU 拓扑](../lsu/TOPOLOGY.md)负责
 LSQ、转发、Split、Service 和 DCache，[前端拓扑](../frontend/TOPOLOGY.md)负责取指调度与返回归属，
-[全核拓扑](../TOPOLOGY.md)负责系统连接。本次仅整理文档，未新增仿真或 PPA 结论。
+[全核拓扑](../TOPOLOGY.md)负责系统连接。本轮职责重构验证见[全核拓扑](../TOPOLOGY.md)，既有 PPA 数字仍只描述原测量。
 
 ## 1. 实际边界与生产参数
 
 `memory/` 是源码目录，`R64CoreTop.memory` 是数据访存实例。ITLB、取指 walker 与
-ICache 实际在 Frontend 内；共享 PMP decode 和取指保护事实准备在 CoreTop 内。
+ICache 实际在 Frontend.access 内；共享 PMP decode 在 Control 内，取指保护事实准备在 CoreTop 内。
 三个 walker 的物理 PTE 访问统一进入 Memory 中的 PtePort，再共享 CPU 的物理 DCache。
 
 | 集成边界 | 当前取值 / 容量 | 对拓扑的影响 |
 | --- | --- | --- |
 | CoreTop → Frontend / ICache | `PREPARED_PROTECTION=1`；ICache `SET_W=6` | CoreTop 准备取指保护事实，ICache 保存事实并完成优先级判定；8 KiB、2-way、64 B line、16 B sector |
-| Frontend → FetchTranslation | `DATA_PROTECTION=0`（默认） | 独立取指 lookup / walk descriptor / 两项响应，不能当作通用数据翻译器 |
+| Frontend.access → FetchTranslation | `DATA_PROTECTION=0`（默认） | 独立取指 lookup / walk descriptor / 两项响应，不能当作通用数据翻译器 |
 | CoreTop → Memory | `HEAD_AUTHORIZED_QUERY=1`、`PREPARED_CANCEL=1` | 数据 LSU 使用 head 授权 query 与 ROB prepared cancel |
 | Memory → Translation ×2 | `DATA_PROTECTION=1`、`RESERVED_TERMINAL=1` | 实际选择 `g_data.unit : R64DataTranslation`；通用147-bit overflow holder在此关闭 |
 | Memory → DataProtection ×2 | `PMA_PREPARED=1`、`rsp_ready_i=1` | 复用翻译端 PMA 事实；LSU 从真实翻译 fire 起保留终端接收信用 |
 | 三套 TLB / walker | ITLB×1、DTLB×2，各 TLB 默认16项，各 walker 单 owner | 双数据通道与取指通道独立翻译；不等于8个 xfifo owner同时做 page walk |
 | Memory → PtePort / LoadStore | 3个PTE端口，`AUX=3`、`SRC_W=2`、LSQ20 | aux0=取指，aux1/2=数据lane0/1；不经过CPU LSQ/Split，当前没有Tensor客户端 |
-| CoreTop → PmpDecode | 16组 PMP CSR 配置与地址 | 组合产生16组 active、56-bit lower/upper 与4-bit permission，供取指/数据/PTE共用 |
+| Control → PmpDecode | 16组 PMP CSR 配置与地址 | 组合产生16组 active、56-bit lower/upper 与4-bit permission，供取指/数据/PTE共用 |
 
 参数与接线真源：[CoreTop](../core/R64CoreTop.v)、[Frontend](../frontend/R64Frontend.v)、
 [Memory](R64Memory.v)、[Translation](R64Translation.v)、[LoadStore](../lsu/R64LoadStore.v)。
@@ -31,29 +31,31 @@ ICache 实际在 Frontend 内；共享 PMP decode 和取指保护事实准备在
 | --- | --- |
 | [R64Memory.v](R64Memory.v) | CoreTop.memory；连接两套数据翻译/保护、三个PTE端口与LoadStore，并导出完成、排空与reuse |
 | [R64Translation.v](R64Translation.v)、[R64DataTranslation.v](R64DataTranslation.v) | 两套 `translation.g_data.unit`；前者选择实现，后者保存lookup/outcome、权限与walk上下文；`g_basic`只在兼容配置生效 |
-| [R64FetchTranslation.v](R64FetchTranslation.v) | Frontend.u_translation；取指翻译专用owner与响应队列 |
+| [R64FetchTranslation.v](R64FetchTranslation.v) | Frontend.access.u_translation；取指翻译专用owner与响应队列 |
 | [R64Tlb.v](R64Tlb.v)、[R64PageWalk.v](R64PageWalk.v) | 各翻译实例下的 `u_tlb/u_walk`；VPN/ASID/page-size匹配、Sv39遍历与A/D比较更新 |
-| [R64PmpDecode.v](R64PmpDecode.v) | CoreTop.pmp_decode；共享PMP范围/权限组合译码，无事务owner |
+| [R64PmpDecode.v](R64PmpDecode.v) | CoreTop.control.pmp_decode；共享PMP范围/权限组合译码，无事务owner |
 | [R64PmpCheck.v](R64PmpCheck.v) | 生产PtePort.protection；并行范围事实与最低重叠项判定；数据保护及prepared取指保护有各自分段实现 |
 | [R64Pma.v](R64Pma.v)、[R64PmaRange.v](R64PmaRange.v) | PtePort.attributes及DataTranslation.outcome_attributes；按平台窗口检查完整地址范围与访问大小 |
 | [R64DataProtection.v](R64DataProtection.v) | Memory.g_translation[0..1].protection；范围/权限事实Q，再做最低匹配优先级 |
 | [R64FetchProtection.v](R64FetchProtection.v) | 同文件含4个声明。生产使用CoreTop的Prepare（内含FetchPma16）及ICache内Finish×2；legacy `R64FetchProtection`不在当前核心实例化 |
 | [R64PtePort.v](R64PtePort.v) | Memory.g_pte[0..2].port；以S权限检查8 B PTE读/compare-and-OR，保留服务owner到真实终端 |
-| [R64ICache.v](R64ICache.v) | Frontend.u_cache；物理sector lookup、保护事实持有、单refill owner、响应背压与invalidate poison |
+| [R64ICache.v](R64ICache.v) | Frontend.access.u_cache；物理sector lookup、保护事实持有、单refill owner、响应背压与invalidate poison |
 
 ## 2. 真实实例层级
 
 ```text
 R64CoreTop
-├─ pmp_decode : R64PmpDecode
+├─ control : R64Control
+│  └─ pmp_decode : R64PmpDecode
 ├─ fetch_protection : R64FetchProtectionPrepare
 │  └─ pma : R64FetchPma16
 ├─ frontend : R64Frontend
-│  ├─ u_translation : R64FetchTranslation
-│  │  ├─ u_tlb : R64Tlb
-│  │  └─ u_walk : R64PageWalk
-│  └─ u_cache : R64ICache
-│     └─ g_protection_finish.g_slot[0..1].finish : R64FetchProtectionFinish
+│  └─ access : R64FetchAccess
+│     ├─ u_translation : R64FetchTranslation
+│     │  ├─ u_tlb : R64Tlb
+│     │  └─ u_walk : R64PageWalk
+│     └─ u_cache : R64ICache
+│        └─ g_protection_finish.g_slot[0..1].finish : R64FetchProtectionFinish
 └─ memory : R64Memory
    ├─ g_translation[0..1]
    │  ├─ translation : R64Translation
@@ -68,6 +70,7 @@ R64CoreTop
    │     └─ classify : R64PmaRange
    └─ unit : R64LoadStore
       ├─ lsu : R64Lsu
+      │  └─ translation_owners : R64LsuTranslationOwners
       ├─ split : R64MemorySplit
       ├─ service : R64MemoryService
       └─ cache : R64Dcache
@@ -84,14 +87,14 @@ R64CoreTop
 ```mermaid
 flowchart TB
   CSR["CSR权限 / SATP / PBMT / PMP配置"]
-  PMP["组合：CoreTop.pmp_decode"]
+  PMP["组合：CoreTop.control.pmp_decode"]
   FE["Frontend取指owner"]
   FT["[Q] FetchTranslation<br/>lookup / walk descriptor / response×2"]
   FPRE["组合：CoreTop.fetch_protection<br/>4个word范围事实 / sector PMA"]
   IC["[Q] ICache<br/>lookup / overflow / facts×2 / response"]
   FEND["组合：Finish×2<br/>最低PMP重叠项 / halfword fault mask"]
   LSQ["[Q] LSU canonical row / translation_queue"]
-  XF["[Q] LSU xfifo<br/>每数据lane深4"]
+  XF["[Q] LsuTranslationOwners<br/>每数据lane深4"]
   DT["[Q] DataTranslation×2<br/>lookup / outcome / PMA facts"]
   DP["[Q] DataProtection×2<br/>范围事实 → 最低匹配判定"]
   IW["[Q] 取指PageWalk×1"]
@@ -141,7 +144,7 @@ PtePort不会再经过CPU翻译，CPU侧也不能把PTE返回当作自己的LSQ�
 | DataTranslation lookup → outcome | `lookup_fire_w` | lookup保存VA/SATP/有效权限，outcome保存页表/权限事实与walk身份；outcome忙时lookup保持 |
 | 数据Translation → Protection | `raw_valid && raw_ready` | 当前Protection下游固定ready，reserved terminal保证无overflow；断言检查每次protected valid都有LSU owner及相同access/size |
 | Protection → LSU | `protected_valid`与已预约终端信用 | 完整PA/last、PMP、PMA/PBMT和翻译fault均属于同一owner；正常结果更新canonical row，fault后续进入LSU完成通道 |
-| Frontend → FetchTranslation | `req_valid && req_ready` | `reserved_q<3`与lookup/walk/response的Q状态控制接收；两项response队列不代表两个walker |
+| Frontend.access → FetchTranslation | `req_valid && req_ready` | `reserved_q<3`与lookup/walk/response的Q状态控制接收；两项response队列不代表两个walker |
 | FetchTranslation → ICache | 翻译响应与cache请求共同fire | ICache保存75-bit请求payload及130-bit保护facts；空overflow信用不借本拍hit/ready，facts固定槽跟随lookup/overflow身份 |
 | PageWalk → PtePort | `req_valid && req_ready` | IDLE可预写payload，真实fire进入SEND或FAULT；SEND/WAIT/FAULT冻结该owner |
 | PtePort → Service → DCache | 每级真实VALID/READY | Service添加source；拒绝的PTE本地返回error；已接受物理请求不可因CPU redirect清除 |

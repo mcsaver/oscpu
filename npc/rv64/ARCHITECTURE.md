@@ -30,6 +30,9 @@
 - [设计资料分类](design/README.md)：主线说明、共享 IP 规范、文献和旧核资料的适用范围。
 
 源码旁的拓扑文档记录状态 owner、寄存边界、容量/带宽、信用、取消与副作用。
+2026-10-09 全核职责重审后，Control 内聚精确退休/CSR协议，Frontend.access 管理取指访问，
+LSU.translation_owners 保存已接受翻译的返回归属，FP 入口收窄为command32；
+详见[全核职责重构](vsrc/TOPOLOGY.md)。本轮保持原流水和事务语义，验证范围独立于历史 PPA 测量。
 2026-10-09 已按当前 RTL 统一整理[全核连接](vsrc/TOPOLOGY.md)与前端、后端、浮点、提交控制、
 翻译/保护、LSU/Cache、BUS/平台各域说明。每域从生产配置、文件职责与真实实例进入，再说明接收边沿、
 状态 owner、信用、取消和副作用；[RTL 目录导航](vsrc/README.md)提供对应入口，

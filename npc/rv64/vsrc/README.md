@@ -10,7 +10,7 @@
 | [frontend/](frontend/) | 取指、对齐、预测和预解码 | [Frontend 拓扑](frontend/TOPOLOGY.md) |
 | [backend/](backend/) | 原子分配、重命名、发射、操作数、整数执行、完成与 ROB 退休窗口 | [Backend 拓扑](backend/TOPOLOGY.md) |
 | [fp/](fp/) | 浮点数值执行与本地完成 | [FP 拓扑](fp/TOPOLOGY.md) |
-| [control/](control/) | Commit 退休授权、CSR、特权、trap 与 Serial | [Control 拓扑](control/TOPOLOGY.md) |
+| [control/](control/) | Control 内聚 Commit、CSR、特权、trap 与 Serial | [Control 拓扑](control/TOPOLOGY.md) |
 | [memory/](memory/) | I/D 翻译、权限/属性、I-cache 和数据侧集成 | [Memory 拓扑](memory/TOPOLOGY.md) |
 | [lsu/](lsu/) | LSQ、转发、内存服务与 D-cache | [LSU 拓扑](lsu/TOPOLOGY.md)、[目录说明](lsu/README.md) |
 | [bus/](bus/) | 核侧 AXI 适配器及复用的中断/UART/syscon/错误响应外设 | [BUS/平台拓扑](bus/TOPOLOGY.md) |
@@ -23,6 +23,8 @@
 2026-10-09 各域拓扑按同一阅读方式整理：生产配置与文件职责 → 实际实例 →
 数据/资格/取消/副作用边界 → 状态 owner → 验证入口与历史测量。
 目录不等于实例子树；例如 FP 在 CoreTop 下独立实例化，并复用 backend 目录的数值 helper。
+Control 封闭退休/CSR 内部协议，Frontend.access 管理取指访问，LSU.translation_owners 管理已接受翻译的返回归属；
+这些层级保持原有接收边沿，不代表增加流水级。
 
 `include/define.v` 仍包含供其它使用方引用的 `OOO_*` 默认宏，不能据此推断本核的 ROB/IQ 容量。
 当前 ROB32、默认 IQ16、LSQ20 等配置来自 CoreTop、Backend、Memory 的实际参数；

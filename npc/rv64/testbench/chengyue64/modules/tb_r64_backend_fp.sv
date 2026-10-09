@@ -161,7 +161,7 @@ module tb_r64_backend_fp;
     .in_fire_i(ff),
     .in_ready_o(fp_credit),
     .in_tag_i(ft),
-    .in_uop_i(fu),
+    .in_command_i(fu[`R64_UOP_CMD_LO+:32]),
     .in_operand_i(fop),
     .fp_enabled_i(1'b1),
     .frm_i(3'b0),

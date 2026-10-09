@@ -3,19 +3,21 @@
 依据 **2026-10-09 工作区生产 RTL** 核对，实例入口为 [R64CoreTop.frontend](../core/R64CoreTop.v)。
 本文负责取指请求、字节对齐、预测和双指令输出的实际连接；[全核拓扑](../TOPOLOGY.md)负责跨域导航，
 翻译、PMP 与 ICache 内部 owner 见[存储与翻译拓扑](../memory/TOPOLOGY.md)，后续统一分配见[Backend 拓扑](../backend/TOPOLOGY.md)。
-本次仅核对源码和文档，没有运行新的动态测试、CPI 或 STA；历史实验与测量说明置于文末。
+本轮提取 FetchAccess 后，相关前端定向测试通过；累计验证见[全核拓扑](../TOPOLOGY.md)。历史实验与测量说明置于文末。
 
 ## 1. 实际边界与配置
 
-R64Frontend 内部实例化 FetchStream、FetchTranslation、ICache、Align、Predictor，以及双路 RVC、预测准备和静态译码控制。
+R64Frontend 负责 FetchStream、Align、Predictor 及双路 RVC/预测准备/静态译码控制之间的指令流；
+`access : R64FetchAccess` 统一持有翻译前 holder、FetchTranslation 和 ICache，提供有序取指访问服务。
 `frontend/` 的目录边界不等于实例边界：FetchTranslation/ICache 的源码位于 `memory/`，
-静态 DecodeControl 来自 `backend/`；CoreTop 的 PMP 解码和取指保护准备是 Frontend 外部同级逻辑。
+静态 DecodeControl 来自 `backend/`；PMP 解码归 `CoreTop.control.pmp_decode`，
+取指保护准备仍在 `CoreTop.fetch_protection`，使用同一翻译返回的 PA/privilege。
 
 | 生产参数 / 接口 | 当前值与作用 |
 | --- | --- |
 | CoreTop → Frontend | `PREPARED_PROTECTION=1`；`RESET_PC` 随 CoreTop 参数，默认 `0x80000000` |
 | Frontend 默认参数 | `FETCH_PTR_W=2` → Stream `DEPTH=4`；`EARLY_PREDICT=1` 同时传给 Stream 和 Align |
-| Frontend → FetchTranslation | `DATA_PROTECTION=0`（默认）；取指 access=0、AD update=1；返回 PA/privilege 后由取指保护逻辑判定 |
+| Access → FetchTranslation | `DATA_PROTECTION=0`（默认）；取指 access=0、AD update=1；返回 PA/privilege 后由取指保护逻辑判定 |
 | ICache 参数 | `ICACHE_SET_W=6` → 64 sets；传递 `PREPARED_PROTECTION=1`，使用外部准备的取指保护事实 |
 | Predictor 默认参数 | `RAS_PTR_W=3` → RAS8；方向表256项、间接目标表64项；Stream 另有32项 early-target 表 |
 | 主输出 | 每拍最多2条有序指令；每条携带 PC/raw/length、canonical33、control35、sequential NPC、预测 NPC 与异常 |
@@ -29,13 +31,14 @@ R64Frontend 内部实例化 FetchStream、FetchTranslation、ICache、Align、Pr
 
 | 源码 | 生产职责 / 状态归属 |
 | --- | --- |
-| [R64Frontend.v](R64Frontend.v) | 连接取指/翻译/缓存/对齐/预测；持有翻译前 holder、Bundle/Token/Result pair、指令 FIFO、局部 redirect 记录和 fault barrier |
+| [R64Frontend.v](R64Frontend.v) | 连接 Stream/access/对齐/预测；持有 Bundle/Token/Result pair、指令 FIFO、局部 redirect 记录和 fault barrier |
+| [R64FetchAccess.v](R64FetchAccess.v) | 持有翻译前 holder，组合 FetchTranslation 与 ICache；锁存受阻请求的上下文，并持续排空已接受事务；不接受 run 冻结 |
 | [R64FetchStream.v](R64FetchStream.v) | 请求预约、顺序响应 owner、packet FIFO 与 early-target 表；redirect 后仍排空已承诺请求和 stale 响应 |
 | [R64Align.v](R64Align.v) | 持有2个 work、3个 parse owner 和 cursor；按消费前缀输出最多2条，负责跨 packet 拼接与计划切点修复 |
 | [R64PacketParse.v](R64PacketParse.v) | R64PacketHeader、R64PacketParse 与 R64AlignPairView 均为组合 helper；并行准备各半字起点的长度/异常/缺失/计划边界，不另建指令队列 |
 | [R64Rvc.v](R64Rvc.v) | 双路组合 RVC 展开与合法性判定；raw/length/fault 仍随原 owner 保留，非法编码不被展开过程隐藏 |
 | [R64Predictor.v](R64Predictor.v) | R64Predictor 持有方向/目标/RAS及确认记录；R64PredictionPrepare 与 R64SumEqual 是组合算术/类别准备 helper |
-| [R64FetchTranslation.v](../memory/R64FetchTranslation.v)、[R64ICache.v](../memory/R64ICache.v) | 实际实例在 Frontend 内；持有翻译/返回及取指缓存事务，内部职责详见 memory 域 |
+| [R64FetchTranslation.v](../memory/R64FetchTranslation.v)、[R64ICache.v](../memory/R64ICache.v) | 实际实例在 Frontend.access 内；持有翻译/返回及取指缓存事务，内部职责详见 memory 域 |
 | [R64DecodeControl.v](../backend/R64DecodeControl.v)、[R64CarryStages.v](../backend/R64CarryStages.v) | 静态控制在 Token→Result 边沿捕获；CarryPrepare/Finish 被前端预测计算复用，文件目录不增加 Backend 服务跳转 |
 
 ## 2. 数据、预测与返回网络
@@ -49,9 +52,11 @@ flowchart TB
       REQ["[Q] 请求holder + 顺序响应owner"]
       PK["[Q] packet FIFO"]
     end
-    H["翻译前holder<br/>空槽直通，受阻才保持"]
-    TR["u_translation<br/>lookup / walk / 返回owner"]
-    IC["u_cache：ICache"]
+    subgraph ACCESS["access：R64FetchAccess"]
+      H["翻译前holder<br/>空槽直通，受阻才保持"]
+      TR["u_translation<br/>lookup / walk / 返回owner"]
+      IC["u_cache：ICache"]
+    end
     WORK["[Q] Align work ×2"]
     PARSE["[Q] Align parse ×3 / cursor"]
     B["[Q] Bundle：2 pair"]
@@ -80,13 +85,14 @@ flowchart TB
   RED["CoreTop外部redirect<br/>Commit优先于Backend"] -.->|"stream redirect / poison"| REQ
   RED -.->|"清指令FIFO / 丢弃年轻取指状态"| O
   RED -.->|"recover"| BP
-  PROT["CoreTop PMP / FetchProtectionPrepare"] -.->|"物理地址保护事实"| IC
+  PROT["control.pmp_decode / CoreTop.fetch_protection"] -.->|"物理地址保护事实"| IC
   TR -->|"PTE读 / compare-or"| MEM["Memory PtePort / 服务"]
   IC -->|"取指read command"| AX["AXI read adapter"]
 ```
 
 ICache 的响应先回到 Stream 的顺序 owner，只有非 stale 返回才进入其 packet FIFO。
-翻译前 holder 是 Stream 已接受请求的保持位置，并未增加第五份 Stream 信用。
+access 内的翻译前 holder 是 Stream 已接受请求的保持位置，并未增加第五份 Stream 信用。
+Stream 通过 req/rsp 握手依赖 access；翻译 ready、PBMT 和 ICache 内部状态的连接封装于 access。
 `run_i` 关闭时停止新取指/新 Bundle 接收，不等于冻结已接受请求、翻译、缓存返回和后端消费。
 
 Token 捕获 Bundle 对应的方向/目标表快照；后续训练不能改写已有 Token 的预测输入。
@@ -98,14 +104,16 @@ Result→指令 FIFO 的实际接收前缀确认 RAS；这里的 confirmed 是�
 
 ```text
 R64CoreTop
-├─ pmp_decode : R64PmpDecode
+├─ control : R64Control
+│  └─ pmp_decode : R64PmpDecode
 ├─ fetch_protection : R64FetchProtectionPrepare
 └─ frontend : R64Frontend
    ├─ u_stream : R64FetchStream
-   ├─ u_translation : R64FetchTranslation
-   │  ├─ u_tlb : R64Tlb
-   │  └─ u_walk : R64PageWalk
-   ├─ u_cache : R64ICache
+   ├─ access : R64FetchAccess
+   │  ├─ u_translation : R64FetchTranslation
+   │  │  ├─ u_tlb : R64Tlb
+   │  │  └─ u_walk : R64PageWalk
+   │  └─ u_cache : R64ICache
    ├─ u_align : R64Align
    │  ├─ capture_header : R64PacketHeader
    │  ├─ initial_parse : R64PacketParse
@@ -128,8 +136,8 @@ Bundle、Token、Result 和 instruction FIFO 是 Frontend 内的寄存数组，�
 
 | 边界 | 接收事件 / 信用 | 取消与状态责任 |
 | --- | --- | --- |
-| Stream 请求→翻译前入口 | `req_valid_o && req_ready_i`；holder 空才给信用 | 握手创建 Stream 响应 owner；翻译未接受时 holder 锁存 VA/特权/SATP/status/PBMT |
-| 翻译→ICache | `translation_v_w && translation_r_w` | 保持同一翻译返回的 PA/priv/fault；保护事实配合同一候选，不能另配新上下文 |
+| Stream 请求→Access 入口 | `access.req_valid_i && access.req_ready_o`；holder 空才给信用 | 握手创建 Stream 响应 owner；翻译未接受时 holder 锁存 VA/特权/SATP/status/PBMT |
+| Access 内翻译→ICache | `translation_v_w && translation_r_w` | 保持同一翻译返回的 PA/priv/fault；保护事实配合同一候选，不能另配新上下文 |
 | ICache→Stream | `rsp_valid_i && rsp_ready_o`；必须有顺序 owner | stale 响应只释放 owner；非 stale 响应写 packet FIFO，不以 redirect 丢掉已接收事务 |
 | packet→Align work→parse | `push_w` / `parse_w`；各用当前 Q 空位 | successor 可补齐前一 parse 的跨包字节/map；宽字节与异常位置保持同一 owner |
 | Align→Bundle | `capture_w` 与 `capture_take_w` | 可缓存 plan-bad 记录以建立 barrier；只有合法消费前缀推进 cursor |
@@ -139,7 +147,9 @@ Bundle、Token、Result 和 instruction FIFO 是 Frontend 内的寄存数组，�
 
 外部 `redirect_i` 优先于本地 pending redirect；二者合成 `stream_redirect_w`，清 Align 和 Bundle/Token/Result 的年轻 owner。
 本地 redirect 在原接收边沿已保留正确指令前缀，下一拍只修正后续字节流；**指令 FIFO 只由 reset/外部 redirect 清空**。
-取指 holder 在 stream redirect 或 TLB invalidate 时标 poison，仍等翻译接收并完成返回；Stream 的旧 owner 标 stale 后继续排空。
+`access.cancel_i=stream_redirect_w`；Access 内 holder 在 cancel 或 TLB invalidate 时标 poison，
+仍等翻译接收并完成返回；Stream 的旧 owner 标 stale 后继续排空。
+Access 不接收 `run_i`，不以 redirect 清除已接受事务，也不增加新的寄存边界。
 ICache invalidate 还清理 early-target/RAS 逻辑有效性；旧 journal 不得在失效后恢复旧栈。
 fault barrier 在首个被指令 FIFO 接受的 fault 后阻止年轻指令继续进入，等待外部精确恢复。
 
@@ -151,7 +161,7 @@ fault barrier 在首个被指令 FIFO 接受的 fault 后阻止年轻指令继�
 | ID / 状态 owner 与源码 | 当前寄存容量 / 数据宽度 | 同拍依赖、接受与跨拍关系 | 恢复 / 晚响应责任 |
 | --- | --- | --- | --- |
 | FE-01 取指流信用；`u_stream`，[R64FetchStream.v](R64FetchStream.v) | 请求 holder 1 个；owner FIFO 4 项；packet FIFO 4 项；三者共用 **4 份预约信用**，不能相加成 9 份并发容量。packet 每项 PC64、数据128、plan68、fault1、cause5、access mask8 | `reserved=owner_count_q+packet_count_q+req_valid_q`；`credit=reserved<4` 不借本拍 packet pop。请求实际 handshake 才入 owner；按 owner 次序接收响应，非 stale 响应入 packet Q | redirect 清 packet 有效占用，把尚未返回 owner 标 stale；已承诺请求仍保持并排空。`rsp_ready` 由 owner 非空决定，stale 响应不新建 packet |
-| FE-02 翻译前保持；Frontend `if_req_*`，[R64Frontend.v](R64Frontend.v) | 1 个 holder，payload136（VA64、priv2、satp64、status5、PBMT1），另 valid/poison | 空槽时 payload 组合直通翻译；`fetch_ready=!rst&&!if_req_valid_q`。仅翻译受阻才把 Stream 已接受请求保存在 Q；不是每次请求固定增加一拍 | stream redirect / TLB invalidate 置 poison；占用 holder 等翻译接受后释放，不能直接丢掉 Stream 的响应 owner |
+| FE-02 翻译前保持；`access.if_req_*`，[R64FetchAccess.v](R64FetchAccess.v) | 1 个 holder，payload136（VA64、priv2、satp64、status5、PBMT1），另 valid/poison | 空槽时 payload 组合直通翻译；`access.req_ready_o=!rst&&!if_req_valid_q`。仅翻译受阻才把 Stream 已接受请求保存在 Q；不是每次请求固定增加一拍 | stream redirect / TLB invalidate 置 poison；占用 holder 等翻译接受后释放，不能直接丢掉 Stream 的响应 owner |
 | FE-03 字节 / 边界 owner；`u_align`，[R64Align.v](R64Align.v) / [R64PacketParse.v](R64PacketParse.v) | work 2 槽，每槽273 bit+header17；parse 3 槽，每槽 data256、map288、header17、mask8、cause5+next_cause5、plan68、target63 等；cursor PC64 | packet→work Q：`work_count<2`；work→parse Q：`work_count!=0&&count<3`。PacketHeader、initial/completion parse、cursor 对应边界选择是组合逻辑；接收 successor 可补齐前槽跨包信息。每拍最多输出/消费2条指令 | redirect 丢弃本地缓存字节和解析 owner；异常字节、长度、PC、计划跳转点必须跟随同一 packet/指令身份 |
 | FE-04 Bundle；Frontend `bundle_*` | 2 个 pair，每 pair 2×202 bit 指令原始记录，另 valid/plan/bad、target64/source64 | Align 组合结果→Bundle Q；capture 取决于 `run`、当前 pair 空位、align/fault barrier。空槽预写 payload 不创建 valid；不能借下游同拍 pop 信用 | `stream_redirect` 清 owner；错误 early plan 可以建立 barrier，等待修复，不允许错误边界指令入后端 |
 | FE-05 Token；Frontend `token_*` + RVC / PredictionPrepare | 2 个 pair，每 pair 2×472 bit，含 canonical33、预计算/预测快照、原始记录 | Bundle Q→RVC展开/PC准备/预测表查询→Token Q；`token_capture` 用 Bundle 非空、Token Q空位及 pending/fault 状态。后续预测训练不会改变该 owner 的已捕获快照 | `stream_redirect` 清 owner；Token 接收自身不等于指令 FIFO 接收，也不等于 ROB birth |

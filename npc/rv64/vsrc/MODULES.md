@@ -32,6 +32,7 @@
 | [bus/R64AxiRead.v](bus/R64AxiRead.v) | R64AxiRead |
 | [bus/R64AxiWrite.v](bus/R64AxiWrite.v) | R64AxiWrite |
 | [bus/Uart.v](bus/Uart.v) | Uart |
+| [control/R64Control.v](control/R64Control.v) | R64Control |
 | [control/R64Commit.v](control/R64Commit.v) | R64Commit |
 | [control/R64Counter.v](control/R64Counter.v) | R64Counter |
 | [control/R64CounterNear.v](control/R64CounterNear.v) | R64CounterNear |
@@ -52,6 +53,7 @@
 | [fp/R64FpRoundStages.v](fp/R64FpRoundStages.v) | R64FpRoundRange, R64FpRoundShift, R64FpRoundDecision, R64FpRoundSelect, R64FpRoundIndexedDecision, R64FpRoundPack, R64FpRoundPipe |
 | [fp/R64FpUnpack.v](fp/R64FpUnpack.v) | R64FpUnpack |
 | [frontend/R64Align.v](frontend/R64Align.v) | R64Align |
+| [frontend/R64FetchAccess.v](frontend/R64FetchAccess.v) | R64FetchAccess |
 | [frontend/R64FetchStream.v](frontend/R64FetchStream.v) | R64FetchStream |
 | [frontend/R64Frontend.v](frontend/R64Frontend.v) | R64Frontend |
 | [frontend/R64PacketParse.v](frontend/R64PacketParse.v) | R64PacketHeader, R64PacketParse, R64AlignPairView |
@@ -67,6 +69,7 @@
 | [lsu/R64LsuOrderSelect.v](lsu/R64LsuOrderSelect.v) | R64LsuOrderSelect |
 | [lsu/R64LsuRequestQueue.v](lsu/R64LsuRequestQueue.v) | R64LsuRequestQueue |
 | [lsu/R64LsuSelect.v](lsu/R64LsuSelect.v) | R64LsuSelect |
+| [lsu/R64LsuTranslationOwners.v](lsu/R64LsuTranslationOwners.v) | R64LsuTranslationOwners |
 | [lsu/R64LsuYoungestByte.v](lsu/R64LsuYoungestByte.v) | R64LsuYoungestByte |
 | [lsu/R64MemoryService.v](lsu/R64MemoryService.v) | R64MemoryService |
 | [lsu/R64MemorySplit.v](lsu/R64MemorySplit.v) | R64MemorySplit |
