@@ -3,15 +3,22 @@
 范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。结构以当前 RTL 的实例化和参数为准；下面标有 2026-09 的实验说明保留历史含义，不是当前优化计划。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
 
 
-## 2026-10-08 当前工作版本与读图规则
+## 2026-10-09 源码核对与读图规则
 
-当前工作版本保留第一轮普通 RAM load response bypass；第二轮取消前仲裁 + 固定物理 CQ 的联合候选已淘汰并恢复。
-当前生产 CQ 仍是 front/skid 两 lane、总四条，不是归档的固定槽候选。当前存在未提交源码/观察改动，
-不能只凭版本号或分支名把旧测量视为当前测量。证据入口为
-[第二轮结果](../ai/tests/2026-10-08-round2-architecture/RESULT.md) 和
+当前源码保留第一轮普通 RAM load response bypass 基线 B；第二轮取消前仲裁 + 固定物理 CQ、
+第三轮同拍取消发布 + CQ 确值旁路的联合候选均已撤回。生产 CQ 仍是 front/skid 两 lane、总四条，
+当前不存在第三轮的 CQ → IQ/RR 确值旁路。源码连接核对入口为
+[CoreTop](core/R64CoreTop.v) 与 [Backend](backend/R64Backend.v)，后端内部职责、接收边沿和完成授权见
+[Backend 拓扑](backend/TOPOLOGY.md)。其它域也已按同一方式整理生产配置、文件职责、实例层级、
+接收/取消边界及验证入口，见[RTL 目录导航](README.md)；可选 Tensor 的独立 GMEM 接入见
+[平台说明](platform/README.md)。
+
+候选裁决分别见 [第二轮结果](../ai/tests/2026-10-08-round2-architecture/RESULT.md)、
+[第三轮结果](../ai/tests/2026-10-08-round3-cq-value/RESULT.md)；
+下表保留 2026-10-08 基线 B 的既有测量，路径诊断见
 [输入/输出及 Q 起点 STA](../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)。
 
-| 当前同源测量事实 | 数值 / 限定 |
+| 2026-10-08 保留基线 B 的既有测量 | 数值 / 限定 |
 |---|---|
 | CoreMark 10 完整执行 | 8,968,518 cycles / 3,218,537 retired；CPI 2.786520087 |
 | Dhrystone 10000 完整执行 | 14,267,505 / 4,260,670；CPI 3.348652911 |
@@ -40,48 +47,80 @@ CQ 宽 payload 已无清零 reset，仍可能通过保持/写使能依赖 reset�
 
 ```mermaid
 flowchart TB
-  F["Frontend：Fetch/Align/Predict/4条指令FIFO"] --> DE["DecodeStage：4条"]
-  DE --> B["原子 birth：ROB + Rename + IQ + LSQ"]
-  B --> IQ["IQ：ready/age/resource top2"]
-  IQ --> RR["RegRead：2个ingress / 每lane2个terminal；4GPR+3FPR"]
-  RR --> EX["Execute：ALU x2 / MUL / DIV / CLMUL"]
-  RR --> FP["FP dispatch：FMA / FAST / LONG"]
-  RR --> LS["LSU：20项owner / 翻译 / 转发 / 完成"]
-  RR --> SE["Serial：CSR/FENCE/系统指令"]
-  EX --> WB["Writeback：9源选2 / owner certificate"]
-  FP --> WB
-  LS -->|"load / exception completion"| WB
+  F["Frontend：Fetch/Align/Predict/4条指令FIFO"] --> DE
+  subgraph BE["R64Backend：分配、调度、整数执行与完成"]
+    DE["DecodeStage：4条；每拍最多输出2条"] --> B["原子 birth：ROB + Rename + IQ；MEM 同步预留 LSQ"]
+    B --> RN["Rename：推测/架构映射、free/ready"]
+    B --> ROB["ROB32：generation/完成授权/异常/回滚"]
+    B -->|"同边沿 birth：UOP/tag/源preg/LSQ slot"| IQ["IQ16：ready/age/resource top2"]
+    RN -->|"源映射 / ready查询"| IQ
+    IQ --> RR["RegRead + GPR/FPR PRF<br/>2个ingress / 每lane2个terminal；4GPR+3FPR读口"]
+    RR --> EX["Execute：按class分流<br/>内部 ALU x2 / MUL / DIV / CLMUL"]
+    EX -->|"5路本地结果"| WB["Writeback：9源选2 / owner certificate"]
+    WB -->|"结果 + certificate"| ROB
+    ROB -. "owner查询凭据" .-> WB
+    WB -->|"data"| WP["经 ROB 授权的写回发布"]
+    ROB -. "wb_write / fp / preg" .-> WP
+    WP -->|"ready"| RN
+    WP -->|"wake"| IQ
+    WP -->|"PRF写入 / WB前递"| RR
+    EX -. "raw ALU early / bypass" .-> SO["ROB 内 short-owner 查询授权"]
+    ROB -. "live / tag / preg / kill" .-> SO
+    SO -. "early wake" .-> IQ
+    EX -. "保持的 ALU 结果数据" .-> RR
+    SO -. "bypass授权" .-> RR
+    EX -. "branch preview / resolve / redirect" .-> ROB
+    ROB -. "kill / serial barrier" .-> IQ
+    ROB -. "undo" .-> RN
+  end
+  B -->|"MEM reserve"| LS["LSU：20项owner / 翻译 / 转发 / 完成"]
+  EX -->|"最多2路 MEM bind"| LS
+  EX -->|"1路 FP fire"| FP["FP dispatch：FMA / FAST / LONG"]
+  EX -->|"1路 Serial fire"| SE["Serial：CSR/FENCE/系统指令"]
+  FP -->|"1路结果"| WB
+  LS -->|"2路宽完成：load / atomic / 非窄store / fault"| WB
   LS -->|"store_done：独立terminal"| ROB
-  SE --> WB
-  WB --> ROB["ROB32：generation/完成/异常/回滚"]
+  SE -->|"1路结果"| WB
   ROB --> CM["Commit：双退休前缀 / 精确副作用"]
-  CM --> AR["架构 Rename / CSR"]
-  AR --> B
-  WB --> IQ
-  WB --> RR
-  EX -. "ALU early wake / data bypass" .-> IQ
-  EX -. "ALU data bypass" .-> RR
-  EX -. "branch preview / resolve" .-> ROB
-  ROB -. "kill / undo / reuse barrier" .-> IQ
+  CM -->|"commit fire"| RN
+  CM --> CSR["CSR：架构控制状态"]
   ROB -. "kill / owner drain" .-> LS
-  ROB -. "redirect" .-> F
-  CM -. "trap / xRET / fence / CSR context" .-> F
-  F --> IT["I translation / ICache"]
-  LS --> DT["D translation x2 / Protection x2"]
-  DT --> MS["Split / MemoryService / DCache"]
-  IT --> PP["I PTW / PtePort"]
-  DT --> PP
-  PP --> MS
+  LS -. "reuse_block" .-> ROB
+  SE -. "reuse_block" .-> ROB
+  EX -. "backend redirect" .-> RD["CoreTop redirect选择：Commit优先"]
+  CM -. "control redirect" .-> RD
+  RD -. "redirect + target" .-> F
+  EX -. "resolve训练" .-> F
+  CM -. "full flush" .-> BE
+  CSR -. "context" .-> F
+  F --> IT["Frontend 内：I translation / ICache"]
+  LS <-->|"翻译请求 / 保护返回"| DT["D translation x2 / Protection x2"]
+  LS <-->|"物理请求 / 响应"| MS["Split / MemoryService / DCache"]
+  IT <-->|"I walker"| PP["PtePort x3"]
+  DT <-->|"D walker x2"| PP
+  PP <-->|"PTE物理访问 / 返回"| MS
   IT --> AX["AXI read adapter"]
   MS --> AX
   MS --> AW["AXI write adapter"]
   AX --> FA["Fabric：4read/2write owner；memory+MMIO read groups"]
   AW --> FA
   FA --> DEV["PSRAM/SDRAM/外部MMIO；CLINT/PLIC/UART/RTC/syscon"]
-  DEV -. "time / IRQ / control event" .-> AR
+  DEV -. "time / IRQ / control event" .-> CSR
 ```
 
 请求、返回、信用与取消是四张相互约束的网络。图中实线为主要请求/结果，虚线为提前唤醒、恢复、上下文与事件。ROB tag、LSQ slot/token、Fabric事务槽和 AXI ID 属于不同命名空间；只在明确接收边沿建立对应关系。
+
+Backend 边界内包含 DecodeStage、Rename、ROB、IQ、RegRead/PRF、Execute 和 Writeback；
+FP、Serial、Commit 与 CSR 是 CoreTop 同级实例；LSU 位于 `CoreTop.memory.unit.lsu`，
+I translation / ICache 位于 Frontend 内。数据翻译与保护先返回 LSU，再由 LSU 发物理请求至 Split/Service，
+不能把 Translation 画成直接驱动 DCache 的流水级。图中的“写回发布”和“short-owner 查询授权”
+是接口逻辑视图，不是额外流水级或模块。WB 提供结果数据，ROB 授权后才更新 PRF、Rename ready 和 IQ；
+ALU 的 early wake / bypass 也先通过 ROB 的完整身份与目的寄存器检查，不设置 ROB done；
+旁路的 64-bit 结果由 Execute 保持并送往 RegRead，ROB 只提供授权。
+
+分支 redirect 源于 Execute，经 Backend 输出至 CoreTop；ROB 消费同一分支事实，负责取消与逆序 undo。
+CoreTop 对前端的 redirect target 选择为 Commit 优先，再取 Backend；分支 resolve 另用于前端预测器训练。
+LSQ reserve 发生在 birth，后续 Execute MEM bind 只补齐已有 slot/tag 的操作数，不再分配新的访存 owner。
 
 ## 2026-09 全拓扑迭代历史记录
 
@@ -101,7 +140,9 @@ flowchart TB
 
 完整 SystemTop 基线在1ns/0.05ns uncertainty、icsprout55 TT1.2V25C下，setup=-2.803282499ns，hold=-0.036660694ns，真实状态为 FAIL。最差链已定位至 DCache bank 写数据；不是所有模块频率都由这一个数代表。后续所有结论以同源测量为准，不能把数据路径优化直接换算为已实现的硅后Fmax。
 
-对应结果：[全拓扑迭代目录](../../../tmp/rv64-whole-topology-20260908/PLAN.md)。每阶段保存源码差异、配置、功能/CPI结果、STA路径与RTL对应，再清除综合网表及可再生构建产物。
+原全拓扑迭代计划路径为 `tmp/rv64-whole-topology-20260908/PLAN.md`，原临时报告现不在工作区。
+当时每阶段记录源码差异、配置、功能/CPI结果、STA路径与RTL对应，再清除综合网表及可再生构建产物；
+此处保留历史数字与路径，不表示本次重新获取了原报告。
 
 ## 分配、执行与完成信用的完整连接
 
@@ -121,13 +162,14 @@ flowchart LR
   RR --> EXEC["实际FU或LSU bind接受"]
   EXEC --> T["局部terminal：ALU/MDU/FP/LSU/Serial"]
   WC["WB寄存grant与结果槽"] --> T
-  T --> WB["WB捕获 / ROB owner认证"]
-  WB --> IQ
+  T --> WB["WB捕获 / owner certificate"]
+  WB --> AUTH["ROB完成接收 / 写回授权"]
+  AUTH -->|"获授权的wake"| IQ
   RET --> RF
   RET["双退休前缀 / 旧preg回收 / LSQ commit"] --> PF
   RET -->|"store commit / pin条件"| LREL["LSU：load完成捕获 / dead排空 / 无引用store释放"]
   LREL --> LF
-  WB --> RET
+  AUTH --> RET
 ```
 
 birth受阻的IQ、ROB、PRF、LSQ观察计数可能同时为真；它们不能相加成为总停顿。IQ变大可能只让指令更早进入ROB，从而把信用压力移到ROB。完成也有两层选择：FP/LSU先在本地形成结果，再参与全核9选2。局部结果已算完，不等于已唤醒消费者或可退休。
@@ -139,7 +181,7 @@ flowchart LR
   BR["分支preview / resolve"] --> RP["ROB恢复计划 / 年轻后缀"]
   RP --> K["kill / prepared cancel"]
   RP --> UN["每拍最多2项逆序undo"] --> RN["Rename恢复"]
-  CM["Commit已寄存trap / xRET / serial事件"] --> FL["full flush / redirect"]
+  CM["Commit已寄存trap / xRET / serial事件"] --> FL["full flush"]
   FL --> RN
   K --> LOCAL["IQ / RR / FU / WB的可取消owner"]
   FL --> LOCAL
@@ -147,8 +189,10 @@ flowchart LR
   FL --> LS
   LS --> DR["翻译与物理响应继续drain"]
   DR --> RE["逐份引用释放 / reuse_block"] --> RA["ROB槽复用资格 / 分配"]
-  BR --> FE["Frontend训练 / redirect"]
-  FL --> FE
+  BR -->|"backend redirect"| RD["CoreTop redirect选择：Commit优先"]
+  CM -->|"control redirect"| RD
+  RD --> FE["Frontend"]
+  BR -->|"resolve训练"| FE
   FE --> FD["旧取指事务按owner排空"]
   AX["已接受AR / AW / W<br/>BUS没有ROB kill输入"] --> DR
 ```
@@ -173,4 +217,4 @@ flowchart LR
   R --> M["Q：forward_mask发布"]
 ```
 
-当时报告据此提出检查 mask/descriptor 的准备与可见性、以及 Split/Service 的寄存信用；这是历史建议，当前方案由新的完整事实和实测决定。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+当时报告据此提出检查 mask/descriptor 的准备与可见性、以及 Split/Service 的寄存信用；这是历史建议，当前方案由新的完整事实和实测决定。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。当时的完整结果、IQ16/32取舍及后续验证问题曾记录于 `tmp/rv64-whole-topology-20260908/REPORT.md`；原临时报告现不在工作区。

@@ -1,11 +1,12 @@
 # 原生 Load/Store 子系统
 
 本目录属于 RV64 RTL 重建路径，未例化旧 Ooo LSU/cache。集成入口为
-`R64LoadStore`，CPU 指令接口对接 `R64Backend` 的 MEM admission 与两路
+`R64LoadStore`，CPU 指令接口对接 `R64Backend` 的 MEM reserve/bind 与两路
 `R64_RESULT_W=140` 完成接口。独立模块默认 18 项 LSQ；当前核心经
 R64Memory 实例化 20 项，并启用 HEAD_AUTHORIZED_QUERY=1、PREPARED_CANCEL=1。
-当前模块实例、旁路、队列深度与控制连接见 [LSU拓扑网络](TOPOLOGY.md)。
-下面的历史测量保留各自的配置与范围。子系统具有
+当前模块实例、旁路、队列深度与控制连接以 [LSU拓扑网络](TOPOLOGY.md)为准（2026-10-09源码核对）。
+本文保留分轮设计理由与历史测量；下文18项、旧helper及实验版本只适用于标注的当时配置，
+不能据历史“当前”措辞覆盖生产拓扑。2026-10-09未重跑仿真、CPI或STA。子系统具有
 两个翻译通道、双 lane 物理 descriptor 队列、带源占用保护的转发查询队列、每lane两槽的转发结果队列与一个可旁路物理holder、响应元数据队列、2×2 深独立完成 FIFO，以及 8 KiB/2-way/64 B
 物理读缓存。
 
@@ -33,7 +34,7 @@ winner引用。旧late-IO容量fixture已更新为当前未知属性发布规则
 新增r64_core_lsu_contention.S通过真实三级4KiB页表、A/D更新、双数据流与store测试CPU/PTE共享服务。
 
 同源基线/候选的完整软件、CoreMark、CPI、整核综合及1ns STA结果统一见
-[综合评估](../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
+原报告 `tmp/rv64-lsu-network-complete-20260907/REPORT.md`（当前缺失，未找到results迁移副本）。
 下面的分轮数据保留其原始配置与测量时间，不代表最新联合候选的结果。
 
 ## CPU/PTE bank 配对与未知属性发布边界（2026-09-07）
@@ -56,11 +57,13 @@ round-robin辅助选择、各辅助busy/返回保持与原队列深度不变。
 同约束局部STA中，Service setup slack由−0.370313变为−0.357756ns，单元面积增加8.151%；
 LSU修复后setup由−0.862424变为−0.900504ns。两者均仍未达到1GHz，不能把定向周期收益
 当作整核时序闭合。实现、逐端点组结果和复验见
-[本轮报告](../../../../tmp/rv64-lsu-service-pair-20260907/REPORT.md)。
+原报告 `tmp/rv64-lsu-service-pair-20260907/REPORT.md`（当前缺失，未找到results迁移副本）。
 
 ## 数据与责任边界
 
-- Backend 每拍发出 0/1/2 个 dense MEM admission fire；ready 来自已寄存的空项。
+- Backend在统一birth边沿为MEM指令reserve LSQ，最多两条；ready来自Q态FREE。
+  birth遵循前缀，MEM reserve仅取其中访存lane，因此lane0非MEM时允许单独lane1 reserve。
+  后续Execute按物理lane绑定原slot/full tag的operand，两条bind独立接受；bind ready恒1，实际写入仍检查身份、NEW及未bound资格。
   每项只保留 tag、VA、PA、store data/mask、function/AMO、属性和状态。
   不复制 PC、完整 uop、RESULT/TVAL 阵列。异常 tval 从已有 VA 重建；非对齐物理错误另带 3-bit 失败片段偏移。
 - 两个 Translation 分别有 4 深顺序 owner FIFO。响应即使已经被 kill，也必须消费；
@@ -68,7 +71,7 @@ LSU修复后setup由−0.862424变为−0.900504ns。两者均仍未达到1GHz�
   `tr_owner_access_o` 是每 lane `{execute,write,read}`，`tr_owner_size_o` 是字节数；
   它们与该 lane 的当前翻译 response owner 对齐。SC 只请求写权限，LR 只读，其余 AMO
   请求读和写。
-- FS=Off 在 admission 时以非法指令拒绝 FP load/store，优先于地址未对齐，不产生翻译/物理事务。
+- FS=Off 在operand bind时以非法指令拒绝 FP load/store，优先于地址未对齐，不产生翻译/物理事务。
   输入 `fp_enable_i` 来自 mstatus.FS!=0；非法 tval 默认0，root可从ROB META恢复原始16/32-bit编码。
 - Store 可提前计算地址、数据并以 `ad_update=0` 探测权限和 PA；需要 A/D 更新时，
   到 ROB head 获得 `effect_allow_i` 后重翻译。普通 load 可以更新 A。
@@ -87,8 +90,9 @@ LSU修复后setup由−0.862424变为−0.900504ns。两者均仍未达到1GHz�
   B 错误等异常完成已排空后允许同步 trap 清除；未知结果或成功可见未提交期间，
   root 必须延迟异步 trap。授权后的 head 在 IRQ drain 中必须仍可继续执行。
 - `reuse_block_o` 包括 LSU 在飞 owner 和未发送的完成 FIFO tag，阻止有限 ROB generation
-  复用产生 ABA。Tensor 自己的 ROB owner 仍由 root 额外 OR 到 backend reuse mask。
-- `idle_o` 同时要求 LSU、完成 FIFO、片段 owner、共享服务和 cache 为空，供 FENCE/序列化控制使用。
+  复用产生ABA。当前CoreTop将LSU与Serial的reuse按位或交给ROB；此CPU入口没有Tensor owner。
+- `idle_o`包含尚未bind的reservation；`drain_idle_o`只要求已bind工作及完成/物理服务排空。
+  Memory另汇总三个PtePort idle，CoreTop将drain_idle接到Serial，避免年轻reservation阻塞head序列化指令。
 
 共享服务通用默认AUX=4；当前CPU核心使用AUX=3，分别供I walker和两个D walker使用，当前入口不含Tensor。
 辅助端口每客户端最多 1 个事务，并独立保存返回结果。物理请求 op 为
@@ -178,7 +182,11 @@ hold、窄完成背压、B错误待接收时flush，故两次总完成数不相�
 head比较→物理slot选择→LSQ payload mux，以及B token→tag/tval读取→终端Q；本次保留真实
 寄存边界，尚须同源 mapped STA 判断，不由周期仿真宣称时序已经达标。
 
-## 年龄选择与转发流水
+## 年龄选择与转发流水（早期18项候选记录）
+
+本节的R64LsuSelect/R64LsuYoungestByte与单terminal描述属于早期候选。当前使用
+R64LsuOrderSelect、R64LsuForwardByte、20×20 older_q、winner query Q及每lane两槽forwarding_results；
+完整路径见[当前拓扑](TOPOLOGY.md)，下面保留原分段理由和当轮测量。
 
 所有空项、翻译、普通 load、head 特殊操作、异常和预准备选择通过
 `R64LsuSelect` 的有界平衡树完成。普通 load 的两个结果来自同一 top-2 树；
@@ -267,9 +275,10 @@ LR reservation 也保存在 D-cache，避免 LSU 预判 SC 与辅助写之间的
 失败 SC 的隐式 D bit 更新属于 ISA 未指定行为，SC 仍完成权限检查，见
 [RISC-V Zalrsc 规范](https://docs.riscv.org/reference/isa/_attachments/riscv-unprivileged.pdf)。
 
-## 当前直接证据与边界
+## 早期直接测试记录与边界
 
-测试源现位于 [testbench/chengyue64/modules/](../../testbench/chengyue64/modules)，下表所述既有日志位于 `../../build/rebuild/lsu`：
+测试源现位于 [testbench/chengyue64/modules/](../../testbench/chengyue64/modules)。
+下表为早期配置的结果摘录，原日志位置记为 `npc/rv64/build/rebuild/lsu`；不构成当前版本的新测试结论。
 
 | 测试 | 可观察结果 |
 | --- | --- |
@@ -308,12 +317,14 @@ LR reservation 也保存在 D-cache，避免 LSU 预判 SC 与辅助写之间的
 这是 inferred memory 端口结构证据；后续 LSU 单模块映射与完整核时序是独立证据，不能据此推断 cache SRAM 宏的物理 PPA。
 
 真实双 Translation/PMP/PMA、三 walker、AXI 平台与 ROB/CSR 集成由 root 维护。
-完整核适用非 OS 回归与同源综合/STA 的资格以 root 对应 frozen closure 为准；
+当轮整核结论按其冻结源码、配置与实际回归/综合/STA报告判定；
 下面的局部架构 A/B 不替代整核回归结果。
 
-## 1 GHz 时序重构中的局部证据
+## 1 GHz 时序重构中的局部证据（历史v4～v13）
 
-当前主设计点为 icsprout55 TT、1 ns。年龄由 admission 更新的 18×18 older_q
+以下18项结构、冻结配置和工具调查均为当轮记录；当前20项结构及已保留/撤回版本见[当前拓扑](TOPOLOGY.md)。
+
+当轮主设计点为 icsprout55 TT、1 ns。年龄由 admission 更新的 18×18 older_q
 关系矩阵保存，选择和每 byte 最近 store 查询分别由 R64LsuOrderSelect、
 R64LsuForwardByte 做并行关系判定及平衡数据归并。矩阵对每对 live owner
 与真实 ROB age 的一致性断言贯穿直接仿真和两个完整基准。取消在选择末端抑制，

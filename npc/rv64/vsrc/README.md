@@ -4,21 +4,30 @@
 版本由 [../core-version.mk](../core-version.mk) 定义，默认源码直接列在
 [filelist.mk](filelist.mk)，可选 Tensor/NPU 源码由 [tensor-filelist.mk](tensor-filelist.mk) 补充。
 
-| 目录 | 职责 |
-| --- | --- |
-| [core/](core/) | CPU 顶层连接 |
-| [frontend/](frontend/) | 取指、指令对齐、预测与解码 |
-| [backend/](backend/) | 重命名、发射、寄存器读取、执行调度、写回与退休 |
-| [fp/](fp/) | 浮点数值执行 |
-| [control/](control/) | CSR、特权、trap 与序列化控制 |
-| [memory/](memory/) | 地址翻译、权限和物理内存属性 |
-| [lsu/](lsu/) | 访存队列、内存服务与数据缓存 |
-| [bus/](bus/) | 主线 AXI 桥及复用的 CLINT、PLIC、UART、syscon 及默认错误响应外设 |
-| [platform/](platform/) | 系统互连、地址图、Tensor 接入和系统顶层 |
-| [include/](include/) | 共享硬件定义 |
+| 目录 | 职责 | 结构与接口入口 |
+| --- | --- | --- |
+| [core/](core/) | CPU 顶层连接与跨域控制 | [全核拓扑](TOPOLOGY.md)、[R64CoreTop.v](core/R64CoreTop.v) |
+| [frontend/](frontend/) | 取指、对齐、预测和预解码 | [Frontend 拓扑](frontend/TOPOLOGY.md) |
+| [backend/](backend/) | 原子分配、重命名、发射、操作数、整数执行、完成与 ROB 退休窗口 | [Backend 拓扑](backend/TOPOLOGY.md) |
+| [fp/](fp/) | 浮点数值执行与本地完成 | [FP 拓扑](fp/TOPOLOGY.md) |
+| [control/](control/) | Commit 退休授权、CSR、特权、trap 与 Serial | [Control 拓扑](control/TOPOLOGY.md) |
+| [memory/](memory/) | I/D 翻译、权限/属性、I-cache 和数据侧集成 | [Memory 拓扑](memory/TOPOLOGY.md) |
+| [lsu/](lsu/) | LSQ、转发、内存服务与 D-cache | [LSU 拓扑](lsu/TOPOLOGY.md)、[目录说明](lsu/README.md) |
+| [bus/](bus/) | 核侧 AXI 适配器及复用的中断/UART/syscon/错误响应外设 | [BUS/平台拓扑](bus/TOPOLOGY.md) |
+| [platform/](platform/) | Fabric、地址图、设备桥、系统顶层及可选 Tensor 接入 | [平台说明](platform/README.md) |
+| [include/](include/) | 共享编码、基础宽度和默认地址宏 | [define.v](include/define.v)；生产结构参数以实际实例为准 |
 
 默认 CPU/系统顶层为 `R64CoreTop` / `R64SystemTop`，可选 `R64TensorSystemTop`。
 模块位置与连接分别见 [MODULES.md](MODULES.md) 和 [TOPOLOGY.md](TOPOLOGY.md)。
+
+2026-10-09 各域拓扑按同一阅读方式整理：生产配置与文件职责 → 实际实例 →
+数据/资格/取消/副作用边界 → 状态 owner → 验证入口与历史测量。
+目录不等于实例子树；例如 FP 在 CoreTop 下独立实例化，并复用 backend 目录的数值 helper。
+
+`include/define.v` 仍包含供其它使用方引用的 `OOO_*` 默认宏，不能据此推断本核的 ROB/IQ 容量。
+当前 ROB32、默认 IQ16、LSQ20 等配置来自 CoreTop、Backend、Memory 的实际参数；
+UOP/META/RESULT 格式见 [R64Uop.vh](backend/R64Uop.vh)，平台地址组合见
+[R64PlatformMap.vh](platform/R64PlatformMap.vh)。宏定义文件本身没有状态 owner 或握手边界。
 
 仿真封装、DPI 和 NPU 宿主桥位于 [../sim/vsrc/](../sim/vsrc/)；
 测试激励和比较 oracle 位于 [../testbench/](../testbench/README.md)。

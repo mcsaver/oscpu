@@ -1,68 +1,137 @@
-# 原生 AXI 到 NPC 平台接口
+# 当前平台目录与系统接入
 
-当前实际实例参数、请求/响应/背压网络和端口映射见 [BUS 拓扑文档](../bus/TOPOLOGY.md)（2026-09-08）。下文直接验证的周期数字与日志路径保留为早期切片记录；四批实施、CPI 和综合结果从拓扑文档链接进入。
+依据 **2026-10-09 生产 RTL** 整理。默认系统是 `R64SystemTop`，可选 Tensor 系统是
+`R64TensorSystemTop`。本目录包含系统装配、AXI Fabric、设备桥和 Tensor 边界；
+[BUS 拓扑](../bus/TOPOLOGY.md)是地址图、读写 owner、信用及设备副作用的详细真源，
+本页负责文件归属、系统层级和可选接入，避免重复维护同一张地址表。
 
+## 1. 源码与生产范围
 
-`R64AxiFabric.v` 是实际 AXI4 burst 到现有单拍平台端点的转换 fabric。它没有实例化旧 `NpcAxiBus` 或 `AxiCrossbar`。
+| 文件 | 职责 | 默认 / 可选 |
+| --- | --- | --- |
+| [R64SystemTop.v](R64SystemTop.v) | CoreTop 与 AxiPlatform，连接 AXI、time/IRQ、trace、syscon 和 Tensor command/terminal 引脚 | 默认系统顶层 |
+| [R64AxiPlatform.v](R64AxiPlatform.v) | Fabric、CLINT、PLIC、UART、RTC、syscon、错误端点及四组 ext 接线 | 默认系统 |
+| [R64PlatformMap.vh](R64PlatformMap.vh) | 16 端口编号、BASE/MASK、memory/executable 属性与真实内存读组掩码 | 平台地址真源；基础宏来自 include/define.v |
+| [R64AxiFabric.v](R64AxiFabric.v) | AXI4 burst 转真实单拍访问，保持 ID/拍数/错误与返回次序 | 默认系统 |
+| [R64AxiReadService.v](R64AxiReadService.v) | 两读服务组的 plan/launch/return；共享 Fabric 事务表 | Fabric 子实例 |
+| [R64AxiRegisterPort.v](R64AxiRegisterPort.v)、[R64AxiRtc.v](R64AxiRtc.v) | 分别捕获读/AW/W 并产生本地访问；RTC 时间/闹钟及 IRQ | 当前寄存器桥仅用于 RTC |
+| [R64TensorMemory.v](R64TensorMemory.v) | 一个带完整 CPU tag 的 GMEM 请求/响应 owner；原始低字节窗口数据 | 列入默认 filelist，但默认 SystemTop 未实例化 |
+| [R64TensorLink.v](R64TensorLink.v) | 单条 Serial owner 的 command/terminal、描述符、真实 NPU 与 GMEM 桥、DMA 失效发布 | 可选 Tensor |
+| [R64TensorSystemTop.v](R64TensorSystemTop.v) | SystemTop + TensorLink，并额外导出独立 GMEM 接口 | 可选系统顶层 |
 
-原始 `AxiCrossbar.v` 明确忽略 LEN/BURST/WLAST，恒定输出 RLAST=1；`NpcAxiBus` 还丢弃 RID/BID。`AxiDpiSlave.sv`、CLINT/PLIC/UART/reset 及 virtio 都只能为一个单拍请求提供一个单拍响应。因此新核不能直接沿用旧连接并去掉 burst 元数据。
+默认清单见 [filelist.mk](../filelist.mk)；[tensor-filelist.mk](../tensor-filelist.mk)补充
+TensorLink、TensorSystemTop 和实际 NPU 数值模块。清单包含某个 module 不代表默认系统有该实例。
+仿真封装、DPI 和外部内存模型位于 [sim](../../sim/README.md)，不属于这里的可综合实例。
 
-## 接线
+## 2. 实际系统层级与接口
 
-新 core 的统一 read master 接本模块 AR/R（4-bit ID，64-bit address/data，8-bit LEN）；统一 write master 接 AW/W/B。新核必须消费真实 RID/RLAST/BID。完整核心撤销不能 reset fabric；已经接受的事务继续 drain，由核心 transaction owner 丢弃被撤销的完成。
+```text
+R64SystemTop
+├─ core : R64CoreTop
+│  ├─ read_bus : R64AxiRead
+│  ├─ write_bus : R64AxiWrite
+│  └─ frontend / backend / fp / serial / commit / csr / memory / protection
+└─ platform : R64AxiPlatform
+   ├─ fabric : R64AxiFabric
+   │  └─ gen_read_service[0..1].group : R64AxiReadService
+   ├─ clint / plic / syscon / uart：bus/ 目录的真实外设
+   ├─ rtc : R64AxiRtc → port : R64AxiRegisterPort
+   └─ g_external 接线 / g_unimplemented[].g_error.error
 
-包含 `platform/R64PlatformMap.vh` 后参数如下：
-
-```verilog
-R64AxiFabric #(
-  .SLAVES(`R64_PLATFORM_SLAVES), .SLAVE_W(4),
-  .BASE(`R64_PLATFORM_BASE), .MASK(`R64_PLATFORM_MASK),
-  .READ_MEMORY_MASK(`R64_PLATFORM_READ_MEMORY), // 实际 PSRAM / SDRAM
-  .MEMORY(`R64_PLATFORM_MEMORY),
-  .EXECUTABLE(`R64_PLATFORM_EXECUTABLE)
-) u_fabric (...);
+R64TensorSystemTop（可选）
+├─ system : R64SystemTop（以上同一层级）
+└─ tensor : R64TensorLink
+   ├─ u_memory : R64TensorMemory
+   └─ u_npu : TensorNpuCoprocessor（npu/version_0820）
 ```
 
-slave packed buses 保留 `NpcTop` 当前顺序，低位为 port 0：
+上树的 CPU 内部行是职责缩略，完整实例见各域拓扑；没有名为 `protection` 的统一封装。
+核侧读写为4-bit ID、64-bit地址/数据、8-bit LEN；CPU 必须接收真实 RID/RLAST/BID。
 
-| port | endpoint |
-|---|---|
-| 0 | CLINT |
-| 1 | PLIC |
-| 2 | reset syscon |
-| 3 | UART |
-| 4 | virtio block |
-| 5 | Goldfish RTC（R64AxiRtc） |
-| 6 | PS2 stub |
-| 7,8,9 | MROM/VGA/flash stub |
-| 10 | chiplink MMIO stub |
-| 11 | PSRAM DPI memory |
-| 12 | legacy MMIO DPI |
-| 13 | SDRAM DPI memory |
-| 14 | chiplink memory stub |
-| 15 | default stub（新 fabric 对未命中地址内部 DECERR，此端口不选中） |
+| 平台边界 | 当前接口 / 归属 |
+| --- | --- |
+| CoreTop ↔ AxiPlatform | 一组 AR/R 及 AW/W/B；4 个读事务槽、2 个写事务槽属于 Fabric，上游核实际只使用两个读 ID 和一个写 ID |
+| ext[0..3] ↔ 外部端点 | `EXTERNAL_SLAVE_MAP` 固定为 PSRAM(11)、SDRAM(13)、legacy MMIO(12)、virtio(4)；四组64-bit单拍接口 |
+| Platform → CoreTop | CLINT time/software/timer IRQ、PLIC M/S external IRQ、timer_wait；这些是旁带状态，独立于 R/B |
+| UART / syscon → 系统边界 | UART TX 在 Platform 再寄存一次发布；syscon 等设备本地 B 接受后产生事件；这两者不是退休日志 |
+| CoreTop → trace/trap | 退休与 trap 观察引脚；`trace_ready_i` 可反压退休，不改变已接受外部事务的责任 |
+| SystemTop Tensor 引脚 | Serial command/terminal 与 dma_invalidate；默认系统将引脚交给接入者，可选 TensorSystemTop 连接真实 TensorLink |
 
-端点编号统一定义为 `R64PlatformMap.vh` 中的 `R64_PORT_*`。外部端口的顺序由
-`R64AxiPlatform.v` 的 `EXTERNAL_SLAVE_MAP` 直接列出：`ext[0]` → PSRAM（11），
-`ext[1]` → SDRAM（13），`ext[2]` → legacy MMIO（12），`ext[3]` → virtio block（4）。
-`g_external` 仅按此常量表重复 AXI 接线；未实现端点由 `R64_PLATFORM_ERROR_PORTS` 逐设备列出。
+地址窗和错误端点清单见 [BUS 第6节](../bus/TOPOLOGY.md)。memory 属性位不意味着端点已实现；
+MROM/flash/chiplink memory 仍可能是错误端点。Fabric 将合法 burst 展开为 LEN+1 个真实单拍事务，
+返回全部 R 拍或聚合子写错误后的一个 B；当前 CPU 写入为单拍 write-through，没有多拍 cache writeback。
 
-现有外设 IP 可以继续实例化；PSRAM/SDRAM/legacy/virtio 对外导出端口保持单拍 ABI。每一个合法 burst 会产生 LEN+1 个真实下游子事务，地址按 SIZE 递增（FIXED 保持地址），上游收到真实全部 R 拍或聚合所有子 B 错误的唯一 B。不能把此转换误称为 full-AXI memory：现有 DPI 端点自身单 outstanding 且至少有一个空拍，cache miss 补行吞吐受到这个端点限制。未来提高外部补行速率应增加真正的 full-AXI memory 端点与旁路路由，不能跳过末拍计数或伪造完成。
+## 3. 可选 Tensor 的事务生命周期
 
-现有 Tensor 是 command/terminal 外部接口，不是此平台的 AXI master；virtio DMA 是同步 host PMEM 写后发 D-cache invalidate 请求，也不是此 fabric 的现有 master。它们的 owner/reuse/coherence 仍由 core 与平台集成维护，本模块没有臆造新的 DMA master 接口。
+```mermaid
+flowchart LR
+  S["CoreTop.Serial<br/>ROB head owner"] -->|"command / full tag"| L["TensorLink<br/>一个命令 owner"]
+  L -->|"legacy / macro command"| N["真实 TensorNpuCoprocessor"]
+  N -->|"GMEM请求"| M["TensorMemory<br/>一个请求 owner"]
+  M -->|"req / tag"| G["系统外部 GMEM 服务"]
+  G -->|"rsp / tag / error"| M
+  M -->|"nrsp交付"| N
+  N -->|"terminal；Memory idle"| L
+  L -.->|"dirty时先发布invalidate"| C["SystemTop.CoreTop<br/>I/D cache失效"]
+  L -->|"保持terminal直到接受"| S
+  S --> W["Backend宽完成 → ROB → Commit"]
+```
 
-## 事务状态与限制
+GMEM 是独立请求/响应接口，不经过当前 CPU Fabric，也不是第二个 AXI master。TensorSystemTop
+要求外部集成者为 GMEM 和 ext 内存提供一致的物理存储视图；RTL 顶层本身没有把两组端口接成共享 RAM。
+请求数据是地址起始的低字节窗口，不能按 AXI lane-positioned 数据解释。
 
-- 4 个读槽和 2 个写槽保存原始完整 ID、剩余拍数、地址及属性。相同 ID 的后续请求在前一最终 R/B 真正交付前不能占用新槽。
-- AR/AW 各一个入口描述符寄存器；W 与 R 各一个共享两项 FIFO。AW 顺序队列保存两项 owner，W 可以早于 AW 到达。不同目标的读/写彼此独立。
-- 读侧分为内存与 MMIO 两组，各有 plan、launch 和 return holder，共享四个事务槽和最终两项 R FIFO。每组只广播本组 AR 数据，组内先选择 RDATA；没有为 16 个目标分别复制宽 owner。慢 MMIO AR 不再占用内存组的 launch。
-- 读 owner 在最终 R 交付后释放，目标的 Lite beat 占用在真实 R 接受后释放或由受控续拍保留。写 owner 在唯一 B 交付后释放；最后 W 可先释放 W 顺序队列，其他目标可以在旧 B 返回前开始工作。
-- 每一个接口输出只来自寄存状态；输入 READY/VALID、地址、数据变化不会组合传播到 AXI 输出。等候 READY 的 VALID 与 payload 保持。
-- 支持对齐的 1/2/4/8 字节访问、INCR 和至多 16 拍 FIXED。WRAP、不支持 SIZE、未对齐、4KiB 越界、地址窗越界、MMIO burst、非可执行端点 fetch 均内部 DECERR，禁止任何下游副作用，并完整 drain 原定拍数。
-- WLAST 与原 AWLEN 不符为主设备协议错误：`protocol_error_o` 置位；`R64_ASSERT` 直接报错。核心正常数据流不得依靠这个容错路径。
-- byte lane 数据/STRB 原样传输。现有 AxiDpiSlave 仅接受与 AWSIZE 一致的完整连续 WSTRB；核心自然对齐 store 与完整 cache writeback 满足此条件。任意稀疏合法 AXI strobe 的 DPI 支持仍需在仿真端点扩展，不能冒充全 AXI 外部设备功能。
+| 状态 owner | 容量与关键字段 | 接收 / 释放边界 |
+| --- | --- | --- |
+| TensorLink 命令 | 一个 owner；full tag9、command64、operand64、pair、class8、结果错误及 dirty | `cmd_valid_i && cmd_ready_o` 在 IDLE 捕获；CHECK 后配置命令可直接终结，执行命令经 LEGACY/MACRO → WAIT_NPU |
+| TensorLink 描述符 | 30×64-bit descriptor、EMPTY/BUILD/RESIDENT/POISON、expected6 | 按顺序配置后才 RESIDENT；macro 完成后清状态。它是配置数据，不是30个在途命令 |
+| TensorMemory | 一个 owner；tag9、addr64、data64、strb8、write/error | IDLE 接 nreq → SEND 持有 req → WAIT 接 rsp → RESULT 持有 nrsp；NPU 接收 nrsp 后才释放 |
+| TensorLink 终端 | 继续使用同一命令 tag/error/code | NPU terminal 仅在 WAIT_NPU 且 Memory idle 时接受，并校验身份；有写入则 INVALIDATE 一拍后 TERMINAL，直到 Serial 接收 |
+| NPU local memory | `LMEM_BYTES=4096`（Link 默认） | 由实际 NPU 管理；不能把桥的一个 GMEM owner 等同于全部内部数值流水容量 |
 
-## 直接验证与边界
+Serial 在发出 Tensor command 前等待 Memory 的 `drain_idle_o`；命令发出后由 Link/NPU 排空其 GMEM 请求。
+`write_admitted_o` 在 NPU 写请求被 TensorMemory 接收且 strb 非零时置 dirty；
+INVALIDATE 是 I/D cache 失效发布脉冲，没有 cache-ack 握手，也不触发 TLB 失效。
+Link 交付 terminal 不等于 CPU 已退休：成功 terminal 后，Serial 保持不可撤销状态直到退休；
+错误 terminal 进入带异常的宽完成（cause 24），外部 owner 排空后由 Commit 精确处理。
+
+桥没有 branch kill/full_flush 端口。已开始的 GMEM 请求必须等待真实响应；错误 tag 会设置协议错误，
+在启用 `R64_ASSERT` 时触发断言。全系统 reset 与运行时指令取消不能混用。
+当前接入关闭可选 host portals/functional DPI 路径，算术由真实 NPU 执行。
+
+## 4. 复位、背压与设备副作用
+
+Platform 用寄存的 `device_reset_q` 分发设备复位；Fabric 同时隔离复位断言和恢复边界上的
+物理请求/响应。syscon 还接收 `rst_i || device_reset_q`，UART 字节发布状态在两者任一有效时清除。
+CPU 的 redirect/full_flush 不复位 Fabric；已经接受的 AR/AW/W 继续排空。
+
+读与 AW/W 可以独立反压，设备本地副作用具有各自时刻：PLIC 在捕获 claim 选择后执行 gateway 更新，
+RTC TIME_LOW 本地读取时快照 HIGH，UART 读取可弹出 FIFO，syscon 事件等待本地 B 接受。
+[BUS 拓扑](../bus/TOPOLOGY.md)记录这些边沿，不能用“收到地址”或“CPU 退休”统一替代。
+
+仿真中的 virtio/设备模型行为见 [sim/README](../../sim/README.md)；
+当前系统回归的 ext 端点由 C++ 模型响应，不是旧 `AxiDpiSlave.sv` 实例。
+旧单拍 DPI 模型对 WSTRB 的限制不能直接当作当前 Fabric 或当前宿主的能力说明。
+
+## 5. 验证入口与范围
+
+- [tb_r64_fabric](../../testbench/chengyue64/modules/tb_r64_fabric.sv)、
+  [tb_r64_fabric_devices](../../testbench/chengyue64/modules/tb_r64_fabric_devices.sv)：
+  Fabric 协议/错误/设备访问，更多分组和续拍用例见 BUS。
+- [tb_r64_platform_reset](../../testbench/chengyue64/modules/tb_r64_platform_reset.sv)、
+  [tb_r64_rtc](../../testbench/chengyue64/modules/tb_r64_rtc.sv)：平台发布/复位与 RTC 状态。
+- [tb_r64_tensor_memory](../../testbench/chengyue64/modules/tb_r64_tensor_memory.sv)、
+  [tb_r64_tensor](../../testbench/chengyue64/modules/tb_r64_tensor.sv)、
+  [整核 Tensor 程序](../../testbench/chengyue64/programs/r64_core_tensor.S)：
+  GMEM owner、真实 NPU 接入与完整系统程序；Makefile 另有错误响应 tag 的负向入口。
+
+构建、`core-test`、`tensor-test` 和测试身份见[验证平台](../../testbench/chengyue64/README.md)。
+本次仅更新文档，没有重跑上述用例；局部协议验证不代表完整 NPU 工作负载、系统或 PPA 通过。
+
+## 6. 早期切片记录（历史）
+
+以下保留原文的早期 Fabric 切片统计；它们不是 2026-10-09 当前源码的新测量。
+旧 NpcAxiBus/AxiCrossbar 的比较对象也不是当前生产实例。
 
 `tb_r64_fabric.sv` 固定 LFSR seed `0x514aa731`，随机独立 master/slave 反压，验证外部输入到输出隔离、所有 payload hold、逐 ID 和逐拍数据/错误、写地址和 W 归属，以及拒绝请求零设备副作用：
 
@@ -75,9 +144,9 @@ slave packed buses 保留 `NpcTop` 当前顺序，低位为 port 0：
 
 `tb_r64_fabric_devices.sv` 实例化真实 `bus/AxiClint.v`，验证 64-bit mtimecmp 写后读、32-bit 高/低字 lane、MSIP、被禁止 fetch/burst 无副作用。10 个读请求、6 个写请求中实际外设读 7 次、写 5 次，全部通过。因此旧 AM “CLINT 64 位写后 LD 0”没有在这条新 fabric + 原 CLINT 的完整握手边界复现；不能据旧症状断言 CLINT 存储坏了。CLINT 源码仍忽略 ARSIZE/AWSIZE 并将未知 offset 读零返回 OKAY，外设访问合法性需由完整平台测试判断。
 
-原始日志：`build/rebuild/platform/fabric.log`、`bad-last.log`、`devices.log`。这些是 fabric/外设边界证据，不是完整核心/ISA/PPA PASS。
+原记录给出的日志路径（未作为本次复验入口）：`build/rebuild/platform/fabric.log`、`bad-last.log`、`devices.log`。这些是 fabric/外设边界证据，不是完整核心/ISA/PPA PASS。
 
 按同样 64-bit address、16 endpoints 静态数源码有效字段（不包括断言）：
 旧 crossbar 地址字段 34×64=2176 bit（16 read +16 write +2 AW 入口），新 fabric 地址字段 8×64=512 bit（4 read +2 write +2 入口）。
 旧 data 字段 20×64=1280 bit（16 write +2 W 入口 +2 R 完成），新 data 字段 4×64=256 bit（2 W FIFO +2 R FIFO）。
-这只是宽状态复杂度减少，不是映射面积结果；旧核仅支持 single beat，新 fabric 支持实际 burst，两者功能身份不同，不能把周期直接当成 A/B CPI 收益。尚未综合/STA，也未证明 2 ns 时序。保留本切片供完整核心集成；若集成发现响应归属/进度错误则撤下该 filelist 项并修复，不能回退为忽略 LEN 的假 burst。
+这只是宽状态复杂度减少，不是映射面积结果；旧核仅支持 single beat，新 fabric 支持实际 burst，两者功能身份不同，不能把周期直接当成 A/B CPI 收益。该早期切片没有综合/STA 证据，也未证明 2 ns 时序；后续整核测量应从当前架构/发布入口读取。上述位数和周期不能作为当前集成版本的新结论。
