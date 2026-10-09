@@ -96,7 +96,7 @@ module R64AxiPlatform (
   wire uart_irq, rtc_irq;
   wire [31:0] sources = external_irq_sources_i | {27'b0, rtc_irq, 2'b0, uart_irq, 1'b0};
   R64AxiFabric #(
-    .READ_MEMORY_MASK(16'h2800),
+    .READ_MEMORY_MASK(`R64_PLATFORM_READ_MEMORY),
     .BASE(`R64_PLATFORM_BASE),
     .MASK(`R64_PLATFORM_MASK),
     .MEMORY(`R64_PLATFORM_MEMORY),
@@ -164,25 +164,25 @@ module R64AxiPlatform (
   ) clint (
     .clk(clk_i),
     .rst(device_reset_q),
-    .s_axi_arvalid_i(av[0]),
-    .s_axi_arready_o(ar[0]),
-    .s_axi_araddr_i(aa[0*64+:64]),
-    .s_axi_arsize_i(az[0*3+:3]),
-    .s_axi_rvalid_o(rv[0]),
-    .s_axi_rready_i(rr[0]),
-    .s_axi_rdata_o(rd[0*64+:64]),
-    .s_axi_rresp_o(rp[0*2+:2]),
-    .s_axi_awvalid_i(aw[0]),
-    .s_axi_awready_o(awr[0]),
-    .s_axi_awaddr_i(wa[0*64+:64]),
-    .s_axi_awsize_i(wz[0*3+:3]),
-    .s_axi_wvalid_i(wv[0]),
-    .s_axi_wready_o(wr[0]),
-    .s_axi_wdata_i(wd[0*64+:64]),
-    .s_axi_wstrb_i(ws[0*8+:8]),
-    .s_axi_bvalid_o(bv[0]),
-    .s_axi_bready_i(br[0]),
-    .s_axi_bresp_o(bp[0*2+:2]),
+    .s_axi_arvalid_i(av[`R64_PORT_CLINT]),
+    .s_axi_arready_o(ar[`R64_PORT_CLINT]),
+    .s_axi_araddr_i(aa[`R64_PORT_CLINT*64+:64]),
+    .s_axi_arsize_i(az[`R64_PORT_CLINT*3+:3]),
+    .s_axi_rvalid_o(rv[`R64_PORT_CLINT]),
+    .s_axi_rready_i(rr[`R64_PORT_CLINT]),
+    .s_axi_rdata_o(rd[`R64_PORT_CLINT*64+:64]),
+    .s_axi_rresp_o(rp[`R64_PORT_CLINT*2+:2]),
+    .s_axi_awvalid_i(aw[`R64_PORT_CLINT]),
+    .s_axi_awready_o(awr[`R64_PORT_CLINT]),
+    .s_axi_awaddr_i(wa[`R64_PORT_CLINT*64+:64]),
+    .s_axi_awsize_i(wz[`R64_PORT_CLINT*3+:3]),
+    .s_axi_wvalid_i(wv[`R64_PORT_CLINT]),
+    .s_axi_wready_o(wr[`R64_PORT_CLINT]),
+    .s_axi_wdata_i(wd[`R64_PORT_CLINT*64+:64]),
+    .s_axi_wstrb_i(ws[`R64_PORT_CLINT*8+:8]),
+    .s_axi_bvalid_o(bv[`R64_PORT_CLINT]),
+    .s_axi_bready_i(br[`R64_PORT_CLINT]),
+    .s_axi_bresp_o(bp[`R64_PORT_CLINT*2+:2]),
     .mtime_o(time_o),
     .msip_irq_o(irq_software_o),
     .mtip_irq_o(irq_timer_o),
@@ -196,25 +196,25 @@ module R64AxiPlatform (
   ) plic (
     .clk(clk_i),
     .rst(device_reset_q),
-    .s_axi_arvalid_i(av[1]),
-    .s_axi_arready_o(ar[1]),
-    .s_axi_araddr_i(aa[1*64+:64]),
-    .s_axi_arsize_i(az[1*3+:3]),
-    .s_axi_rvalid_o(rv[1]),
-    .s_axi_rready_i(rr[1]),
-    .s_axi_rdata_o(rd[1*64+:64]),
-    .s_axi_rresp_o(rp[1*2+:2]),
-    .s_axi_awvalid_i(aw[1]),
-    .s_axi_awready_o(awr[1]),
-    .s_axi_awaddr_i(wa[1*64+:64]),
-    .s_axi_awsize_i(wz[1*3+:3]),
-    .s_axi_wvalid_i(wv[1]),
-    .s_axi_wready_o(wr[1]),
-    .s_axi_wdata_i(wd[1*64+:64]),
-    .s_axi_wstrb_i(ws[1*8+:8]),
-    .s_axi_bvalid_o(bv[1]),
-    .s_axi_bready_i(br[1]),
-    .s_axi_bresp_o(bp[1*2+:2]),
+    .s_axi_arvalid_i(av[`R64_PORT_PLIC]),
+    .s_axi_arready_o(ar[`R64_PORT_PLIC]),
+    .s_axi_araddr_i(aa[`R64_PORT_PLIC*64+:64]),
+    .s_axi_arsize_i(az[`R64_PORT_PLIC*3+:3]),
+    .s_axi_rvalid_o(rv[`R64_PORT_PLIC]),
+    .s_axi_rready_i(rr[`R64_PORT_PLIC]),
+    .s_axi_rdata_o(rd[`R64_PORT_PLIC*64+:64]),
+    .s_axi_rresp_o(rp[`R64_PORT_PLIC*2+:2]),
+    .s_axi_awvalid_i(aw[`R64_PORT_PLIC]),
+    .s_axi_awready_o(awr[`R64_PORT_PLIC]),
+    .s_axi_awaddr_i(wa[`R64_PORT_PLIC*64+:64]),
+    .s_axi_awsize_i(wz[`R64_PORT_PLIC*3+:3]),
+    .s_axi_wvalid_i(wv[`R64_PORT_PLIC]),
+    .s_axi_wready_o(wr[`R64_PORT_PLIC]),
+    .s_axi_wdata_i(wd[`R64_PORT_PLIC*64+:64]),
+    .s_axi_wstrb_i(ws[`R64_PORT_PLIC*8+:8]),
+    .s_axi_bvalid_o(bv[`R64_PORT_PLIC]),
+    .s_axi_bready_i(br[`R64_PORT_PLIC]),
+    .s_axi_bresp_o(bp[`R64_PORT_PLIC*2+:2]),
     .source_irq_i(sources),
     .external_irq_o(),
     .machine_irq_o(irq_external_o),
@@ -227,25 +227,25 @@ module R64AxiPlatform (
   ) syscon (
     .clk(clk_i),
     .rst(rst_i || device_reset_q),
-    .s_axi_arvalid_i(av[2]),
-    .s_axi_arready_o(ar[2]),
-    .s_axi_araddr_i(aa[2*64+:64]),
-    .s_axi_arsize_i(az[2*3+:3]),
-    .s_axi_rvalid_o(rv[2]),
-    .s_axi_rready_i(rr[2]),
-    .s_axi_rdata_o(rd[2*64+:64]),
-    .s_axi_rresp_o(rp[2*2+:2]),
-    .s_axi_awvalid_i(aw[2]),
-    .s_axi_awready_o(awr[2]),
-    .s_axi_awaddr_i(wa[2*64+:64]),
-    .s_axi_awsize_i(wz[2*3+:3]),
-    .s_axi_wvalid_i(wv[2]),
-    .s_axi_wready_o(wr[2]),
-    .s_axi_wdata_i(wd[2*64+:64]),
-    .s_axi_wstrb_i(ws[2*8+:8]),
-    .s_axi_bvalid_o(bv[2]),
-    .s_axi_bready_i(br[2]),
-    .s_axi_bresp_o(bp[2*2+:2]),
+    .s_axi_arvalid_i(av[`R64_PORT_RESET_SYSCON]),
+    .s_axi_arready_o(ar[`R64_PORT_RESET_SYSCON]),
+    .s_axi_araddr_i(aa[`R64_PORT_RESET_SYSCON*64+:64]),
+    .s_axi_arsize_i(az[`R64_PORT_RESET_SYSCON*3+:3]),
+    .s_axi_rvalid_o(rv[`R64_PORT_RESET_SYSCON]),
+    .s_axi_rready_i(rr[`R64_PORT_RESET_SYSCON]),
+    .s_axi_rdata_o(rd[`R64_PORT_RESET_SYSCON*64+:64]),
+    .s_axi_rresp_o(rp[`R64_PORT_RESET_SYSCON*2+:2]),
+    .s_axi_awvalid_i(aw[`R64_PORT_RESET_SYSCON]),
+    .s_axi_awready_o(awr[`R64_PORT_RESET_SYSCON]),
+    .s_axi_awaddr_i(wa[`R64_PORT_RESET_SYSCON*64+:64]),
+    .s_axi_awsize_i(wz[`R64_PORT_RESET_SYSCON*3+:3]),
+    .s_axi_wvalid_i(wv[`R64_PORT_RESET_SYSCON]),
+    .s_axi_wready_o(wr[`R64_PORT_RESET_SYSCON]),
+    .s_axi_wdata_i(wd[`R64_PORT_RESET_SYSCON*64+:64]),
+    .s_axi_wstrb_i(ws[`R64_PORT_RESET_SYSCON*8+:8]),
+    .s_axi_bvalid_o(bv[`R64_PORT_RESET_SYSCON]),
+    .s_axi_bready_i(br[`R64_PORT_RESET_SYSCON]),
+    .s_axi_bresp_o(bp[`R64_PORT_RESET_SYSCON*2+:2]),
     .syscon_write_valid_o(device_syscon_valid),
     .syscon_write_value_o(syscon_value_o)
   );
@@ -260,25 +260,25 @@ module R64AxiPlatform (
   ) uart (
     .clk(clk_i),
     .rst(device_reset_q),
-    .s_axi_arvalid_i(av[3]),
-    .s_axi_arready_o(ar[3]),
-    .s_axi_araddr_i(aa[3*64+:64]),
-    .s_axi_arsize_i(az[3*3+:3]),
-    .s_axi_rvalid_o(rv[3]),
-    .s_axi_rready_i(rr[3]),
-    .s_axi_rdata_o(rd[3*64+:64]),
-    .s_axi_rresp_o(rp[3*2+:2]),
-    .s_axi_awvalid_i(aw[3]),
-    .s_axi_awready_o(awr[3]),
-    .s_axi_awaddr_i(wa[3*64+:64]),
-    .s_axi_awsize_i(wz[3*3+:3]),
-    .s_axi_wvalid_i(wv[3]),
-    .s_axi_wready_o(wr[3]),
-    .s_axi_wdata_i(wd[3*64+:64]),
-    .s_axi_wstrb_i(ws[3*8+:8]),
-    .s_axi_bvalid_o(bv[3]),
-    .s_axi_bready_i(br[3]),
-    .s_axi_bresp_o(bp[3*2+:2]),
+    .s_axi_arvalid_i(av[`R64_PORT_UART]),
+    .s_axi_arready_o(ar[`R64_PORT_UART]),
+    .s_axi_araddr_i(aa[`R64_PORT_UART*64+:64]),
+    .s_axi_arsize_i(az[`R64_PORT_UART*3+:3]),
+    .s_axi_rvalid_o(rv[`R64_PORT_UART]),
+    .s_axi_rready_i(rr[`R64_PORT_UART]),
+    .s_axi_rdata_o(rd[`R64_PORT_UART*64+:64]),
+    .s_axi_rresp_o(rp[`R64_PORT_UART*2+:2]),
+    .s_axi_awvalid_i(aw[`R64_PORT_UART]),
+    .s_axi_awready_o(awr[`R64_PORT_UART]),
+    .s_axi_awaddr_i(wa[`R64_PORT_UART*64+:64]),
+    .s_axi_awsize_i(wz[`R64_PORT_UART*3+:3]),
+    .s_axi_wvalid_i(wv[`R64_PORT_UART]),
+    .s_axi_wready_o(wr[`R64_PORT_UART]),
+    .s_axi_wdata_i(wd[`R64_PORT_UART*64+:64]),
+    .s_axi_wstrb_i(ws[`R64_PORT_UART*8+:8]),
+    .s_axi_bvalid_o(bv[`R64_PORT_UART]),
+    .s_axi_bready_i(br[`R64_PORT_UART]),
+    .s_axi_bresp_o(bp[`R64_PORT_UART*2+:2]),
     .uart_rx_valid_i(uart_rx_valid_i && !rst_i && !device_reset_q),
     .uart_rx_data_i(uart_rx_data_i),
     .uart_rx_ready_o(device_rx_ready),
@@ -295,54 +295,63 @@ module R64AxiPlatform (
   R64AxiRtc rtc (
     .clk_i(clk_i),
     .rst_i(device_reset_q),
-    .arvalid_i(av[5]),
-    .arready_o(ar[5]),
-    .araddr_i(aa[5*64+:12]),
-    .arsize_i(az[5*3+:3]),
-    .rvalid_o(rv[5]),
-    .rready_i(rr[5]),
-    .rdata_o(rd[5*64+:64]),
-    .rresp_o(rp[5*2+:2]),
-    .awvalid_i(aw[5]),
-    .awready_o(awr[5]),
-    .awaddr_i(wa[5*64+:12]),
-    .awsize_i(wz[5*3+:3]),
-    .wvalid_i(wv[5]),
-    .wready_o(wr[5]),
-    .wdata_i(wd[5*64+:64]),
-    .wstrb_i(ws[5*8+:8]),
-    .bvalid_o(bv[5]),
-    .bready_i(br[5]),
-    .bresp_o(bp[5*2+:2]),
+    .arvalid_i(av[`R64_PORT_RTC]),
+    .arready_o(ar[`R64_PORT_RTC]),
+    .araddr_i(aa[`R64_PORT_RTC*64+:12]),
+    .arsize_i(az[`R64_PORT_RTC*3+:3]),
+    .rvalid_o(rv[`R64_PORT_RTC]),
+    .rready_i(rr[`R64_PORT_RTC]),
+    .rdata_o(rd[`R64_PORT_RTC*64+:64]),
+    .rresp_o(rp[`R64_PORT_RTC*2+:2]),
+    .awvalid_i(aw[`R64_PORT_RTC]),
+    .awready_o(awr[`R64_PORT_RTC]),
+    .awaddr_i(wa[`R64_PORT_RTC*64+:12]),
+    .awsize_i(wz[`R64_PORT_RTC*3+:3]),
+    .wvalid_i(wv[`R64_PORT_RTC]),
+    .wready_o(wr[`R64_PORT_RTC]),
+    .wdata_i(wd[`R64_PORT_RTC*64+:64]),
+    .wstrb_i(ws[`R64_PORT_RTC*8+:8]),
+    .bvalid_o(bv[`R64_PORT_RTC]),
+    .bready_i(br[`R64_PORT_RTC]),
+    .bresp_o(bp[`R64_PORT_RTC*2+:2]),
     .irq_o(rtc_irq)
   );
+  // Each nibble names the Fabric endpoint for one external AXI-Lite port.
+  // Keep the external ABI order explicit; the loop below only repeats wiring.
+  localparam [15:0] EXTERNAL_SLAVE_MAP = {
+    `R64_PORT_VIRTIO_BLK,  // ext[3]
+    `R64_PORT_LEGACY_MMIO, // ext[2]
+    `R64_PORT_SDRAM,       // ext[1]
+    `R64_PORT_PSRAM        // ext[0]
+  };
+  localparam [15:0] ERROR_PORTS = `R64_PLATFORM_ERROR_PORTS;
   genvar e;
   generate
     for (e = 0; e < 4; e = e + 1) begin : g_external
-      localparam S = e == 0 ? 11 : (e == 1 ? 13 : (e == 2 ? 12 : 4));
-      assign ext_arvalid_o[e] = av[S];
-      assign ar[S] = ext_arready_i[e];
-      assign ext_araddr_o[e*64+:64] = aa[S*64+:64];
-      assign ext_arsize_o[e*3+:3] = az[S*3+:3];
-      assign ext_arprot_o[e*3+:3] = ap[S*3+:3];
-      assign rv[S] = ext_rvalid_i[e];
-      assign ext_rready_o[e] = rr[S];
-      assign rd[S*64+:64] = ext_rdata_i[e*64+:64];
-      assign rp[S*2+:2] = ext_rresp_i[e*2+:2];
-      assign ext_awvalid_o[e] = aw[S];
-      assign awr[S] = ext_awready_i[e];
-      assign ext_awaddr_o[e*64+:64] = wa[S*64+:64];
-      assign ext_awsize_o[e*3+:3] = wz[S*3+:3];
-      assign ext_wvalid_o[e] = wv[S];
-      assign wr[S] = ext_wready_i[e];
-      assign ext_wdata_o[e*64+:64] = wd[S*64+:64];
-      assign ext_wstrb_o[e*8+:8] = ws[S*8+:8];
-      assign bv[S] = ext_bvalid_i[e];
-      assign ext_bready_o[e] = br[S];
-      assign bp[S*2+:2] = ext_bresp_i[e*2+:2];
+      localparam [3:0] FABRIC_PORT = EXTERNAL_SLAVE_MAP[e*4+:4];
+      assign ext_arvalid_o[e] = av[FABRIC_PORT];
+      assign ar[FABRIC_PORT] = ext_arready_i[e];
+      assign ext_araddr_o[e*64+:64] = aa[FABRIC_PORT*64+:64];
+      assign ext_arsize_o[e*3+:3] = az[FABRIC_PORT*3+:3];
+      assign ext_arprot_o[e*3+:3] = ap[FABRIC_PORT*3+:3];
+      assign rv[FABRIC_PORT] = ext_rvalid_i[e];
+      assign ext_rready_o[e] = rr[FABRIC_PORT];
+      assign rd[FABRIC_PORT*64+:64] = ext_rdata_i[e*64+:64];
+      assign rp[FABRIC_PORT*2+:2] = ext_rresp_i[e*2+:2];
+      assign ext_awvalid_o[e] = aw[FABRIC_PORT];
+      assign awr[FABRIC_PORT] = ext_awready_i[e];
+      assign ext_awaddr_o[e*64+:64] = wa[FABRIC_PORT*64+:64];
+      assign ext_awsize_o[e*3+:3] = wz[FABRIC_PORT*3+:3];
+      assign ext_wvalid_o[e] = wv[FABRIC_PORT];
+      assign wr[FABRIC_PORT] = ext_wready_i[e];
+      assign ext_wdata_o[e*64+:64] = wd[FABRIC_PORT*64+:64];
+      assign ext_wstrb_o[e*8+:8] = ws[FABRIC_PORT*8+:8];
+      assign bv[FABRIC_PORT] = ext_bvalid_i[e];
+      assign ext_bready_o[e] = br[FABRIC_PORT];
+      assign bp[FABRIC_PORT*2+:2] = ext_bresp_i[e*2+:2];
     end
-    for (e = 0; e < 16; e = e + 1) begin : g_unimplemented
-      if ((e >= 6 && e <= 10) || e >= 14) begin : g_error
+    for (e = 0; e < `R64_PLATFORM_SLAVES; e = e + 1) begin : g_unimplemented
+      if (ERROR_PORTS[e]) begin : g_error
         AxiDefaultSlave #(
           .DATA_W(64)
         ) error (

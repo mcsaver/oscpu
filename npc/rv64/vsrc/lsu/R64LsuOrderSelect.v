@@ -10,6 +10,9 @@ module R64LsuOrderSelect #(
   output [     N-1:0] first_mask_o, second_mask_o,
   output [SLOT_W-1:0] first_slot_o, second_slot_o
 );
+  // For candidate e, each count subtree reports >=1 / >=2 eligible older
+  // owners. The root distinguishes first (0 older) from second (1 older).
+  // Both count and encoded-slot trees use root=1, children=2*n/2*n+1.
   localparam LEAVES = 1 << SLOT_W;
   wire [N-1:0] first_hit_w, second_hit_w;
   genvar e, n;

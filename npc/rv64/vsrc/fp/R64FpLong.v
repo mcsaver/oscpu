@@ -102,11 +102,14 @@ module R64FpLong #(
   reg [5:0] count_q;
   reg [59:0] remainder_q;
   reg sticky_q;
+  // Trial index 0/1/2 tests radix-4 digit 1/2/3. DIV keeps D/2D/3D;
+  // SQRT keeps 8*root+1, 16*root+4 and 24*root+9 for the next digit.
   reg [59:0] rhs_q[0:2];
   reg [52:0] divisor_q;
   reg [111:0] radicand_q;
   wire [111:0] initial_radicand_w = ea1_q[0] ? {a1_q, 59'b0} : {1'b0, a1_q, 58'b0};
   reg [55:0] digits_q;
+  // SQRT shift-only recurrence: root3_q[k] = 3*digits_q + k (k=0..2).
   reg [57:0] root3_q[0:2];
   // DIV produces a radix-4 digit over local/global carry phases.
   // Three local trial summaries and magnitude comparisons run in parallel.

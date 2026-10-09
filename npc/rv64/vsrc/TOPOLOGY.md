@@ -1,6 +1,42 @@
-# 承岳64全核拓扑与本轮优化入口
+# 承岳64全核拓扑与可量化设计边界
 
-范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。以 BUS 第四批为基线；面积只记录，优先比较正确性、时序和 CPI。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
+范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。结构以当前 RTL 的实例化和参数为准；下面标有 2026-09 的实验说明保留历史含义，不是当前优化计划。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
+
+
+## 2026-10-08 当前工作版本与读图规则
+
+当前工作版本保留第一轮普通 RAM load response bypass；第二轮取消前仲裁 + 固定物理 CQ 的联合候选已淘汰并恢复。
+当前生产 CQ 仍是 front/skid 两 lane、总四条，不是归档的固定槽候选。当前存在未提交源码/观察改动，
+不能只凭版本号或分支名把旧测量视为当前测量。证据入口为
+[第二轮结果](../ai/tests/2026-10-08-round2-architecture/RESULT.md) 和
+[输入/输出及 Q 起点 STA](../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)。
+
+| 当前同源测量事实 | 数值 / 限定 |
+|---|---|
+| CoreMark 10 完整执行 | 8,968,518 cycles / 3,218,537 retired；CPI 2.786520087 |
+| Dhrystone 10000 完整执行 | 14,267,505 / 4,260,670；CPI 3.348652911 |
+| 布局前完整 SystemTop STA | icsprout55 TT/1.2V/25C；1 ns；uncertainty 0.05 ns；setup WNS −2.119304419 ns；hold WNS −0.036660694 ns；FAIL |
+| 最差输入路径 | rst_i → Commit full_flush → ROB kill_mask[18] → LSU event_select → event_before_q[0] |
+| 已有内部 Q 起点违例 | Commit event_trap_q → CQ payload：−1.892150521 ns；→ raw response control：−1.749530077 ns |
+| 相邻限制 | effect_q[1] slack −2.109362364 ns；CQ payload 最差 −2.111715555 ns；不能只追一个端点 |
+| 正常合资格 load 的已测完成延迟 | load_chain 的真实 response → CQ 捕获 0 拍，response → WB 接受 2 拍；不是完整 load-to-use 延迟 |
+
+表中数据来自既有冻结 RTL 测量，本次拓扑更新没有运行新基准或 STA。旧结果与当前结构说明分开阅读。
+
+全核优化的设计单元以“状态由谁持有、在哪个边沿接收、接收前后允许做什么”为边界，不以一个 Verilog 文件为单位。
+各域当前表使用 FE / BE / FP / CTL / MEM / LSU / BUS 稳定 ID。它们是定位和测量的坐标，允许网页设计者
+提出合并、拆分、重定时、预测或信用变更；不是限制架构搜索只能在单模块内进行。
+[设计单元与输出约定](../ai/topology-contract.md) 定义需要记录的可量化属性及 UNKNOWN 表达。
+
+- **数据网络**：值和完整 tag/owner 从哪里来，何时可被使用。
+- **资格/信用网络**：valid/ready/grant/credit 是旧 Q 态、本拍组合还是已登记预约；图中一条箭头不自动等于一拍。
+- **取消/恢复网络**：reset、全清、选择性 kill、undo 与 owner 复用是不同条件。
+- **副作用网络**：store/CSR/AXI 在哪个真实接收边沿不可撤销；晚到响应由哪个状态排空。
+
+reset 是同步状态清除，并用于组合接口静默。运行时 full_flush 为
+`!rst_i && event_valid_q && (!event_trap_q || event_prepared_q)`；普通分支另走选择性恢复。
+reset 出现在 STA 起点不证明所有路径是假路径，也不证明复位初值要经过仲裁才能产生。
+CQ 宽 payload 已无清零 reset，仍可能通过保持/写使能依赖 reset、flush、kill 与 ready。
 
 ```mermaid
 flowchart TB
@@ -14,7 +50,8 @@ flowchart TB
   RR --> SE["Serial：CSR/FENCE/系统指令"]
   EX --> WB["Writeback：9源选2 / owner certificate"]
   FP --> WB
-  LS --> WB
+  LS -->|"load / exception completion"| WB
+  LS -->|"store_done：独立terminal"| ROB
   SE --> WB
   WB --> ROB["ROB32：generation/完成/异常/回滚"]
   ROB --> CM["Commit：双退休前缀 / 精确副作用"]
@@ -46,7 +83,11 @@ flowchart TB
 
 请求、返回、信用与取消是四张相互约束的网络。图中实线为主要请求/结果，虚线为提前唤醒、恢复、上下文与事件。ROB tag、LSQ slot/token、Fabric事务槽和 AXI ID 属于不同命名空间；只在明确接收边沿建立对应关系。
 
-| 模块域 | 详细拓扑 | 本轮处理与判据 |
+## 2026-09 全拓扑迭代历史记录
+
+下表与紧随其后的基线数字属于 2026-09 迭代；保留可复核出处，不作为本轮首选方案。
+
+| 模块域 | 详细拓扑 | 当时处理与判据 |
 |---|---|---|
 | 前端 | [Frontend](frontend/TOPOLOGY.md) | 空槽准备、部分消费指针、RAS并行转发；先要求相同 CPI/恢复计数。 |
 | 后端 | [Backend](backend/TOPOLOGY.md) | 双空项前缀、IQ空行数据准备、静态年龄矩阵；IQ32 单独试验。 |
@@ -56,7 +97,7 @@ flowchart TB
 | LSU | [LSU](lsu/TOPOLOGY.md) | 保留 pin/排空契约；STA反馈轮将宽转发数据提前至驻留query阶段准备，并移除物理发出时的重复 MEMORY 状态写入。 |
 | BUS/平台 | [BUS](bus/TOPOLOGY.md) | 保留四批结构；与Core一同综合，确认全核路径而非只测孤立Fabric。 |
 
-基线事实：CoreMark 9,573,233 cycles / 3,218,524 retired，CPI 2.974417155；Dhrystone 15,259,347 / 4,260,670，CPI 3.581443059。26项观察计数有重叠，不能直接求和为总停顿。
+2026-09 基线事实：CoreMark 9,573,233 cycles / 3,218,524 retired，CPI 2.974417155；Dhrystone 15,259,347 / 4,260,670，CPI 3.581443059。26项观察计数有重叠，不能直接求和为总停顿。
 
 完整 SystemTop 基线在1ns/0.05ns uncertainty、icsprout55 TT1.2V25C下，setup=-2.803282499ns，hold=-0.036660694ns，真实状态为 FAIL。最差链已定位至 DCache bank 写数据；不是所有模块频率都由这一个数代表。后续所有结论以同源测量为准，不能把数据路径优化直接换算为已实现的硅后Fmax。
 
@@ -118,7 +159,7 @@ ROB tag、LSQ slot、Service source/token、AXI ID与Fabric事务槽属于不同
 
 整机综合反馈按 DCache 高扇出写数据 → LSU query_take 控制宽转发快照 / 冗余状态更新推进。各轮测量保留在结果目录；对外请求发布、pin释放、已发owner及完成资格维持原拍数，详细边界见 LSU 图。
 
-## 最终 STA 暴露的跨模块路径
+## 2026-09 迭代末次 STA 暴露的跨模块路径
 
 DCache和LSU宽数据优化后，完整SystemTop最差setup=-2.261837959ns，端点为LSU forward_mask_q[19][6]。这条路径实际经过query取消资格、MemorySplit和MemoryService，再返回LSU。它是有效性与接收信用的组合往返，图中的末端寄存器承接路径，不代表组合环。
 
@@ -132,4 +173,4 @@ flowchart LR
   R --> M["Q：forward_mask发布"]
 ```
 
-这说明后续应把mask/descriptor的准备与可见性、以及Split/Service的寄存信用作为独立实验。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+当时报告据此提出检查 mask/descriptor 的准备与可见性、以及 Split/Service 的寄存信用；这是历史建议，当前方案由新的完整事实和实测决定。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../tmp/rv64-whole-topology-20260908/REPORT.md)。

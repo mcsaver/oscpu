@@ -70,22 +70,15 @@ module AxiResetSyscon #(
   wire read_legal_w = (s_axi_araddr_i[11:0] == 12'h000) && (s_axi_arsize_i == 3'd2);
   wire unused_addr_hi_w = |{s_axi_araddr_i[ADDR_W-1:12], s_axi_awaddr_i[ADDR_W-1:12]};
 
-  // 四个固定 byte-enable mux 对应 32-bit syscon 寄存器的真实写掩码硬件。
-  function [31:0] apply_wstrb32;
-    input [31:0] old_value;
-    input [31:0] new_value;
-    input [3:0] strb;
-    begin
-      apply_wstrb32[7:0]   = strb[0] ? new_value[7:0] : old_value[7:0];
-      apply_wstrb32[15:8]  = strb[1] ? new_value[15:8] : old_value[15:8];
-      apply_wstrb32[23:16] = strb[2] ? new_value[23:16] : old_value[23:16];
-      apply_wstrb32[31:24] = strb[3] ? new_value[31:24] : old_value[31:24];
+  // Four independent byte-enable muxes; publication still waits for B below.
+  wire [31:0] merged_write_value_w;
+  genvar byte_lane;
+  generate
+    for (byte_lane = 0; byte_lane < 4; byte_lane = byte_lane + 1) begin : gen_write_byte
+      assign merged_write_value_w[byte_lane*8+:8] = native_write_strb_w[byte_lane] ?
+          native_write_data_w[byte_lane*8+:8] : syscon_value_q[byte_lane*8+:8];
     end
-  endfunction
-
-  wire [31:0] merged_write_value_w = apply_wstrb32(
-      syscon_value_q, native_write_data_w, native_write_strb_w
-  );
+  endgenerate
 
   // 每侧只允许一个未完成响应；背压期间 payload 由响应寄存器冻结。
   assign s_axi_arready_o = !ar_seen_q && !s_axi_rvalid_o;

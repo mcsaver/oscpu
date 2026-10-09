@@ -1,0 +1,851 @@
+diff --git a/npc/rv64/sim/build.mk b/npc/rv64/sim/build.mk
+index 083cd46db..10d817d62 100644
+--- a/npc/rv64/sim/build.mk
++++ b/npc/rv64/sim/build.mk
+@@ -30,9 +30,9 @@ $(CORE_BUILD_DIR) $(SYSTEM_BUILD_DIR) $(TENSOR_BUILD_DIR):
+ 	mkdir -p $@
+ $(CORE_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.sv $(R64_SIM_DEPS) | $(CORE_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64CoreTestTop --prefix VR64CoreTestTop -Mdir $(CORE_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES)' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(CORE_BUILD_DIR)/build.log 2>&1
+-$(SYSTEM_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DEPS) | $(SYSTEM_BUILD_DIR)
++$(SYSTEM_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DEPS) | $(SYSTEM_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64SystemTestTop --prefix VR64SystemTestTop -Mdir $(SYSTEM_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(SYSTEM_BUILD_DIR)/build.log 2>&1
+-$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
++$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64TensorTestTop --prefix VR64TensorTestTop -Mdir $(TENSOR_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT -DR64_TENSOR $(TENSOR_FLAGS) $(R64_SIM_INCLUDES) $(R64_SIM_WARNINGS) $(R64_TENSOR_SRCS) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM -DR64_TENSOR' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(TENSOR_BUILD_DIR)/build.log 2>&1
+ 
+ .PHONY: core-lint system-lint platform-lint tensor-lint force-simulation-config
+diff --git a/npc/rv64/sim/vsrc/R64CpiProfile.svh b/npc/rv64/sim/vsrc/R64CpiProfile.svh
+index 284951bdc..ac6e0caba 100644
+--- a/npc/rv64/sim/vsrc/R64CpiProfile.svh
++++ b/npc/rv64/sim/vsrc/R64CpiProfile.svh
+@@ -186,3 +186,7 @@ always @(posedge clk_i) begin
+     profile_wb_backpressure_q <= profile_wb_backpressure_q + 64'd1;
+ end
+ final $display("CPI_PROFILE wb_backpressure=%0d", profile_wb_backpressure_q);
++
++`ifdef R64_LOAD_COMPLETION_PROFILE
++`include "R64LoadCompletionProfile.svh"
++`endif
+diff --git a/npc/rv64/testbench/chengyue64/Makefile b/npc/rv64/testbench/chengyue64/Makefile
+index f3d62e8e4..a28b82d00 100644
+--- a/npc/rv64/testbench/chengyue64/Makefile
++++ b/npc/rv64/testbench/chengyue64/Makefile
+@@ -355,3 +355,11 @@ negative-service-request-hint: $(BUILD_DIR)/tb_r64_service_request_hint.vvp
+ # Reference construction is owned by the DiffTest adapter.
+ core-reference: | $(CORE_BUILD_DIR)
+ 	$(MAKE) --no-print-directory -C ../../difftest reference CORE_REF=$(CORE_REF) > $(CORE_BUILD_DIR)/reference-build.log 2>&1
++
++# Real LSU response-bypass A/B: same public-interface stimuli and scoreboard.
++.PHONY: lsu-response-bypass-matrix
++$(BUILD_DIR)/tb_r64_lsu.vvp $(BUILD_DIR)/tb_r64_lsu_metadata.vvp $(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu_response_bypass.svh
++$(BUILD_DIR)/tb_r64_lsu_response_bypass_%.vvp: modules/tb_r64_lsu.sv modules/tb_r64_lsu_response_bypass.svh $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
++	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=4 -Ptb_r64_lsu.RESPONSE_BYPASS=$* -o $@ $(R64_RTL_SRCS) $<
++lsu-response-bypass-matrix: $(BUILD_DIR)/tb_r64_lsu_response_bypass_0.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_1.vvp
++	@set -e; for mode in 0 1; do for stall in plain stalls; do arg=; test $$stall != stalls || arg=+response-stalls; log=$(BUILD_DIR)/response-bypass-$$mode-$$stall.log; timeout 90 $(VVP) $(BUILD_DIR)/tb_r64_lsu_response_bypass_$$mode.vvp +response-bypass $$arg > $$log 2>&1; rg -F "[PASS] tb_r64_lsu response-bypass " $$log; done; done
+diff --git a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv
+index e9657df75..e5c6c1bb7 100644
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv
+@@ -3,6 +3,7 @@
+ module tb_r64_lsu;
+   parameter DEPTH = 18;
+   parameter EARLY_STORE = 0;
++  parameter RESPONSE_BYPASS = 1;
+   localparam IW = $clog2(DEPTH);
+   reg clk = 0;
+   always #5 clk = ~clk;
+@@ -60,6 +61,7 @@ module tb_r64_lsu;
+   end
+   R64Lsu #(
+     .EARLY_STORE(EARLY_STORE),
++    .RESPONSE_BYPASS(RESPONSE_BYPASS),
+     .ENTRIES(DEPTH),
+     .INDEX_W(IW)
+   ) dut (
+@@ -160,6 +162,8 @@ module tb_r64_lsu;
+   reg tr_hold = 0, mem_hold = 0, error_write = 0, bad_response = 0;
+   reg [31:0] rng = 32'h947312bd;
+   reg random_stall = 0;
++  reg [1:0] response_hold = 0;
++  reg error_read = 0;
+   genvar g;
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_model
+@@ -173,7 +177,7 @@ module tb_r64_lsu;
+       assign tcause[g*5+:5] = taqueue[g*8+th[g]] == 2 ? 5'd15 : 5'd13;
+       assign mr[g] = mn[g] < 7 && !mem_hold && (!random_stall || rng[g+2]);
+       assign mresp[g] = (bad_response && g == 0) ||
+-          (mn[g] != 0 && mdue[g*8+mh[g]] <= cycles && !mem_hold);
++          (mn[g] != 0 && mdue[g*8+mh[g]] <= cycles && !mem_hold && !response_hold[g]);
+       assign mresptoken[g*IW+:IW] = bad_response ? {IW{1'b0}} : mqtoken[g*8+mh[g]];
+       assign mrd[g*64+:64] = mqdata[g*8+mh[g]];
+       assign merror[g] = mqerror[g*8+mh[g]];
+@@ -222,7 +226,8 @@ module tb_r64_lsu;
+             for (j = 0; j < 8; j = j + 1) if (mstrb[a*8+j]) memory[index][j*8+:8] = md[a*64+j*8+:8];
+           mqtoken[a*8+mt[a]] = mtoken[a*IW+:IW];
+           mqdata[a*8+mt[a]] = response_data;
+-          mqerror[a*8+mt[a]] = mop[a*2+:2] != 0 && error_write;
++          mqerror[a*8+mt[a]] = (mop[a*2+:2] != 0 && error_write) ||
++              (mop[a*2+:2] == 0 && error_read);
+           mdue[a*8+mt[a]] = cycles + mem_delay;
+           mt[a] <= (mt[a] + 1) % 8;
+           memcount = memcount + 1;
+@@ -342,6 +347,7 @@ module tb_r64_lsu;
+           dut.prepared_payload_q !== prepared_expected_payload_q)
+         $fatal(1, "prepared descriptor not ready with exact owner at capture edge");
+     end
++  `include "tb_r64_lsu_response_bypass.svh"
+   integer n, before_mem, before_tr, issued, retired, start_cycle, stream_cycles;
+   initial begin
+     for (n = 0; n < 1024; n = n + 1) memory[n] = 64'h1234567880000000 + n;
+@@ -355,6 +361,7 @@ module tb_r64_lsu;
+     end
+     repeat (4) @(negedge clk);
+     rst = 0;
++    if ($test$plusargs("response-bypass")) run_response_bypass;
+     // Late physical classification must not let younger ordinary descriptors
+     // block the precise head request which releases their ordering barrier.
+     if ($test$plusargs("late-io")) begin
+diff --git a/npc/rv64/vsrc/lsu/R64Lsu.v b/npc/rv64/vsrc/lsu/R64Lsu.v
+index 37385b7fb..da6c77477 100644
+--- a/npc/rv64/vsrc/lsu/R64Lsu.v
++++ b/npc/rv64/vsrc/lsu/R64Lsu.v
+@@ -7,6 +7,7 @@ module R64Lsu #(
+   parameter EARLY_STORE = 1,
+   parameter HEAD_AUTHORIZED_QUERY = 0,
+   parameter PREPARED_CANCEL = 0,
++  parameter RESPONSE_BYPASS = 1,
+   parameter ENTRIES = 18,
+   parameter INDEX_W = 5,
+   parameter TAG_W = 9,
+@@ -1273,6 +1274,11 @@ module R64Lsu #(
+ 
+   localparam RAW_W = 152, META_W = TAG_W + 153;
+   wire [1:0] raw_credit_w, raw_valid_w, raw_fire_w, input_response_live_w;
++  wire [1:0] raw_occupied_w, raw_queue_fire_w;
++  wire [1:0] response_bypass_offer_w, response_bypass_fire_w;
++  wire [ENTRIES-1:0] response_bypass_eligible_w;
++  wire [2*TAG_W-1:0] raw_event_tag_w;
++  wire [2*RAW_W-1:0] raw_event_data_w;
+   wire [2*TAG_W-1:0] raw_tag_w, raw_in_tag_w;
+   wire [2*RAW_W-1:0] raw_data_w, raw_in_data_w;
+   wire [(1<<ROB_W)-1:0] raw_reuse_w;
+@@ -1291,6 +1297,9 @@ module R64Lsu #(
+   wire [5:0] response_offset_w;
+   generate
+     for (g = 0; g < ENTRIES; g = g + 1) begin : gen_response_metadata
++      // Class 0/1 are RAM. Side-effect alone does not exclude reserved class 3.
++      assign response_bypass_eligible_w[g] = !store_w[g] && !atomic_w[g] &&
++          !side_effect_w[g] && !misaligned_q[g] && class_q[g] < 2;
+       assign response_meta_rows_w[g*META_W+:META_W] = {
+         tag_q[g],
+         atomic_w[g],
+@@ -1311,7 +1320,7 @@ module R64Lsu #(
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W)
+   ) response_queue (
+-    .out_occupied_o(),
++    .out_occupied_o(raw_occupied_w),
+     .clk_i(clk_i),
+     .rst_i(rst_i),
+     .flush_i(flush_i),
+@@ -1322,7 +1331,7 @@ module R64Lsu #(
+     .age_clear_i(1'b0),
+     .out_age_o(unused_response_age_w),
+     .held_age_o(unused_response_held_age_w),
+-    .in_fire_i(raw_fire_w),
++    .in_fire_i(raw_queue_fire_w),
+     .in_ready_o(raw_credit_w),
+     .in_tag_i(raw_in_tag_w),
+     .in_data_i(raw_in_data_w),
+@@ -1362,6 +1371,19 @@ module R64Lsu #(
+         .data_i  (response_meta_rows_w),
+         .data_o  (input_meta_w[g])
+       );
++      // A live response already has raw Q credit. Only an actually empty
++      // registered lane may offer its incoming owner to the same raw source.
++      // Keep ready independent of CQ/WB and of current cancellation.
++      assign response_bypass_offer_w[g] = RESPONSE_BYPASS && raw_fire_w[g] &&
++          !raw_occupied_w[g] && !mem_rsp_error_i[g] &&
++          (|(select_meta_w & response_bypass_eligible_w));
++      assign response_bypass_fire_w[g] = response_bypass_offer_w[g] && event_grant_w[g];
++      assign raw_queue_fire_w[g] = raw_fire_w[g] && !response_bypass_fire_w[g];
++      // Occupied Q owns the payload even when its VALID is killed this cycle.
++      assign raw_event_tag_w[g*TAG_W+:TAG_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
++          raw_tag_w[g*TAG_W+:TAG_W] : raw_in_tag_w[g*TAG_W+:TAG_W];
++      assign raw_event_data_w[g*RAW_W+:RAW_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
++          raw_data_w[g*RAW_W+:RAW_W] : raw_in_data_w[g*RAW_W+:RAW_W];
+       wire [63:0] merged_input_w;
+       for (z = 0; z < 8; z = z + 1) begin : gen_input_merge
+         assign merged_input_w[z*8+:8] = input_meta_w[g][64+z] ? input_meta_w[g][z*8+:8] :
+@@ -1379,15 +1401,15 @@ module R64Lsu #(
+         input_meta_w[g][151] && !input_meta_w[g][152],
+         merged_input_w
+       };
+-      assign response_data_w[g*64+:64] = raw_data_w[g*RAW_W+:64];
+-      assign response_zero_w[g] = raw_data_w[g*RAW_W+64];
+-      assign response_load_offset_w[g*3+:3] = raw_data_w[g*RAW_W+65+:3];
+-      assign response_amo_w[g*5+:5] = raw_data_w[g*RAW_W+68+:5];
+-      assign response_func_w[g*5+:5] = raw_data_w[g*RAW_W+73+:5];
+-      assign response_va_w[g*64+:64] = raw_data_w[g*RAW_W+78+:64];
+-      assign response_cause_w[g*6+:6] = raw_data_w[g*RAW_W+142+:6];
+-      assign response_error_w[g] = raw_data_w[g*RAW_W+148];
+-      assign response_offset_w[g*3+:3] = raw_data_w[g*RAW_W+149+:3];
++      assign response_data_w[g*64+:64] = raw_event_data_w[g*RAW_W+:64];
++      assign response_zero_w[g] = raw_event_data_w[g*RAW_W+64];
++      assign response_load_offset_w[g*3+:3] = raw_event_data_w[g*RAW_W+65+:3];
++      assign response_amo_w[g*5+:5] = raw_event_data_w[g*RAW_W+68+:5];
++      assign response_func_w[g*5+:5] = raw_event_data_w[g*RAW_W+73+:5];
++      assign response_va_w[g*64+:64] = raw_event_data_w[g*RAW_W+78+:64];
++      assign response_cause_w[g*6+:6] = raw_event_data_w[g*RAW_W+142+:6];
++      assign response_error_w[g] = raw_event_data_w[g*RAW_W+148];
++      assign response_offset_w[g*3+:3] = raw_event_data_w[g*RAW_W+149+:3];
+ 
+     end
+   endgenerate
+@@ -1558,8 +1580,8 @@ module R64Lsu #(
+   genvar e;
+   generate
+     for (e = 0; e < 2; e = e + 1) begin : gen_events
+-      assign event_valid_w[e] = raw_valid_w[e];
+-      assign event_tag_w[e] = raw_tag_w[e*TAG_W+:TAG_W];
++      assign event_valid_w[e] = raw_valid_w[e] || response_bypass_offer_w[e];
++      assign event_tag_w[e] = raw_event_tag_w[e*TAG_W+:TAG_W];
+       assign event_result_w[e] = {
+         5'b0,
+         (response_va_w[e*64+:64] + {61'b0, response_error_w[e] ? response_offset_w[e*3+:3] : 3'b0}),
+@@ -2118,8 +2140,27 @@ module R64Lsu #(
+         );
+     end
+   integer a, order_row, order_col;
++  integer response_check;
+   always @(posedge clk_i)
+     if (!rst_i) begin
++      // Every accepted live response transfers its canonical owner exactly
++      // once, either into raw storage or into the existing CQ capture ports.
++      for (response_check = 0; response_check < 2; response_check = response_check + 1) begin
++        if ((raw_queue_fire_w[response_check] || response_bypass_fire_w[response_check]) !=
++            raw_fire_w[response_check] ||
++            (raw_queue_fire_w[response_check] && response_bypass_fire_w[response_check]))
++          $fatal(1, "R64Lsu response destination is not unique");
++        if (response_bypass_fire_w[response_check]) begin
++          if (raw_occupied_w[response_check] || mem_rsp_error_i[response_check] ||
++              !response_bypass_eligible_w[input_response_slot_w[response_check]])
++            $fatal(1, "R64Lsu response bypass violated registered owner/eligibility");
++          if (!((completion_fire_w[0] &&
++                 completion_tag_w[0+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W]) ||
++                (completion_fire_w[1] &&
++                 completion_tag_w[TAG_W+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W])))
++            $fatal(1, "R64Lsu bypass owner was not captured by CQ");
++        end
++      end
+       // Compare the count cone itself: arbitration-only fixtures suppress the
+       // CQ transfer with force, while independently exercising these selectors.
+       if (({event_two_w, |event_valid_w} & completion_credit_w) !==
+diff --git a/npc/rv64/vsrc/lsu/TOPOLOGY.md b/npc/rv64/vsrc/lsu/TOPOLOGY.md
+index 24d815c7f..c253a51e9 100644
+--- a/npc/rv64/vsrc/lsu/TOPOLOGY.md
++++ b/npc/rv64/vsrc/lsu/TOPOLOGY.md
+@@ -1,6 +1,6 @@
+ # 当前 LSU 拓扑网络
+ 
+-依据 2026-09-16 当前工作区的生产 RTL 整理；入口为
++依据 2026-09-16 的生产 RTL 整理，2026-10-08 补充普通 load 响应空 raw 旁路；入口为
+ R64CoreTop.memory → R64Memory.unit → R64LoadStore。
+ 本文描述模块连接、寄存边界及事务所有权，不把队列深度视为固定访问延迟。
+ 
+@@ -8,6 +8,7 @@ R64CoreTop.memory → R64Memory.unit → R64LoadStore。
+ ENTRIES=20、INDEX_W=5、TAG_W=9、ROB_W=5、HEAD_AUTHORIZED_QUERY=1、
+ PREPARED_CANCEL=1、EARLY_STORE=1、CACHE_SET_W=6、AUX=3、SRC_W=2。
+ 其中 EARLY_STORE、CACHE_SET_W 等未在核心覆盖的参数沿用模块默认值。
++R64Lsu 的 RESPONSE_BYPASS 默认1，控制下述普通成功 RAM load 的空 raw 响应旁路。
+ 
+ 本轮 Backend 网络优化同时更新了共享 [R64LsuRequestQueue](R64LsuRequestQueue.v)：每个持有位置在原数据写入边沿登记 ROB slot one-hot，reuse 输出对有效位置的位图相或。实际覆盖 request_queue、translation_queue、forward_query、response_queue、forwarding_results、faults 六个实例；完整 tag 继续用于 owner 认证。其它持有域、真实 acquire/release 边沿及本拓扑中的访存顺序不变，同一 ROB slot 的多份引用分别受保护。
+ 
+@@ -170,7 +171,8 @@ flowchart TB
+   PHYS --> MERGE
+   PHYS -->|"已登记取消的普通对齐RAM load"| DRAIN["丢弃数据并释放owner"]
+   LSQ -->|"canonical 元数据 / forward_q"| MERGE
+-  MERGE --> RAW
++  MERGE -->|"未满足旁路或未获CQ实际捕获"| RAW
++  MERGE -->|"成功对齐RAM load且raw Q为空：旁路候选"| EVT
+   LSQ -->|"DONE → fault_select"| FQ
+   RAW --> EVT
+   FQ --> EVT
+@@ -179,7 +181,7 @@ flowchart TB
+   CQ -.->|"out_request：驻留或本拍已接受结果，提前申请下一拍写回端口"| WB
+ ```
+ 
+-这张图的三个关键分流点：
++这张图的四个关键分流点：
+ 
+ - 翻译响应直入：成功普通对齐 load、非 IO、无需 A/D 重走，并且对当前 owner
+   没有更老 barrier/ordering owner；还需对应 lane 的 query Q 信用及入口优先级允许。
+@@ -195,6 +197,13 @@ flowchart TB
+   hold为空时直接发出，否则 hold 保存完整descriptor/tag。后续只在实际握手时置 mem_issued，
+   不重读已释放的source store，也不清除快照。某一出口容量用完后仍可能把背压传回query。
+ 
++- 物理响应入口：RESPONSE_BYPASS=1 时，成功、对齐、非 store/atomic/side-effect 且 class<2 的
++  普通 RAM load，在该 lane 的 raw Q 真正为空时可作为原 raw 来源参与六源轮转。
++  只有 CQ 本拍实际捕获该事件，才抑制这次 raw enqueue；未获 grant 或 CQ 无信用仍进原 raw Q。
++  使用不含 kill 的 out_occupied_o 判断是否空，不能让被杀旧 head 与新响应交换 payload。
++  外部 ready、raw 的寄存信用、mem_end 与上游 owner 释放边沿不变；完整 tag 在接受边沿
++  从 LSQ 转交 raw 或 CQ，reuse 投影保持覆盖。错误、IO、atomic 和非对齐请求保留原路径。
++
+ 正常匹配路径的寄存边界是 mholder → load descriptor Q → query Q → forwarding_results 或可旁路的 physical_hold → 物理服务。
+ 翻译直入与 prepared 直入省去前面的普通 load 调度/匹配路径。箭头不是固定“一拍”承诺；
+ 背压、队列前方 owner、translation/cache 延迟都会改变等待时间。
+@@ -422,7 +431,7 @@ LSQ状态语义：
+ FREE → NEW（先reserve，之后bind）→ TRANSLATING → READY；
+ 普通load选入mholder、翻译直入query、或prepared授权进入query后均可进入MEMORY，
+ 因此 MEMORY 不等价于“已到cache”，还须看mem_issued_q。
+-DONE是本地/翻译异常待捕获；普通load在有效raw response或full-forward terminal捕获时释放原LSQ。
++DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/CQ，或full-forward terminal捕获时释放原LSQ。
+ 成功副作用保留RETIRE到commit；需要源保护的已提交store再转PINNED，直到无引用。
+ 已接受翻译/物理请求的dead owner必须等其响应，不能仅凭kill提前复用。
+ 
+@@ -466,7 +475,9 @@ flowchart LR
+   FIRE --> ISS["mem_issued / effect记录"]
+ ```
+ 
+-新增 out_occupied_o 只导出 query head 的原始 valid Q，不含 reset/flush/kill 条件；它仅用于准备数据。其它五个请求队列不使用这个输出。对外 out_valid_o、接受条件、pop 和取消处理保持原语义。每个 LSQ row 使用静态 slot 匹配写 forward_q；query 离开后不再重读源 store。原 query_take 边沿仍发布 forward_mask，因此待准备或失效的数据不产生架构可见效果。
++out_occupied_o 导出 head 的原始 valid Q，不含 reset/flush/kill 条件。query 使用它准备数据；
++2026-10-08 起 response_queue 也使用它判断 raw lane 是否真正为空，决定能否提供直接进入 CQ 的候选。
++其它四个请求队列不使用这个输出。对外 out_valid_o、接受条件、pop 和取消处理保持原语义。每个 LSQ row 使用静态 slot 匹配写 forward_q；query 离开后不再重读源 store。原 query_take 边沿仍发布 forward_mask，因此待准备或失效的数据不产生架构可见效果。
+ 
+ 对应断言检查：同一 row 不被两个 query head 同时声明；physical holder 或 mem_issued 已拥有该 row 后禁止预写；已发请求的有效转发 byte 必须与原 query_take 边沿捕获的参考快照一致。定向测试另外验证 cancel/flush 在组合上压低 out_valid 时，raw occupancy 仍保持原 Q，直到时钟处理取消。
+ 
+@@ -490,3 +501,13 @@ query 出口对满字节转发仍使用 forwarding-results 信用。
+ 寄存边沿、容量、实际物理 VALID 与接受条件保持；R64_ASSERT 逐拍比较原
+ !physical_hold_valid || mfire 公式。
+ 
++
++
++## 2026-10-08：普通 load 响应空 raw 旁路
++
++本轮保留 raw 缓冲容量与 CQ/WB/ROB 接受边界，只对合格成功响应在空 raw 时省去一次寄存交接。
++空 CQ 的定向依赖链观测中 response→CQ 由1拍变0拍，response→WB由3拍变2拍。
++完整 CoreMark10 / Dhrystone10000 的总周期分别减少2.958743% / 2.063613%。
++该结果以真实 NEMU、断言、同镜像和同约束物理比较为依据；CQ 局部组合路径变长的代价也必须一起看。
++具体代码绑定、定向反例、完整程序与真实库 STA 见
++[本轮实验报告](../../ai/tests/2026-10-08-load-response-bypass/RESULT.md)。
+diff --git a/npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh b/npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh
+new file mode 100644
+index 000000000..fb61dc348
+--- /dev/null
++++ b/npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh
+@@ -0,0 +1,135 @@
++// Opt-in simulation observation only: no signal drives production RTL.
++// All events use the same pre-edge sample. Latency 0 therefore means capture
++// at the response edge; the 16th histogram bin includes every latency >=16.
++// Full canonical tags distinguish generations; kill/flush ends a tracked life.
++// Opportunities are overlapping predicates, not recoverable cycle estimates.
++`define R64_LOAD_L `R64_SYSTEM_HIER.core.memory.unit.lsu
++`define R64_LOAD_R `R64_SYSTEM_HIER.core.backend.rob
++// Fixed SystemTop uses canonical {4-bit generation, 5-bit ROB slot}.
++localparam integer LP_TAG_W = 9;
++localparam integer LP_ROB_W = 5;
++localparam integer LP_SLOTS = 1 << LP_ROB_W;
++reg [LP_SLOTS-1:0] lp_active, lp_cq_seen;
++reg [LP_TAG_W-1:0] lp_tag [0:LP_SLOTS-1];
++reg [63:0] lp_response_cycle [0:LP_SLOTS-1], lp_cq_cycle [0:LP_SLOTS-1];
++reg [63:0] lp_response_to_cq [0:16], lp_response_to_wb [0:16], lp_cq_to_wb [0:16];
++reg [63:0] lp_eligible, lp_raw_empty, lp_raw_empty_credit, lp_raw_empty_two_credit;
++reg [63:0] lp_cq_captured, lp_wb_accepted, lp_cancelled, lp_tag_collision;
++reg [63:0] lp_head_notdone, lp_head_notdone_unfrozen, lp_freeze;
++integer lp_i, lp_lane, lp_mem_slot, lp_rob_slot, lp_bucket, lp_pending;
++reg [LP_TAG_W-1:0] lp_current_tag;
++reg [63:0] lp_latency;
++always @(posedge clk_i) begin
++  if (rst_i) begin
++    lp_active = 0;
++    lp_cq_seen = 0;
++    lp_eligible = 0;
++    lp_raw_empty = 0;
++    lp_raw_empty_credit = 0;
++    lp_raw_empty_two_credit = 0;
++    lp_cq_captured = 0;
++    lp_wb_accepted = 0;
++    lp_cancelled = 0;
++    lp_tag_collision = 0;
++    lp_head_notdone = 0;
++    lp_head_notdone_unfrozen = 0;
++    lp_freeze = 0;
++    for (lp_i = 0; lp_i < LP_SLOTS; lp_i = lp_i + 1) begin
++      lp_tag[lp_i] = 0;
++      lp_response_cycle[lp_i] = 0;
++      lp_cq_cycle[lp_i] = 0;
++    end
++    for (lp_i = 0; lp_i < 17; lp_i = lp_i + 1) begin
++      lp_response_to_cq[lp_i] = 0;
++      lp_response_to_wb[lp_i] = 0;
++      lp_cq_to_wb[lp_i] = 0;
++    end
++  end else if (run_i) begin
++    if (`R64_LOAD_R.freeze_w) lp_freeze = lp_freeze + 1;
++    if (`R64_LOAD_R.count_q != 0 && `R64_LOAD_R.valid_q[`R64_LOAD_R.head_q] &&
++        !`R64_LOAD_R.done_q[`R64_LOAD_R.head_q]) begin
++      lp_head_notdone = lp_head_notdone + 1;
++      if (!`R64_LOAD_R.freeze_w) lp_head_notdone_unfrozen = lp_head_notdone_unfrozen + 1;
++    end
++    for (lp_i = 0; lp_i < LP_SLOTS; lp_i = lp_i + 1)
++      if (lp_active[lp_i] && (`R64_LOAD_L.flush_i || `R64_LOAD_L.kill_mask_i[lp_i])) begin
++        lp_active[lp_i] = 0;
++        lp_cq_seen[lp_i] = 0;
++        lp_cancelled = lp_cancelled + 1;
++      end
++    // Incoming eligibility is measured before any raw-queue bypass decision.
++    for (lp_lane = 0; lp_lane < 2; lp_lane = lp_lane + 1) begin
++      lp_mem_slot = int'(`R64_LOAD_L.input_response_slot_w[lp_lane]);
++      if (`R64_LOAD_L.mem_rsp_valid_i[lp_lane] && `R64_LOAD_L.mem_rsp_ready_o[lp_lane] &&
++          `R64_LOAD_L.input_response_live_w[lp_lane] &&
++          !`R64_LOAD_L.mem_rsp_error_i[lp_lane] &&
++          `R64_LOAD_L.state_q[lp_mem_slot] == `R64_LOAD_L.MEMORY &&
++          `R64_LOAD_L.mem_issued_q[lp_mem_slot] &&
++          !`R64_LOAD_L.store_w[lp_mem_slot] && !`R64_LOAD_L.atomic_w[lp_mem_slot] &&
++          !`R64_LOAD_L.misaligned_q[lp_mem_slot] && `R64_LOAD_L.class_q[lp_mem_slot] < 2) begin
++        lp_eligible = lp_eligible + 1;
++        if (`R64_LOAD_L.response_queue.valid_q[lp_lane] == 0) begin
++          lp_raw_empty = lp_raw_empty + 1;
++          if (|`R64_LOAD_L.completion_credit_w) lp_raw_empty_credit = lp_raw_empty_credit + 1;
++          if (&`R64_LOAD_L.completion_credit_w)
++            lp_raw_empty_two_credit = lp_raw_empty_two_credit + 1;
++        end
++        lp_current_tag = `R64_LOAD_L.raw_in_tag_w[lp_lane*LP_TAG_W+:LP_TAG_W];
++        lp_rob_slot = int'(lp_current_tag[LP_ROB_W-1:0]);
++        if (lp_active[lp_rob_slot]) lp_tag_collision = lp_tag_collision + 1;
++        lp_active[lp_rob_slot] = 1;
++        lp_cq_seen[lp_rob_slot] = 0;
++        lp_tag[lp_rob_slot] = lp_current_tag;
++        lp_response_cycle[lp_rob_slot] = profile_cycles_q;
++      end
++    end
++    for (lp_lane = 0; lp_lane < 2; lp_lane = lp_lane + 1) begin
++      lp_current_tag = `R64_LOAD_L.completion_tag_w[lp_lane*LP_TAG_W+:LP_TAG_W];
++      lp_rob_slot = int'(lp_current_tag[LP_ROB_W-1:0]);
++      if (`R64_LOAD_L.completion_fire_w[lp_lane] && lp_active[lp_rob_slot] &&
++          lp_tag[lp_rob_slot] == lp_current_tag && !lp_cq_seen[lp_rob_slot]) begin
++        lp_latency = profile_cycles_q - lp_response_cycle[lp_rob_slot];
++        lp_bucket = lp_latency >= 16 ? 16 : int'(lp_latency);
++        lp_response_to_cq[lp_bucket] = lp_response_to_cq[lp_bucket] + 1;
++        lp_cq_captured = lp_cq_captured + 1;
++        lp_cq_cycle[lp_rob_slot] = profile_cycles_q;
++        lp_cq_seen[lp_rob_slot] = 1;
++      end
++    end
++    // wb_accept is the existing ROB ownership/cancellation authority.
++    for (lp_lane = 0; lp_lane < 2; lp_lane = lp_lane + 1) begin
++      lp_current_tag = `R64_LOAD_R.wb_tag_i[lp_lane*LP_TAG_W+:LP_TAG_W];
++      lp_rob_slot = int'(lp_current_tag[LP_ROB_W-1:0]);
++      if (`R64_LOAD_R.wb_accept_o[lp_lane] && lp_active[lp_rob_slot] &&
++          lp_tag[lp_rob_slot] == lp_current_tag) begin
++        lp_latency = profile_cycles_q - lp_response_cycle[lp_rob_slot];
++        lp_bucket = lp_latency >= 16 ? 16 : int'(lp_latency);
++        lp_response_to_wb[lp_bucket] = lp_response_to_wb[lp_bucket] + 1;
++        if (lp_cq_seen[lp_rob_slot]) begin
++          lp_latency = profile_cycles_q - lp_cq_cycle[lp_rob_slot];
++          lp_bucket = lp_latency >= 16 ? 16 : int'(lp_latency);
++          lp_cq_to_wb[lp_bucket] = lp_cq_to_wb[lp_bucket] + 1;
++        end
++        lp_wb_accepted = lp_wb_accepted + 1;
++        lp_active[lp_rob_slot] = 0;
++        lp_cq_seen[lp_rob_slot] = 0;
++      end
++    end
++  end
++end
++final begin
++  $display("LOAD_PROFILE eligible=%0d raw_empty=%0d raw_empty_credit=%0d raw_empty_two_credit=%0d",
++           lp_eligible, lp_raw_empty, lp_raw_empty_credit, lp_raw_empty_two_credit);
++  lp_pending = 0;
++  for (lp_i = 0; lp_i < LP_SLOTS; lp_i = lp_i + 1)
++    if (lp_active[lp_i]) lp_pending = lp_pending + 1;
++  $display("LOAD_PROFILE cq_captured=%0d wb_accepted=%0d cancelled=%0d pending=%0d tag_collision=%0d",
++           lp_cq_captured, lp_wb_accepted, lp_cancelled, lp_pending, lp_tag_collision);
++  $display("LOAD_PROFILE head_notdone=%0d head_notdone_unfrozen=%0d freeze=%0d",
++           lp_head_notdone, lp_head_notdone_unfrozen, lp_freeze);
++  for (lp_i = 0; lp_i < 17; lp_i = lp_i + 1)
++    $display("LOAD_PROFILE latency_bin=%0d response_to_cq=%0d response_to_wb=%0d cq_to_wb=%0d",
++             lp_i, lp_response_to_cq[lp_i], lp_response_to_wb[lp_i], lp_cq_to_wb[lp_i]);
++end
++`undef R64_LOAD_L
++`undef R64_LOAD_R
+diff --git a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh
+new file mode 100644
+index 000000000..cde9242b5
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh
+@@ -0,0 +1,324 @@
++// Directed response-path tests through the ordinary reserve/bind/translation/
++// memory interfaces. No DUT force or assertion suppression is used.
++integer rb_rsp_cycle[0:511], rb_cq_cycle[0:511];
++integer rb_rsp_count[0:511], rb_cq_count[0:511], rb_wb_count[0:511], rb_raw_count[0:511];
++reg [8:0] rb_slot_tag[0:DEPTH-1];
++integer rb_epoch = 0, rb_dual_rsp = 0, rb_competition_lost = 0;
++integer rb_l, rb_t, rb_k;
++reg rb_same_capture;
++always @(posedge clk) begin
++  if (!rst && $test$plusargs("response-bypass")) begin
++    rb_epoch = rb_epoch + 1;
++    if ((mresp & mrespready) == 3) rb_dual_rsp = rb_dual_rsp + 1;
++    for (rb_l = 0; rb_l < 2; rb_l = rb_l + 1) begin
++      if (in_fire[rb_l]) rb_slot_tag[reserve_slot_w[rb_l*IW+:IW]] = in_tag[rb_l*9+:9];
++      if (mresp[rb_l] && mrespready[rb_l]) begin
++        rb_t = int'(rb_slot_tag[mresptoken[rb_l*IW+:IW]]);
++        rb_rsp_count[rb_t] = rb_rsp_count[rb_t] + 1;
++        rb_rsp_cycle[rb_t] = rb_epoch;
++        if (rb_rsp_count[rb_t] != 1) $fatal(1, "duplicate physical response tag=%0d", rb_t);
++        rb_same_capture = 0;
++        for (rb_k = 0; rb_k < 2; rb_k = rb_k + 1)
++          if (dut.completion_fire_w[rb_k] && dut.completion_tag_w[rb_k*9+:9] == 9'(rb_t))
++            rb_same_capture = 1;
++        if (!killed[rb_t%32] && !flush && !merror[rb_l] &&
++            dut.response_queue.valid_q[rb_l] == 0 && dut.completion_credit_w != 0 &&
++            (|dut.event_valid_w[3:2]) && (|dut.event_valid_w[5:4]) && !rb_same_capture)
++          rb_competition_lost = rb_competition_lost + 1;
++      end
++      if (dut.raw_queue_fire_w[rb_l]) begin
++        rb_t = int'(rb_slot_tag[mresptoken[rb_l*IW+:IW]]);
++        rb_raw_count[rb_t] = rb_raw_count[rb_t] + 1;
++      end
++      if (out_valid[rb_l] && out_ready[rb_l]) begin
++        rb_t = int'(out_tag[rb_l*9+:9]);
++        if (out_tag[rb_l*9+:9] !== full_tag[rb_t%32])
++          $fatal(1, "response bypass full generation mismatch actual=%0d expected=%0d",
++                 rb_t, full_tag[rb_t%32]);
++        rb_wb_count[rb_t] = rb_wb_count[rb_t] + 1;
++        if (rb_wb_count[rb_t] != 1) $fatal(1, "duplicate WB tag=%0d", rb_t);
++      end
++    end
++    // Process CQ after both response lanes, allowing same-edge captures.
++    for (rb_l = 0; rb_l < 2; rb_l = rb_l + 1)
++      if (dut.completion_fire_w[rb_l]) begin
++        rb_t = int'(dut.completion_tag_w[rb_l*9+:9]);
++        rb_cq_count[rb_t] = rb_cq_count[rb_t] + 1;
++        rb_cq_cycle[rb_t] = rb_epoch;
++        if (rb_cq_count[rb_t] != 1) $fatal(1, "duplicate CQ tag=%0d", rb_t);
++        if (!active[rb_t%32] || killed[rb_t%32] ||
++            dut.completion_tag_w[rb_l*9+:9] !== full_tag[rb_t%32])
++          $fatal(1, "CQ accepted wrong owner tag=%0d", rb_t);
++      end
++  end
++end
++
++task rb_pair;
++  input [8:0] t0, t1;
++  input [63:0] a0, a1;
++  reg saved_stall;
++  integer pair_bound;
++  begin
++    // Pair fixture requires simultaneous issue into both physical lanes.
++    // Pause randomized request-ready only for this arrangement, then restore it.
++    saved_stall = random_stall;
++    random_stall = 0;
++    @(negedge clk);
++    while (in_ready != 3) @(negedge clk);
++    in_fire = 3;
++    in_tag = {t1, t0};
++    in_uop = 0;
++    in_uop[196+:8] = 8'h03;
++    in_uop[`R64_UOP_W+196+:8] = 8'h03;
++    operand = 0;
++    operand[63:0] = a0;
++    operand[192+:64] = a1;
++    full_tag[t0[4:0]] = t0; full_tag[t1[4:0]] = t1;
++    active[t0[4:0]] = 1; active[t1[4:0]] = 1;
++    received[t0[4:0]] = 0; received[t1[4:0]] = 0;
++    killed[t0[4:0]] = 0; killed[t1[4:0]] = 0;
++    expected[t0[4:0]] = memory[a0>>3]; expected[t1[4:0]] = memory[a1>>3];
++    expectfault[t0[4:0]] = 0; expectfault[t1[4:0]] = 0;
++    @(negedge clk);
++    in_fire = 0;
++    pair_bound = 0;
++    while ((mn[0] == 0 || mn[1] == 0) && pair_bound < 100) begin
++      @(negedge clk);
++      pair_bound = pair_bound + 1;
++    end
++    if (mn[0] == 0 || mn[1] == 0)
++      $fatal(1, "pair fixture failed to issue both lanes mn=%0d/%0d", mn[0], mn[1]);
++    random_stall = saved_stall;
++  end
++endtask
++
++task rb_check_latency;
++  input [8:0] t;
++  input integer latency;
++  begin
++    if (rb_rsp_count[t] != 1 || rb_cq_count[t] != 1 || rb_wb_count[t] != 1 ||
++        rb_cq_cycle[t] - rb_rsp_cycle[t] != latency)
++      $fatal(1, "response latency tag=%0d rsp=%0d cq=%0d wb=%0d delta=%0d expected=%0d",
++             t, rb_rsp_count[t], rb_cq_count[t], rb_wb_count[t],
++             rb_cq_cycle[t] - rb_rsp_cycle[t], latency);
++  end
++endtask
++
++task rb_drain;
++  integer bound;
++  begin
++    bound = 0;
++    while (!idle && bound < 300) begin
++      @(negedge clk);
++      bound = bound + 1;
++    end
++    if (!idle || reuse != 0) $fatal(1, "response bypass owner leak reuse=%h", reuse);
++  end
++endtask
++
++task run_response_bypass;
++  integer q;
++  begin
++    for (q = 0; q < 512; q = q + 1) begin
++      rb_rsp_cycle[q] = -1; rb_cq_cycle[q] = -1;
++      rb_rsp_count[q] = 0; rb_cq_count[q] = 0;
++      rb_wb_count[q] = 0; rb_raw_count[q] = 0;
++    end
++    for (q = 0; q < DEPTH; q = q + 1) rb_slot_tag[q] = 0;
++    trigger_test = 1;
++    random_stall = $test$plusargs("response-stalls");
++    tr_delay = 1; mem_delay = 1;
++    enqueue(0, 0, 0, 8'h03, 0, memory[0], 0, 0);
++    wait_result(0);
++    rb_check_latency(0, RESPONSE_BYPASS ? 0 : 1);
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE single_empty delta=%0d", rb_cq_cycle[0]-rb_rsp_cycle[0]);
++
++    response_hold = 3;
++    rb_pair(1, 2, 8, 16);
++    while (mn[0] == 0 || mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    response_hold = 0;
++    wait_result(1); wait_result(2);
++    rb_check_latency(1, RESPONSE_BYPASS ? 0 : 1);
++    rb_check_latency(2, RESPONSE_BYPASS ? 0 : 1);
++    if (rb_dual_rsp == 0) $fatal(1, "two-lane response case vacuous");
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE dual_empty dual_rsp=%0d", rb_dual_rsp);
++
++    // CQ-full fallback must also complete normally, without using cancellation
++    // to drain the retained response. Distinct generations reuse old ROB slots.
++    out_ready = 0;
++    for (q = 64; q < 68; q = q + 1)
++      enqueue(9'(q), 64'((q-64)*8), 0, 8'h03, 0, memory[q-64], 0, 0);
++    while (dut.completion_credit_w != 0) @(negedge clk);
++    response_hold = 3;
++    rb_pair(68, 69, 32, 40);
++    while (mn[0] == 0 || mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    response_hold = 0;
++    while (rb_rsp_count[68] == 0 || rb_rsp_count[69] == 0) @(negedge clk);
++    if (rb_cq_count[68] != 0 || rb_cq_count[69] != 0 ||
++        rb_raw_count[68] != 1 || rb_raw_count[69] != 1)
++      $fatal(1, "CQ-full live fallback did not retain exactly one response");
++    out_ready = 3;
++    for (q = 64; q < 70; q = q + 1) begin
++      wait_result(5'(q));
++      if (rb_cq_count[q] != 1 || rb_wb_count[q] != 1)
++        $fatal(1, "CQ-full live fallback lost or duplicated completion tag=%0d", q);
++    end
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE cq_full_live_fallback exactly_once=6");
++
++    // Four CQ owners block WB, then raw heads occupy both lanes.
++    out_ready = 0;
++    for (q = 3; q < 7; q = q + 1)
++      enqueue(9'(q), 64'(q*8), 0, 8'h03, 0, memory[q], 0, 0);
++    while (dut.completion_credit_w != 0) @(negedge clk);
++    response_hold = 3;
++    rb_pair(7, 8, 56, 64);
++    while (mn[0] == 0 || mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    response_hold = 0;
++    while (rb_rsp_count[7] == 0 || rb_rsp_count[8] == 0) @(negedge clk);
++    if (rb_cq_count[7] != 0 || rb_cq_count[8] != 0 ||
++        rb_raw_count[7] != 1 || rb_raw_count[8] != 1)
++      $fatal(1, "CQ full did not retain exact raw fallback");
++    $display("RESPONSE_BYPASS_CASE cq_full raw_fallback=2");
++    // Next two real responses meet kill of old raw heads, while CQ is free.
++    response_hold = 3;
++    rb_pair(9, 10, 72, 80);
++    while (mn[0] == 0 || mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    killed = killed | 32'h78; kill = 32'h78; // kill CQ tags 3..6
++    @(negedge clk);
++    killed = killed | 32'h180; kill = 32'h180; // raw tags 7,8
++    if (dut.response_queue.valid_q[0] == 0 || dut.response_queue.valid_q[1] == 0 ||
++        dut.completion_credit_w == 0) $fatal(1, "old raw kill fixture not occupied/credited");
++    response_hold = 0;
++    @(negedge clk);
++    kill = 0;
++    out_ready = 3;
++    wait_result(9); wait_result(10);
++    rb_check_latency(9, 1); rb_check_latency(10, 1);
++    if (rb_raw_count[9] != 1 || rb_raw_count[10] != 1 ||
++        rb_wb_count[7] != 0 || rb_wb_count[8] != 0)
++      $fatal(1, "old killed raw head was treated as physically empty");
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE occupied_kill_new_response no_bypass=2");
++
++    response_hold = 3;
++    enqueue(11, 88, 0, 8'h03, 0, memory[11], 0, 0);
++    while (mn[0] + mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    killed[11] = 1; kill = 32'h800; response_hold = 0;
++    @(negedge clk); kill = 0;
++    rb_drain;
++    if (rb_cq_count[11] != 0 || rb_raw_count[11] != 0 || rb_wb_count[11] != 0)
++      $fatal(1, "incoming killed response escaped");
++    response_hold = 3;
++    enqueue(12, 96, 0, 8'h03, 0, memory[12], 0, 0);
++    while (mn[0] + mn[1] == 0) @(negedge clk);
++    repeat (4) @(negedge clk);
++    killed[12] = 1; flush = 1; response_hold = 0;
++    @(negedge clk); flush = 0;
++    rb_drain;
++    if (rb_cq_count[12] != 0 || rb_raw_count[12] != 0 || rb_wb_count[12] != 0)
++      $fatal(1, "incoming flushed response escaped");
++    $display("RESPONSE_BYPASS_CASE incoming_kill_flush no_completion=2");
++
++    // Hold results while LSQ entries are reused; cancel an old canonical tag
++    // and reuse its physical ROB slot with a different generation and value.
++    out_ready = 0;
++    for (q = 13; q < 17; q = q + 1)
++      enqueue(9'(q), 64'(q*8), 0, 8'h03, 0, memory[q], 0, 0);
++    while (dut.completion_credit_w != 0) @(negedge clk);
++    killed[13] = 1; kill = 32'h2000;
++    @(negedge clk); kill = 0;
++    while (reuse[13]) @(negedge clk);
++    enqueue(45, 160, 0, 8'h03, 0, memory[20], 0, 0);
++    while (rb_rsp_count[45] == 0) @(negedge clk);
++    out_ready = 3;
++    wait_result(14); wait_result(15); wait_result(16); wait_result(13);
++    rb_drain;
++    if (rb_wb_count[13] != 0 || rb_wb_count[45] != 1 || rb_cq_count[45] != 1)
++      $fatal(1, "held metadata / full generation reuse failed");
++    $display("RESPONSE_BYPASS_CASE held_metadata_generation old=13 new=45");
++
++    error_read = 1;
++    enqueue(17, 136, 0, 8'h03, 0, 0, 1, 5);
++    wait_result(17); error_read = 0;
++    rb_check_latency(17, 1);
++    retire(17);
++    head_tag = 18;
++    enqueue(18, 64'he00, 0, 8'h03, 0, memory[448], 0, 0);
++    wait_result(18); rb_check_latency(18, 1); retire(18);
++    head_tag = 19;
++    enqueue(19, 0, 0, 8'h83, 2, memory[0], 0, 0);
++    wait_result(19); rb_check_latency(19, 1); retire(19);
++    head_tag = 20;
++    enqueue(20, 3, 0, 8'h03, 0, memory[0], 0, 0);
++    wait_result(20); rb_check_latency(20, 1); retire(20);
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE excluded error_io_atomic_misaligned=4");
++
++    // Competing fault and store-forward events are retained behind full CQ.
++    // Release CQ and ordinary responses together. RR must arbitrate all six
++    // original sources; an ungranted response must fall back exactly once.
++    out_ready = 0;
++    for (q = 21; q < 25; q = q + 1)
++      enqueue(9'(q), 64'(q*8), 0, 8'h03, 0, memory[q], 0, 0);
++    while (dut.completion_credit_w != 0) @(negedge clk);
++    enqueue(25, 64'hf00, 0, 8'h03, 0, 0, 1, 13);
++    head_tag = 31;
++    enqueue(26, 0, 64'h55, 8'h23, 0, 0, 0, 0);
++    enqueue(27, 0, 0, 8'h03, 0, 64'h55, 0, 0);
++    response_hold = 3;
++    rb_pair(28, 29, 224, 232);
++    while (mn[0] == 0 || mn[1] == 0 ||
++           !(|dut.event_valid_w[3:2]) || !(|dut.event_valid_w[5:4])) @(negedge clk);
++    repeat (4) @(negedge clk);
++    killed = killed | 32'h1e00000; kill = 32'h1e00000;
++    @(negedge clk);
++    kill = 0; response_hold = 0;
++    @(negedge clk);
++    if (rb_competition_lost == 0) $fatal(1, "fault/forward response arbitration case vacuous");
++    out_ready = 3;
++    wait_result(25); wait_result(27); wait_result(28); wait_result(29);
++    if (rb_cq_count[28] != 1 || rb_cq_count[29] != 1 ||
++        rb_wb_count[28] != 1 || rb_wb_count[29] != 1)
++      $fatal(1, "arbitration fallback lost or duplicated response");
++    head_tag = 26;
++    wait_result(26); retire(26);
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE competing_fault_forward lost_grant=%0d", rb_competition_lost);
++    // Two empty raw lanes compete for exactly one registered CQ credit.
++    // The unselected physical response must retain its own raw fallback.
++    out_ready = 0;
++    for (q = 80; q < 83; q = q + 1)
++      enqueue(9'(q), 64'((q-80)*8), 0, 8'h03, 0, memory[q-80], 0, 0);
++    while (rb_cq_count[82] == 0) @(negedge clk);
++    if (dut.completion_credit_w !== 2'b01)
++      $fatal(1, "one-credit fixture lacks exactly one CQ slot");
++    response_hold = 3;
++    rb_pair(83, 84, 24, 32);
++    repeat (4) @(negedge clk);
++    response_hold = 0;
++    while (rb_rsp_count[83] == 0 || rb_rsp_count[84] == 0) @(negedge clk);
++    if (rb_cq_count[83] + rb_cq_count[84] != (RESPONSE_BYPASS ? 1 : 0) ||
++        rb_raw_count[83] + rb_raw_count[84] != (RESPONSE_BYPASS ? 1 : 2))
++      $fatal(1, "two responses consumed wrong CQ credit or lost fallback");
++    out_ready = 3;
++    for (q = 80; q < 85; q = q + 1) begin
++      wait_result(5'(q));
++      if (rb_cq_count[q] != 1 || rb_wb_count[q] != 1)
++        $fatal(1, "one-credit case lost or duplicated owner tag=%0d", q);
++    end
++    rb_drain;
++    $display("RESPONSE_BYPASS_CASE dual_one_credit exactly_once=5 raw_fallback=%0d",
++             rb_raw_count[83] + rb_raw_count[84]);
++    $display("[PASS] tb_r64_lsu response-bypass parameter=%0d stalls=%0d full_tag_exactly_once",
++             RESPONSE_BYPASS, random_stall);
++    $finish;
++  end
++endtask
+diff --git a/npc/rv64/testbench/chengyue64/programs/r64_core_load_chain.S b/npc/rv64/testbench/chengyue64/programs/r64_core_load_chain.S
+new file mode 100644
+index 000000000..4dc181d59
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/programs/r64_core_load_chain.S
+@@ -0,0 +1,43 @@
++// Diagnostic: serialized cache-resident loads expose response-to-use latency.
++// Both full programs remain the performance acceptance workloads.
++.section .text
++.globl _start
++.option norelax
++_start:
++  la t0, node0
++  li t1, 512
++.globl load_chain_begin
++load_chain_begin:
++  .rept 16
++  ld t0, 0(t0)
++  .endr
++  addi t1, t1, -1
++  bnez t1, load_chain_begin
++.globl load_chain_end
++load_chain_end:
++  la t2, node0
++  bne t0, t2, fail
++  li a0, 0
++  ebreak
++fail:
++  li a0, 1
++  ebreak
++
++.section .data
++.balign 64
++node0: .dword node1
++node1: .dword node2
++node2: .dword node3
++node3: .dword node4
++node4: .dword node5
++node5: .dword node6
++node6: .dword node7
++node7: .dword node8
++node8: .dword node9
++node9: .dword node10
++node10: .dword node11
++node11: .dword node12
++node12: .dword node13
++node13: .dword node14
++node14: .dword node15
++node15: .dword node0

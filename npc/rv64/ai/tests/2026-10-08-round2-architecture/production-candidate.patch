@@ -1,0 +1,359 @@
+--- a/npc/rv64/vsrc/lsu/R64Lsu.v
++++ b/npc/rv64/vsrc/lsu/R64Lsu.v
+@@ -1276,6 +1276,7 @@
+   wire [1:0] raw_credit_w, raw_valid_w, raw_fire_w, input_response_live_w;
+   wire [1:0] raw_occupied_w, raw_queue_fire_w;
+   wire [1:0] response_bypass_offer_w, response_bypass_fire_w;
++  wire [1:0] response_bypass_candidate_w;
+   wire [ENTRIES-1:0] response_bypass_eligible_w;
+   wire [2*TAG_W-1:0] raw_event_tag_w;
+   wire [2*RAW_W-1:0] raw_event_data_w;
+@@ -1371,9 +1372,14 @@
+         .data_i  (response_meta_rows_w),
+         .data_o  (input_meta_w[g])
+       );
+-      // A live response already has raw Q credit. Only an actually empty
+-      // registered lane may offer its incoming owner to the same raw source.
+-      // Keep ready independent of CQ/WB and of current cancellation.
++      // Present data before current cancellation/handshake qualification. A
++      // truly empty registered raw lane has structural response capacity, but
++      // its public ready still includes flush. Do not route payload via ready.
++      // Only the separate live offer/capture below can create a CQ owner.
++      assign response_bypass_candidate_w[g] = RESPONSE_BYPASS && !rst_i &&
++          mem_rsp_valid_i[g] && alive_q[input_response_slot_w[g]] &&
++          !raw_occupied_w[g] && !mem_rsp_error_i[g] &&
++          (|(select_meta_w & response_bypass_eligible_w));
+       assign response_bypass_offer_w[g] = RESPONSE_BYPASS && raw_fire_w[g] &&
+           !raw_occupied_w[g] && !mem_rsp_error_i[g] &&
+           (|(select_meta_w & response_bypass_eligible_w));
+@@ -1462,7 +1468,7 @@
+   wire fault_idle_w;
+   wire completion_idle_w;
+   wire [1:0] full_forward_w, forward_take_w, forward_credit_w;
+-  wire [1:0] forward_valid_q;
++  wire [1:0] forward_valid_q, forward_occupied_w;
+   wire [TAG_W-1:0] forward_tag_q[0:1];
+   wire [63:0] forward_data_q[0:1];
+   wire [4:0] forward_func_q[0:1], forward_amo_q[0:1];
+@@ -1480,7 +1486,7 @@
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W)
+   ) forwarding_results (
+-    .out_occupied_o(),
++    .out_occupied_o(forward_occupied_w),
+     .clk_i(clk_i),
+     .rst_i(rst_i),
+     .flush_i(flush_i),
+@@ -1518,7 +1524,7 @@
+   endgenerate
+   wire [1:0] unused_fault_age_w;
+   wire unused_fault_held_age_w;
+-  wire [1:0] fault_credit_w, fault_queue_valid_w, fault_capture_w;
++  wire [1:0] fault_credit_w, fault_queue_valid_w, fault_capture_w, fault_occupied_w;
+   wire [2*TAG_W-1:0] fault_tag_w;
+   wire [139:0] fault_data_w;
+   wire [ENTRIES-1:0] fault_capture_mask_w[0:1];
+@@ -1551,7 +1557,7 @@
+     .ROB_W(ROB_W),
+     .DATA_W(70)
+   ) faults (
+-    .out_occupied_o(),
++    .out_occupied_o(fault_occupied_w),
+     .clk_i(clk_i),
+     .rst_i(rst_i),
+     .flush_i(flush_i),
+@@ -1573,13 +1579,19 @@
+     .reuse_block_o(fault_reuse_w),
+     .idle_o(fault_idle_w)
+   );
+-  wire [5:0] event_valid_w;
++  wire [5:0] event_valid_w, event_candidate_w;
+   wire [TAG_W-1:0] event_tag_w[0:5];
+   wire [R-1:0] event_result_w[0:5];
+   reg [5:0] event_grant_w;
+   genvar e;
+   generate
+     for (e = 0; e < 2; e = e + 1) begin : gen_events
++      // Q-state presence chooses data; current semantic validity only grants
++      // a real capture. Killed candidates keep their assigned rank this cycle.
++      assign event_candidate_w[e] = !rst_i &&
++          (raw_occupied_w[e] || response_bypass_candidate_w[e]);
++      assign event_candidate_w[2+e] = !rst_i && fault_occupied_w[e];
++      assign event_candidate_w[4+e] = !rst_i && forward_occupied_w[e];
+       assign event_valid_w[e] = raw_valid_w[e] || response_bypass_offer_w[e];
+       assign event_tag_w[e] = raw_event_tag_w[e*TAG_W+:TAG_W];
+       assign event_result_w[e] = {
+@@ -1617,8 +1629,8 @@
+   // Cyclic priority advances only after an actual completion capture.
+   // This thermometer marks sources before the next priority position.
+   reg [5:0] event_before_q;
+-  wire [5:0] event_last_grant_w = completion_credit_w[1] && (|event_second_w) ?
+-      event_second_w : (event_first_w & {6{completion_credit_w[0]}});
++  wire [5:0] event_last_grant_w = completion_fire_w[1] ?
++      event_second_w : (event_first_w & {6{completion_fire_w[0]}});
+   reg [5:0] event_before_next_w;
+   integer rr_source;
+   always @* begin
+@@ -1643,7 +1655,7 @@
+     .N(6),
+     .SLOT_W(3)
+   ) event_select (
+-    .valid_i(event_valid_w),
++    .valid_i(event_candidate_w),
+     .older_i(event_order_w),
+     .first_mask_o(event_first_w),
+     .second_mask_o(event_second_w),
+@@ -1652,21 +1664,19 @@
+     .first_slot_o(unused_event_first_slot_w),
+     .second_slot_o(unused_event_second_slot_w)
+   );
+-  // The cyclic order is a total order for every event_before_q bitmap.
+-  // Therefore the number of winners depends only on live source count.
+-  // Count in parallel with owner arbitration; CQ/WB demand need not wait for
+-  // winner selection, while payload and source pop retain canonical winners.
+-  wire [2:0] event_pair_any_w = {|event_valid_w[5:4], |event_valid_w[3:2], |event_valid_w[1:0]};
+-  wire event_two_w = (|{&event_valid_w[5:4], &event_valid_w[3:2], &event_valid_w[1:0]}) ||
+-      (event_pair_any_w[0] && event_pair_any_w[1]) ||
+-      (event_pair_any_w[0] && event_pair_any_w[2]) || (event_pair_any_w[1] && event_pair_any_w[2]);
++  // Preserve each candidate's rank and physical destination after kill.
++  // Credits remain conservative Q capacity; capture may be sparse (10).
++  // Late handshake/cancel qualification never selects a different payload.
+   integer ev;
+   always @* begin
+-    completion_fire_w = {event_two_w, |event_valid_w} & completion_credit_w;
++    completion_fire_w[0] = !rst_i && !flush_i && completion_credit_w[0] &&
++        (|(event_first_w & event_valid_w));
++    completion_fire_w[1] = !rst_i && !flush_i && completion_credit_w[1] &&
++        (|(event_second_w & event_valid_w));
+     completion_tag_w = 0;
+     completion_result_w = 0;
+-    event_grant_w = (event_first_w & {6{completion_credit_w[0]}}) |
+-        (event_second_w & {6{completion_credit_w[1]}});
++    event_grant_w = (event_first_w & {6{completion_fire_w[0]}}) |
++        (event_second_w & {6{completion_fire_w[1]}});
+     for (ev = 0; ev < 6; ev = ev + 1) begin
+       completion_tag_w[0+:TAG_W] = completion_tag_w[0+:TAG_W] |
+           ({TAG_W{event_first_w[ev]}} & event_tag_w[ev]);
+@@ -2161,11 +2171,16 @@
+             $fatal(1, "R64Lsu bypass owner was not captured by CQ");
+         end
+       end
+-      // Compare the count cone itself: arbitration-only fixtures suppress the
+-      // CQ transfer with force, while independently exercising these selectors.
+-      if (({event_two_w, |event_valid_w} & completion_credit_w) !==
+-          ({|event_second_w, |event_first_w} & completion_credit_w))
+-        $fatal(1, "R64Lsu event count changed completion acceptance");
++      // A route winner is not a transfer. Sparse captures and source pops
++      // must conserve owner count and may only name a currently live source.
++      if ((event_grant_w & ~event_valid_w) != 0 ||
++          (event_grant_w & ~event_candidate_w) != 0 ||
++          (flush_i && ((|event_grant_w) || (|completion_fire_w))) ||
++          (completion_fire_w & ~completion_credit_w) != 0)
++        $fatal(1, "R64Lsu completion capture lacks live candidate or credit");
++      if ($countones(event_grant_w) !=
++          (int'(completion_fire_w[0]) + int'(completion_fire_w[1])))
++        $fatal(1, "R64Lsu completion capture and source grants lost owner count");
+       if (prepared_capture_w !== (unused_prepared_select_w && !killed_w[unused_prepared_choice_w]))
+         $fatal(1, "R64Lsu prepared onehot changed capture event");
+       if (prepared_capture_w && (prepared_capture_slot_w !== unused_prepared_choice_w ||
+@@ -2331,6 +2346,10 @@
+             (!alive_q[probe_slot_w[a]] || tag_q[probe_slot_w[a]] !=
+              descriptor_tag_w[a*TAG_W+:TAG_W] || state_q[probe_slot_w[a]] != MEMORY))
+           $fatal(1, "R64Lsu descriptor lost canonical owner");
++        if (response_bypass_fire_w[a] &&
++            (!response_bypass_candidate_w[a] || !response_bypass_offer_w[a] ||
++             !event_grant_w[a] || raw_occupied_w[a]))
++          $fatal(1, "R64Lsu response bypass lacks real live handshake and empty raw owner");
+         if (mem_rsp_valid_i[a] && (!mem_issued_q[input_response_slot_w[a]] ||
+                                    state_q[input_response_slot_w[a]] != MEMORY))
+           $fatal(1, "R64Lsu physical response without owner");
+--- a/npc/rv64/vsrc/lsu/R64LsuCompletion.v
++++ b/npc/rv64/vsrc/lsu/R64LsuCompletion.v
+@@ -1,8 +1,8 @@
+ `include "R64Uop.vh"
+-// Two independently held completion lanes, each with one skid entry. An LSU
++// Two independent completion lanes, each with two fixed payload slots. An LSU
+ // slot can be released when this queue captures its full ROB-tagged result.
+-// Backpressured heads never migrate between lanes; explicit kill removes only
+-// its own tagged completion. Ready depends on registered occupancy alone.
++// Only owner bits and a head pointer change on pop/cancel; payload never moves.
++// Credit, rank-to-lane routing and empty-slot preparation depend only on Q state.
+ module R64LsuCompletion #(
+   parameter TAG_W = 9,
+   parameter ROB_W = 5
+@@ -24,93 +24,107 @@
+   output                           idle_o
+ );
+   localparam R = `R64_RESULT_W;
+-  reg [1:0] front_q, back_q;
+-  reg [TAG_W-1:0] front_tag_q[0:1], back_tag_q[0:1];
+-  reg [R-1:0] front_result_q[0:1], back_result_q[0:1];
++  reg [1:0] occupied_q[0:1];
++  reg [1:0] head_q;
++  reg [TAG_W-1:0] slot_tag_q[0:3];
++  reg [R-1:0] slot_result_q[0:3];
+   reg turn_q;
+-  wire [1:0] free_w = ~back_q;
++  wire [1:0] free_w = {!(&occupied_q[1]), !(&occupied_q[0])};
+   wire first_w = free_w[turn_q] ? turn_q : !turn_q;
+   assign in_ready_o = {(&free_w), (|free_w)} & {2{!rst_i && !flush_i}};
+-  assign idle_o = (front_q | back_q) == 0;
+-  genvar g;
++  assign idle_o = (occupied_q[0] | occupied_q[1]) == 0;
++  genvar g, s;
+   generate
+-    for (g = 0; g < 2; g = g + 1) begin : gen_out
+-      assign out_valid_o[g] = front_q[g] && !flush_i && !kill_mask_i[front_tag_q[g][ROB_W-1:0]] &&
+-          !rst_i;
+-      assign out_tag_o[g*TAG_W+:TAG_W] = front_tag_q[g];
+-      assign out_result_o[g*R+:R] = front_result_q[g];
+-    end
+-  endgenerate
+-  integer l;
+-  always @* begin
+-    reuse_block_o = 0;
+-    for (l = 0; l < 2; l = l + 1) begin
+-      if (front_q[l]) reuse_block_o[front_tag_q[l][ROB_W-1:0]] = 1;
+-      if (back_q[l]) reuse_block_o[back_tag_q[l][ROB_W-1:0]] = 1;
+-    end
+-  end
+-  generate
+-    for (g = 0; g < 2; g = g + 1) begin : gen_write
+-      wire front_remove = front_q[g] &&
+-          (out_ready_i[g] || flush_i || kill_mask_i[front_tag_q[g][ROB_W-1:0]]);
+-      wire back_cancel = flush_i || kill_mask_i[back_tag_q[g][ROB_W-1:0]];
+-      wire first_take = in_fire_i[0] && (first_w == g[0]);
+-      wire second_take = in_fire_i[1] && (first_w != g[0]);
+-      wire take = first_take || second_take;
+-      // Port demand may precede the result's registered VALID by one edge.
+-      // It is a hint only: a canceled/empty forecast can reserve a WB port but
+-      // cannot transfer a tag or value. Keep all result/cancel storage unchanged.
+-      assign out_request_o[g] = front_q[g] || back_q[g] || take;
+-      wire front_input = take && (!front_q[g] || front_remove);
+-      wire back_input = take && front_q[g] && !front_remove;
+-      wire front_shift = front_remove && back_q[g];
+-      // The physical lane assignment is a Q-state fact. Payload preparation
+-      // must not traverse the final event grant a second time.
++    for (g = 0; g < 2; g = g + 1) begin : gen_lane
++      wire [TAG_W-1:0] head_tag = head_q[g] ? slot_tag_q[g*2+1] : slot_tag_q[g*2];
++      assign out_valid_o[g] = occupied_q[g][head_q[g]] && !flush_i &&
++          !kill_mask_i[head_tag[ROB_W-1:0]] && !rst_i;
++      assign out_tag_o[g*TAG_W+:TAG_W] = head_tag;
++      assign out_result_o[g*R+:R] = head_q[g] ? slot_result_q[g*2+1] : slot_result_q[g*2];
++      // Sparse input 10 retains rank 1's physical lane; never compact on kill.
+       wire input_lane = first_w != g[0];
++      wire take = in_fire_i[input_lane];
+       wire [TAG_W-1:0] input_tag = input_lane ? in_tag_i[TAG_W+:TAG_W] : in_tag_i[0+:TAG_W];
+       wire [R-1:0] input_result = input_lane ? in_result_i[R+:R] : in_result_i[0+:R];
+-      // Empty payload storage has no owner. Prepare its next value while free;
+-      // only the unchanged fire/valid equations below create a completion.
+-      wire front_payload_write = !front_q[g] || front_remove;
+-      wire back_payload_write = !back_q[g] && front_q[g] && !front_remove;
++      wire target_slot = occupied_q[g][head_q[g]] ? !head_q[g] : head_q[g];
++      // Port demand may precede registered VALID. This is only a hint; killed
++      // or empty requests cannot transfer a tag/value without current VALID.
++      assign out_request_o[g] = (|occupied_q[g]) || take;
++      wire [1:0] survive;
++      for (s = 0; s < 2; s = s + 1) begin : gen_slot
++        wire drop = kill_mask_i[slot_tag_q[g*2+s][ROB_W-1:0]] ||
++            ((head_q[g] == s[0]) && out_ready_i[g]);
++        assign survive[s] = occupied_q[g][s] && !drop;
++        wire payload_write = !rst_i && free_w[g] && (target_slot == s[0]);
++        // Empty storage has no semantic owner. Reset inhibits preparation,
++        // while cancel and final capture never enter payload D/enable.
++        always @(posedge clk_i) begin
++          if (payload_write) begin
++            slot_tag_q[g*2+s] <= input_tag;
++            slot_result_q[g*2+s] <= input_result;
++          end
++          if (rst_i || flush_i) occupied_q[g][s] <= 0;
++          else occupied_q[g][s] <= survive[s] || (take && target_slot == s[0]);
++        end
++`ifdef R64_ASSERT
++        reg checked_q = 0;
++        reg previously_occupied_q, previously_captured_q, previously_reset_q;
++        reg [TAG_W+R-1:0] captured_payload_q;
++        always @(posedge clk_i) begin
++          if (payload_write && (rst_i || occupied_q[g][s]))
++            $fatal(1, "R64LsuCompletion prewrites occupied/reset slot");
++          if (take && target_slot == s[0] && !payload_write)
++            $fatal(1, "R64LsuCompletion capture without same-edge payload write");
++          if (checked_q) begin
++            if (occupied_q[g][s] && !previously_occupied_q && !previously_captured_q)
++              $fatal(1, "R64LsuCompletion owner appeared without capture");
++            if (previously_reset_q && occupied_q[g][s])
++              $fatal(1, "R64LsuCompletion owner survived reset");
++            if (previously_captured_q &&
++                (!occupied_q[g][s] || {slot_tag_q[g*2+s], slot_result_q[g*2+s]} !== captured_payload_q))
++              $fatal(1, "R64LsuCompletion capture did not retain current full payload");
++          end
++          checked_q <= 1;
++          previously_occupied_q <= occupied_q[g][s];
++          previously_reset_q <= rst_i;
++          previously_captured_q <= !rst_i && !flush_i && take && target_slot == s[0];
++          captured_payload_q <= {input_tag, input_result};
++        end
++`endif
++      end
+       always @(posedge clk_i) begin
+-        if (rst_i) begin
+-          front_q[g] <= 0;
+-          back_q[g]  <= 0;
+-        end else begin
+-          front_q[g] <= (front_q[g] && !front_remove) ||
+-              (front_remove && back_q[g] && !back_cancel) || front_input;
+-          back_q[g] <= (back_q[g] && !front_remove && !back_cancel) || back_input;
+-          // A populated skid excludes input credit for this physical lane.
+-          // Thus a removed front takes its skid; otherwise a free front can
+-          // prepare the incoming payload independently of whether it fires.
+-          if (front_payload_write) begin
+-            front_tag_q[g] <= back_q[g] ? back_tag_q[g] : input_tag;
+-            front_result_q[g] <= back_q[g] ? back_result_q[g] : input_result;
+-          end
+-          if (back_payload_write) begin
+-            back_tag_q[g] <= input_tag;
+-            back_result_q[g] <= input_result;
+-          end
+-        end
++        if (rst_i) head_q[g] <= 0;
++        // An old surviving owner always precedes a newly captured owner.
++        else if (survive[head_q[g]]) head_q[g] <= head_q[g];
++        else if (survive[!head_q[g]]) head_q[g] <= !head_q[g];
++        else if (take) head_q[g] <= target_slot;
+       end
+ `ifdef R64_ASSERT
+       always @(posedge clk_i)
+-        if (!rst_i && front_input && front_shift)
+-          $fatal(1, "R64LsuCompletion incompatible writes");
++        if (!rst_i) begin
++          if ((|occupied_q[g]) && !occupied_q[g][head_q[g]])
++            $fatal(1, "R64LsuCompletion head has no owner");
++          if (take && (!free_w[g] || occupied_q[g][target_slot]))
++            $fatal(1, "R64LsuCompletion overwrites occupied slot");
++        end
+ `endif
+     end
+   endgenerate
++  integer l, k;
++  always @* begin
++    reuse_block_o = 0;
++    for (l = 0; l < 2; l = l + 1)
++      for (k = 0; k < 2; k = k + 1)
++        if (occupied_q[l][k]) reuse_block_o[slot_tag_q[l*2+k][ROB_W-1:0]] = 1;
++  end
+   always @(posedge clk_i) begin
+     if (rst_i) turn_q <= 0;
+     else if (in_fire_i[0]) turn_q <= !first_w;
++    else if (in_fire_i[1]) turn_q <= first_w;
+   end
+ `ifdef R64_ASSERT
+   always @(posedge clk_i)
+-    if (!rst_i) begin
+-      if ((in_fire_i & ~in_ready_o) != 0 || in_fire_i == 2)
+-        $fatal(1, "R64LsuCompletion credit/prefix violation");
+-      if ((back_q & ~front_q) != 0) $fatal(1, "R64LsuCompletion hole");
+-    end
++    if ((in_fire_i & ~in_ready_o) != 0)
++      $fatal(1, "R64LsuCompletion credit violation");
+ `endif
+ endmodule

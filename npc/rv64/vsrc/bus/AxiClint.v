@@ -107,61 +107,30 @@ module AxiClint #(
     end
   endgenerate
 
-  function [63:0] apply_wstrb64_aligned;
-    input [63:0] old_value;
-    input [63:0] new_value;
-    input [7:0] strb;
-    begin
-      // 固定 8-lane byte-enable mux，替代仿真式循环，便于综合审查每个 byte 的来源。
-      apply_wstrb64_aligned[7:0]   = strb[0] ? new_value[7:0] : old_value[7:0];
-      apply_wstrb64_aligned[15:8]  = strb[1] ? new_value[15:8] : old_value[15:8];
-      apply_wstrb64_aligned[23:16] = strb[2] ? new_value[23:16] : old_value[23:16];
-      apply_wstrb64_aligned[31:24] = strb[3] ? new_value[31:24] : old_value[31:24];
-      apply_wstrb64_aligned[39:32] = strb[4] ? new_value[39:32] : old_value[39:32];
-      apply_wstrb64_aligned[47:40] = strb[5] ? new_value[47:40] : old_value[47:40];
-      apply_wstrb64_aligned[55:48] = strb[6] ? new_value[55:48] : old_value[55:48];
-      apply_wstrb64_aligned[63:56] = strb[7] ? new_value[63:56] : old_value[63:56];
+  // Identical byte muxes for MTIME and MTIMECMP. Address decode and the
+  // timer-tick/software-write priority stay explicit in the state block.
+  localparam TIMER_MTIME = 0, TIMER_MTIMECMP = 1;
+  wire [127:0] timer_values_w;
+  assign timer_values_w[TIMER_MTIME*64+:64] = mtime_q;
+  assign timer_values_w[TIMER_MTIMECMP*64+:64] = mtimecmp_q;
+  wire [127:0] aligned_write_w, high_word_write_w;
+  genvar timer_reg, byte_lane;
+  generate
+    for (timer_reg = 0; timer_reg < 2; timer_reg = timer_reg + 1) begin : gen_timer_write
+      for (byte_lane = 0; byte_lane < 8; byte_lane = byte_lane + 1) begin : gen_byte
+        assign aligned_write_w[timer_reg*64+byte_lane*8+:8] = write_strb_pad_w[byte_lane] ?
+            write_data_pad_w[byte_lane*8+:8] : timer_values_w[timer_reg*64+byte_lane*8+:8];
+        if (byte_lane < 4) begin : gen_keep_low
+          assign high_word_write_w[timer_reg*64+byte_lane*8+:8] =
+              timer_values_w[timer_reg*64+byte_lane*8+:8];
+        end else begin : gen_write_high
+          // A HI register consumes the low four native write-data lanes.
+          assign high_word_write_w[timer_reg*64+byte_lane*8+:8] = write_strb_pad_w[byte_lane-4] ?
+              write_data_pad_w[(byte_lane-4)*8+:8] : timer_values_w[timer_reg*64+byte_lane*8+:8];
+        end
+      end
     end
-  endfunction
-
-  function [63:0] apply_wstrb64_high_word;
-    input [63:0] old_value;
-    input [63:0] new_value;
-    input [7:0] strb;
-    begin
-      // *_HI 寄存器只消费写数据低 4 lane，高 4 lane 被显式忽略。
-      apply_wstrb64_high_word[31:0]  = old_value[31:0];
-      apply_wstrb64_high_word[39:32] = strb[0] ? new_value[7:0] : old_value[39:32];
-      apply_wstrb64_high_word[47:40] = strb[1] ? new_value[15:8] : old_value[47:40];
-      apply_wstrb64_high_word[55:48] = strb[2] ? new_value[23:16] : old_value[55:48];
-      apply_wstrb64_high_word[63:56] = strb[3] ? new_value[31:24] : old_value[63:56];
-    end
-  endfunction
-
-  function apply_msip_wstrb_bit;
-    input old_bit;
-    input new_bit;
-    input strb0;
-    begin
-      apply_msip_wstrb_bit = strb0 ? new_bit : old_bit;
-    end
-  endfunction
-
-  function [DATA_W-1:0] read_clint_word;
-    input [15:0] addr_low;
-    begin
-      case (addr_low)
-        CLINT_MSIP_OFFSET: read_clint_word = {{(DATA_W - 1) {1'b0}}, msip_q};
-        CLINT_MTIMECMP_LO: read_clint_word = mtimecmp_q[DATA_W-1:0];
-        CLINT_MTIMECMP_HI:
-        read_clint_word = {{(DATA_W - 32) {1'b0}}, mtimecmp_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
-        CLINT_MTIME_LO: read_clint_word = mtime_q[DATA_W-1:0];
-        CLINT_MTIME_HI:
-        read_clint_word = {{(DATA_W - 32) {1'b0}}, mtime_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
-        default: read_clint_word = {DATA_W{1'b0}};
-      endcase
-    end
-  endfunction
+  endgenerate
 
   always @(posedge clk) begin
     if (rst) begin
@@ -202,7 +171,17 @@ module AxiClint #(
       if (ar_seen_q && !s_axi_rvalid_o) begin
         ar_seen_q <= 1'b0;
         s_axi_rvalid_o <= 1'b1;
-        s_axi_rdata_o <= read_clint_word(araddr_low_q);
+        // Sample the selected architectural register at this response edge.
+        case (araddr_low_q)
+          CLINT_MSIP_OFFSET: s_axi_rdata_o <= {{(DATA_W - 1) {1'b0}}, msip_q};
+          CLINT_MTIMECMP_LO: s_axi_rdata_o <= mtimecmp_q[DATA_W-1:0];
+          CLINT_MTIMECMP_HI:
+          s_axi_rdata_o <= {{(DATA_W - 32) {1'b0}}, mtimecmp_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
+          CLINT_MTIME_LO: s_axi_rdata_o <= mtime_q[DATA_W-1:0];
+          CLINT_MTIME_HI:
+          s_axi_rdata_o <= {{(DATA_W - 32) {1'b0}}, mtime_q[63:32]} << ((DATA_W > 32) ? 32 : 0);
+          default: s_axi_rdata_o <= {DATA_W{1'b0}};
+        endcase
       end
 
       if (aw_fire_w) begin
@@ -222,15 +201,15 @@ module AxiClint #(
         w_seen_q <= 1'b0;
         case (write_addr_low_w)
           CLINT_MSIP_OFFSET:
-          msip_q <= apply_msip_wstrb_bit(msip_q, native_write_data_w[0], native_write_strb_w[0]);
+          msip_q <= native_write_strb_w[0] ? native_write_data_w[0] : msip_q;
           CLINT_MTIMECMP_LO:
-          mtimecmp_q <= apply_wstrb64_aligned(mtimecmp_q, write_data_pad_w, write_strb_pad_w);
+          mtimecmp_q <= aligned_write_w[TIMER_MTIMECMP*64+:64];
           CLINT_MTIMECMP_HI:
-          mtimecmp_q <= apply_wstrb64_high_word(mtimecmp_q, write_data_pad_w, write_strb_pad_w);
+          mtimecmp_q <= high_word_write_w[TIMER_MTIMECMP*64+:64];
           CLINT_MTIME_LO:
-          mtime_q <= apply_wstrb64_aligned(mtime_q, write_data_pad_w, write_strb_pad_w);
+          mtime_q <= aligned_write_w[TIMER_MTIME*64+:64];
           CLINT_MTIME_HI:
-          mtime_q <= apply_wstrb64_high_word(mtime_q, write_data_pad_w, write_strb_pad_w);
+          mtime_q <= high_word_write_w[TIMER_MTIME*64+:64];
           default: begin
           end
         endcase

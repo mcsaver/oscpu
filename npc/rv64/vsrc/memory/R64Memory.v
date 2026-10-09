@@ -104,6 +104,8 @@ module R64Memory #(
   wire subsystem_idle, subsystem_drain_idle;
   assign idle_o = subsystem_idle && (&port_idle);
   assign drain_idle_o = subsystem_drain_idle && (&port_idle);
+  // PTE client 0 belongs to instruction fetch; client g+1 below belongs
+  // to data translation lane g. Service preserves this auxiliary-client numbering.
   assign pv[0] = pte_valid_i;
   assign pte_ready_o = pr[0];
   assign pcas[0] = pte_compare_or_i;

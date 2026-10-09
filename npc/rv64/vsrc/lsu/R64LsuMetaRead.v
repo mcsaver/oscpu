@@ -20,6 +20,8 @@ module R64LsuMetaRead #(
       end
     end
   endfunction
+  // Heap numbering: root=1, children=2*n/2*n+1, source k at LEAVES+k.
+  // Padding contributes zero; each merge ORs onehot-selected payloads.
   localparam LEAVES = 1 << clog2(N);
   genvar n;
   generate

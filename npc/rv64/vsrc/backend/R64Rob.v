@@ -328,6 +328,9 @@ module R64Rob #(
   wire store_done_fire_w = store_done_valid_i && store_done_ready_o;
   localparam OWNER_LOCAL_BITS = INDEX_W - OWNER_BANK_BITS,
       OWNER_LOCAL_SLOTS = 1 << OWNER_LOCAL_BITS;
+  // Bank rows pack {generation, rd_write, rd_fp, pnew}; certificates replace
+  // generation with owner_valid after matching the queried full tag.
+  localparam OWNER_ROW_W = PREG_W + GEN_W + 2;
   localparam CERT_W = PREG_W + 3;
   // A certificate lasts exactly one WB output cycle. The current completion
   // edge may finish an otherwise live queried owner, so remove those owners
@@ -348,21 +351,21 @@ module R64Rob #(
         wire [TAG_W-1:0] query_tag_w = owner_query_tag_i[owner_lane*TAG_W+:TAG_W];
         wire [OWNER_LOCAL_BITS-1:0] local_slot_w = query_tag_w[OWNER_LOCAL_BITS-1:0];
         wire [OWNER_LOCAL_SLOTS-1:0] live_rows_w;
-        wire [OWNER_LOCAL_SLOTS*(PREG_W+GEN_W+2)-1:0] metadata_w;
+        wire [OWNER_LOCAL_SLOTS*OWNER_ROW_W-1:0] metadata_w;
         for (genvar row = 0; row < OWNER_LOCAL_SLOTS; row = row + 1) begin : g_row
           localparam SLOT = owner_bank * OWNER_LOCAL_SLOTS + row;
           assign live_rows_w[row] = valid_q[SLOT] && !done_q[SLOT] && !completing_w[SLOT];
-          assign metadata_w[row*(PREG_W+GEN_W+2)+:(PREG_W+GEN_W+2)] = {
+          assign metadata_w[row*OWNER_ROW_W+:OWNER_ROW_W] = {
             generation_q[SLOT],
             rd_write_q[SLOT] && (rd_fp_q[SLOT] || rd_arch_q[SLOT] != 0),
             rd_fp_q[SLOT],
             pnew_q[SLOT]
           };
         end
-        wire [PREG_W+GEN_W+1:0]
-            selected_w = metadata_w[local_slot_w*(PREG_W+GEN_W+2)+:(PREG_W+GEN_W+2)];
+        wire [OWNER_ROW_W-1:0] selected_w = metadata_w[local_slot_w*OWNER_ROW_W+:OWNER_ROW_W];
         wire owner_w = live_rows_w[local_slot_w] &&
             selected_w[PREG_W+2+:GEN_W] == query_tag_w[TAG_W-1:INDEX_W];
+        // Query layout is lane-major, then bank, matching Writeback.
         assign owner_query_cert_o[(owner_lane*OWNER_BANKS+owner_bank)*CERT_W+:CERT_W] = {
           owner_w, selected_w[PREG_W+1:0]
         };

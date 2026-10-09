@@ -148,3 +148,25 @@ BUS 没有 ROB kill/branch flush 输入。已经接受的 AR/AW/W 继续 drain�
 直接机制覆盖包括：B 直通与 FIFO 回退；延迟/错误 B 下 hit；四种续拍/早返回配置；同目标公平性；慢 MMIO 与 RAM 的单组/双组对照；R FIFO 背压；两 bank 的 R/B 写口冲突、成功/失败字节写读回、invalidate、reservation clear；完整系统 NEMU 对照和固定软件基准。
 
 完整 AXI burst 内存端点、多外部 store、store 提前退休、per-ID 返回 FIFO 属于后续可选架构，当前实现没有加入。实际 CPI 以系统基准为准，模块测试的周期收益不直接折算成整核 CPI；面积和时序代价同样保留。
+
+## 2026-10-08 当前设计单元索引
+
+前述四批结果保留为历史证据；以下依据当前生产连接复核，用稳定 ID 指向可以量化讨论的边界。
+AXI ID、Fabric owner槽、LSU slot/tag与aux source属于不同命名空间。容量不能跨层相加当成不同访存数。
+
+| ID / 源码 | 状态 owner、真实容量与字段 | 同拍/跨拍与取消、副作用 | 已知量与 UNKNOWN |
+| --- | --- | --- | --- |
+| BUS-01 核读适配器；`R64AxiRead.v` | 生产CLIENTS=2/CLIENT_W=1/AXI ID4；每I/D client至多1 live ID；AR holder1项（addr64,len8,size/prot各3等），共享R FIFO2项（data64,resp2,last1,client1）。 | client命令真实接受登记busy；外部AR/R由owner与寄存状态管理；缓存消费最后一拍才释放client。RREADY取寄存FIFO余量；ROB flush无端口，已发布请求继续drain。 | 最多2 live读ID、每拍最多1个R beat进共享FIFO；平均/尾延迟、R队头阻塞及读请求利用率 UNKNOWN。 |
+| BUS-02 核写适配器；`R64AxiWrite.v` | 通用2client但生产只有client0使用；AW2项、W owner2项、W data stage1项(data64/strb8/last1)、B FIFO2项(resp2/client1)。 | AW/W独立握手，final-W owner不能在装入W stage时丢失。B_BYPASS=1已存在：合法B且FIFO空可同拍交给client，否则入FIFO。外部BREADY仅取Q容量；真正消费B才释放busy。 | 当前core单外部store/BID；写等待B分布、旁路命中率、AW/W独立背压损失 UNKNOWN。 |
+| BUS-03 Fabric canonical owner与返回；`platform/R64AxiFabric.v` | AR/AW入口各1项；读owner4槽，写owner2槽；共享R FIFO2项(data64/resp2/last/owner2)，写顺序与W数据各2项，B返回holder。read保存addr64/ID4/剩余8/size3/prot3/target4及状态。 | decode/ID/空槽检查后建立owner；真实末R/B被上游适配器接受才释放Fabric事务槽。每目标read/write忙状态分别管理，非法地址/属性错误仍有终端。无ROB取消端口。 | 4读/2写是Fabric容量，上游实际不足以全部占满；各owner寿命、入口与共享返回FIFO阻塞 UNKNOWN。 |
+| BUS-04 两组读服务；`platform/R64AxiReadService.v` | 2个服务组共享BUS-03 owner；每组plan2项（owner2）、launch1项（addr64,size/prot3、owner2、target mask16）、return selector1项；每target最多1真实Lite读拍。 | 组合选plan→寄存launch→真实AR→寄存return→注册merge→共享R FIFO。续拍只在先前真实R接受后发布；merge每拍最多消费1组R，另组必须保持。分组不增加canonical槽。 | memory mask为0x2800（PSRAM/SDRAM）；两个目标AR可同拍，返回合并峰值1beat/拍。组间重叠利用率、续拍成功率、公平等待尾部 UNKNOWN。 |
+| BUS-05 平台端点与中断事件；`platform/R64AxiPlatform.v`及相应slave | 16个decode端口，4个外部单拍接口；各slave独立AW/W捕获及响应状态，不能套用同一读副作用边沿；系统TB四C++ Endpoint各保存1R、AW/W、1B。 | PLIC claim、UART FIFO读、RTC低读快照高位、syscon本地B发布事件各有其不可逆边沿。IRQ从设备旁路至CSR，不经R/B FIFO。BUS reset同步清状态/抑制VALID不等于runtime事务取消。 | 地址图已列于第5节；每设备访问频度/服务延迟分布及对CPU阻塞归因 UNKNOWN。MROM/flash/chiplink memory属性不证明端点实现。 |
+
+跨层 drain 链为：目标响应被读服务收下 → Fabric terminal/FIFO → 核适配器FIFO → cache原owner →
+LSU/Frontend原owner交付或丢弃。不同层的释放边沿不能用一个“总线已空”替代。
+普通store路径中真实B错误必须返回LSU精确终端；不能通过只测AW/W或缓存hit就证明store已经架构完成。
+Dcache独立store B owner、每bank pending write及B空队列直通均已存在，见 [LSU-09/12](../lsu/TOPOLOGY.md)。
+
+本次为文档复核，没有新BUS benchmark或综合。布局前全核WNS、TNS、面积没有分离BUS-01～05的代价，
+旧模块测试的局部拍数改善也不是当前程序CPI的可加分解。需要量化某项改法时应以相同workload、配置和
+事务端到端起止事件取数，并同时观察其可能把背压传回的上游单元。

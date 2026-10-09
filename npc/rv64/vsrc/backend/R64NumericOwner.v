@@ -137,6 +137,8 @@ module R64NumericOwner #(
       next_data_w = (!empty_q && next_head_w != tail_q) ? terminal_data_q[next_head_w] : result_i;
   wire [(1<<ROB_W)-1:0] next_owner_w = (!empty_q && next_head_w != tail_q) ?
       terminal_owner_q[next_head_w] : final_owner_q;
+  // The bank matching head parity holds the current head; the other bank
+  // preloads the next head. Pop toggles front_select_q with the head advance.
   integer bank;
   always @(posedge clk) begin
     for (bank = 0; bank < 2; bank = bank + 1) begin

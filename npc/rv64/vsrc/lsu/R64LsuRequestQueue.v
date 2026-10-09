@@ -28,16 +28,6 @@ module R64LsuRequestQueue #(
   output reg [(1<<ROB_W)-1:0] reuse_block_o,
   output                      idle_o
 );
-  // Select the resident slot before the late cancellation enable. The
-  // complete canonical mask remains an independent public/checker input.
-  function cancel_selected;
-    input [ROB_W-1:0] slot;
-    input [(1<<ROB_W)-1:0] candidates, mask;
-    input active;
-    begin
-      cancel_selected = PREPARED_CANCEL ? (active && candidates[slot]) : mask[slot];
-    end
-  endfunction
   // Two fixed storage slots per physical lane. New payload writes only a
   // slot which is FREE in Q state, independent of downstream ready or kill.
   // Valid publication still requires the actual in_fire; speculative writes
@@ -50,7 +40,8 @@ module R64LsuRequestQueue #(
   reg [(1<<ROB_W)-1:0] rob_slot_q[0:1][0:1];
   reg [DATA_W-1:0] data_q[0:1][0:1];
   reg [AGE_W-1:0] age_q[0:1][0:1];
-  wire [1:0] write_slot_w;
+  wire [1:0] write_slot_w, head_cancel_w;
+  wire [1:0] slot_cancel_w[0:1];
   genvar lane, slot;
   generate
     for (lane = 0; lane < 2; lane = lane + 1) begin : g_lane
@@ -58,14 +49,20 @@ module R64LsuRequestQueue #(
       assign in_ready_o[lane] = !(&valid_q[lane]) && !rst_i && !flush_i;
       // Q occupancy permits payload preparation only; acceptance still uses out_valid.
       assign out_occupied_o[lane] = valid_q[lane][head_q[lane]];
-      assign
-          out_valid_o[lane] = valid_q[lane][head_q[lane]] && !rst_i && !flush_i && !cancel_selected(
-          tag_q[lane][head_q[lane]][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-      );
+      // Select the resident ROB slot before the late cancellation enable.
+      // Keep the canonical/prepared policy explicit at each control consumer.
+      wire [ROB_W-1:0] head_rob_slot_w = tag_q[lane][head_q[lane]][ROB_W-1:0];
+      assign head_cancel_w[lane] = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[head_rob_slot_w]) : kill_mask_i[head_rob_slot_w];
+      assign out_valid_o[lane] = valid_q[lane][head_q[lane]] && !rst_i && !flush_i &&
+          !head_cancel_w[lane];
       assign out_tag_o[lane*TAG_W+:TAG_W] = tag_q[lane][head_q[lane]];
       assign out_data_o[lane*DATA_W+:DATA_W] = data_q[lane][head_q[lane]];
       assign out_age_o[lane*AGE_W+:AGE_W] = age_q[lane][head_q[lane]];
       for (slot = 0; slot < 2; slot = slot + 1) begin : g_storage
+        wire [ROB_W-1:0] rob_slot_w = tag_q[lane][slot][ROB_W-1:0];
+        assign slot_cancel_w[lane][slot] = PREPARED_CANCEL ?
+            (cancel_active_i && cancel_candidates_i[rob_slot_w]) : kill_mask_i[rob_slot_w];
         wire write_w = !valid_q[lane][slot] && (write_slot_w[lane] == slot);
         always @(posedge clk_i)
           if (!rst_i) begin
@@ -93,10 +90,7 @@ module R64LsuRequestQueue #(
           reuse_block_o = reuse_block_o | rob_slot_q[n][j];
           held_age_o = held_age_o | age_q[n][j];
         end
-        if (flush_i || cancel_selected(
-                tag_q[n][j][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-            ))
-          valid_d[n][j] = 0;
+        if (flush_i || slot_cancel_w[n][j]) valid_d[n][j] = 0;
       end
       if (out_valid_o[n] && out_ready_i[n]) valid_d[n][head_q[n]] = 0;
       if (in_fire_i[n]) valid_d[n][write_slot_w[n]] = 1;
@@ -105,9 +99,7 @@ module R64LsuRequestQueue #(
       // the other physical slot is next, even when that slot is still invalid.
       // A later empty cycle normalizes the head before its new slot0 is visible.
       if (!(|valid_q[n])) head_d[n] = 1'b0;
-      else if (flush_i || cancel_selected(
-              tag_q[n][head_q[n]][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-          ) || (out_valid_o[n] && out_ready_i[n]))
+      else if (flush_i || head_cancel_w[n] || (out_valid_o[n] && out_ready_i[n]))
         head_d[n] = !head_q[n];
     end
   end

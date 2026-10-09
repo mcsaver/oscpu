@@ -236,13 +236,21 @@ module R64Dcache #(
     .b_i(arithmetic_b_q),
     .parts_o(arithmetic_parts_w)
   );
-  wire arithmetic_unsigned_less_w = arithmetic_parts_q[99] ? arithmetic_parts_q[97] :
-      arithmetic_parts_q[98];
+  // R64DcacheAmoParts packs compare facts above the two high-sum candidates
+  // and the low sum/carry. Decode the retained packet before AMO selection.
+  wire arithmetic_high_equal_w, arithmetic_high_less_w, arithmetic_low_less_w;
+  wire arithmetic_low_carry_w;
+  wire [31:0] arithmetic_high_carry1_w, arithmetic_high_carry0_w, arithmetic_low_sum_w;
+  assign {arithmetic_high_equal_w, arithmetic_high_less_w, arithmetic_low_less_w,
+          arithmetic_high_carry1_w, arithmetic_high_carry0_w, arithmetic_low_carry_w,
+          arithmetic_low_sum_w} = arithmetic_parts_q;
+  wire arithmetic_unsigned_less_w = arithmetic_high_equal_w ? arithmetic_low_less_w :
+      arithmetic_high_less_w;
   wire arithmetic_signed_less_w = (arithmetic_a_q[63] ^ arithmetic_b_q[63]) ? arithmetic_a_q[63] :
       arithmetic_unsigned_less_w;
   wire [63:0] arithmetic_sum_w = {
-    arithmetic_parts_q[32] ? arithmetic_parts_q[96:65] : arithmetic_parts_q[64:33],
-    arithmetic_parts_q[31:0]
+    arithmetic_low_carry_w ? arithmetic_high_carry1_w : arithmetic_high_carry0_w,
+    arithmetic_low_sum_w
   };
   reg [63:0] arithmetic_value_w;
   always @* begin

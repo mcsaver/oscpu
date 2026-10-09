@@ -42,22 +42,13 @@ module R64CsrDecode (
   assign select_o[35] = address_i == 12'hf14;
   assign select_o[36] = address_i == 12'h3a0;
   assign select_o[37] = address_i == 12'h3a2;
-  assign select_o[38] = address_i == 12'h3b0;
-  assign select_o[39] = address_i == 12'h3b1;
-  assign select_o[40] = address_i == 12'h3b2;
-  assign select_o[41] = address_i == 12'h3b3;
-  assign select_o[42] = address_i == 12'h3b4;
-  assign select_o[43] = address_i == 12'h3b5;
-  assign select_o[44] = address_i == 12'h3b6;
-  assign select_o[45] = address_i == 12'h3b7;
-  assign select_o[46] = address_i == 12'h3b8;
-  assign select_o[47] = address_i == 12'h3b9;
-  assign select_o[48] = address_i == 12'h3ba;
-  assign select_o[49] = address_i == 12'h3bb;
-  assign select_o[50] = address_i == 12'h3bc;
-  assign select_o[51] = address_i == 12'h3bd;
-  assign select_o[52] = address_i == 12'h3be;
-  assign select_o[53] = address_i == 12'h3bf;
+  // select[38..53] maps in order to pmpaddr0..15 at CSR addresses 0x3b0..0x3bf.
+  genvar pmp_entry;
+  generate
+    for (pmp_entry = 0; pmp_entry < 16; pmp_entry = pmp_entry + 1) begin : g_pmp_address
+      assign select_o[38+pmp_entry] = address_i == {8'h3b, pmp_entry[3:0]};
+    end
+  endgenerate
   assign select_o[54] = address_i == 12'h7a0;
   assign select_o[55] = address_i == 12'h7a1;
   assign select_o[56] = address_i == 12'h7a2;

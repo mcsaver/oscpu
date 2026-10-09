@@ -7,6 +7,7 @@ module R64Lsu #(
   parameter EARLY_STORE = 1,
   parameter HEAD_AUTHORIZED_QUERY = 0,
   parameter PREPARED_CANCEL = 0,
+  parameter RESPONSE_BYPASS = 1,
   parameter ENTRIES = 18,
   parameter INDEX_W = 5,
   parameter TAG_W = 9,
@@ -91,6 +92,8 @@ module R64Lsu #(
   localparam FREE = 0,
       NEW = 1, TRANSLATING = 2, READY = 3, MEMORY = 4, DONE = 5, PINNED = 6, RETIRE = 7;
   localparam U = `R64_UOP_W, R = `R64_RESULT_W;
+  // Descriptor offsets from LSB: slot, PA(DP), store data(DD), func(DF),
+  // byte mask(DM), AMO(DA), memory class(DC), misaligned(DI).
   localparam DESC_W = INDEX_W + 152, DP = INDEX_W, DD = INDEX_W + 64, DF = INDEX_W + 128,
       DM = INDEX_W + 136, DA = INDEX_W + 144, DC = INDEX_W + 149, DI = INDEX_W + 151;
   reg [2:0] state_q[0:ENTRIES-1];
@@ -171,6 +174,7 @@ module R64Lsu #(
       endcase
     end
   endfunction
+  // fn packs {atomic, FP, unsigned, size[1:0]}; SC returns its status unchanged.
   function [63:0] load_value;
     input [63:0] data;
     input [4:0] fn;
@@ -197,16 +201,6 @@ module R64Lsu #(
   // Disabled memory triggers bypass this check; active checks complete before
   // either NEW translation selection or local fault completion may proceed.
   wire unused_trigger_execute = trigger_enable_i[2];
-  function trigger_match;
-    input [63:0] address;
-    input [1:0] fn;
-    input [4:0] amo;
-    begin
-      trigger_match = address == trigger_address_i &&
-          ((trigger_enable_i[0] && (fn[1] ? (amo != 3) : !fn[0])) ||
-           (trigger_enable_i[1] && (fn[1] ? (amo != 2) : fn[0])));
-    end
-  endfunction
   reg [ENTRIES-1:0] checked_q, admission_check_mask_q[0:1];
   wire trigger_active_w = |trigger_enable_i[1:0];
   wire [ENTRIES*77-1:0] check_rows_w;
@@ -225,9 +219,17 @@ module R64Lsu #(
         .data_i  (check_rows_w),
         .data_o  (check_data_w[g*77+:77])
       );
-      assign checked_cause_w[g] = check_data_w[g*77+:6] == 2 ? 6'd2 : (trigger_match(
-          check_data_w[g*77+13+:64], check_data_w[g*77+11+:2], check_data_w[g*77+6+:5]
-      ) ? 6'd3 : check_data_w[g*77+:6]);
+      wire [63:0] check_address_w;
+      wire [1:0] check_func_w;
+      wire [4:0] check_amo_w;
+      wire [5:0] check_cause_w;
+      assign {check_address_w, check_func_w, check_amo_w, check_cause_w} =
+          check_data_w[g*77+:77];
+      wire trigger_match_w = check_address_w == trigger_address_i &&
+          ((trigger_enable_i[0] && (check_func_w[1] ? (check_amo_w != 3) : !check_func_w[0])) ||
+           (trigger_enable_i[1] && (check_func_w[1] ? (check_amo_w != 2) : check_func_w[0])));
+      assign checked_cause_w[g] = check_cause_w == 2 ? 6'd2 :
+          (trigger_match_w ? 6'd3 : check_cause_w);
     end
   endgenerate
   always @(posedge clk_i) begin
@@ -1272,7 +1274,14 @@ module R64Lsu #(
   assign drain_idle_o = drained_w && terminal_idle_w;
 
   localparam RAW_W = 152, META_W = TAG_W + 153;
+  // Two lane slots per completion source, before cyclic priority is applied.
+  localparam EV_RAW_BASE = 0, EV_FAULT_BASE = 2, EV_FORWARD_BASE = 4;
   wire [1:0] raw_credit_w, raw_valid_w, raw_fire_w, input_response_live_w;
+  wire [1:0] raw_occupied_w, raw_queue_fire_w;
+  wire [1:0] response_bypass_offer_w, response_bypass_fire_w;
+  wire [ENTRIES-1:0] response_bypass_eligible_w;
+  wire [2*TAG_W-1:0] raw_event_tag_w;
+  wire [2*RAW_W-1:0] raw_event_data_w;
   wire [2*TAG_W-1:0] raw_tag_w, raw_in_tag_w;
   wire [2*RAW_W-1:0] raw_data_w, raw_in_data_w;
   wire [(1<<ROB_W)-1:0] raw_reuse_w;
@@ -1291,6 +1300,9 @@ module R64Lsu #(
   wire [5:0] response_offset_w;
   generate
     for (g = 0; g < ENTRIES; g = g + 1) begin : gen_response_metadata
+      // Class 0/1 are RAM. Side-effect alone does not exclude reserved class 3.
+      assign response_bypass_eligible_w[g] = !store_w[g] && !atomic_w[g] &&
+          !side_effect_w[g] && !misaligned_q[g] && class_q[g] < 2;
       assign response_meta_rows_w[g*META_W+:META_W] = {
         tag_q[g],
         atomic_w[g],
@@ -1311,7 +1323,7 @@ module R64Lsu #(
     .TAG_W(TAG_W),
     .ROB_W(ROB_W)
   ) response_queue (
-    .out_occupied_o(),
+    .out_occupied_o(raw_occupied_w),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .flush_i(flush_i),
@@ -1322,12 +1334,12 @@ module R64Lsu #(
     .age_clear_i(1'b0),
     .out_age_o(unused_response_age_w),
     .held_age_o(unused_response_held_age_w),
-    .in_fire_i(raw_fire_w),
+    .in_fire_i(raw_queue_fire_w),
     .in_ready_o(raw_credit_w),
     .in_tag_i(raw_in_tag_w),
     .in_data_i(raw_in_data_w),
     .out_valid_o(raw_valid_w),
-    .out_ready_i(event_grant_w[1:0]),
+    .out_ready_i(event_grant_w[EV_RAW_BASE+:2]),
     .out_tag_o(raw_tag_w),
     .out_data_o(raw_data_w),
     .reuse_block_o(raw_reuse_w),
@@ -1362,32 +1374,51 @@ module R64Lsu #(
         .data_i  (response_meta_rows_w),
         .data_o  (input_meta_w[g])
       );
+      // A live response already has raw Q credit. Only an actually empty
+      // registered lane may offer its incoming owner to the same raw source.
+      // Keep ready independent of CQ/WB and of current cancellation.
+      assign response_bypass_offer_w[g] = RESPONSE_BYPASS && raw_fire_w[g] &&
+          !raw_occupied_w[g] && !mem_rsp_error_i[g] &&
+          (|(select_meta_w & response_bypass_eligible_w));
+      assign response_bypass_fire_w[g] = response_bypass_offer_w[g] && event_grant_w[EV_RAW_BASE+g];
+      assign raw_queue_fire_w[g] = raw_fire_w[g] && !response_bypass_fire_w[g];
+      // Occupied Q owns the payload even when its VALID is killed this cycle.
+      assign raw_event_tag_w[g*TAG_W+:TAG_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
+          raw_tag_w[g*TAG_W+:TAG_W] : raw_in_tag_w[g*TAG_W+:TAG_W];
+      assign raw_event_data_w[g*RAW_W+:RAW_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
+          raw_data_w[g*RAW_W+:RAW_W] : raw_in_data_w[g*RAW_W+:RAW_W];
+      // Decode the selected canonical row once, in the same MSB-to-LSB
+      // order as gen_response_metadata. These wires carry no new owner state.
+      wire [TAG_W-1:0] meta_tag_w;
+      wire meta_atomic_w, meta_store_w, unused_meta_side_effect_w, meta_misaligned_w;
+      wire [4:0] meta_amo_w;
+      wire [7:0] meta_func_w, meta_forward_mask_w;
+      wire [63:0] meta_va_w, meta_forward_w;
+      assign {meta_tag_w, meta_atomic_w, meta_store_w, unused_meta_side_effect_w,
+              meta_misaligned_w, meta_amo_w, meta_func_w, meta_va_w, meta_forward_mask_w,
+              meta_forward_w} = input_meta_w[g];
       wire [63:0] merged_input_w;
       for (z = 0; z < 8; z = z + 1) begin : gen_input_merge
-        assign merged_input_w[z*8+:8] = input_meta_w[g][64+z] ? input_meta_w[g][z*8+:8] :
+        assign merged_input_w[z*8+:8] = meta_forward_mask_w[z] ? meta_forward_w[z*8+:8] :
             mem_rsp_data_i[g*64+z*8+:8];
       end
-      assign raw_in_tag_w[g*TAG_W+:TAG_W] = input_meta_w[g][153+:TAG_W];
+      assign raw_in_tag_w[g*TAG_W+:TAG_W] = meta_tag_w;
       assign raw_in_data_w[g*RAW_W+:RAW_W] = {
         mem_rsp_offset_i[g*3+:3],
         mem_rsp_error_i[g],
-        mem_rsp_error_i[g] ? (input_meta_w[g][151] ? 6'd7 : 6'd5) : 6'b0,
-        input_meta_w[g][72+:64],
-        {input_meta_w[g][143:142], input_meta_w[g][138:136]},
-        input_meta_w[g][144+:5],
-        input_meta_w[g][149] ? 3'b0 : input_meta_w[g][74:72],
-        input_meta_w[g][151] && !input_meta_w[g][152],
+        mem_rsp_error_i[g] ? (meta_store_w ? 6'd7 : 6'd5) : 6'b0,
+        meta_va_w,
+        {meta_func_w[7:6], meta_func_w[2:0]},
+        meta_amo_w,
+        meta_misaligned_w ? 3'b0 : meta_va_w[2:0],
+        meta_store_w && !meta_atomic_w,
         merged_input_w
       };
-      assign response_data_w[g*64+:64] = raw_data_w[g*RAW_W+:64];
-      assign response_zero_w[g] = raw_data_w[g*RAW_W+64];
-      assign response_load_offset_w[g*3+:3] = raw_data_w[g*RAW_W+65+:3];
-      assign response_amo_w[g*5+:5] = raw_data_w[g*RAW_W+68+:5];
-      assign response_func_w[g*5+:5] = raw_data_w[g*RAW_W+73+:5];
-      assign response_va_w[g*64+:64] = raw_data_w[g*RAW_W+78+:64];
-      assign response_cause_w[g*6+:6] = raw_data_w[g*RAW_W+142+:6];
-      assign response_error_w[g] = raw_data_w[g*RAW_W+148];
-      assign response_offset_w[g*3+:3] = raw_data_w[g*RAW_W+149+:3];
+      // Held and bypassed responses share this exact raw packet layout.
+      assign {response_offset_w[g*3+:3], response_error_w[g], response_cause_w[g*6+:6],
+              response_va_w[g*64+:64], response_func_w[g*5+:5], response_amo_w[g*5+:5],
+              response_load_offset_w[g*3+:3], response_zero_w[g], response_data_w[g*64+:64]} =
+          raw_event_data_w[g*RAW_W+:RAW_W];
 
     end
   endgenerate
@@ -1474,7 +1505,7 @@ module R64Lsu #(
     .out_age_o(unused_forward_age_w),
     .held_age_o(unused_forward_held_age_w),
     .out_valid_o(forward_valid_q),
-    .out_ready_i(event_grant_w[5:4]),
+    .out_ready_i(event_grant_w[EV_FORWARD_BASE+:2]),
     .out_tag_o(forward_tags_w),
     .out_data_o(forward_payload_w),
     .reuse_block_o(forward_reuse_w),
@@ -1545,7 +1576,7 @@ module R64Lsu #(
     .out_age_o(unused_fault_age_w),
     .held_age_o(unused_fault_held_age_w),
     .out_valid_o(fault_queue_valid_w),
-    .out_ready_i(event_grant_w[3:2]),
+    .out_ready_i(event_grant_w[EV_FAULT_BASE+:2]),
     .out_tag_o(fault_tag_w),
     .out_data_o(fault_data_w),
     .reuse_block_o(fault_reuse_w),
@@ -1558,18 +1589,18 @@ module R64Lsu #(
   genvar e;
   generate
     for (e = 0; e < 2; e = e + 1) begin : gen_events
-      assign event_valid_w[e] = raw_valid_w[e];
-      assign event_tag_w[e] = raw_tag_w[e*TAG_W+:TAG_W];
-      assign event_result_w[e] = {
+      assign event_valid_w[EV_RAW_BASE+e] = raw_valid_w[e] || response_bypass_offer_w[e];
+      assign event_tag_w[EV_RAW_BASE+e] = raw_event_tag_w[e*TAG_W+:TAG_W];
+      assign event_result_w[EV_RAW_BASE+e] = {
         5'b0,
         (response_va_w[e*64+:64] + {61'b0, response_error_w[e] ? response_offset_w[e*3+:3] : 3'b0}),
         response_cause_w[e*6+:6],
         response_error_w[e],
         response_zero_w[e] ? 64'b0 : formatted_response_w[e]
       };
-      assign event_valid_w[2+e] = fault_queue_valid_w[e];
-      assign event_tag_w[2+e] = fault_tag_w[e*TAG_W+:TAG_W];
-      assign event_result_w[2+e] = {
+      assign event_valid_w[EV_FAULT_BASE+e] = fault_queue_valid_w[e];
+      assign event_tag_w[EV_FAULT_BASE+e] = fault_tag_w[e*TAG_W+:TAG_W];
+      assign event_result_w[EV_FAULT_BASE+e] = {
         5'b0, fault_data_w[e*70+6+:64], fault_data_w[e*70+:6], 1'b1, 64'b0
       };
       assign full_forward_w[e] = descriptor_valid_w[e] && probe_allowed_w[e] &&
@@ -1577,9 +1608,9 @@ module R64Lsu #(
           (selected_mask_w[e] & probe_mask_w[e]) == probe_mask_w[e];
       assign forward_killed_w[e] = flush_i || kill_mask_i[forward_tag_q[e][ROB_W-1:0]];
       assign forward_take_w[e] = query_take_w[e] && query_full_w[e];
-      assign event_valid_w[4+e] = forward_valid_q[e] && !forward_killed_w[e];
-      assign event_tag_w[4+e] = forward_tag_q[e];
-      assign event_result_w[4+e] = {
+      assign event_valid_w[EV_FORWARD_BASE+e] = forward_valid_q[e] && !forward_killed_w[e];
+      assign event_tag_w[EV_FORWARD_BASE+e] = forward_tag_q[e];
+      assign event_result_w[EV_FORWARD_BASE+e] = {
         5'b0,
         64'b0,
         6'b0,
@@ -1634,8 +1665,13 @@ module R64Lsu #(
   // Therefore the number of winners depends only on live source count.
   // Count in parallel with owner arbitration; CQ/WB demand need not wait for
   // winner selection, while payload and source pop retain canonical winners.
-  wire [2:0] event_pair_any_w = {|event_valid_w[5:4], |event_valid_w[3:2], |event_valid_w[1:0]};
-  wire event_two_w = (|{&event_valid_w[5:4], &event_valid_w[3:2], &event_valid_w[1:0]}) ||
+  wire [2:0] event_pair_any_w = {
+    |event_valid_w[EV_FORWARD_BASE+:2],
+    |event_valid_w[EV_FAULT_BASE+:2],
+    |event_valid_w[EV_RAW_BASE+:2]
+  };
+  wire event_two_w = (|{&event_valid_w[EV_FORWARD_BASE+:2], &event_valid_w[EV_FAULT_BASE+:2],
+                       &event_valid_w[EV_RAW_BASE+:2]}) ||
       (event_pair_any_w[0] && event_pair_any_w[1]) ||
       (event_pair_any_w[0] && event_pair_any_w[2]) || (event_pair_any_w[1] && event_pair_any_w[2]);
   integer ev;
@@ -2118,8 +2154,27 @@ module R64Lsu #(
         );
     end
   integer a, order_row, order_col;
+  integer response_check;
   always @(posedge clk_i)
     if (!rst_i) begin
+      // Every accepted live response transfers its canonical owner exactly
+      // once, either into raw storage or into the existing CQ capture ports.
+      for (response_check = 0; response_check < 2; response_check = response_check + 1) begin
+        if ((raw_queue_fire_w[response_check] || response_bypass_fire_w[response_check]) !=
+            raw_fire_w[response_check] ||
+            (raw_queue_fire_w[response_check] && response_bypass_fire_w[response_check]))
+          $fatal(1, "R64Lsu response destination is not unique");
+        if (response_bypass_fire_w[response_check]) begin
+          if (raw_occupied_w[response_check] || mem_rsp_error_i[response_check] ||
+              !response_bypass_eligible_w[input_response_slot_w[response_check]])
+            $fatal(1, "R64Lsu response bypass violated registered owner/eligibility");
+          if (!((completion_fire_w[0] &&
+                 completion_tag_w[0+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W]) ||
+                (completion_fire_w[1] &&
+                 completion_tag_w[TAG_W+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W])))
+            $fatal(1, "R64Lsu bypass owner was not captured by CQ");
+        end
+      end
       // Compare the count cone itself: arbitration-only fixtures suppress the
       // CQ transfer with force, while independently exercising these selectors.
       if (({event_two_w, |event_valid_w} & completion_credit_w) !==

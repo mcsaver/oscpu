@@ -1,0 +1,49 @@
+{
+  "kind": "archived-evidence-recalculation",
+  "new_rtl_measurement": false,
+  "benchmarks": {
+    "coremark": {
+      "source": "results/rv64-cpi-timing-20260916/held-ready/coremark-metrics.json",
+      "sha256": "621a285052e2468ea850826cad3c7993817f6d7f00252ca2fb051440d01cd32c",
+      "cycles": 9241964,
+      "commits": 3218524,
+      "cpi_recomputed": 2.8714914041343174,
+      "ipc_recomputed": 0.3482510860245723,
+      "profile_cycles": 9241965,
+      "profile_pct": {
+        "retire_zero": 78.73688117191529,
+        "rob_nonempty_notdone": 74.73607614830829,
+        "decode_iq_block": 40.345694881986674,
+        "decode_rob_block": 14.382590715286197,
+        "wb_backpressure": 6.834260895815987,
+        "recover": 4.220271338400438,
+        "store_b_owner": 6.410065391937754
+      },
+      "load_bus_command": 93,
+      "store_b_owner_cycles": 592416,
+      "note": "Overlapping event counts do not identify recoverable cycles or causal speedup."
+    },
+    "dhrystone": {
+      "source": "results/rv64-cpi-timing-20260916/held-ready/dhrystone-metrics.json",
+      "sha256": "3fa457eadb27b041dd4f7762955fc6c412040b278f84cb03782165f2a2c1deda",
+      "cycles": 14568135,
+      "commits": 4260670,
+      "cpi_recomputed": 3.419212236573121,
+      "ipc_recomputed": 0.2924650272667023,
+      "profile_cycles": 14568136,
+      "profile_pct": {
+        "retire_zero": 82.65964842722501,
+        "rob_nonempty_notdone": 80.17290612882802,
+        "decode_iq_block": 1.652304728621424,
+        "decode_rob_block": 59.988168699138996,
+        "wb_backpressure": 9.558456895240408,
+        "recover": 2.135983628928231,
+        "store_b_owner": 16.50701229038499
+      },
+      "load_bus_command": 53,
+      "store_b_owner_cycles": 2404764,
+      "note": "Overlapping event counts do not identify recoverable cycles or causal speedup."
+    }
+  },
+  "status": "PASS"
+}

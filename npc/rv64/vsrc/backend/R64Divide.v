@@ -80,6 +80,9 @@ module R64Divide #(
   wire [6:0] quotient_msb_w = leading2_q - leading1_q;
   wire [63:0] magnitude_w = rem_result_q ? remainder_q : quotient_q;
   wire negative_result_w = rem_result_q ? remainder_negative_q : quotient_negative_q;
+  // The three carry units change roles by phase: DIGIT_PREP computes
+  // remainder - {D, 2D, 3D} in units 0/1/2. ABS_PREP reuses 0/1 for operand
+  // magnitudes, CLASSIFY reuses 2 for 3D, and SIGN_PREP reuses 0 for result sign.
   reg [66:0] arithmetic_a_w[0:2], arithmetic_b_w[0:2];
   reg [2:0] arithmetic_carry_w;
   always @(*) begin

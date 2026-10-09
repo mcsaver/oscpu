@@ -1,0 +1,46 @@
+[
+  {
+    "path": "sim/build.mk",
+    "existed_in_B": true
+  },
+  {
+    "path": "sim/vsrc/R64CpiProfile.svh",
+    "existed_in_B": true
+  },
+  {
+    "path": "testbench/chengyue64/Makefile",
+    "existed_in_B": true
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_commit.sv",
+    "existed_in_B": true
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_completion_payload.sv",
+    "existed_in_B": true
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_lsu.sv",
+    "existed_in_B": true
+  },
+  {
+    "path": "sim/vsrc/R64CqValueProfile.svh",
+    "existed_in_B": false
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_cq_owner_wake.sv",
+    "existed_in_B": false
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_regread_cq.sv",
+    "existed_in_B": false
+  },
+  {
+    "path": "testbench/chengyue64/modules/tb_r64_lsu_value_ticket.svh",
+    "existed_in_B": false
+  },
+  {
+    "path": "testbench/chengyue64/programs/r64_core_load_shift.S",
+    "existed_in_B": false
+  }
+]

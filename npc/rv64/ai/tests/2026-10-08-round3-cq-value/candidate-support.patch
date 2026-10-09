@@ -1,0 +1,947 @@
+--- a/npc/rv64/sim/build.mk
++++ b/npc/rv64/sim/build.mk
+@@ -30,9 +30,9 @@
+ 	mkdir -p $@
+ $(CORE_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.sv $(R64_SIM_DEPS) | $(CORE_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64CoreTestTop --prefix VR64CoreTestTop -Mdir $(CORE_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64CoreTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES)' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(CORE_BUILD_DIR)/build.log 2>&1
+-$(SYSTEM_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DEPS) | $(SYSTEM_BUILD_DIR)
++$(SYSTEM_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DIR)/vsrc/R64CqValueProfile.svh $(R64_SIM_DEPS) | $(SYSTEM_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64SystemTestTop --prefix VR64SystemTestTop -Mdir $(SYSTEM_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT $(CORE_LINT_FLAGS) $(R64_SIM_INCLUDES) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(SYSTEM_BUILD_DIR)/build.log 2>&1
+-$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
++$(TENSOR_BIN): $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(R64_TENSOR_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_DIR)/vsrc/R64CpiProfile.svh $(R64_SIM_DIR)/vsrc/R64LoadCompletionProfile.svh $(R64_SIM_DIR)/vsrc/R64CqValueProfile.svh $(R64_SIM_DEPS) $(R64_SIM_WARNINGS) $(R64_HOME)/vsrc/tensor-filelist.mk | $(TENSOR_BUILD_DIR)
+ 	verilator --cc --exe --build --threads $(CORE_THREADS) -j $(CORE_JOBS) --top-module R64TensorTestTop --prefix VR64TensorTestTop -Mdir $(TENSOR_BUILD_DIR)/obj -O3 --assert -DR64_ASSERT -DR64_TENSOR $(TENSOR_FLAGS) $(R64_SIM_INCLUDES) $(R64_SIM_WARNINGS) $(R64_TENSOR_SRCS) $(R64_RTL_SRCS) $(R64_SIM_DIR)/vsrc/R64SystemTestTop.sv $(R64_SIM_SRCS) -CFLAGS '-DR64_HOST_THREADS=$(CORE_THREADS) $(CORE_CXXFLAGS) $(R64_HOST_INCLUDES) -DR64_SYSTEM -DR64_TENSOR' -LDFLAGS '-ldl -Wl,--no-as-needed -lreadline' > $(TENSOR_BUILD_DIR)/build.log 2>&1
+ 
+ .PHONY: core-lint system-lint platform-lint tensor-lint force-simulation-config
+--- a/npc/rv64/sim/vsrc/R64CpiProfile.svh
++++ b/npc/rv64/sim/vsrc/R64CpiProfile.svh
+@@ -190,3 +190,7 @@
+ `ifdef R64_LOAD_COMPLETION_PROFILE
+ `include "R64LoadCompletionProfile.svh"
+ `endif
++
++`ifdef R64_CQ_VALUE_PROFILE
++`include "R64CqValueProfile.svh"
++`endif
+--- a/npc/rv64/testbench/chengyue64/Makefile
++++ b/npc/rv64/testbench/chengyue64/Makefile
+@@ -363,3 +363,6 @@
+ 	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=4 -Ptb_r64_lsu.RESPONSE_BYPASS=$* -o $@ $(R64_RTL_SRCS) $<
+ lsu-response-bypass-matrix: $(BUILD_DIR)/tb_r64_lsu_response_bypass_0.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_1.vvp
+ 	@set -e; for mode in 0 1; do for stall in plain stalls; do arg=; test $$stall != stalls || arg=+response-stalls; log=$(BUILD_DIR)/response-bypass-$$mode-$$stall.log; timeout 90 $(VVP) $(BUILD_DIR)/tb_r64_lsu_response_bypass_$$mode.vvp +response-bypass $$arg > $$log 2>&1; rg -F "[PASS] tb_r64_lsu response-bypass " $$log; done; done
++
++# LSU ticket scenarios share the existing actual-owner stimulus.
++$(BUILD_DIR)/tb_r64_lsu.vvp $(BUILD_DIR)/tb_r64_lsu_metadata.vvp $(BUILD_DIR)/tb_r64_lsu_prepared.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_0.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_1.vvp: modules/tb_r64_lsu_value_ticket.svh
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_commit.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_commit.sv
+@@ -2,7 +2,7 @@
+ `include "R64Uop.vh"
+ // Real native ROB is wired back to commit READY, lane-1 permission and FLUSH.
+ // This catches VALID->FLUSH combinational loops rather than mocking them away.
+-module tb_r64_commit;
++module tb_r64_commit #(parameter LOCAL_CANCEL_PUBLISH = 0);
+   localparam M = `R64_META_W;
+   reg clk = 0;
+   always #5 clk = ~clk;
+@@ -99,7 +99,7 @@
+     .count_o(count),
+     .kill_mask_o(rob_kill)
+   );
+-  R64Commit dut (
++  R64Commit #(.LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH)) dut (
+     .trap_prepare_o(trap_prepare),
+     .clk_i(clk),
+     .rst_i(rst),
+@@ -142,6 +142,81 @@
+     .effect_allow_o(effect_allow),
+     .serial_allow_o(serial_allow)
+   );
++  // The publication variant must match every original public output on
++  // real ROB/trap/IRQ/store stimuli, including cancellation and prepare cycles.
++  generate if (LOCAL_CANCEL_PUBLISH) begin : publish_equivalence
++    wire  ref_trap_prepare_o;
++    wire [1:0] ref_rob_ready_o;
++    wire  ref_commit1_allow_o;
++    wire [1:0] ref_retire_fire_o;
++    wire [127:0] ref_retire_npc_o;
++    wire [1:0] ref_retired_count_o;
++    wire  ref_fp_dirty_o;
++    wire [4:0] ref_fp_flags_o;
++    wire  ref_serial_commit_o;
++    wire [8:0] ref_serial_tag_o;
++    wire  ref_trap_o;
++    wire  ref_trap_interrupt_o;
++    wire [5:0] ref_trap_cause_o;
++    wire [63:0] ref_trap_pc_o;
++    wire [63:0] ref_trap_tval_o;
++    wire  ref_stop_birth_o;
++    wire  ref_full_flush_o;
++    wire  ref_redirect_o;
++    wire [63:0] ref_redirect_target_o;
++    wire  ref_effect_allow_o;
++    wire  ref_serial_allow_o;
++  R64Commit #(.LOCAL_CANCEL_PUBLISH(0)) reference (
++    .trap_prepare_o(ref_trap_prepare_o),
++    .clk_i(clk),
++    .rst_i(rst),
++    .rob_valid_i(cv),
++    .rob_ready_o(ref_rob_ready_o),
++    .commit1_allow_o(ref_commit1_allow_o),
++    .rob_tag_i(ct),
++    .rob_meta_i(cm),
++    .rob_data_i(cd),
++    .rob_exception_i(cx),
++    .rob_cause_i(cc),
++    .rob_tval_i(ctval),
++    .rob_rd_write_i(cwr),
++    .rob_rd_fp_i(cfp),
++    .rob_fflags_i(cflags),
++    .retire_ready_i(trace_ready),
++    .rob_empty_i(count == 0),
++    .recover_i(recover || force_recover),
++    .lsu_irrevocable_i(lsu_irrevocable || li),
++    .serial_irrevocable_i(serial_irrevocable),
++    .irq_pending_i(irq),
++    .irq_cause_i(irq_cause),
++    .trap_target_i(trap_target),
++    .retire_fire_o(ref_retire_fire_o),
++    .retire_npc_o(ref_retire_npc_o),
++    .retired_count_o(ref_retired_count_o),
++    .fp_dirty_o(ref_fp_dirty_o),
++    .fp_flags_o(ref_fp_flags_o),
++    .serial_commit_o(ref_serial_commit_o),
++    .serial_tag_o(ref_serial_tag_o),
++    .trap_o(ref_trap_o),
++    .trap_interrupt_o(ref_trap_interrupt_o),
++    .trap_cause_o(ref_trap_cause_o),
++    .trap_pc_o(ref_trap_pc_o),
++    .trap_tval_o(ref_trap_tval_o),
++    .stop_birth_o(ref_stop_birth_o),
++    .full_flush_o(ref_full_flush_o),
++    .redirect_o(ref_redirect_o),
++    .redirect_target_o(ref_redirect_target_o),
++    .effect_allow_o(ref_effect_allow_o),
++    .serial_allow_o(ref_serial_allow_o)
++  );
++    always @(negedge clk) begin
++      if (!rst && {
++          trap_prepare, cr, allow1, fire, npc, retired, dirty, flags, serial_commit, serial_tag, trap, interrupt, trap_cause, epc, tval, stop, flush, redirect, redirect_target, effect_allow, serial_allow
++          } !== {
++          ref_trap_prepare_o, ref_rob_ready_o, ref_commit1_allow_o, ref_retire_fire_o, ref_retire_npc_o, ref_retired_count_o, ref_fp_dirty_o, ref_fp_flags_o, ref_serial_commit_o, ref_serial_tag_o, ref_trap_o, ref_trap_interrupt_o, ref_trap_cause_o, ref_trap_pc_o, ref_trap_tval_o, ref_stop_birth_o, ref_full_flush_o, ref_redirect_o, ref_redirect_target_o, ref_effect_allow_o, ref_serial_allow_o
++          }) $fatal(1, "commit publication changed an original interface output");
++    end
++  end endgenerate
+   // Actual LSU request/response holders retain the oldest store through
+   // a younger branch's real ROB kill/undo walk. Only translation/service are
+   // simple handshakes; the production authorization assertion remains enabled.
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_completion_payload.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_completion_payload.sv
+@@ -1,6 +1,8 @@
+ `timescale 1ns / 1ps
+ `include "R64Uop.vh"
+ module tb_r64_completion_payload;
++  parameter CQ_VALUE_BYPASS = 0;
++  parameter LOCAL_CANCEL_PUBLISH = 0;
+   reg clk = 0;
+   always #5 clk = ~clk;
+   reg rst = 1, flush = 0;
+@@ -8,6 +10,13 @@
+   reg [1:0] fire = 0, consume = 0;
+   reg [ 17:0] tags = 0;
+   reg [279:0] packets = 0;
++  reg [17:0] tickets = 0;
++  wire [17:0] output_tickets;
++  reg [8:0] expected_ticket[0:511];
++  wire cancel_active = |kill;
++  // Nonzero inactive geometry checks that candidates alone cannot cancel.
++  wire [31:0] cancel_candidates = cancel_active ? kill : 32'ha55aa55a;
++  integer ticket_checks = 0;
+   wire [1:0] ready[0:1], valid[0:1];
+   wire [ 17:0] otag [0:1];
+   wire [279:0] data [0:1];
+@@ -29,7 +38,14 @@
+     .reuse_block_o(reuse[0]),
+     .idle_o(idle[0])
+   );
+-  R64LsuCompletion b (
++  R64LsuCompletion #(
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH)
++  ) b (
++    .cancel_candidates_i(cancel_candidates),
++    .cancel_active_i(cancel_active),
++    .in_value_ticket_i(tickets),
++    .out_value_ticket_o(output_tickets),
+     .clk_i(clk),
+     .rst_i(rst),
+     .flush_i(flush),
+@@ -88,7 +104,15 @@
+              {otag[1][q*9+:9], data[1][q*140+:140]} !== {oldtag[q*9+:9], olddata[q*140+:140]}))
+           $fatal(1, "held payload changed");
+         if (valid[0][q] && consume[q]) returned = returned + 1;
+-        if (fire[q]) accepted = accepted + 1;
++        if (CQ_VALUE_BYPASS && valid[1][q]) begin
++          if (output_tickets[q*9+:9] !== expected_ticket[otag[1][q*9+:9]])
++            $fatal(1, "completion ticket crossed owner cycle=%0d tag=%0d", cycle, otag[1][q*9+:9]);
++          ticket_checks = ticket_checks + 1;
++        end
++        if (fire[q]) begin
++          accepted = accepted + 1;
++          expected_ticket[tags[q*9+:9]] = tickets[q*9+:9];
++        end
+         if (oldheld[q]) held = held + 1;
+         if (a.front_q[q] && kill[a.front_tag_q[q][4:0]]) frontkill = frontkill + 1;
+         if (a.back_q[q] && kill[a.back_tag_q[q][4:0]]) backkill = backkill + 1;
+@@ -120,6 +144,7 @@
+       fire = 0;
+       rng = step(rng);
+       tags = rng[17:0];
++      tickets = {rng[8:0], rng[24:16]};
+       for (j = 0; j < 9; j = j + 1) begin
+         rng = step(rng);
+         if (j < 8) packets[j*32+:32] = rng;
+@@ -162,6 +187,9 @@
+           reused,
+           freechanges
+       );
++    if (CQ_VALUE_BYPASS && ticket_checks < 1000) $fatal(1, "ticket coverage vacuous");
++    $display("CQ_TICKET checks=%0d value=%0d local_cancel=%0d", ticket_checks,
++             CQ_VALUE_BYPASS, LOCAL_CANCEL_PUBLISH);
+     $display(
+         "[PASS] tb_r64_completion_payload cycles=%0d accepted=%0d returns=%0d dual=%0d held=%0d full=%0d cancels=%0d frontkill=%0d backkill=%0d reused=%0d freechanges=%0d",
+         cycle, accepted, returned, dual, held, full, cancels, frontkill, backkill, reused,
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv
+@@ -4,6 +4,8 @@
+   parameter DEPTH = 18;
+   parameter EARLY_STORE = 0;
+   parameter RESPONSE_BYPASS = 1;
++  parameter CQ_VALUE_BYPASS = 0;
++  parameter LOCAL_CANCEL_PUBLISH = 0;
+   localparam IW = $clog2(DEPTH);
+   reg clk = 0;
+   always #5 clk = ~clk;
+@@ -25,6 +27,17 @@
+   wire [1:0] out_valid;
+   reg [1:0] out_ready = 3;
+   wire [17:0] out_tag;
++  wire [17:0] out_value_ticket;
++  wire [15:0] reserve_ticket;
++  reg ticket_override = 0;
++  reg [15:0] override_ticket = 0;
++  reg ticket_reserved_class = 0;
++  genvar vt_lane;
++  generate for (vt_lane = 0; vt_lane < 2; vt_lane = vt_lane + 1) begin : g_ticket_fixture
++    assign reserve_ticket[vt_lane*8+:8] = ticket_override ? override_ticket[vt_lane*8+:8] :
++        {!in_uop[vt_lane*`R64_UOP_W+201], in_uop[vt_lane*`R64_UOP_W+202],
++         6'(1 + (int'(in_tag[vt_lane*9+:9]) % 63))};
++  end endgenerate
+   wire [2*`R64_RESULT_W-1:0] out_result;
+   wire [31:0] reuse;
+   wire irreversible, idle;
+@@ -62,6 +75,8 @@
+   R64Lsu #(
+     .EARLY_STORE(EARLY_STORE),
+     .RESPONSE_BYPASS(RESPONSE_BYPASS),
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .ENTRIES(DEPTH),
+     .INDEX_W(IW)
+   ) dut (
+@@ -69,6 +84,8 @@
+     .rst_i(rst),
+     .flush_i(flush),
+     .kill_mask_i(kill),
++    .cancel_candidates_i((|kill) ? kill : 32'ha55aa55a),
++    .cancel_active_i(|kill),
+     .head_valid_i(head_valid),
+     .head_tag_i(head_tag),
+     .effect_allow_i(effect_allow),
+@@ -93,6 +110,7 @@
+     .reserve_ready_o(in_ready),
+     .reserve_slot_o(reserve_slot_w),
+     .reserve_tag_i(in_tag),
++    .reserve_ticket_i(reserve_ticket),
+     .reserve_func_i({in_uop[`R64_UOP_W+196+:8], in_uop[196+:8]}),
+     .reserve_amo_i({in_uop[`R64_UOP_W+155+:5], in_uop[155+:5]}),
+     .in_fire_i(bind_fire_q),
+@@ -104,6 +122,7 @@
+     .out_valid_o(out_valid),
+     .out_ready_i(out_ready),
+     .out_tag_o(out_tag),
++    .out_value_ticket_o(out_value_ticket),
+     .out_result_o(out_result),
+     .reuse_block_o(reuse),
+     .irrevocable_o(irreversible),
+@@ -170,7 +189,8 @@
+       assign tr[g] = tn[g] < 7 && !tr_hold && (!random_stall || rng[g]);
+       assign tresp[g] = tn[g] != 0 && tdue[g*8+th[g]] <= cycles && !tr_hold;
+       assign tpa[g*64+:64] = tqueue[g*8+th[g]] & ~64'h1000;
+-      assign tc[g*2+:2] = tqueue[g*8+th[g]][11:8] == 4'he ? 2'd2 : 2'd0;
++      assign tc[g*2+:2] = tqueue[g*8+th[g]][11:8] == 4'he ? 2'd2 :
++          (ticket_reserved_class ? 2'd3 : 2'd0);
+       assign tfault[g] = tqueue[g*8+th[g]][11:8] == 4'hf;
+       assign tneeds[g] = tqueue[g*8+th[g]][11:8] == 4'hd && taqueue[g*8+th[g]] == 2 &&
+           !adqueue[g*8+th[g]];
+@@ -348,6 +368,7 @@
+         $fatal(1, "prepared descriptor not ready with exact owner at capture edge");
+     end
+   `include "tb_r64_lsu_response_bypass.svh"
++  `include "tb_r64_lsu_value_ticket.svh"
+   integer n, before_mem, before_tr, issued, retired, start_cycle, stream_cycles;
+   initial begin
+     for (n = 0; n < 1024; n = n + 1) memory[n] = 64'h1234567880000000 + n;
+@@ -361,6 +382,7 @@
+     end
+     repeat (4) @(negedge clk);
+     rst = 0;
++    if ($test$plusargs("value-ticket")) run_value_ticket;
+     if ($test$plusargs("response-bypass")) run_response_bypass;
+     // Late physical classification must not let younger ordinary descriptors
+     // block the precise head request which releases their ordering barrier.
+--- /dev/null
++++ b/npc/rv64/sim/vsrc/R64CqValueProfile.svh
+@@ -0,0 +1,194 @@
++// Opt-in observation only. Pre-edge samples use the same clock as CPI_PROFILE.
++// A physical-register lifetime records its producer's FULL canonical tag; each
++// consumer snapshots that tag at birth. This avoids attributing a reused ROB
++// slot or preg to an earlier load. CQ eligibility is reconstructed independently
++// of CQ_VALUE_BYPASS, so the same probe works with the bypass disabled.
++// Histograms are event latencies, NOT additive whole-program cycle savings.
++`define R64_CVP_B `R64_SYSTEM_HIER.core.backend
++`define R64_CVP_R `R64_SYSTEM_HIER.core.backend.rob
++`define R64_CVP_I `R64_SYSTEM_HIER.core.backend.issue
++`define R64_CVP_Q `R64_SYSTEM_HIER.core.backend.registers
++localparam integer CVP_TAG_W = 9, CVP_ROB_W = 5, CVP_PREG_W = 6;
++localparam integer CVP_SLOTS = 32, CVP_PREGS = 64;
++// SystemTop's R3 compile switch controls the RR snapshot width.
++`ifdef R64_R3_DISABLE_CQ_VALUE_BYPASS
++localparam integer CVP_FORWARD = 4;
++`else
++localparam integer CVP_FORWARD = 6;
++`endif
++reg [CVP_PREGS-1:0] cvp_known, cvp_front_seen, cvp_early_seen, cvp_wb_seen;
++reg [CVP_TAG_W-1:0] cvp_producer_tag [0:CVP_PREGS-1];
++reg [63:0] cvp_front_cycle [0:CVP_PREGS-1], cvp_early_cycle [0:CVP_PREGS-1];
++reg [63:0] cvp_wb_cycle [0:CVP_PREGS-1], cvp_value [0:CVP_PREGS-1];
++reg [CVP_TAG_W-1:0] cvp_consumer_tag [0:CVP_SLOTS-1];
++reg [63:0] cvp_birth_cycle [0:CVP_SLOTS-1], cvp_issue_cycle [0:CVP_SLOTS-1];
++reg [63:0] cvp_consumer_pc [0:CVP_SLOTS-1];
++reg [CVP_PREG_W-1:0] cvp_source_preg [0:CVP_SLOTS-1][0:2];
++reg [CVP_TAG_W-1:0] cvp_source_tag [0:CVP_SLOTS-1][0:2];
++reg [2:0] cvp_source_known [0:CVP_SLOTS-1];
++reg [CVP_SLOTS-1:0] cvp_issued;
++reg [63:0] cvp_first_front, cvp_first_early, cvp_wb, cvp_reads, cvp_waiting_reads;
++reg [63:0] cvp_read_source [0:3]; // PRF, ALU, WB, CQ (actual selected hits)
++reg [63:0] cvp_front_to_issue [0:32], cvp_front_to_read [0:32];
++reg [63:0] cvp_wait_front_to_issue [0:32], cvp_wait_front_to_read [0:32];
++reg [63:0] cvp_identity_mismatch, cvp_value_mismatch, cvp_trace_count;
++integer cvp_i, cvp_j, cvp_lane, cvp_src, cvp_preg, cvp_slot, cvp_bkt, cvp_fwd;
++reg [CVP_TAG_W-1:0] cvp_tag_now;
++reg [8:0] cvp_ticket;
++reg [63:0] cvp_actual, cvp_delay;
++reg [CVP_FORWARD-1:0] cvp_hits;
++reg cvp_waiting;
++always @(posedge clk_i) begin
++  if (rst_i) begin
++    cvp_known = 0; cvp_front_seen = 0; cvp_early_seen = 0; cvp_wb_seen = 0;
++    cvp_issued = 0;
++    cvp_first_front = 0; cvp_first_early = 0; cvp_wb = 0;
++    cvp_reads = 0; cvp_waiting_reads = 0;
++    cvp_identity_mismatch = 0; cvp_value_mismatch = 0; cvp_trace_count = 0;
++    for (cvp_i = 0; cvp_i < CVP_PREGS; cvp_i = cvp_i + 1) begin
++      cvp_producer_tag[cvp_i] = 0; cvp_front_cycle[cvp_i] = 0;
++      cvp_early_cycle[cvp_i] = 0; cvp_wb_cycle[cvp_i] = 0; cvp_value[cvp_i] = 0;
++    end
++    for (cvp_i = 0; cvp_i < CVP_SLOTS; cvp_i = cvp_i + 1) begin
++      cvp_consumer_tag[cvp_i] = 0; cvp_birth_cycle[cvp_i] = 0;
++      cvp_issue_cycle[cvp_i] = 0; cvp_consumer_pc[cvp_i] = 0;
++      cvp_source_known[cvp_i] = 0;
++      for (cvp_j = 0; cvp_j < 3; cvp_j = cvp_j + 1) begin
++        cvp_source_preg[cvp_i][cvp_j] = 0; cvp_source_tag[cvp_i][cvp_j] = 0;
++      end
++    end
++    for (cvp_i = 0; cvp_i < 4; cvp_i = cvp_i + 1) cvp_read_source[cvp_i] = 0;
++    for (cvp_i = 0; cvp_i < 33; cvp_i = cvp_i + 1) begin
++      cvp_front_to_issue[cvp_i] = 0; cvp_front_to_read[cvp_i] = 0;
++      cvp_wait_front_to_issue[cvp_i] = 0; cvp_wait_front_to_read[cvp_i] = 0;
++    end
++  end else if (run_i) begin
++    // Establish fresh producer identities before recording both consumers, so
++    // same-bundle lane 0 -> lane 1 RAW sees lane 0's newly allocated fulltag.
++    for (cvp_lane = 0; cvp_lane < 2; cvp_lane = cvp_lane + 1) begin
++      cvp_preg = int'(`R64_CVP_R.alloc_pnew_i[cvp_lane*CVP_PREG_W+:CVP_PREG_W]);
++      if (`R64_CVP_B.birth_w[cvp_lane] && `R64_CVP_R.alloc_rd_write_i[cvp_lane] &&
++          !`R64_CVP_R.alloc_rd_fp_i[cvp_lane] && cvp_preg != 0) begin
++        cvp_known[cvp_preg] = 1;
++        cvp_producer_tag[cvp_preg] = `R64_CVP_B.birth_tag_w[cvp_lane*CVP_TAG_W+:CVP_TAG_W];
++        cvp_front_seen[cvp_preg] = 0; cvp_early_seen[cvp_preg] = 0; cvp_wb_seen[cvp_preg] = 0;
++        cvp_front_cycle[cvp_preg] = 0; cvp_early_cycle[cvp_preg] = 0; cvp_wb_cycle[cvp_preg] = 0;
++      end
++    end
++    for (cvp_lane = 0; cvp_lane < 2; cvp_lane = cvp_lane + 1) begin
++      cvp_tag_now = `R64_CVP_B.birth_tag_w[cvp_lane*CVP_TAG_W+:CVP_TAG_W];
++      cvp_slot = int'(cvp_tag_now[CVP_ROB_W-1:0]);
++      if (`R64_CVP_B.birth_w[cvp_lane]) begin
++        cvp_consumer_tag[cvp_slot] = cvp_tag_now;
++        cvp_birth_cycle[cvp_slot] = profile_cycles_q;
++        cvp_consumer_pc[cvp_slot] = `R64_CVP_I.enq_payload_i[cvp_lane*`R64_UOP_W+:64];
++        cvp_issued[cvp_slot] = 0;
++        for (cvp_src = 0; cvp_src < 3; cvp_src = cvp_src + 1) begin
++          cvp_preg = int'(`R64_CVP_I.enq_src_preg_i[(cvp_lane*3+cvp_src)*CVP_PREG_W+:CVP_PREG_W]);
++          cvp_source_preg[cvp_slot][cvp_src] = CVP_PREG_W'(cvp_preg);
++          cvp_source_tag[cvp_slot][cvp_src] = cvp_producer_tag[cvp_preg];
++          cvp_source_known[cvp_slot][cvp_src] = cvp_known[cvp_preg] && cvp_preg != 0 &&
++              `R64_CVP_I.enq_src_used_i[cvp_lane*3+cvp_src] &&
++              !`R64_CVP_I.enq_src_fp_i[cvp_lane*3+cvp_src];
++        end
++      end
++    end
++    for (cvp_lane = 0; cvp_lane < 2; cvp_lane = cvp_lane + 1) begin
++      cvp_ticket = `R64_CVP_B.lsu_value_ticket_i[cvp_lane*9+:9];
++      cvp_tag_now = `R64_CVP_B.external_tag_i[cvp_lane*CVP_TAG_W+:CVP_TAG_W];
++      cvp_slot = int'(cvp_tag_now[CVP_ROB_W-1:0]);
++      cvp_preg = int'(cvp_ticket[5:0]);
++      // CQ front + independent canonical owner check, not a request hint.
++      if (`R64_CVP_B.external_valid_i[cvp_lane] && cvp_ticket[8] && cvp_ticket[7] &&
++          !cvp_ticket[6] && cvp_preg != 0 && !`R64_CVP_B.external_result_i[cvp_lane*`R64_RESULT_W+64] &&
++          !`R64_CVP_B.flush_i && `R64_CVP_R.valid_q[cvp_slot] && !`R64_CVP_R.done_q[cvp_slot] &&
++          !`R64_CVP_R.kill_mask_o[cvp_slot] && `R64_CVP_R.generation_q[cvp_slot] == cvp_tag_now[8:5] &&
++          `R64_CVP_R.rd_write_q[cvp_slot] && !`R64_CVP_R.rd_fp_q[cvp_slot] &&
++          `R64_CVP_R.pnew_q[cvp_slot] == cvp_ticket[5:0]) begin
++        if (!cvp_known[cvp_preg] || cvp_producer_tag[cvp_preg] != cvp_tag_now)
++          cvp_identity_mismatch = cvp_identity_mismatch + 1;
++        else if (!cvp_front_seen[cvp_preg]) begin
++          cvp_front_seen[cvp_preg] = 1;
++          cvp_front_cycle[cvp_preg] = profile_cycles_q;
++          cvp_value[cvp_preg] = `R64_CVP_B.external_result_i[cvp_lane*`R64_RESULT_W+:64];
++          cvp_first_front = cvp_first_front + 1;
++        end
++      end
++      cvp_preg = int'(`R64_CVP_B.cq_value_pdst_w[cvp_lane*CVP_PREG_W+:CVP_PREG_W]);
++      if (`R64_CVP_B.cq_value_valid_w[cvp_lane] && !cvp_early_seen[cvp_preg]) begin
++        cvp_early_seen[cvp_preg] = 1;
++        cvp_early_cycle[cvp_preg] = profile_cycles_q;
++        cvp_first_early = cvp_first_early + 1;
++      end
++      cvp_tag_now = `R64_CVP_R.wb_tag_i[cvp_lane*CVP_TAG_W+:CVP_TAG_W];
++      cvp_preg = int'(`R64_CVP_R.wb_preg_o[cvp_lane*CVP_PREG_W+:CVP_PREG_W]);
++      if (`R64_CVP_R.wb_accept_o[cvp_lane] && `R64_CVP_R.wb_rd_write_o[cvp_lane] &&
++          !`R64_CVP_R.wb_rd_fp_o[cvp_lane] && cvp_front_seen[cvp_preg] &&
++          cvp_producer_tag[cvp_preg] == cvp_tag_now && !cvp_wb_seen[cvp_preg]) begin
++        cvp_wb_seen[cvp_preg] = 1;
++        cvp_wb_cycle[cvp_preg] = profile_cycles_q;
++        cvp_wb = cvp_wb + 1;
++      end
++    end
++    for (cvp_lane = 0; cvp_lane < 2; cvp_lane = cvp_lane + 1) begin
++      cvp_tag_now = `R64_CVP_I.issue_tag_o[cvp_lane*CVP_TAG_W+:CVP_TAG_W];
++      cvp_slot = int'(cvp_tag_now[CVP_ROB_W-1:0]);
++      if (`R64_CVP_I.issue_fire_o[cvp_lane] && cvp_consumer_tag[cvp_slot] == cvp_tag_now) begin
++        cvp_issue_cycle[cvp_slot] = profile_cycles_q;
++        cvp_issued[cvp_slot] = 1;
++      end
++      cvp_tag_now = `R64_CVP_Q.ingress_tag_q[cvp_lane];
++      cvp_slot = int'(cvp_tag_now[CVP_ROB_W-1:0]);
++      if (`R64_CVP_Q.read_select_w[cvp_lane] && `R64_CVP_Q.ingress_live_w[cvp_lane] &&
++          cvp_consumer_tag[cvp_slot] == cvp_tag_now && cvp_issued[cvp_slot]) begin
++        for (cvp_src = 0; cvp_src < 3; cvp_src = cvp_src + 1) begin
++          cvp_preg = int'(cvp_source_preg[cvp_slot][cvp_src]);
++          if (cvp_source_known[cvp_slot][cvp_src] && cvp_front_seen[cvp_preg] &&
++              cvp_source_tag[cvp_slot][cvp_src] == cvp_producer_tag[cvp_preg]) begin
++            cvp_reads = cvp_reads + 1;
++            cvp_waiting = cvp_birth_cycle[cvp_slot] <= cvp_front_cycle[cvp_preg];
++            if (cvp_waiting) cvp_waiting_reads = cvp_waiting_reads + 1;
++            cvp_delay = cvp_issue_cycle[cvp_slot] - cvp_front_cycle[cvp_preg];
++            cvp_bkt = cvp_delay >= 32 ? 32 : int'(cvp_delay);
++            cvp_front_to_issue[cvp_bkt] = cvp_front_to_issue[cvp_bkt] + 1;
++            if (cvp_waiting) cvp_wait_front_to_issue[cvp_bkt] = cvp_wait_front_to_issue[cvp_bkt] + 1;
++            cvp_delay = profile_cycles_q - cvp_front_cycle[cvp_preg];
++            cvp_bkt = cvp_delay >= 32 ? 32 : int'(cvp_delay);
++            cvp_front_to_read[cvp_bkt] = cvp_front_to_read[cvp_bkt] + 1;
++            if (cvp_waiting) cvp_wait_front_to_read[cvp_bkt] = cvp_wait_front_to_read[cvp_bkt] + 1;
++            cvp_hits = `R64_CVP_Q.read_forward_hit_w[(cvp_lane*3+cvp_src)*CVP_FORWARD+:CVP_FORWARD];
++            cvp_actual = 0;
++            for (cvp_fwd = 0; cvp_fwd < CVP_FORWARD; cvp_fwd = cvp_fwd + 1)
++              if (cvp_hits[cvp_fwd]) cvp_actual = cvp_actual | `R64_CVP_Q.gpr_forward_data_w[cvp_fwd*64+:64];
++            if (!(|cvp_hits)) begin
++              cvp_actual = cvp_src < 2 ? `R64_CVP_Q.gdata_w[cvp_lane*2+cvp_src] : 64'b0;
++              cvp_read_source[0] = cvp_read_source[0] + 1;
++            end else begin
++              if (|(cvp_hits & CVP_FORWARD'(3))) cvp_read_source[1] = cvp_read_source[1] + 1;
++              if (|(cvp_hits & CVP_FORWARD'(12))) cvp_read_source[2] = cvp_read_source[2] + 1;
++              if (|(cvp_hits & CVP_FORWARD'(48))) cvp_read_source[3] = cvp_read_source[3] + 1;
++            end
++            if (cvp_actual !== cvp_value[cvp_preg]) begin
++              cvp_value_mismatch = cvp_value_mismatch + 1;
++              $fatal(1, "CQ_VALUE_PROFILE wrong source value consumer=%h producer=%h preg=%0d got=%h expected=%h", cvp_tag_now, cvp_producer_tag[cvp_preg], cvp_preg, cvp_actual, cvp_value[cvp_preg]);
++            end
++            if (cvp_trace_count < 128) begin
++              $display("CQ_VALUE_TRACE consumer=%h pc=%h producer=%h preg=%0d src=%0d front=%0d early_seen=%0d early=%0d wb_seen=%0d wb=%0d birth=%0d issue=%0d read=%0d source_mask=%h waiting=%0d value=%h", cvp_tag_now, cvp_consumer_pc[cvp_slot], cvp_producer_tag[cvp_preg], cvp_preg, cvp_src, cvp_front_cycle[cvp_preg], cvp_early_seen[cvp_preg], cvp_early_cycle[cvp_preg], cvp_wb_seen[cvp_preg], cvp_wb_cycle[cvp_preg], cvp_birth_cycle[cvp_slot], cvp_issue_cycle[cvp_slot], profile_cycles_q, cvp_hits, cvp_waiting, cvp_actual);
++              cvp_trace_count = cvp_trace_count + 1;
++            end
++          end
++        end
++      end
++    end
++  end
++end
++final begin
++  $display("CQ_VALUE_PROFILE enabled=%0d first_front=%0d first_early=%0d wb=%0d dependent_reads=%0d waiting_reads=%0d identity_mismatch=%0d value_mismatch=%0d", `R64_CVP_B.CQ_VALUE_BYPASS, cvp_first_front, cvp_first_early, cvp_wb, cvp_reads, cvp_waiting_reads, cvp_identity_mismatch, cvp_value_mismatch);
++  $display("CQ_VALUE_PROFILE read_prf=%0d read_alu=%0d read_wb=%0d read_cq=%0d", cvp_read_source[0], cvp_read_source[1], cvp_read_source[2], cvp_read_source[3]);
++  for (cvp_i = 0; cvp_i < 33; cvp_i = cvp_i + 1)
++    $display("CQ_VALUE_PROFILE latency_bin=%0d front_to_issue=%0d front_to_read=%0d waiting_front_to_issue=%0d waiting_front_to_read=%0d", cvp_i, cvp_front_to_issue[cvp_i], cvp_front_to_read[cvp_i], cvp_wait_front_to_issue[cvp_i], cvp_wait_front_to_read[cvp_i]);
++end
++`undef R64_CVP_B
++`undef R64_CVP_R
++`undef R64_CVP_I
++`undef R64_CVP_Q
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_cq_owner_wake.sv
+@@ -0,0 +1,103 @@
++`timescale 1ns / 1ps
++module tb_r64_cq_owner_wake;
++  reg clk=0;
++  always #5 clk=~clk;
++  reg rst=1, flush=0;
++  reg [1:0] alloc=0, wbv=0;
++  wire [1:0] alloc_ready;
++  wire [17:0] alloc_tag;
++  reg [17:0] wbtag=0;
++  reg [5:0] sv=0;
++  reg [53:0] st=0;
++  reg [35:0] sp=0;
++  wire [5:0] sa;
++  wire [31:0] kill, cc, partial;
++  wire ca, pa;
++  wire [8:0] prod;
++  reg [8:0] producer=0, consumer=0;
++  assign prod=producer;
++  R64Rob #(.SHORT_PORTS(6)) rob (
++    .clk(clk),.rst(rst),.flush_i(flush),.kill_pending_i(1'b0),.kill_valid_i(1'b0),
++    .kill_tag_i(9'b0),.recovery_preview_valid_i(1'b0),.recovery_preview_tag_i(9'b0),
++    .reuse_block_i(32'b0),.resolve_valid_i(1'b0),.resolve_tag_i(9'b0),.resolve_npc_i(64'b0),
++    .alloc_valid_i(alloc),.alloc_ready_o(alloc_ready),.alloc_tag_o(alloc_tag),
++    .alloc_meta_i(408'b0),.alloc_rd_write_i(2'b11),.alloc_rd_fp_i(2'b0),
++    .alloc_serial_i(2'b0),.alloc_rd_arch_i({5'd2,5'd1}),
++    .alloc_pnew_i({6'd8,6'd7}),.alloc_pold_i({6'd2,6'd1}),
++    .store_done_valid_i(1'b0),.store_done_tag_i(9'b0),.store_done_error_i(1'b0),
++    .store_done_tval_i(64'b0),.owner_query_tag_i(18'b0),.wb_owner_cert_i(18'b0),
++    .wb_valid_i(wbv),.wb_tag_i(wbtag),.wb_data_i(128'b0),.wb_exception_i(2'b0),
++    .wb_cause_i(12'b0),.wb_tval_i(128'b0),.wb_fflags_i(10'b0),
++    .short_valid_i(sv),.short_tag_i(st),.short_preg_i(sp),.short_accept_o(sa),
++    .commit_ready_i(2'b0),.commit1_allow_i(1'b1),.kill_mask_o(kill),
++    .cancel_candidates_o(cc),.cancel_active_o(ca),
++    .lsu_cancel_candidates_o(partial),.lsu_cancel_active_o(pa)
++  );
++  reg [1:0] enq=0, ir=0;
++  reg [17:0] enqtag=0;
++  reg [35:0] src=0;
++  reg [5:0] used=0;
++  wire [1:0] enqready, issue;
++  wire [35:0] query;
++  wire [5:0] queryfp;
++  wire [5:0] queryready;
++  wire [17:0] issuetag;
++  genvar q;
++  generate for(q=0;q<6;q=q+1) begin : query_match
++    assign queryready[q]=!queryfp[q] &&
++      ((sa[4] && query[q*6+:6]==sp[24+:6]) || (sa[5] && query[q*6+:6]==sp[30+:6]));
++  end endgenerate
++  R64Issue #(.DEFER_READY(1),.EARLY_PORTS(4)) iq (
++    .clk(clk),.rst(rst),.flush_i(flush),.kill_mask_i(kill),
++    .cancel_candidates_i(cc),.cancel_active_i(ca),.rob_head_i(5'b0),
++    .barrier_valid_i(1'b0),.barrier_slot_i(5'b0),.serial_active_i(32'b0),.serial_release_i(32'b0),
++    .enq_valid_i(enq),.enq_ready_o(enqready),.enq_tag_i(enqtag),.enq_mem_slot_i(10'b0),
++    .enq_payload_i(256'b0),.enq_class_i(6'b0),.enq_gpr_dst_i(12'b0),
++    .enq_src_preg_i(src),.enq_src_fp_i(6'b0),.enq_src_used_i(used),.enq_src_ready_i(6'b0),
++    .ready_query_preg_o(query),.ready_query_fp_o(queryfp),.ready_query_ready_i(queryready),
++    .wake_valid_i(2'b0),.wake_fp_i(2'b0),.wake_preg_i(12'b0),
++    .early_valid_i({sa[5:4],2'b0}),.early_preg_i({sp[24+:12],12'b0}),
++    .fu_allow_i(6'b111111),.serial_allow_i(1'b1),.issue_ready_i(ir),
++    .issue_fire_o(issue),.issue_tag_o(issuetag)
++  );
++  task tick; begin @(posedge clk); #1; end endtask
++  task check(input bit good,input string why);
++    if(!good) $fatal(1,"%s",why);
++  endtask
++  task owners;
++    begin
++      alloc=3; #1; check(alloc_ready==3,"ROB dual birth credit");
++      producer=alloc_tag[0+:9];consumer=alloc_tag[9+:9];
++      tick();alloc=0;
++      st[36+:9]=producer;st[45+:9]=consumer;sp[24+:6]=7;sp[30+:6]=8;
++    end
++  endtask
++  initial begin
++    tick();rst=0;owners();sv=6'b110000;#1;
++    check(sa==6'b110000,"two extra fulltag owners without WB grants");
++    st[36+:9]=producer^9'h20;#1;check(!sa[4] && sa[5],"stale generation accepted");
++    st[36+:9]=producer;sp[24+:6]=9;#1;check(!sa[4],"wrong physical destination accepted");
++    sp[24+:6]=0;#1;check(!sa[4],"zero destination accepted");
++    sp[24+:6]=7;sv=0;
++    // Existing IQ owner waits for a genuinely early CQ value on port2.
++    src[0+:6]=7;used=1;enqtag[0+:9]=consumer;enq=1;
++    tick();enq=0;tick();ir=1;#1;check(issue==0,"unready owner issued");
++    sv=6'b010000;#1;check(issue==0,"same-cycle wake illegally bypassed ready Q");
++    tick();check(issue[0] && issuetag[0+:9]==consumer,"CQ port2 failed resident wake");
++    tick();check(issue==0,"CQ wake duplicated consumer issue");ir=0;
++    // Clear both structures, then put a new consumer at the wake/birth boundary.
++    flush=1;#1;check(sa==0 && !pa,"flush failed short-owner or contaminated partial active");
++    tick();flush=0;sv=0;owners();sv=6'b100000;
++    src[0+:6]=8;enqtag[0+:9]=producer;enq=1;ir=1;
++    tick();enq=0;check(issue==0,"DEFER_READY bypassed initialization boundary");
++    tick();check(issue[0] && issuetag[0+:9]==producer,"CQ port3 missed adjacent birth/init");
++    tick();ir=0;
++    // Canonical completion revokes read-only short authorization at its edge.
++    wbv=2'b10;wbtag[9+:9]=consumer;tick();wbv=0;#1;
++    check(!sa[5],"done owner retained early authorization");
++    flush=1;tick();flush=0;#1;check(sa==0,"flushed owner retained early authorization");
++    $display("[PASS] tb_r64_cq_owner_wake fulltag pdst twoports resident deferred done flush");
++    $finish;
++  end
++  initial begin #10000; $fatal(1,"timeout"); end
++endmodule
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_regread_cq.sv
+@@ -0,0 +1,108 @@
++`timescale 1ns / 1ps
++`include "R64Uop.vh"
++module tb_r64_regread_cq;
++  localparam U = `R64_UOP_W;
++  reg clk = 0;
++  always #5 clk = ~clk;
++  reg rst = 1, flush = 0;
++  reg [31:0] kill = 0;
++  reg [1:0] fire = 0, ready = 0, wv = 0, wfp = 0, cqv = 0;
++  reg [17:0] tag = 0;
++  reg [2*U-1:0] payload = 0;
++  reg [5:0] used = 0;
++  reg [35:0] src = 0;
++  reg [11:0] wp = 0, cqp = {6'd8, 6'd7};
++  reg [127:0] wd = 0, cqd = 0;
++  wire [1:0] credit, valid;
++  wire [17:0] outtag;
++  wire [383:0] operands;
++  wire [11:0] shift;
++  R64RegRead #(.PAYLOAD_W(U), .CQ_VALUE_BYPASS(1), .Q_ONLY_TERMINAL(1),
++               .PREQUALIFIED_ISSUE(1)) dut (
++    .clk(clk), .rst(rst), .flush_i(flush), .kill_mask_i(kill),
++    .cancel_candidates_i(kill), .cancel_active_i(|kill), .fu_credit_i(6'b111111),
++    .in_fire_i(fire), .in_ready_o(credit), .in_tag_i(tag), .in_payload_i(payload),
++    .in_class_i(6'b0), .in_gpr_dst_i(12'b0), .in_src_preg_i(src), .in_src_fp_i(6'b0),
++    .in_src_used_i(used), .in_fp_plan_i(52'b0), .in_mem_slot_i(10'b0),
++    .wb_write_i(wv), .wb_fp_i(wfp), .wb_preg_i(wp), .wb_data_i(wd),
++    .alu_bypass_valid_i(2'b0), .alu_bypass_preg_i(12'b0), .alu_bypass_data_i(128'b0),
++    .cq_value_valid_i(cqv), .cq_value_pdst_i(cqp), .cq_value_data_i(cqd),
++    .out_valid_o(valid), .out_ready_i(ready), .out_tag_o(outtag),
++    .out_operand_o(operands), .out_shift_amount_o(shift)
++  );
++  task tick;
++    begin @(posedge clk); #1; end
++  endtask
++  task check(input bit good, input string why);
++    if (!good) $fatal(1, "%s", why);
++  endtask
++  task clean;
++    begin
++      fire=0; ready=0; wv=0; cqv=0; kill=0; used=0;
++      flush=1; tick(); flush=0;
++    end
++  endtask
++  task admit(input [1:0] lanes, input [8:0] a, input [8:0] b, input [5:0] u);
++    begin
++      tag={b,a}; used=u; fire=lanes; #1;
++      check((credit & lanes)==lanes,"RR accepted test owner without credit");
++      tick(); fire=0;
++    end
++  endtask
++  task value0(input [8:0] t, input [63:0] a, input [63:0] b);
++    begin
++      check(valid[0] && outtag[0+:9]==t,"lane0 owner identity");
++      check(operands[0+:64]===a && operands[64+:64]===b,"lane0 actual value snapshot");
++      check(shift[0+:6]===b[5:0],"CQ value missing from read-edge shift amount");
++    end
++  endtask
++  localparam [63:0] A=64'h1122334455667715, B=64'hffeeddccbbaa991b;
++  localparam [63:0] C=64'h123456789abcde25, D=64'h876543210fedcb2a;
++  initial begin
++    tick(); rst=0;
++    src={6'd0,6'd7,6'd8,6'd0,6'd8,6'd7};
++    // Two independent CQ heads feed both lanes at their actual read edge.
++    admit(3,9'd1,9'd2,6'b011011);
++    cqv=3; cqd={B,A}; tick();
++    value0(1,A,B);
++    check(valid[1] && operands[192+:64]===B && operands[256+:64]===A &&
++          shift[6+:6]===A[5:0],"lane1 cross-CQ snapshot/shift");
++    cqv=0; cqd=~cqd; cqp={6'd10,6'd9};
++    repeat(4) begin tick(); value0(1,A,B); end
++    clean(); cqp={6'd8,6'd7};
++    // Same-preg overlap must agree; preserve existing WB hit preference.
++    admit(1,9'd3,0,6'b000011);
++    cqv=3; cqd={B,A}; wv=3; wp={6'd8,6'd7}; wd={B,A};
++    if ($test$plusargs("bad-value")) wd[0+:64]=~A;
++    tick();
++    value0(3,A,B);
++    check(dut.forward_hit_q[0][4+:2]==0 && dut.forward_hit_q[0][10+:2]==0,
++          "CQ overrode existing WB/ALU match");
++    clean();
++    // CQ already popped: normal WB forwarding covers a simultaneous PRF write.
++    admit(1,9'd4,0,6'b000011);
++    wv=3; wp={6'd8,6'd7}; wd={D,C}; tick(); value0(4,C,D);
++    clean();
++    // The next owner reads the committed physical data with no forward source.
++    admit(1,9'd5,0,6'b000011); tick(); value0(5,C,D);
++    clean();
++    // Fill both terminal slots, then force a CQ-dependent read to remain ingress.
++    admit(1,9'd6,0,0); tick();
++    admit(1,9'd7,0,0); tick();
++    admit(1,9'd8,0,6'b000011);
++    cqv=3; cqd={B,A}; tick();
++    check(dut.operand_ready_q[0] && dut.ingress_valid_q[0],"blocked ingress did not snapshot read");
++    cqv=0; cqd={64'hdead,64'hbeef}; cqp={6'd30,6'd29};
++    repeat(3) tick();
++    ready=1; tick(); tick(); ready=0;
++    value0(8,A,B);
++    repeat(3) begin tick(); value0(8,A,B); end
++    // Partial cancellation still removes the consumer's own stored snapshot.
++    kill=32'h100; tick(); tick(); kill=0;
++    check(!valid[0],"killed RR snapshot remained visible");
++    clean();
++    $display("[PASS] tb_r64_regread_cq dual snapshot overlap wb_prf blocked_ingress shift kill");
++    $finish;
++  end
++  initial begin #20000; $fatal(1,"timeout"); end
++endmodule
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_value_ticket.svh
+@@ -0,0 +1,81 @@
++// Birth-owned scoreboard: no post-release lookup into the DUT LSQ.
++reg [7:0] vt_expected[0:511];
++reg vt_eligible[0:511];
++integer vt_checks = 0, vt_good = 0, vt_bad = 0;
++integer vt_l, vt_tag;
++reg [7:0] vt_fn;
++reg [63:0] vt_addr;
++always @(posedge clk) begin
++  if (!rst && CQ_VALUE_BYPASS) begin
++    for (vt_l = 0; vt_l < 2; vt_l = vt_l + 1) begin
++      if (in_fire[vt_l]) begin
++        vt_tag = int'(in_tag[vt_l*9+:9]);
++        vt_fn = in_uop[vt_l*`R64_UOP_W+196+:8];
++        vt_addr = operand[vt_l*192+:64];
++        vt_expected[vt_tag] = reserve_ticket[vt_l*8+:8];
++        vt_eligible[vt_tag] = !vt_fn[7] && !vt_fn[5] &&
++            reserve_ticket[vt_l*8+7] && !reserve_ticket[vt_l*8+6] &&
++            (|reserve_ticket[vt_l*8+:6]) && !ticket_reserved_class &&
++            vt_addr[11:8] != 4'he && vt_addr[11:8] != 4'hf &&
++            ((vt_addr & ((64'b1 << vt_fn[1:0])-1)) == 0);
++      end
++      if (out_valid[vt_l]) begin
++        vt_tag = int'(out_tag[vt_l*9+:9]);
++        if (out_value_ticket[vt_l*9+8] !==
++            (vt_eligible[vt_tag] && !out_result[vt_l*`R64_RESULT_W+64]))
++          $fatal(1, "LSU early qualification crossed owner tag=%0d ticket=%h", vt_tag,
++                 out_value_ticket[vt_l*9+:9]);
++        if (!out_result[vt_l*`R64_RESULT_W+64] &&
++            out_value_ticket[vt_l*9+:8] !== vt_expected[vt_tag])
++          $fatal(1, "LSU ticket identity lost after LSQ release tag=%0d", vt_tag);
++        vt_checks = vt_checks + 1;
++        if (out_value_ticket[vt_l*9+8]) vt_good = vt_good + 1;
++        else vt_bad = vt_bad + 1;
++      end
++    end
++  end
++end
++
++task run_value_ticket;
++  integer limit, forwarded;
++  begin
++    if (!CQ_VALUE_BYPASS) $fatal(1, "value-ticket fixture requires CQ_VALUE_BYPASS=1");
++    trigger_test = 1;
++    tr_delay = 1; mem_delay = 1;
++    // Actual successful integer load, held after canonical LSQ release.
++    out_ready = 0;
++    enqueue(0, 0, 0, 8'h03, 0, memory[0], 0, 0);
++    limit = 0;
++    while (out_valid == 0 && limit < 100) begin @(negedge clk); limit = limit + 1; end
++    if (out_valid == 0) $fatal(1, "ticket held CQ fixture timed out");
++    repeat (12) @(negedge clk);
++    out_ready = 3; wait_result(0); rb_drain;
++    // Zero destination, non-writing owner and FP destination never offer early value.
++    ticket_override = 1;
++    override_ticket = {8'b0, 1'b1, 1'b0, 6'b0};
++    enqueue(1, 8, 0, 8'h03, 0, memory[1], 0, 0); wait_result(1); rb_drain;
++    override_ticket = {8'b0, 1'b0, 1'b0, 6'd19};
++    enqueue(2, 16, 0, 8'h03, 0, memory[2], 0, 0); wait_result(2); rb_drain;
++    override_ticket = {8'b0, 1'b1, 1'b1, 6'd20};
++    enqueue(3, 24, 0, 8'h03, 0, memory[3], 0, 0); wait_result(3); rb_drain;
++    ticket_override = 0;
++    // Reserved physical class is not ordinary RAM, even though not IO class2.
++    ticket_reserved_class = 1;
++    enqueue(4, 32, 0, 8'h03, 0, memory[4], 0, 0); wait_result(4); rb_drain;
++    ticket_reserved_class = 0;
++    // Full-forward result takes identity before its original LSQ row is released.
++    head_valid = 0;
++    enqueue(5, 64, 64'h0123456789abcdef, 8'h23, 0, 0, 0, 0);
++    repeat (20) @(negedge clk);
++    forwarded = memcount;
++    enqueue(6, 64, 0, 8'h03, 0, 64'h0123456789abcdef, 0, 0);
++    wait_result(6);
++    if (memcount != forwarded) $fatal(1, "ticket full-forward fixture used physical memory");
++    killed[5] = 1; kill = 32'b1 << 5;
++    @(negedge clk); kill = 0; head_valid = 1; rb_drain;
++    if (vt_good < 2 || vt_bad < 4) $fatal(1, "ticket eligibility coverage vacuous");
++    $display("[PASS] tb_r64_lsu value-ticket checks=%0d eligible=%0d excluded=%0d fullforward=1",
++             vt_checks, vt_good, vt_bad);
++    $finish;
++  end
++endtask
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/programs/r64_core_load_shift.S
+@@ -0,0 +1,146 @@
++// CQ early value diagnostic: two ordinary loads feed both data and shift-count
++// operands; all 64 shift counts, RV64 word sign extension and repeated tag/preg
++// reuse are checked. Run both normally and with the system harness --stalls.
++// Independent expected operands are register constants / the loop index, so a
++// stale load-count bypass at the RR predecode edge cannot pass by coincidence.
++.section .text
++.globl _start
++.option norelax
++_start:
++  li s0, 8
++  li s1, 0x8765432187654321
++  li s2, -1
++outer:
++  la s3, counts
++  li s4, 0
++.globl load_shift_begin
++load_shift_begin:
++  ld t0, 0(s3)
++  ld t1, 512(s3)
++  sll t2, t1, t0
++  sll a1, s1, s4
++  bne t2, a1, fail_sll
++  srl t3, t1, t0
++  srl a2, s1, s4
++  bne t3, a2, fail_srl
++  sra t4, t1, t0
++  sra a3, s1, s4
++  bne t4, a3, fail_sra
++  sllw t5, t1, t0
++  sllw a4, s1, s4
++  bne t5, a4, fail_sllw
++  srlw t6, t1, t0
++  srlw a5, s1, s4
++  bne t6, a5, fail_srlw
++  sraw a6, t1, t0
++  sraw a7, s1, s4
++  bne a6, a7, fail_sraw
++  // Adjacent birth can encounter already-front CQ producers (DEFER_READY).
++  ld t0, 0(s3)
++  add t1, t0, t0
++  add a1, s4, s4
++  bne t1, a1, fail_add
++  // Ordinary signed load feeding both a compare and an arithmetic operation.
++  lw t0, 512(s3)
++  sext.w a2, s1
++  bne t0, a2, fail_lw
++  add t1, t0, s2
++  add a3, a2, s2
++  bne t1, a3, fail_add
++  addi s3, s3, 8
++  addi s4, s4, 1
++  li t6, 64
++  bne s4, t6, load_shift_begin
++  addi s0, s0, -1
++  bnez s0, outer
++.globl load_shift_end
++load_shift_end:
++  li a0, 0
++  ebreak
++fail_sll: li a0, 1
++  ebreak
++fail_srl: li a0, 2
++  ebreak
++fail_sra: li a0, 3
++  ebreak
++fail_sllw: li a0, 4
++  ebreak
++fail_srlw: li a0, 5
++  ebreak
++fail_sraw: li a0, 6
++  ebreak
++fail_add: li a0, 7
++  ebreak
++fail_lw: li a0, 8
++  ebreak
++.section .data
++.balign 64
++counts:
++  .dword 0
++  .dword 1
++  .dword 2
++  .dword 3
++  .dword 4
++  .dword 5
++  .dword 6
++  .dword 7
++  .dword 8
++  .dword 9
++  .dword 10
++  .dword 11
++  .dword 12
++  .dword 13
++  .dword 14
++  .dword 15
++  .dword 16
++  .dword 17
++  .dword 18
++  .dword 19
++  .dword 20
++  .dword 21
++  .dword 22
++  .dword 23
++  .dword 24
++  .dword 25
++  .dword 26
++  .dword 27
++  .dword 28
++  .dword 29
++  .dword 30
++  .dword 31
++  .dword 32
++  .dword 33
++  .dword 34
++  .dword 35
++  .dword 36
++  .dword 37
++  .dword 38
++  .dword 39
++  .dword 40
++  .dword 41
++  .dword 42
++  .dword 43
++  .dword 44
++  .dword 45
++  .dword 46
++  .dword 47
++  .dword 48
++  .dword 49
++  .dword 50
++  .dword 51
++  .dword 52
++  .dword 53
++  .dword 54
++  .dword 55
++  .dword 56
++  .dword 57
++  .dword 58
++  .dword 59
++  .dword 60
++  .dword 61
++  .dword 62
++  .dword 63
++values:
++  .rept 64
++  .dword 0x8765432187654321
++  .endr

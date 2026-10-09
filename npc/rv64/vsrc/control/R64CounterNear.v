@@ -5,6 +5,8 @@ module R64CounterNear #(
   input  [63:0] value_i,
   output [20:0] near_o
 );
+  // For byte boundary bank, near_o[(bank-1)*3 + offset] means that the
+  // low bank*8 bits, after STEP, are offset+1 increments below wrap.
   genvar bank, offset;
   generate
     for (bank = 1; bank < 8; bank = bank + 1) begin : g_bank

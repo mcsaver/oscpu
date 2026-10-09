@@ -1,0 +1,13 @@
+[
+  "backend/R64Backend.v",
+  "backend/R64Issue.v",
+  "backend/R64RegRead.v",
+  "backend/R64Rob.v",
+  "control/R64Commit.v",
+  "core/R64CoreTop.v",
+  "lsu/R64LoadStore.v",
+  "lsu/R64Lsu.v",
+  "lsu/R64LsuCompletion.v",
+  "lsu/R64LsuRequestQueue.v",
+  "memory/R64Memory.v"
+]

@@ -1,0 +1,924 @@
+Browser tab: 3, Title: "RV64架构设计交接", URL: "https://chatgpt.com/c/6ac75b60-4c68-83e8-a930-6b7172a0aec4".
+0 AXWebArea RV64架构设计交接, URL: chatgpt.com/c/6ac75b60-4c68-83e8-a930-6b7172a0aec4
+	1 container
+		2 container
+			3 link Description: 跳转到内容, Value: chatgpt.com/c/6ac75b60-4c68-83e8-a930-6b7172a0aec4#_r_3k_
+			4 container 应用导航
+				5 button (collapsed) 首页, Secondary Actions: Expand
+				6 button (collapsed) 空间, Secondary Actions: Expand
+				7 button (collapsed) 定时任务, Secondary Actions: Expand
+				8 button (collapsed) 插件, Secondary Actions: Expand
+				9 pop up button (collapsed) 探索, Secondary Actions: Expand
+				10 button (collapsed) 站点, Secondary Actions: Expand
+				11 pop up button (collapsed) Description: 打开个人资料菜单, ID: radix-_r_1q_, Secondary Actions: Expand
+			12 container
+				13 button 新聊天
+					14 image
+				15 container
+					16 button 分享
+					17 pop up button (collapsed) Description: 更多, ID: radix-_r_69_, Secondary Actions: Expand
+					18 checkbox (collapsed) Description: 切换摘要, Value: 0, Secondary Actions: Expand
+						19 image
+				20 container
+					21 container Conversation
+						22 container
+							23 splitter 今天 16:59
+							24 heading 你说：, Value: 4
+								25 text 你说：
+							26 button rv64-measurements.txt
+							27 text rv64-measurements.txt 文档
+							28 button rv64-current-topology.txt
+							29 text rv64-current-topology.txt 文档
+							30 text 请作为这轮 RV64 微架构的主要设计者。用户希望你承担主要架构思考，本地 Codex 只负责提供当前结构与验证事实、落实设计并回传反证；没有本地预选方案供你背书。
+
+附件一 rv64-current-topology.txt 包含当前全核及七个域的完整拓扑、可量化设计单元 ID、状态/寄存/容量/握手/取消边界。附件二 rv64-measurements.txt 包含当前保留版本的性能、最差与邻近路径、内部寄存器路径、上一轮失败实验和关键源码片段。9月历史与10月当前已经分开标注。当前不是已淘汰的固定槽 CQ。
+
+目标是得到有整核意义的架构改善，兼顾完整程序周期和向 1 ns 时序收敛，不放宽正确性或真实约束。请自主选择值得改的结构，可改变多个单元之间的边界，不局限于给最差路径修补门级逻辑。附件的 UNKNOWN 不等于不准设计；请用竞争解释与可证伪实验处理不确定性。
+
+请先实际读取附件，并用当前结构的具体事实说明你理解了拓扑；如果读取失败明确指出，不要假装能打开本地路径。随后比较 2–3 个完整候选，选出一个下一轮设计：用单元 ID 说明要删/新增/寄存的依赖边、状态由谁持有、延迟/容量/吞吐/信用前后如何变化；给修改后的局部拓扑与足够具体的周期合同或伪 RTL，使 Codex 能执行。解释预期改善的指标、瓶颈可能迁移到哪里、为何不重复上一轮已失败的联合方案。把预测、待测和已测分开。
+
+不要只给审查意见或测量工具清单。若一个必要事实会改变你的方案，指出最少要补的具体源码范围/测量，然后仍给出条件化设计；不需要我逐项批准普通实现步骤。本轮先完成拓扑驱动的设计交接，后续由 Codex 实施最小完整实验并回传结果。
+							31 button (collapsed) 显示更多, Secondary Actions: Expand
+								32 text 显示更多
+								33 image
+							34 button 复制消息
+								35 image
+							36 button 共享提示
+							37 button 编辑消息
+								38 image
+							39 container
+								40 button (collapsed) 思考了 33m 23s, Secondary Actions: Expand
+								41 text 思考了 33m 23s
+							42 button (collapsed) 已分析, Secondary Actions: Expand
+							43 text 已分析
+							44 heading ChatGPT 说：, Value: 4
+								45 text ChatGPT 说：
+							46 heading 一、附件已实际读取；本轮起点是保留版本 B, Value: 2
+								47 text 一、附件已实际读取；本轮起点是保留版本 B
+							48 text 两份附件均可读取。我依据的是附件中的完整拓扑、测量记录和内嵌源码片段，
+							49 container
+								50 text 没有访问你机器上的  npc/rv64/...  工作树
+							51 text 。下文将 2026 年 10 月 8 日的当前结构作为设计起点，9 月记录只作历史证据；本回答没有产生新的 RTL 仿真或 STA 结果。 先说明我对当前整核连接的理解。
+							52 table
+								53 row
+									54 cell
+										55 text 域
+									56 cell
+										57 text 当前结构中影响本轮选择的具体事实
+								58 row
+									59 cell
+										60 text 前端 FE
+									61 cell
+										62 text FE-01 的 request holder、owner FIFO、packet FIFO 
+										63 text 共用四份预约信用
+										64 text ，不是九份独立容量；后面还有 Align、Bundle、Token、Result、四条指令 FIFO，再进入 BE-01。前端级间容量不能直接换算为恢复延迟。
+										65 button 打开 rv64-current-topology.txt 的预览
+								66 row
+									67 cell
+										68 text 后端 BE
+									69 cell
+										70 text BE-02 在同一 birth 边沿建立 Rename、ROB、IQ，以及 MEM 指令的 LSQ 绑定。当前是 ROB32、IQ16；BE-05 有六个 RR owner 位置、4G+3F 读口；BE-08 是
+										71 text 寄存 grant 加寄存结果
+										72 text 的九源选二，不是组合直通写回。
+										73 button 打开 rv64-current-topology.txt 的预览
+								74 row
+									75 cell
+										76 text 浮点 FP
+									77 cell
+										78 text FP-01 两槽入口之后，FMA、Fast、Long、fault 先汇成一个 FP 输出，再参与全核 WB。FMA 的 19 个数值阶段与 22 份预约容量不能相加；这里没有当前工作负载的分项性能证据，不能凭整数基准优先缩短 FP。
+										79 button 打开 rv64-current-topology.txt 的预览
+								80 row
+									81 cell
+										82 text 提交 CTL
+									83 cell
+										84 text CTL-01 保存单个事件 owner。trap 先 prepare，再发布 full flush；普通分支由 BE-09 选择性恢复。 effect_allow 、不可撤销事务检查和停止 birth 是不同资格，不能用一个“flush 一切”替代。
+										85 button 打开 rv64-current-topology.txt 的预览
+								86 row
+									87 cell
+										88 text 翻译 MEM
+									89 cell
+										90 text 两套数据翻译各有 lookup/outcome；LSU 已预约返回终端，生产路径没有额外 overflow 容量。取指和数据合计三个单 owner walker；xfifo 的八条记录不意味着八个 walker。
+										91 button 打开 rv64-current-topology.txt 的预览
+								92 row
+									93 cell
+										94 text LSU
+									95 cell
+										96 text LSQ20 是 canonical owner。 MEMORY  状态可以早于物理接受， mem_issued  才记录实际物理握手。query 保存逐字节 winner/pin，数据捕获后才释放相应引用。当前 CQ 是
+										97 text 两 lane、每 lane front+skid、总四条
+										98 text ；六源仲裁只在 CQ 真正捕获时推进，输入仍要求 dense prefix。
+										99 button 打开 rv64-current-topology.txt 的预览
+										100 button 打开 rv64-current-topology.txt 的预览
+								101 row
+									102 cell
+										103 text Cache/BUS
+									104 cell
+										105 text 普通 store 经真实 B、LSU-09  store_done 、ROB 专用端口完成，不经过 load 的六源完成/CQ/九源 WB。上游实际只有两个读 ID 和一个外部 store/BID；Fabric 的四读两写槽不等于当前核具备六个相应并发事务。
+										106 button 打开 rv64-current-topology.txt 的预览
+										107 button 打开 rv64-current-topology.txt 的预览
+							108 container
+								109 button 复制表格
+								110 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							111 text 特别需要保留的已有能力是：ALU early wake/bypass、非 head store 准备、head 授权 query、真实 B-error completion，以及普通成功 RAM load 的空 raw 响应旁路。它们不是下一轮的新增收益。
+							112 button 打开 rv64-measurements.txt 的预览
+							113 heading 已测基线与问题范围, Value: 3
+								114 text 已测基线与问题范围
+							115 table
+								116 row
+									117 cell
+										118 text 已测项目
+									119 cell
+										120 text B 的结果
+								121 row
+									122 cell
+										123 text CoreMark10
+									124 cell
+										125 text 8,968,518 cycles；3,218,537 retired
+								126 row
+									127 cell
+										128 text Dhrystone10000
+									129 cell
+										130 text 14,267,505 cycles；4,260,670 retired
+								131 row
+									132 cell
+										133 text 完整 SystemTop 布局前 setup WNS
+									134 cell
+										135 text −2.119304419 ns
+								136 row
+									137 cell
+										138 text hold WNS
+									139 cell
+										140 text −0.036660694 ns
+								141 row
+									142 cell
+										143 text 合资格  load_chain  响应→CQ / 响应→WB 接受
+									144 cell
+										145 text 0 / 2 拍
+							146 container
+								147 button 复制表格
+								148 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							149 text 这些数据对应真实标准单元数组、1 ns、0.05 ns uncertainty，以及包括 reset 在内的 0.4 ns 最大输入延迟；正式时序仍为 FAIL。0/2 拍不是完整 load-to-use 延迟。
+							150 button 打开 rv64-measurements.txt 的预览
+							151 text 我的物理问题判断不是“修 event_before 一个寄存器”。B 的全局前 32 个不同端点包含一个 RR 历史端点、一个 effect 端点和三十个 CQ payload 端点； effect_q[1]  距全局最差仅 9.942055 ps。
+							152 text 即使单独消灭 CQ/RR 的全部违例，保持其他路径不变时，全局 WNS 也几乎不会前进。
+							153 button 打开 rv64-measurements.txt 的预览
+							154 button 打开 rv64-measurements.txt 的预览
+							155 heading 二、三个完整候选及选择, Value: 2
+								156 text 二、三个完整候选及选择
+							157 text 以下是我提出的候选，不是对本地预选方案的背书。
+							158 container 可滚动表格
+								159 table
+									160 row
+										161 cell
+											162 text 候选
+										163 cell
+											164 text 完整结构变换、状态与容量
+										165 cell
+											166 text 性能机制与主要风险
+										167 cell
+											168 text 本轮裁决
+									169 row
+										170 cell
+											171 text A：同拍取消发布＋CQ 确值旁路
+										172 cell
+											173 text 在 CTL-01 原事件边沿增加“本周期应发布全清”的寄存投影；BE-09 向 LSU 分开发送 partial cancel 与全清。为成功整数 load 携带目的 preg 凭据，LSU-08 的两个 
+											174 text front Q
+											175 text  经 ROB 身份校验后直接唤醒 BE-04、向 BE-05 提供值。CQ、六源仲裁、九源 WB、所有事务容量不变。
+										176 cell
+											177 text 依赖消费者不必等常规 WB 接受才启动；同时缩短 CQ、raw-control、effect 共用的取消前缀。代价是两路身份校验、IQ 比较和 RR 旁路扇入；可能把关键路径移到 ROB short-owner、RR 或新的事件投影 D。
+										178 cell
+											179 text 选择。
+											180 text  有明确的跨单元数据依赖变换，又不扩大完成数据选择层数；性能和时序机制可以分别证伪。
+									181 row
+										182 cell
+											183 text B：删除 LSU 完成汇聚级，生产者 terminal 直接参与 WB
+										184 cell
+											185 text 删除 LSU-07 的六取二及 LSU-08；raw、fault、full-forward 六个生产者成为 WB 来源，使 BE-08 从九源变为十三源。将原 CQ 四份容量分给 raw：两个 raw 各四条，fault/full-forward 各 lane 两条，总结果持有容量仍十六条。生产者 landing 捕获提示申请下一拍 grant，目标保持冷启动响应→WB 接受两拍。
+										186 cell
+											187 text 消除一层局部排队和 CQ/RR 历史更新，但普通旁路 load 的最短完成延迟未必再降。十三源数据/资格选择加重 WB；effect 原有限制仍在。
+										188 cell
+											189 text 不选。它把更大选择网络压向此前已显示代价的 WB 边界，而当前缺少局部完成排队阻塞完整程序的证据。
+									190 row
+										191 cell
+											192 text C：store 地址/数据分离调度与绑定
+										193 cell
+											194 text BE-04 对同一 store owner 保存 address-issued/data-issued 两个状态；地址源 ready 即可走 BE-05/06，数据稍后单独绑定。LSU-01 增加独立地址/数据有效事实，提前翻译地址；只有完整数据、保护、head/effect 授权齐备才向 LSU-04/05 发布。仍是一条 ROB/LSQ owner，不增加 store 副作用并发。已知不别名的年轻 load 可进展；命中但数据未就绪的 store 仍阻塞相应 load。
+										195 cell
+											196 text 有机会消除“store 数据未就绪导致地址也未知”的串行化。但 store 可能占两次 RR/执行接收预算，IQ owner 保持更久，且真实 B 等待完全不变。当前地址/数据 ready 时差未知，完成取消关键路径也没有被处理。
+										197 cell
+											198 text 不选。值得保留为后续候选，但目前不足以优先于一个可明确缩短 load 消费路径、又处理共同物理前缀的设计。
+							199 container
+								200 button 复制表格
+								201 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							202 text 候选 B 的风险并不是凭框图猜出来的：上一轮 C 的 CQ 输入改善约 809 ps，但 CQ→WB payload 和 certificate 分别退化约 334 ps、186 ps，两个完整程序周期没有变化，全局 WNS 反而恶化约 45 ps。这里不能独立归因到固定槽或取消前仲裁，但足以要求下一轮避免未经论证地扩大输出选择。
+							203 button 打开 rv64-measurements.txt 的预览
+							204 container
+								205 text 下一轮设计点命名为 R3： LOCAL_CANCEL_PUBLISH + CQ_VALUE_BYPASS 。
+							206 text 它是一个明确的联合设计点，但保留两个独立开关用于反证；不把联合成功或失败自动归因给某一部分。
+							207 heading 三、R3 修改后的局部拓扑与依赖边, Value: 2
+								208 text 三、R3 修改后的局部拓扑与依赖边
+							209 text 新增编号只用于本方案定位：
+							210 content list
+								211 container
+									212 AXListMarker • 
+									213 text CTL-05：同边沿全清发布投影 ，一位 Q，属于 CTL-01 事件的投影，不是第二个事件 owner。
+								214 container
+									215 AXListMarker • 
+									216 text BE-10：CQ 确值授权与旁路接口 ，两路组合接口，不持有新事务。
+								217 container
+									218 AXListMarker • 
+									219 text load 目的凭据寄存在原有 LSQ、terminal、CQ 的对应 owner 记录中，不另建队列。
+							220 container
+								221 text 纯文本
+								222 checkbox Description: 启用自动换行, Value: 0
+								223 button 复制
+							224 container
+								225 text                     同一个事件更新边沿 事件捕获 / prepare ───────┬──> [CTL-01 原 event Q]                          └──> [CTL-05 publish Q] ─────────────┐                                                            │ BE-09 已验证 plan Q + pending ──> partial_cancel_only ────────┤ rst_i ─────────────────────────────────────────────────────┤                                                            v                                               LSU 各 owner 的本地最终资格                                               │          │          │                                            raw/CQ      query      issued/effect                                               既有接收、取消与 drain 边沿不变 BE-02 原子 birth：tag + pdst/type                   │                   v            [LSU-01 目的凭据 Q]                   │ 随同一 owner 转移         ┌─────────┴──────────┐         v                    v  [LSU-06 raw / full-forward Q]     既有响应直入旁路         └─────────┬──────────┘                   v           LSU-07 原六源取二                   v        [LSU-08 原 front + skid Q]            │                 │            │                 └──> BE-08 原 grant/result Q            │                              │            │                              v            │                      BE-03 正常完成授权            │                         │            │            │                       PRF写入       常规wake            │            ├─ tag/pdst ─> BE-03 short-owner ─> BE-10 ─> BE-04 ready Q            └─ value64 ───────────────────────> BE-05 原读快照 Q
+							226 heading 明确要改的边, Value: 3
+								227 text 明确要改的边
+							228 table
+								229 row
+									230 cell
+										231 text 依赖边
+									232 cell
+										233 text 操作
+								234 row
+									235 cell
+										236 text CTL-01 event kind/prepared Q → full_flush 组合解码 → BE-09 合并 kill bitmap → LSU 按 owner slot 再选择
+									237 cell
+										238 text 删除 LSU 对这条合并广播路径的依赖。
+										239 text  改为同拍  publish Q  与纯 partial cancel 分别到达 LSU，在 owner 的最终资格处合并。
+								240 row
+									241 cell
+										242 text load 已在 CQ front → 必须经过 WB 接受 → IQ 才获得 ready
+									243 cell
+										244 text 删除“必须等待 WB”的依赖条件
+										245 text ，新增确值 wake；原 WB→IQ 边保留。
+								246 row
+									247 cell
+										248 text BE-02 birth 的目的 preg/type → LSU
+									249 cell
+										250 text 新增凭据边
+										251 text ，在现有 reserve 边沿寄存，不另增阶段。
+								252 row
+									253 cell
+										254 text LSU-08 front tag/preg → ROB short-owner → IQ/RR
+									255 cell
+										256 text 新增两路授权边
+										257 text ，不依赖 WB grant 或 CQ pop。
+								258 row
+									259 cell
+										260 text LSU-08 front value64 → RR 读快照
+									261 cell
+										262 text 新增两路值旁路
+										263 text ，在原读边界捕获实际数据，不跨拍只保存 CQ lane 编号。
+								264 row
+									265 cell
+										266 text LSU-07 六源选择、CQ lane 分配、CQ→WB 数据路径、physical fire→ mem_issued/effect
+									267 cell
+										268 text 保留原语义和边沿。
+										269 text  不改成取消前仲裁，不引入 sparse  10 ，不扩大 WB 来源数。
+							270 container
+								271 button 复制表格
+								272 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							273 text 这不是把全清延后一拍，也不是让被取消请求先进入物理系统再补杀。
+							274 heading 四、时序部分：在原事件边界预编码发布，而不是寄存已经产生的 flush, Value: 2
+								275 text 四、时序部分：在原事件边界预编码发布，而不是寄存已经产生的 flush
+							276 heading 4.1 新寄存位的精确定义, Value: 3
+								277 text 4.1 新寄存位的精确定义
+							278 text 要求每个复位后的可达周期满足：
+							279 container
+								280 text systemverilog
+								281 checkbox Description: 启用自动换行, Value: 0
+								282 button 复制
+							283 container
+								284 text publish_q ==     event_valid_q &&     (!event_trap_q || event_prepared_q);
+							285 text 因此：
+							286 container
+								287 text systemverilog
+								288 checkbox Description: 启用自动换行, Value: 0
+								289 button 复制
+							290 text full_flush_o = !rst_i && publish_q;
+							291 text 与当前接口同拍等价。
+							292 text 禁止写成：
+							293 container
+								294 text systemverilog
+								295 checkbox Description: 启用自动换行, Value: 0
+								296 button 复制
+							297 text publish_q <= full_flush_o;  // 错误：这是把全清延后一拍
+							298 text 附件给出的事件更新优先级是：先处理原事件的 flush/prepare，再由 exception、interrupt、非白名单 serial capture 按顺序覆盖。按照这份完整更新式，可以直接实现：
+							299 container
+								300 text systemverilog
+								301 checkbox Description: 启用自动换行, Value: 0
+								302 button 复制
+							303 container
+								304 text wire new_trap_event =     capture_exception || capture_interrupt; wire new_nontrap_event =     serial_commit_o && !scratch_read_w; // CTL-05：与原 event_* 寄存器在同一边沿更新。 // trap_prepare_o 仍使用原定义和原事件状态。 always_ff @(posedge clk_i) begin     if (rst_i)         publish_q <= 1'b0;     else if (new_trap_event)         publish_q <= 1'b0;     else         publish_q <= new_nontrap_event || trap_prepare_o; end assign full_flush_o = !rst_i && publish_q;
+							305 text 这个简化式来自附件中的实际赋值优先级，不是对“典型 trap 流程”的猜测。
+							306 button 打开 rv64-measurements.txt 的预览
+							307 button 打开 rv64-measurements.txt 的预览
+							308 text 我对上述三个事件状态位、三个 capture 条件及 reset 的 
+							309 text 128 组布尔组合
+							310 text 核对了原 next-state 与简化式，结果一致。这只是对附件状态方程的组合核对，
+							311 text 不是新 RTL 的形式证明、仿真或 STA
+							312 text 。 其周期合同如下：
+							313 table
+								314 row
+									315 cell
+										316 text 事件
+									317 cell
+										318 text 原实现
+									319 cell
+										320 text R3
+								321 row
+									322 cell
+										323 text 捕获 exception/interrupt 的边沿
+									324 cell
+										325 text 建立未 prepared 的 trap event，不发布 flush
+									326 cell
+										327 text 同边沿  publish_q=0
+								328 row
+									329 cell
+										330 text trap prepare 的边沿
+									331 cell
+										332 text event_prepared_q  置位，随后该周期发布 flush
+									333 cell
+										334 text 同边沿  publish_q=1 ，同周期发布
+								335 row
+									336 cell
+										337 text 非白名单 serial event 捕获
+									338 cell
+										339 text 随后该周期发布非 trap flush
+									340 cell
+										341 text 同边沿  publish_q=1
+								342 row
+									343 cell
+										344 text flush 被处理的边沿
+									345 cell
+										346 text 清事件；没有新捕获时不再发布
+									347 cell
+										348 text 同边沿  publish_q=0
+								349 row
+									350 cell
+										351 text reset
+									352 cell
+										353 text 同步清事件、组合接口静默
+									354 cell
+										355 text 保持；新增位同步清零
+							356 container
+								357 button 复制表格
+								358 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							359 text 原  effect_allow 、 stop_birth 、trap target、serial commit、不可撤销事务检查均不重定义。
+							360 heading 4.2 全清和 partial cancel 在 LSU 接收侧分开, Value: 3
+								361 text 4.2 全清和 partial cancel 在 LSU 接收侧分开
+							362 text BE-09 保留现有 canonical kill 输出供未修改消费者使用，另导出
+							363 text 不含 full flush 的
+							364 text  partial 取消信息。抽象合同为：
+							365 container
+								366 text systemverilog
+								367 checkbox Description: 启用自动换行, Value: 0
+								368 button 复制
+							369 container
+								370 text canonical_kill[slot] ==     full_flush_o || partial_cancel_only[slot];
+							371 text partial_cancel_only  必须从已验证 plan、pending 和当前恢复谓词直接生成，
+							372 text 不能实现成
+							373 text ：
+							374 container
+								375 text systemverilog
+								376 checkbox Description: 启用自动换行, Value: 0
+								377 button 复制
+							378 text partial_cancel_only = canonical_kill & ~full_flush_o;
+							379 text 后者在布尔值上可能对，却没有移除原来的组合依赖。 对 LSU 中某个已持有 owner：
+							380 container
+								381 text systemverilog
+								382 checkbox Description: 启用自动换行, Value: 0
+								383 button 复制
+							384 container
+								385 text deny_owner =     rst_i ||     publish_q ||     partial_cancel_only[owner_tag[ROB_W-1:0]]; live_owner = raw_owner_valid && !deny_owner;
+							386 text 原有 sticky dead、完整 tag 匹配、head 授权等额外条件继续保留。 PREPARED_CANCEL  版本也必须分离全清与 partial 部分，并继续逐拍对照 canonical 取消集合。 实施范围不是只有 CQ：要覆盖 LSU-01 的相关 owner 更新、LSU-05/06 的 query/physical 资格，以及 LSU-07/08 的完成资格。否则只是把原全清又从某个中间  cancel_candidates  接回去。
+							387 text 不改以下合同：
+							388 content list
+								389 container
+									390 AXListMarker • 
+									391 text 外部响应 ready 仍由原 raw Q 信用或已登记 dead owner 决定，不加入当前 kill 的组合反馈。
+								392 container
+									393 AXListMarker • 
+									394 text mem_issued 、 effect  仍只由原真实物理握手建立。
+								395 container
+									396 AXListMarker • 
+									397 text head 授权、A/D replay、已接受外部请求的 drain 和 pin 释放边沿不变。
+								398 container
+									399 AXListMarker • 
+									400 text 所有同步 reset 检查和原 SDC 保留。
+							401 heading 4.3 这部分的收益边界, Value: 3
+								402 text 4.3 这部分的收益边界
+							403 text 它针对的是 
+							404 text B 中多个消费者共有的取消前缀
+							405 text ，不是修补 C 特有的 effect 尾段。B 的 effect、RR 历史与 CQ payload 都有相应证据；而 C 的 effect 额外退化主要发生在  mem_ready→capture D ，不能拿那个结果证明本方案已经会改善 ready 后逻辑。
+							406 button 打开 rv64-measurements.txt 的预览
+							407 button 打开 rv64-measurements.txt 的预览
+							408 text 本方案
+							409 text 不会消除全部 flush→CQ payload 路径
+							410 text 。front/skid 的合法移动和有效性仍受取消控制。目标是缩短广播生成和重复资格选择，而不是把必要取消从时序图中删掉。 新增  publish_q  的 D、它的实际广播负载以及剩余 partial-cancel 路径，都必须成为新的 STA 检查对象；若综合重新形成相同长锥，不能凭 RTL 信号改名宣称机制成功。
+							411 heading 五、性能部分：CQ 中的确值可以早用，完成权限仍留在原 WB/ROB 边界, Value: 2
+								412 text 五、性能部分：CQ 中的确值可以早用，完成权限仍留在原 WB/ROB 边界
+							413 heading 5.1 本轮只覆盖一个明确集合, Value: 3
+								414 text 5.1 本轮只覆盖一个明确集合
+							415 text 首轮启用范围为：
+							416 text 已完整形成结果、成功、对齐、普通 RAM、非 atomic/IO、副作用类、非异常，并且写非零 GPR 的 load。
+							417 text 符合相同条件的 full-forward load 可以覆盖；FP load、异常、IO、LR/SC/AMO、非对齐慢路径默认不走这条 early 路径。 这是
+							418 text 实际值已存在后的提前使用
+							419 text ，不是预测 cache hit，也不是按预计返回拍数唤醒。
+							420 heading 5.2 目的凭据从 birth 获取，不能在 LSQ 释放后回读, Value: 3
+								421 text 5.2 目的凭据从 birth 获取，不能在 LSQ 释放后回读
+							422 text 新增 sideband：
+							423 container
+								424 text systemverilog
+								425 checkbox Description: 启用自动换行, Value: 0
+								426 button 复制
+							427 container
+								428 text typedef struct packed {     logic       value_ok;   // 完整结果形成后才允许置位     logic       rd_write;     logic       rd_fp;     logic [5:0] pdst; } load_value_ticket_t;      // 9 bit
+							429 text 状态归属和转移：
+							430 content list
+								431 container
+									432 AXListMarker 1. 
+									433 text **BE-02→LSU-01：**MEM reserve 与原子 birth 同边沿登记  pdst/rd_write/rd_fp ，共 8 bit。这里保存的是该指令的物理目的身份，不是新 Rename 真源。
+								434 container
+									435 AXListMarker 2. 
+									436 text **LSU-01→LSU-06：**真实响应进入 raw，或 full-forward 结果被 terminal 接收时，随同一完整 tag 带走凭据；在完整结果资格已知后生成  value_ok 。
+								437 container
+									438 AXListMarker 3. 
+									439 text **响应直入 CQ：**保留现有空 raw 旁路；ticket 必须与同一个 response token、tag、最终结果一起参与当前 event 选择。
+								440 container
+									441 AXListMarker 4. 
+									442 text **LSU-07→LSU-08：**ticket 使用与 tag/result  同一组  first/second winner、物理 lane 分配和写入条件。
+								443 container
+									444 AXListMarker 5. 
+									445 text fault 来源的  value_ok=0 ，无需为本轮 early 功能携带有意义的目的凭据。
+							446 text 当前 load 会在 raw/CQ 或 full-forward terminal 捕获后释放原 LSQ，因此
+							447 text 不能在 CQ 输出时再用旧 LSQ slot 查询 pdst
+							448 text 。
+							449 button 打开 rv64-current-topology.txt 的预览
+							450 button 打开 rv64-current-topology.txt 的预览
+							451 text 在  R64LsuCompletion  中，仅给既有 front/back payload 平行添加 sideband：
+							452 container
+								453 text systemverilog
+								454 checkbox Description: 启用自动换行, Value: 0
+								455 button 复制
+							456 container
+								457 text // 所有条件、优先级、lane 选择均沿用当前代码。 if (front_payload_write)     front_ticket_q[g] <= back_q[g] ? back_ticket_q[g] : input_ticket; if (back_payload_write)     back_ticket_q[g] <= input_ticket;
+							458 text 不改  front_remove 、 front_shift 、 first_w 、 turn_q 、 in_ready  或输入 prefix 规则。附件中的现有 front/skid 更新式就是实施基准。
+							459 button 打开 rv64-measurements.txt 的预览
+							460 heading 5.3 只从 CQ front Q 提供授权和值, Value: 3
+								461 text 5.3 只从 CQ front Q 提供授权和值
+							462 text BE-10 每条 lane 的逻辑合同：
+							463 container
+								464 text systemverilog
+								465 checkbox Description: 启用自动换行, Value: 0
+								466 button 复制
+							467 container
+								468 text // 从真实 front Q 取值；不使用 out_request、空槽预写值或本拍输入候选。 raw_offer = cq_front_occupied_q &&             cq_front_ticket.value_ok &&             cq_front_ticket.rd_write &&            !cq_front_ticket.rd_fp &&             cq_front_ticket.pdst != 0; // 使用完整 tag、目的 preg/type 的真实 ROB short-owner 校验。 // 该校验不能依赖是否拿到 WB grant。 owner_ok = rob_short_owner_match(     cq_front_tag,     cq_front_ticket.pdst,     cq_front_ticket.rd_fp,     cq_front_ticket.rd_write ); cq_value_valid = raw_offer && owner_ok &&                  !rst_i && !publish_q &&                  !partial_cancel_only[cq_front_tag[ROB_W-1:0]]; cq_value_tag   = cq_front_tag; cq_value_pdst  = cq_front_ticket.pdst; cq_value_data  = result_value64(cq_front_result); cq_early_wake_valid = cq_value_valid;  // 驻留期间可持续有效，不是一次性脉冲
+							469 text 优先复用 BE-03 已存在、且不依赖 grant 的 LSU 来源身份查询；若现有查询只对获 grant 来源生成，就增加两路同规格 short-owner 查询。
+							470 text 不能用“本拍拿到 WB 端口”作为提前值可用的前提
+							471 text ，否则会失去解除 WB 背压依赖的意义。 也不能用这个 ticket 代替最终 WB certificate。它只服务 early wake/bypass；正常 PRF 写入、Rename busy 清除、ROB done/exception 仍走原授权路径。
+							472 heading 5.4 IQ 与 RR 的具体变化, Value: 3
+								473 text 5.4 IQ 与 RR 的具体变化
+							474 text **BE-04：**从当前两路常规 WB＋两路 ALU early，扩展为再加两路 CQ early。新增命中加入原有 ready 初始化和驻留唤醒逻辑，保持原取消与 birth 优先级。 尤其必须覆盖  DEFER_READY ：不能只给旧 IQ entry 发一次脉冲，漏掉刚 birth、下一拍才初始化 ready 的消费者。当前 ALU 已有相应的早唤醒/完成唤醒配合，新增路径必须保持同等级合同。
+							475 button 打开 rv64-current-topology.txt 的预览
+							476 text **BE-05：**只增加两个 GPR 值来源，不增加 PRF 读写口。保留现有 WB/ALU 选择优先级，在其余命中情况下使用 CQ：
+							477 container
+								478 text systemverilog
+								479 checkbox Description: 启用自动换行, Value: 0
+								480 button 复制
+							481 container
+								482 text cq_hit[l] = cq_value_valid[l] &&             source_used && !source_fp &&             source_preg == cq_value_pdst[l]; on_original_read_snapshot_edge:     if (existing_wb_hit)         snapshot_value = existing_wb_value;     else if (existing_alu_hit)         snapshot_value = existing_alu_value;     else if (cq_hit[0])         snapshot_value = cq_value_data[0];     else if (cq_hit[1])         snapshot_value = cq_value_data[1];     else         snapshot_value = prf_value;
+							483 text 这是逻辑合同，不是要求绕过当前 read-plan/compact/rank 实现。实际实现必须把 
+							484 text hit、实际 data、必要的身份/rank 信息在原快照边沿一起保存
+							485 text 。 禁止只登记“来自 CQ lane0”，下一拍再读取已经换 head 的 lane0。输出受阻时使用原 ingress/terminal 的数据保持能力，不增加一级隐藏旁路寄存。
+							486 heading 5.5 数据持续可得的合同, Value: 3
+								487 text 5.5 数据持续可得的合同
+							488 text 一个已经用 CQ wake 唤醒的、仍存活的消费者，在其读边沿必须满足以下三种情况之一：
+							489 table
+								490 row
+									491 cell
+										492 text 生产者所处位置
+									493 cell
+										494 text 读值来源
+								495 row
+									496 cell
+										497 text 仍驻留 CQ front
+									498 cell
+										499 text 新 CQ bypass
+								500 row
+									501 cell
+										502 text 已被 CQ pop、进入 WB 捕获/接受窗口
+									503 cell
+										504 text 原 WB 转发路径
+								505 row
+									506 cell
+										507 text 已完成正常 WB
+									508 cell
+										509 text PRF
+							510 container
+								511 button 复制表格
+								512 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							513 text CQ pop 必须与原 WB 捕获同边沿发生。数据从 CQ 转到 WB/PRF 后，不能出现“消费者 ready 已置位，但值已无处可取”的空窗。 取消生产者时，更年轻依赖消费者必须按原恢复合同取消；early 事件不能绕过 IQ、RR、EX 的最终存活检查。出现 load fault 的结果从来没有  value_ok ，因此不需要为本方案增加消费者 replay。 **CQ 的值被消费者读过，不释放 CQ owner，也不算 load 完成。**该 load 仍必须沿原 WB/ROB 路径完成一次。
+							514 heading 5.6 条件化周期合同, Value: 3
+								515 text 5.6 条件化周期合同
+							516 text 以下以一个响应在 
+							517 text E0
+							518 text  被空 CQ 捕获为例，且消费者已经在 IQ、其他源 ready、没有发射资源争用。
+							519 table
+								520 row
+									521 cell
+										522 text 事件
+									523 cell
+										524 text B
+									525 cell
+										526 text R3
+								527 row
+									528 cell
+										529 text 响应接受、CQ 捕获
+									530 cell
+										531 text E0
+									532 cell
+										533 text E0
+								534 row
+									535 cell
+										536 text 从 CQ front 产生并采样 early wake
+									537 cell
+										538 text 无
+									539 cell
+										540 text E1
+								541 row
+									542 cell
+										543 text 原 WB 结果捕获
+									544 cell
+										545 text E1
+									546 cell
+										547 text E1
+								548 row
+									549 cell
+										550 text 原 WB/ROB 正常接受
+									551 cell
+										552 text E2
+									553 cell
+										554 text E2
+								555 row
+									556 cell
+										557 text 消费者源 ready 更新
+									558 cell
+										559 text E2
+									560 cell
+										561 text E1
+								562 row
+									563 cell
+										564 text 消费者 issue
+									565 cell
+										566 text E3
+									567 cell
+										568 text E2
+								569 row
+									570 cell
+										571 text RR 读值快照
+									572 cell
+										573 text E4
+									574 cell
+										575 text E3
+							576 container
+								577 button 复制表格
+								578 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							579 text **其中响应→CQ=0、响应→WB 接受=2 是已有定向实测；消费者边沿和 WB 内部捕获位置是根据拓扑推导、待源码/短测核对的合同。**如果现有 Issue 把本拍 wake 直接用于组合选择，绝对边沿需要相应调整，不能照表伪造测量；本方案要求验证的是相对提前。 在该无争用条件下，目标是
+							580 text 消费者提前一拍 issue/read
+							581 text 。WB 背压时可能提前更多，因为 load 仍可在 CQ front 提供真实值。反之，skid 中的 load 不提前暴露；它成为 front 之前不承诺收益。
+							582 heading 六、容量、吞吐、信用与状态成本, Value: 2
+								583 text 六、容量、吞吐、信用与状态成本
+							584 table
+								585 row
+									586 cell
+										587 text 项目
+									588 cell
+										589 text B→R3
+								590 row
+									591 cell
+										592 text ROB / IQ / LSQ
+									593 cell
+										594 text 32 / 16 / 20，全部不变
+								595 row
+									596 cell
+										597 text raw / full-forward / fault / CQ 容量
+									598 cell
+										599 text 全部不变
+								600 row
+									601 cell
+										602 text CQ 物理组织
+									603 cell
+										604 text 保留两 lane front+skid；不新增输出 slot mux
+								605 row
+									606 cell
+										607 text CQ 最大真实捕获、输出
+									608 cell
+										609 text 各最多二条/拍；输入继续 dense prefix
+								610 row
+									611 cell
+										612 text 六源仲裁历史
+									613 cell
+										614 text 不变，只随实际 CQ 捕获推进
+								615 row
+									616 cell
+										617 text WB
+									618 cell
+										619 text 九源→二，grant Q、结果 Q 和原证书边界不变
+								620 row
+									621 cell
+										622 text PRF 端口、RR owner 数
+									623 cell
+										624 text 4G+3F 读、原两路统一写回、六个 RR owner，均不变
+								625 row
+									626 cell
+										627 text 新值暴露能力
+									628 cell
+										629 text 两个 CQ front 的成功 GPR load 可同时成为旁路来源
+								630 row
+									631 cell
+										632 text CQ 输入信用
+									633 cell
+										634 text 仍由  ~back_q  和原 reset/flush 资格决定，不借本拍 WB ready
+								635 row
+									636 cell
+										637 text load 完成最短距离
+									638 cell
+										639 text 保持已有合资格响应→CQ=0、响应→WB 接受=2
+								640 row
+									641 cell
+										642 text 新增事务信用
+									643 cell
+										644 text 零
+										645 text ；bypass 是已有 owner 的值投影，不产生可独立分配的容量
+								646 row
+									647 cell
+										648 text store、MMIO、atomic、外部事务
+									649 cell
+										650 text 接受、不可撤销、完成及 drain 边沿均不变
+							651 container
+								652 button 复制表格
+								653 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							654 text 按上述字段直接实现，新增 payload 小计为：
+							655 content list
+								656 container
+									657 AXListMarker • 
+									658 text LSQ：20×8＝160 bit。
+								659 container
+									660 AXListMarker • 
+									661 text raw、full-forward、CQ：各四条×9，共 108 bit。
+								662 container
+									663 AXListMarker • 
+									664 text CTL 发布位：1 bit。
+							665 text 合计 
+							666 text 269 bit 声明状态
+							667 text ，不含可能变化的 RR rank/控制位。它不是面积预测。IQ 还会增加最多  16×3×2  组源比较位置，ROB/RR 也增加相关组合负载；这些可能比新增 FF 更影响时序。
+							668 heading 七、必须保持的边界与定向反例, Value: 2
+								669 text 七、必须保持的边界与定向反例
+							670 table
+								671 row
+									672 cell
+										673 text 边界
+									674 cell
+										675 text R3 必须满足的合同
+								676 row
+									677 cell
+										678 text 同拍 kill＋物理 response
+									679 cell
+										680 text 原 ready、真实 response fire、raw/CQ 转移和 dead drain 不变；被取消 owner 不生成  cq_value_valid 。
+								681 row
+									682 cell
+										683 text kill front、skid 晋升
+									684 cell
+										685 text ticket 与 tag/result 使用同一移动条件；不能把旧 front 的 pdst 配上新 front 的值。
+								686 row
+									687 cell
+										688 text CQ→WB 交接且消费者正在读
+									689 cell
+										690 text 本拍取 CQ 或既有 WB 数据，跨边沿后取 WB/PRF；不存在值空窗。
+								691 row
+									692 cell
+										693 text WB 长时间背压
+									694 cell
+										695 text CQ head 继续持有真实值，early 不依赖 out_ready；不能因 wake 已发出而 pop。
+								696 row
+									697 cell
+										698 text birth 与 early/正常 WB 相邻
+									699 cell
+										700 text 覆盖 early 同拍 birth、次拍 DEFER_READY、CQ pop 后 birth 等情况，不能永久漏唤醒。
+								701 row
+									702 cell
+										703 text tag/slot/preg 复用
+									704 cell
+										705 text 继续使用完整 tag、真实 short-owner 校验及原 reuse_block；新增凭据不是放宽复用的许可证。
+								706 row
+									707 cell
+										708 text reset
+									709 cell
+										710 text 原接口静默、同步清除保持；空槽残留 payload/ticket 不得形成 wake。
+								711 row
+									712 cell
+										713 text store B、错误、pin、A/D
+									714 cell
+										715 text 全部沿原合同；不把 AW/W、prepared、query 接收或 cache hit 解释为真实成功 B。
+							716 container
+								717 button 复制表格
+								718 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							719 text 对于同一 live preg 同时命中多个合法 bypass 来源，应断言身份一致且值一致；不同 live owner 不得仅因 preg 编号相同而被合并。
+							720 heading 八、预期改善、竞争解释与瓶颈迁移, Value: 2
+								721 text 八、预期改善、竞争解释与瓶颈迁移
+							722 heading 已测，不重新解释成预测, Value: 3
+								723 text 已测，不重新解释成预测
+							724 text 上一轮保留的响应旁路减少了完整 CoreMark/Dhrystone 周期，说明缩短 load 完成交接曾对这两个程序有收益；但它
+							725 text 没有测出本轮想提前的消费者 issue 边
+							726 text ，不能据此保证再减一拍仍得到相同比例收益。
+							727 button 打开 rv64-current-topology.txt 的预览
+							728 button 打开 rv64-current-topology.txt 的预览
+							729 text 上一轮 C 的 effect 对应路径新增延迟主要在 ready 后段，也不能推断“只要全清发布提前，所有 effect 端点就会改善同样多”。
+							730 button 打开 rv64-measurements.txt 的预览
+							731 heading 本方案的预测与可证伪解释, Value: 3
+								732 text 本方案的预测与可证伪解释
+							733 table
+								734 row
+									735 cell
+										736 text 假设
+									737 cell
+										738 text R3 应出现的机制
+									739 cell
+										740 text 反证
+								741 row
+									742 cell
+										743 text H1：一部分有效执行受 load→消费者调度距离限制
+									744 cell
+										745 text 同一类 load 依赖边的消费者 issue/read 提前；在 WB 背压下仍能得到数据
+									746 cell
+										747 text early 大量发生但消费者一直被其他源、Serial、RR/FU 信用阻塞；完整周期不降
+								748 row
+									749 cell
+										750 text H2：共同取消广播前缀是多个近最差族的重要组成
+									751 cell
+										752 text event/CQ/raw/effect 的实际路径前缀缩短；不只是一个端点改善
+									753 cell
+										754 text 新 publish D 或其扇出成为更差路径；综合重新形成原长锥；其他旧路径接替后 WNS 不进步
+								755 row
+									756 cell
+										757 text H3：新增旁路的成本可被原 RR 边界容纳
+									758 cell
+										759 text RR 值快照不增级，新路径没有超过原整核限制
+									760 cell
+										761 text short-owner→wake 或 CQ→RR mux 成为更差关键路径，或必须加一级才能工作
+								762 row
+									763 cell
+										764 text 竞争解释：主要限制是 head store/B、前端断流或其他串行事件
+									765 cell
+										766 text CQ early 对这些等待没有直接帮助
+									767 cell
+										768 text 完整程序周期几乎不变；这将否定本轮性能腿，而不是要求把所有 head_notdone 重新归因为 load
+							769 container
+								770 button 复制表格
+								771 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							772 text 不把 early 脉冲数当作节省周期。一个 load 可以有多个消费者，多个依赖又可以重叠；提前发射还可能改变 RR/WB 争用，甚至阻塞更老的关键指令。完整程序结果必须裁决净收益。
+							773 heading 预计迁移到哪里, Value: 3
+								774 text 预计迁移到哪里
+							775 text 重点检查四处： **CTL-05 的输入与广播、BE-03 short-owner→IQ ready、CQ→RR 读快照，以及仍然存在的  mem_ready→effect/mem_issued  更新尾段。**原 WB certificate 路径也不能漏掉。 这不是保证下一轮达到 1 ns。R3 的目标是同时取得完整程序收益和全局时序实质前进；剩余物理服务往返链并没有凭空消失。
+							776 heading 为什么不重复上一轮失败联合方案, Value: 3
+								777 text 为什么不重复上一轮失败联合方案
+							778 text R3 不使用取消前候选替换当前 live 仲裁，不接收 sparse  10 ，不改固定槽，不新增 CQ 输出 head/slot mux。正常完成仲裁和 CQ/WB 边沿继续是 B 的合同。 它与 C 的另外两个区别是：
+							779 text 性能目标来自新增的真实值消费路径，而不是宣称周期不变也必然值得保留；物理目标覆盖 B 的共同取消前缀，而不是只拆 CQ 宽输入。
+							780 text 不过，CQ value64 多接到 RR 本身会增加负载，所以“不增加选择级”也不是 CQ→WB 不退化的证明。此前 C 的教训仍然适用：输入、输出、相邻族和完整程序必须一起裁决。
+							781 button 打开 rv64-measurements.txt 的预览
+							782 heading 九、最少需要 Codex 核对的源码，以及条件化处理, Value: 2
+								783 text 九、最少需要 Codex 核对的源码，以及条件化处理
+							784 text 不需要补完整工程或先建一套大观测框架。实施前只需核对两个源码集合。
+							785 container 可滚动表格
+								786 table
+									787 row
+										788 cell
+											789 text 最少源码范围
+										790 cell
+											791 text 决定什么
+										792 cell
+											793 text 条件化处理
+									794 row
+										795 cell
+											796 text R64Rob.v  中 short-owner/owner-query 的完整生成块； R64Backend.v  对来源5/6的相关连线； R64Writeback.v  accepted/certificate 与常规 wake 接线； R64Issue.v  的 DEFER_READY、wake 与选择使用块； R64RegRead.v  的读快照、forward hit/data/rank 捕获块。附件锚点分别在 ROB  329/388 、Backend  595 、Writeback  157/188 、Issue  263 、RegRead  229/339/358  附近，取完整逻辑块而非机械固定行数。
+										797 cell
+											798 text 两路 ROB 查询能否复用；常规 wake 的真实边沿；是否存在跨拍只保存 rank 的结构。
+										799 cell
+											800 text 查询与 grant 无关则复用，否则新增两路。读路径必须在原快照处保存实际值。若常规 load wake 实际已经与本方案同拍，
+											801 text 不得宣称性能提前
+											802 text ；性能腿停用，发布重编码只能作为独立时序设计点重新裁决，不能继续称为本轮双收益方案。
+									803 row
+										804 cell
+											805 text R64Rob.v  的 plan/pending/prepared-cancel/kill-mask 生成块，附件锚点  110/139/147  附近； R64Lsu.v  接收 prepared cancel 的完整定义及其到 query/event/owner-state 的使用块。
+										806 cell
+											807 text 是否能严格得到  K=F∨P ，以及是否存在把全清重新带回 partial 路径的条件。
+										808 cell
+											809 text 默认按本文分离。若真实表达式还含其他取消来源，将其纳入 P 并证明最终资格等价；不能省略。若不能保持同拍等价，就保留原 canonical 资格，不延迟 kill，并明确物理目标未完成。
+							810 container
+								811 button 复制表格
+								812 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							813 text 已给出的 Commit 事件更新片段足以定义上面的发布公式，不需要再次索要相同片段。BE-02→LSU reserve 没有目的 preg 端口时，直接增加每 lane 8 bit 的同 birth sideband；这是本方案的普通接口修改，不是新的选型问题。
+							814 heading 十、交给 Codex 的最小完整实验与保留条件, Value: 2
+								815 text 十、交给 Codex 的最小完整实验与保留条件
+							816 heading 最小完整实现, Value: 3
+								817 text 最小完整实现
+							818 text 冻结一个 
+							819 text R3 双开关均开启
+							820 text 的新设计点，包含：
+							821 text 同拍 publish Q＋LSU 全清/partial 分离；目的凭据全程同 owner 携带；两路 CQ short-owner 授权；IQ 初始化/驻留唤醒；RR 实际值快照与 CQ→WB→PRF 连续性。
+							822 text 缺少最后两项的“只提前发 wake”不是本方案；缺少 effect/query 等使用侧改接的“只换 CQ flush 输入”也不是完整物理方案。 两个开关用于小范围反证：
+							823 content list
+								824 container
+									825 AXListMarker • 
+									826 text 只开发布重编码：同输入下，原接口 fire、取消集合、owner 更新及短程序周期应保持一致。
+								827 container
+									828 AXListMarker • 
+									829 text 只开值旁路：验证消费者提前和数据连续性，区分它与控制重编码的影响。
+							830 text 不要求先为三个候选各跑一轮完整综合和双基准。先完成定向及整核短测，再对一个完整 R3 做完整程序与原约束 SystemTop STA。联合版不达标时，不把未经独立完整验证的半个方案摘回主树。
+							831 heading 有判别力的新增观察, Value: 3
+								832 text 有判别力的新增观察
+							833 text 沿用已有 response→CQ→WB 记录，只补真实 full-tag 关联的： CQ 首次合资格 front → early wake → 依赖消费者 issue → RR 实际取值边沿/来源 。 短测必须覆盖连续依赖 load、WB 长背压、两 CQ lane、skid 晋升、kill+response、kill+交接、DEFER_READY 相邻 birth，以及 ROB slot/preg 复用。原 store B-error、Sv39、Sdtrig、非对齐、FP、取消和全系统 NEMU 回归仍然保留。
+							834 heading 我给本轮设定的工程保留门槛, Value: 3
+								835 text 我给本轮设定的工程保留门槛
+							836 text 这些是实验裁决标准，
+							837 text 不是已经预测能够兑现的数字
+							838 text ：
+							839 table
+								840 row
+									841 cell
+										842 text 维度
+									843 cell
+										844 text 保留要求
+								845 row
+									846 cell
+										847 text 正确性
+									848 cell
+										849 text 原断言、定向反例、完整 DiffTest 通过；没有提前副作用、漏完成、重复完成或错误唤醒
+								850 row
+									851 cell
+										852 text 完整周期
+									853 cell
+										854 text 两个固定完整基准均不增加，至少一个降低 
+										855 text 0.5%
+										856 text ；退休数、输出和工作量按原口径核对
+								857 row
+									858 cell
+										859 text 机制
+									860 cell
+										861 text 在符合条件的依赖短测中，消费者确实提前；不能仅凭 CQ early 计数增加
+								862 row
+									863 cell
+										864 text Setup
+									865 cell
+										866 text 同约束完整 SystemTop 
+										867 text 全局 WNS 改善至少 0.10 ns
+										868 text ，setup TNS 不恶化
+								869 row
+									870 cell
+										871 text Hold
+									872 cell
+										873 text WNS/TNS 不恶化，负 hold 端点不新增；逐语义核对，不能只看最差一个值
+								874 row
+									875 cell
+										876 text 物理覆盖
+									877 cell
+										878 text 同时报告 event/RR、effect、mem_issued、CQ/raw 输入、CQ→WB、新增 CQ→RR/short-owner 和 publish D，以及全局前32个不同端点
+								879 row
+									880 cell
+										881 text 约束身份
+									882 cell
+										883 text 原库、真实数组、reset 输入延迟、uncertainty、时序例外保持；仍未过 1 ns 就继续标 FAIL
+							884 container
+								885 button 复制表格
+								886 pop up button (collapsed) Description: 展开表格, Secondary Actions: Expand
+							887 text 面积照实报告，不拿新增 269 bit 声明状态去估计面积，也不使用  cycles×(1 ns−WNS)  计算运行时间。
+							888 text 本轮执行结论：从 B 实施 R3，不复活 C，不扩大 CQ/WB 选择网络，不改变物理接受和真实 B 完成边界。核心交付是让已存在的 load 确值更早驱动有用执行，同时把共同取消资格的生成移回已有事件边界；是否值得保留，由上述同一个完整设计点的周期、机制和整核时序共同裁决。
+							889 button 查看分析
+							890 button 复制
+								891 image
+							892 button 分享
+							893 checkbox Description: 朗读, Value: 0
+							894 pop up button (collapsed) Description: 重新生成回复, ID: radix-_r_jn_, Secondary Actions: Expand
+							895 pop up button (collapsed) Description: 更多操作, ID: radix-_r_jr_, Secondary Actions: Expand
+							896 button 来源
+						897 container
+							898 text ChatGPT 可能会出错。请核查重要信息。
+						899 container
+							900 button 滚动到底部
+							901 heading 最新一条回复, Value: 4
+								902 text 最新一条回复
+							903 container
+								904 button (collapsed) Description: 添加文件等内容, Secondary Actions: Expand
+								905 text entry area (settable) Description: 询问 ChatGPT, Value: 
+
+									906 container
+										907 text 询问 ChatGPT
+								908 pop up button (collapsed) Description: 选择 ChatGPT 模型, ID: radix-_r_53_, Secondary Actions: Expand
+								909 button 听写
+								910 button 开始语音
+		911 text 回答已完成
+
+The focused UI element is 21 container Conversation

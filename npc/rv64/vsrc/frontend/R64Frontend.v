@@ -293,6 +293,9 @@ module R64Frontend #(
   wire [63:0] raw_plan_target_w, raw_plan_source_w;
   wire [125:0] lookup_target_w;
   wire [1:0] lookup_target_hit_w, lookup_direction_valid_w, lookup_direction_w;
+  // Physical address {pair_pointer, lane}; each pair owns both lane slots.
+  // The low 202 bits shared by all three payloads are, low to high:
+  // PC64, raw64, length4, fault1, cause5, TVAL64.
   reg [201:0] bundle_inst_q[0:3];
   reg [1:0] bundle_valid_q[0:1], bundle_at_q[0:1], bundle_bad_q[0:1];
   reg [63:0] bundle_target_q[0:1], bundle_source_q[0:1];
@@ -313,7 +316,9 @@ module R64Frontend #(
   wire [9:0] prep_in_align_cause_w;
   wire [63:0] prep_in_plan_target_w, prep_in_plan_source_w;
   wire [341:0] preparation_w;
-  reg  [471:0] token_inst_q  [0:3];  // canonical33 + prediction preparation + original fetch
+  // High to low: canonical33, prepare171, target63, hit1, dir-valid1,
+  // direction1, and the original fetch202, all from the same lane of a captured pair.
+  reg  [471:0] token_inst_q  [0:3];
   reg [1:0] token_valid_q[0:1], token_at_q[0:1], token_bad_q[0:1];
   reg [63:0] token_target_q[0:1], token_source_q[0:1];
   reg token_head_q, token_tail_q;
@@ -460,100 +465,70 @@ module R64Frontend #(
     if (bundle_count_q < 2) begin
       bundle_target_q[bundle_tail_q] <= raw_plan_target_w;
       bundle_source_q[bundle_tail_q] <= raw_plan_source_w;
-      bundle_inst_q[{
-        bundle_tail_q, 1'b0
-      }] <= {
-        raw_align_tval_w[63:0],
-        raw_align_cause_w[4:0],
-        raw_align_fault_w[0],
-        raw_align_length_w[3:0],
-        raw_align_raw_w[63:0],
-        raw_align_pc_w[63:0]
-      };
-      bundle_inst_q[{
-        bundle_tail_q, 1'b1
-      }] <= {
-        raw_align_tval_w[127:64],
-        raw_align_cause_w[9:5],
-        raw_align_fault_w[1],
-        raw_align_length_w[7:4],
-        raw_align_raw_w[127:64],
-        raw_align_pc_w[127:64]
-      };
     end
   end
   always @(posedge clk_i) begin
     if (token_count_q < 2) begin
       token_target_q[token_tail_q] <= bundle_target_q[bundle_head_q];
       token_source_q[token_tail_q] <= bundle_source_q[bundle_head_q];
-      token_inst_q[{
-        token_tail_q, 1'b0
-      }] <= {
-        prep_canonical_w[32:0],
-        preparation_w[170:0],
-        lookup_target_w[62:0],
-        lookup_target_hit_w[0],
-        lookup_direction_valid_w[0],
-        lookup_direction_w[0],
-        bundle_inst_q[{bundle_head_q, 1'b0}]
-      };
-      token_inst_q[{
-        token_tail_q, 1'b1
-      }] <= {
-        prep_canonical_w[65:33],
-        preparation_w[341:171],
-        lookup_target_w[125:63],
-        lookup_target_hit_w[1],
-        lookup_direction_valid_w[1],
-        lookup_direction_w[1],
-        bundle_inst_q[{bundle_head_q, 1'b1}]
-      };
     end
   end
   always @(posedge clk_i) begin
     if (result_count_q < 2) begin
       result_target_q[result_tail_q] <= prediction_plan_target_w;
       result_source_q[result_tail_q] <= prediction_plan_source_w;
-      result_inst_q[{
-        result_tail_q, 1'b0
-      }] <= {
-        prediction_control_w[34:0],
-        prediction_canonical_w[32:0],
-        prediction_post_count_w[3:0],
-        prediction_post_pointer_w[2:0],
-        prediction_write_index_w[2:0],
-        prediction_push_w[0],
-        prediction_taken_w[0],
-        prediction_return_pc_w[63:0],
-        prediction_pc_w[63:0],
-        prediction_align_tval_w[63:0],
-        prediction_align_cause_w[4:0],
-        prediction_align_fault_w[0],
-        prediction_align_length_w[3:0],
-        prediction_align_raw_w[63:0],
-        prediction_align_pc_w[63:0]
-      };
-      result_inst_q[{
-        result_tail_q, 1'b1
-      }] <= {
-        prediction_control_w[69:35],
-        prediction_canonical_w[65:33],
-        prediction_post_count_w[7:4],
-        prediction_post_pointer_w[5:3],
-        prediction_write_index_w[5:3],
-        prediction_push_w[1],
-        prediction_taken_w[1],
-        prediction_return_pc_w[127:64],
-        prediction_pc_w[127:64],
-        prediction_align_tval_w[127:64],
-        prediction_align_cause_w[9:5],
-        prediction_align_fault_w[1],
-        prediction_align_length_w[7:4],
-        prediction_align_raw_w[127:64],
-        prediction_align_pc_w[127:64]
-      };
     end
   end
+  // Each pair has two identical physical payload lanes. Count-based vacancy
+  // still enables preparation; admission, redirect and partial consumption
+  // remain in the explicit owner logic, independent of these payload writes.
+  genvar payload_lane;
+  generate
+    for (
+        payload_lane = 0; payload_lane < 2; payload_lane = payload_lane + 1
+    ) begin : gen_pair_payload
+      localparam LANE = payload_lane[0];
+      always @(posedge clk_i) begin
+        if (bundle_count_q < 2)
+          bundle_inst_q[{bundle_tail_q, LANE}] <= {
+            raw_align_tval_w[payload_lane*64+:64],
+            raw_align_cause_w[payload_lane*5+:5],
+            raw_align_fault_w[payload_lane],
+            raw_align_length_w[payload_lane*4+:4],
+            raw_align_raw_w[payload_lane*64+:64],
+            raw_align_pc_w[payload_lane*64+:64]
+          };
+        if (token_count_q < 2)
+          token_inst_q[{token_tail_q, LANE}] <= {
+            prep_canonical_w[payload_lane*33+:33],
+            preparation_w[payload_lane*171+:171],
+            lookup_target_w[payload_lane*63+:63],
+            lookup_target_hit_w[payload_lane],
+            lookup_direction_valid_w[payload_lane],
+            lookup_direction_w[payload_lane],
+            bundle_inst_q[{bundle_head_q, LANE}]
+          };
+        if (result_count_q < 2)
+          result_inst_q[{result_tail_q, LANE}] <= {
+            prediction_control_w[payload_lane*35+:35],
+            prediction_canonical_w[payload_lane*33+:33],
+            prediction_post_count_w[payload_lane*4+:4],
+            prediction_post_pointer_w[payload_lane*3+:3],
+            prediction_write_index_w[payload_lane*3+:3],
+            prediction_push_w[payload_lane],
+            prediction_taken_w[payload_lane],
+            prediction_return_pc_w[payload_lane*64+:64],
+            prediction_pc_w[payload_lane*64+:64],
+            prediction_align_tval_w[payload_lane*64+:64],
+            prediction_align_cause_w[payload_lane*5+:5],
+            prediction_align_fault_w[payload_lane],
+            prediction_align_length_w[payload_lane*4+:4],
+            prediction_align_raw_w[payload_lane*64+:64],
+            prediction_align_pc_w[payload_lane*64+:64]
+          };
+      end
+    end
+  endgenerate
   R64Align #(
     .RESET_PC(RESET_PC),
     .EARLY_PREDICT(EARLY_PREDICT)
@@ -614,7 +589,12 @@ module R64Frontend #(
 
   // B materializes a prediction token. C owns validation and actual admission.
   // Speculative RAS writes stay in these owners until C confirms their prefix.
-  reg [409:0] result_inst_q[0:3];  // original202 + NPC64 + return64 + taken/push/index/post
+  // Low to high: fetch202, NPC64, return-PC64, taken1, push1, write-index3,
+  // post-pointer3, post-count4, canonical33, decode-control35 = 410 bits.
+  // Journal consumers below need only the lower 342 bits through post-count.
+  localparam RESULT_RETURN_PC_LSB = 266, RESULT_RAS_PUSH_BIT = 331,
+      RESULT_RAS_INDEX_LSB = 332;
+  reg [409:0] result_inst_q[0:3];
   reg [1:0] result_valid_q[0:1], result_at_q[0:1], result_bad_q[0:1], result_ras_valid_q[0:1];
   reg [63:0] result_target_q[0:1], result_source_q[0:1];
   reg result_head_q, result_tail_q;
@@ -662,14 +642,18 @@ module R64Frontend #(
     for (
         journal_lane = 0; journal_lane < 4; journal_lane = journal_lane + 1
     ) begin : g_result_journal
+      // Journal 0/1 is the older pair; 2/3 is the next pair. A consumed
+      // low lane redirects the logical remaining lane to physical lane 1.
       wire pair_w = journal_lane < 2 ? result_head_q : !result_head_q;
       wire lane_w = (journal_lane % 2) != 0;
       wire physical_lane_w = lane_w || result_half_q[pair_w];
       wire [341:0] payload_w = result_inst_q[{pair_w, physical_lane_w}][341:0];
       assign ras_journal_valid_w[journal_lane] = result_count_q > journal_lane / 2 &&
-          result_valid_q[pair_w][lane_w] && result_ras_valid_q[pair_w][lane_w] && payload_w[331];
-      assign ras_journal_index_w[journal_lane*3+:3] = payload_w[334:332];
-      assign ras_journal_data_w[journal_lane*63+:63] = payload_w[329:267];
+          result_valid_q[pair_w][lane_w] && result_ras_valid_q[pair_w][lane_w] &&
+          payload_w[RESULT_RAS_PUSH_BIT];
+      assign ras_journal_index_w[journal_lane*3+:3] = payload_w[RESULT_RAS_INDEX_LSB+:3];
+      // RAS entries omit the always-zero halfword-alignment bit of return PC.
+      assign ras_journal_data_w[journal_lane*63+:63] = payload_w[RESULT_RETURN_PC_LSB+1+:63];
     end
   endgenerate
   always @(posedge clk_i) begin

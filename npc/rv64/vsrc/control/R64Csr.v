@@ -103,16 +103,14 @@ module R64Csr (
       (|supervisor_pending_w);
   // Encode the two privilege classes independently; current architectural
   // eligibility only selects their already formed cause at the output.
-  function [5:0] irq_encode;
-    input [11:0] pending;
-    begin
-      irq_encode = pending[11] ?
-          6'd11 : (pending[3] ?
-                   6'd3 : (pending[7] ? 6'd7 : (pending[9] ? 6'd9 : (pending[1] ? 6'd1 : 6'd5))));
-    end
-  endfunction
-  wire [5:0] machine_cause_w = irq_encode(machine_pending_w);
-  wire [5:0] supervisor_cause_w = irq_encode(supervisor_pending_w);
+  // MEI > MSI > MTI > SEI > SSI > STI. Keep each architectural
+  // class and its priority directly visible; two short cones need no helper.
+  wire [5:0] machine_cause_w = machine_pending_w[11] ? 6'd11 :
+      machine_pending_w[3] ? 6'd3 : machine_pending_w[7] ? 6'd7 :
+      machine_pending_w[9] ? 6'd9 : machine_pending_w[1] ? 6'd1 : 6'd5;
+  wire [5:0] supervisor_cause_w = supervisor_pending_w[11] ? 6'd11 :
+      supervisor_pending_w[3] ? 6'd3 : supervisor_pending_w[7] ? 6'd7 :
+      supervisor_pending_w[9] ? 6'd9 : supervisor_pending_w[1] ? 6'd1 : 6'd5;
   assign wfi_wake_o = |(pending_w & enable_q);
   assign irq_pending_o = machine_irq_w || supervisor_irq_w;
   assign irq_cause_o = machine_irq_w ? machine_cause_w : supervisor_cause_w;

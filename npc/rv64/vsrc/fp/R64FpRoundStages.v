@@ -2,6 +2,7 @@
 // [13:0] biased exponent, [27:14] biased+1, [28] tiny-after-round,
 // [29] exponent>max, [30] exponent==max, [31] signed14 wrap guard,
 // [32] zero significand, [33] rounding chooses infinity on overflow.
+// special_i throughout these transforms: 0 finite, 1 zero, 2 infinity, 3 NaN.
 module R64FpRoundRange (
   input                sign_i, double_i,
   input         [ 2:0] rounding_i,
@@ -142,11 +143,15 @@ module R64FpRoundPack (
   output reg [63:0] value_o,
   output reg [ 4:0] flags_o
 );
+  // Bit names refer to the Range producer format documented above.
+  localparam RANGE_TINY = 28, RANGE_ABOVE_MAX = 29, RANGE_AT_MAX = 30,
+      RANGE_WRAP_GUARD = 31, RANGE_ZERO = 32, RANGE_TO_INFINITY = 33;
   wire carry_w = double_i ? rounded_i[53] : rounded_i[24];
   wire [52:0] mantissa_w = carry_w ? rounded_i[53:1] : rounded_i[52:0];
   wire normal_w = double_i ? mantissa_w[52] : mantissa_w[23];
   wire [13:0] exponent_w = normal_w ? (carry_w ? range_i[27:14] : range_i[13:0]) : 14'b0;
-  wire overflow_w = (range_i[29] && !(range_i[31] && carry_w)) || (range_i[30] && carry_w);
+  wire overflow_w = (range_i[RANGE_ABOVE_MAX] && !(range_i[RANGE_WRAP_GUARD] && carry_w)) ||
+      (range_i[RANGE_AT_MAX] && carry_w);
   always @(*) begin
     flags_o = flags_i;
     value_o = double_i ? {sign_i, exponent_w[10:0], mantissa_w[51:0]} :
@@ -154,17 +159,18 @@ module R64FpRoundPack (
     if (special_i == 3) value_o = double_i ? 64'h7ff8000000000000 : 64'hffffffff7fc00000;
     else if (special_i == 2)
       value_o = double_i ? {sign_i, 11'h7ff, 52'b0} : {32'hffffffff, sign_i, 8'hff, 23'b0};
-    else if (special_i == 1 || range_i[32])
+    else if (special_i == 1 || range_i[RANGE_ZERO])
       value_o = double_i ? {sign_i, 63'b0} : {32'hffffffff, sign_i, 31'b0};
     else if (overflow_w) begin
       flags_o = flags_i | 5'b00101;
       value_o = double_i ?
-          (range_i[33] ? {sign_i, 11'h7ff, 52'b0} : {sign_i, 11'h7fe, 52'hfffffffffffff}) :
-          (range_i[33] ?
+          (range_i[RANGE_TO_INFINITY] ?
+           {sign_i, 11'h7ff, 52'b0} : {sign_i, 11'h7fe, 52'hfffffffffffff}) :
+          (range_i[RANGE_TO_INFINITY] ?
            {32'hffffffff, sign_i, 8'hff, 23'b0} : {32'hffffffff, sign_i, 8'hfe, 23'h7fffff});
     end else begin
       flags_o[0] = flags_i[0] | inexact_i;
-      flags_o[1] = flags_i[1] | (inexact_i && range_i[28]);
+      flags_o[1] = flags_i[1] | (inexact_i && range_i[RANGE_TINY]);
     end
   end
 endmodule

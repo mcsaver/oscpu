@@ -11,6 +11,8 @@ module R64LsuForwardByte #(
   output [    7:0] data_o,
   output [  N-1:0] winner_mask_o
 );
+  // Row q of younger_i marks sources younger than q. A matching younger
+  // source suppresses q; the resulting onehot byte is ORed at tree root 1.
   localparam LEAVES = 1 << SLOT_W;
   genvar q, n;
   generate

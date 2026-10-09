@@ -1,0 +1,21 @@
+{
+  "created": "2026-10-08T12:02:58.546341",
+  "base": "ec653b952ca3938c893f14d9696bcb6b05b65f60",
+  "branch": "ai",
+  "files": {
+    "npc/rv64/vsrc/lsu/R64Lsu.v": "915f9ecae9b1f86d0b5134c52bc2fd86e72687c6b4bb843885fa18096aabea97",
+    "npc/rv64/vsrc/lsu/TOPOLOGY.md": "59a79ed812912d7965322b6dab60058bb9f26c9ba02af68296f7e484e18a713e",
+    "npc/rv64/sim/build.mk": "614b619fd008ad666f83fd478a3b28826d76113cb51b2b8bada17fb06be02242",
+    "npc/rv64/sim/vsrc/R64CpiProfile.svh": "9245126bc771d512d85b20114b115123616c38b6d053be4c6617786a912a82a7",
+    "npc/rv64/testbench/chengyue64/Makefile": "0f00ef5c784fc929668fee6a0122a9cfb64659ca5de9fa617bd742458459fadb",
+    "npc/rv64/testbench/chengyue64/modules/tb_r64_lsu.sv": "f6fe93c2e52342e4e7439a833f5dc5f4f26b88d12f9abdc22cbe26ef3b78ba0a",
+    "npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh": "879eb70da67e4ec326dabe90bfc0b38b728d9783a5668bfcf9ec457a0b389011",
+    "npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh": "ca7be1e1c259dbe9ec1de068eee6f39177b5e2fcca5aaffe306cc978ed7c5f1d",
+    "npc/rv64/testbench/chengyue64/programs/r64_core_load_chain.S": "3794814e8b791861db8c482b1ec09f470c9624ab541f663e642ec67a4abd4788"
+  },
+  "rtl_matches_frozen_candidate": true,
+  "patch_sha256": "e2bf0da85f0b132159e01d14b343e0b9a0845bc04dfd715a90d0c9dfbbd376c1",
+  "note": "Measured code and final topology documentation. No production RTL changes after candidate measurements.",
+  "rtl_files_checked": 92,
+  "final_decision": "RETAIN; enabled RESPONSE_BYPASS=1; original 1ns timing still FAIL"
+}

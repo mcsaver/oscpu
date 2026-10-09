@@ -164,61 +164,66 @@ module R64AluControl (
   input  [ 7:0] function_i,
   output [36:0] control_o
 );
-  function [36:0] decode_control;
-    input [7:0] function_i;
-    reg [14:0] group_w;
-    begin
-      decode_control = 0;
-      group_w = 0;
-      case (function_i)
-        `R64_F_ADD, `R64_F_SUB, `R64_F_SH1ADD, `R64_F_SH2ADD, `R64_F_SH3ADD,
-        `R64_F_ADDUW, `R64_F_SH1ADDUW, `R64_F_SH2ADDUW, `R64_F_SH3ADDUW:
-          group_w[1] = 1;
-        `R64_F_SLT: group_w[2] = 1;
-        `R64_F_SLTU: group_w[3] = 1;
-        `R64_F_SLL, `R64_F_SRL, `R64_F_SRA, `R64_F_ROL, `R64_F_ROR, `R64_F_SLLIUW: group_w[4] = 1;
-        `R64_F_BSET: group_w[5] = 1;
-        `R64_F_BCLR: group_w[6] = 1;
-        `R64_F_BINV: group_w[7] = 1;
-        `R64_F_BEXT: group_w[8] = 1;
-        `R64_F_MIN: group_w[9] = 1;
-        `R64_F_MAX: group_w[10] = 1;
-        `R64_F_MINU: group_w[11] = 1;
-        `R64_F_MAXU: group_w[12] = 1;
-        `R64_F_CLZ, `R64_F_CTZ: group_w[13] = 1;
-        `R64_F_CPOP: group_w[14] = 1;
-        default: group_w[0] = 1;
-      endcase
+  // Packed control ABI: [14:0] result-family mask (bit 0 is the simple path),
+  // [26:15] simple-operation mask, [36:27] shared numeric input controls.
+  // The group bit numbers below match R64AluDatapath final selection.
+  // Execution groups drive the registered result mux. Keep this decision
+  // visible beside the shared datapath controls, with the existing bit ABI.
+  // Fully known opcode constants make these synthesizable comparisons;
+  // case equality preserves the original case default for X/Z inputs.
+  wire [14:1] group_w;
+  assign group_w[1] =
+      (function_i === `R64_F_ADD) || (function_i === `R64_F_SUB) ||
+      (function_i === `R64_F_SH1ADD) || (function_i === `R64_F_SH2ADD) ||
+      (function_i === `R64_F_SH3ADD) || (function_i === `R64_F_ADDUW) ||
+      (function_i === `R64_F_SH1ADDUW) || (function_i === `R64_F_SH2ADDUW) ||
+      (function_i === `R64_F_SH3ADDUW);
+  assign group_w[2] = (function_i === `R64_F_SLT);
+  assign group_w[3] = (function_i === `R64_F_SLTU);
+  assign group_w[4] =
+      (function_i === `R64_F_SLL) || (function_i === `R64_F_SRL) ||
+      (function_i === `R64_F_SRA) || (function_i === `R64_F_ROL) ||
+      (function_i === `R64_F_ROR) || (function_i === `R64_F_SLLIUW);
+  assign group_w[5] = (function_i === `R64_F_BSET);
+  assign group_w[6] = (function_i === `R64_F_BCLR);
+  assign group_w[7] = (function_i === `R64_F_BINV);
+  assign group_w[8] = (function_i === `R64_F_BEXT);
+  assign group_w[9] = (function_i === `R64_F_MIN);
+  assign group_w[10] = (function_i === `R64_F_MAX);
+  assign group_w[11] = (function_i === `R64_F_MINU);
+  assign group_w[12] = (function_i === `R64_F_MAXU);
+  assign group_w[13] = (function_i === `R64_F_CLZ) || (function_i === `R64_F_CTZ);
+  assign group_w[14] = (function_i === `R64_F_CPOP);
+  wire mask_w = function_i == `R64_F_BSET || function_i == `R64_F_BCLR ||
+                function_i == `R64_F_BINV;
+  assign control_o[14:1] = group_w;
+  assign control_o[0] = ~(|group_w);
+  assign control_o[15] = function_i == `R64_F_XOR;
+  assign control_o[16] = function_i == `R64_F_OR;
+  assign control_o[17] = function_i == `R64_F_AND;
+  assign control_o[18] = function_i == `R64_F_COPY_B;
+  assign control_o[19] = function_i == `R64_F_ANDN;
+  assign control_o[20] = function_i == `R64_F_ORN;
+  assign control_o[21] = function_i == `R64_F_XNOR;
+  assign control_o[22] = function_i == `R64_F_SEXTB;
+  assign control_o[23] = function_i == `R64_F_SEXTH;
+  assign control_o[24] = function_i == `R64_F_ZEXTH;
+  assign control_o[25] = function_i == `R64_F_REV8;
+  assign control_o[26] = function_i == `R64_F_ORCB;
 
-      decode_control[14:0] = group_w;
-      decode_control[15] = function_i == `R64_F_XOR;
-      decode_control[16] = function_i == `R64_F_OR;
-      decode_control[17] = function_i == `R64_F_AND;
-      decode_control[18] = function_i == `R64_F_COPY_B;
-      decode_control[19] = function_i == `R64_F_ANDN;
-      decode_control[20] = function_i == `R64_F_ORN;
-      decode_control[21] = function_i == `R64_F_XNOR;
-      decode_control[22] = function_i == `R64_F_SEXTB;
-      decode_control[23] = function_i == `R64_F_SEXTH;
-      decode_control[24] = function_i == `R64_F_ZEXTH;
-      decode_control[25] = function_i == `R64_F_REV8;
-      decode_control[26] = function_i == `R64_F_ORCB;
-      decode_control[27] = function_i >= `R64_F_ADDUW && function_i <= `R64_F_SLLIUW;
-      decode_control[28] = function_i == `R64_F_SH1ADD || function_i == `R64_F_SH1ADDUW;
-      decode_control[29] = function_i == `R64_F_SH2ADD || function_i == `R64_F_SH2ADDUW;
-      decode_control[30] = function_i == `R64_F_SH3ADD || function_i == `R64_F_SH3ADDUW;
-      decode_control[31] = function_i == `R64_F_SUB || function_i == `R64_F_SLT ||
-                           function_i == `R64_F_SLTU;
-      decode_control[32] = function_i == `R64_F_ROL || function_i == `R64_F_ROR;
-      decode_control[33] = function_i == `R64_F_BSET || function_i == `R64_F_BCLR ||
-                           function_i == `R64_F_BINV;
-      decode_control[34] = function_i == `R64_F_SLL || function_i == `R64_F_ROL ||
-                           function_i == `R64_F_SLLIUW || decode_control[33];
-      decode_control[35] = function_i == `R64_F_SRA;
-      decode_control[36] = function_i == `R64_F_CTZ;
-    end
-  endfunction
-  assign control_o = decode_control(function_i);
+  // Shared add/shift input controls keep their fixed packed interface.
+  assign control_o[27] = function_i >= `R64_F_ADDUW && function_i <= `R64_F_SLLIUW;
+  assign control_o[28] = function_i == `R64_F_SH1ADD || function_i == `R64_F_SH1ADDUW;
+  assign control_o[29] = function_i == `R64_F_SH2ADD || function_i == `R64_F_SH2ADDUW;
+  assign control_o[30] = function_i == `R64_F_SH3ADD || function_i == `R64_F_SH3ADDUW;
+  assign control_o[31] = function_i == `R64_F_SUB || function_i == `R64_F_SLT ||
+                         function_i == `R64_F_SLTU;
+  assign control_o[32] = function_i == `R64_F_ROL || function_i == `R64_F_ROR;
+  assign control_o[33] = mask_w;
+  assign control_o[34] = function_i == `R64_F_SLL || function_i == `R64_F_ROL ||
+                         function_i == `R64_F_SLLIUW || mask_w;
+  assign control_o[35] = function_i == `R64_F_SRA;
+  assign control_o[36] = function_i == `R64_F_CTZ;
 endmodule
 module R64AluPipe (
   input         clk,

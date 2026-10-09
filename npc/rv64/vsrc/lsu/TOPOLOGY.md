@@ -1,6 +1,6 @@
 # 当前 LSU 拓扑网络
 
-依据 2026-09-16 当前工作区的生产 RTL 整理；入口为
+依据 2026-09-16 的生产 RTL 整理，2026-10-08 补充普通 load 响应空 raw 旁路；入口为
 R64CoreTop.memory → R64Memory.unit → R64LoadStore。
 本文描述模块连接、寄存边界及事务所有权，不把队列深度视为固定访问延迟。
 
@@ -8,6 +8,7 @@ R64CoreTop.memory → R64Memory.unit → R64LoadStore。
 ENTRIES=20、INDEX_W=5、TAG_W=9、ROB_W=5、HEAD_AUTHORIZED_QUERY=1、
 PREPARED_CANCEL=1、EARLY_STORE=1、CACHE_SET_W=6、AUX=3、SRC_W=2。
 其中 EARLY_STORE、CACHE_SET_W 等未在核心覆盖的参数沿用模块默认值。
+R64Lsu 的 RESPONSE_BYPASS 默认1，控制下述普通成功 RAM load 的空 raw 响应旁路。
 
 本轮 Backend 网络优化同时更新了共享 [R64LsuRequestQueue](R64LsuRequestQueue.v)：每个持有位置在原数据写入边沿登记 ROB slot one-hot，reuse 输出对有效位置的位图相或。实际覆盖 request_queue、translation_queue、forward_query、response_queue、forwarding_results、faults 六个实例；完整 tag 继续用于 owner 认证。其它持有域、真实 acquire/release 边沿及本拓扑中的访存顺序不变，同一 ROB slot 的多份引用分别受保护。
 
@@ -170,7 +171,8 @@ flowchart TB
   PHYS --> MERGE
   PHYS -->|"已登记取消的普通对齐RAM load"| DRAIN["丢弃数据并释放owner"]
   LSQ -->|"canonical 元数据 / forward_q"| MERGE
-  MERGE --> RAW
+  MERGE -->|"未满足旁路或未获CQ实际捕获"| RAW
+  MERGE -->|"成功对齐RAM load且raw Q为空：旁路候选"| EVT
   LSQ -->|"DONE → fault_select"| FQ
   RAW --> EVT
   FQ --> EVT
@@ -179,7 +181,7 @@ flowchart TB
   CQ -.->|"out_request：驻留或本拍已接受结果，提前申请下一拍写回端口"| WB
 ```
 
-这张图的三个关键分流点：
+这张图的四个关键分流点：
 
 - 翻译响应直入：成功普通对齐 load、非 IO、无需 A/D 重走，并且对当前 owner
   没有更老 barrier/ordering owner；还需对应 lane 的 query Q 信用及入口优先级允许。
@@ -194,6 +196,13 @@ flowchart TB
   其他请求在 query head 驻留期间把受 pin 保护的转发字节准备到原 LSQ row；在 physical_hold 有空间时出队并发布有效 mask。物理入口可接受且
   hold为空时直接发出，否则 hold 保存完整descriptor/tag。后续只在实际握手时置 mem_issued，
   不重读已释放的source store，也不清除快照。某一出口容量用完后仍可能把背压传回query。
+
+- 物理响应入口：RESPONSE_BYPASS=1 时，成功、对齐、非 store/atomic/side-effect 且 class<2 的
+  普通 RAM load，在该 lane 的 raw Q 真正为空时可作为原 raw 来源参与六源轮转。
+  只有 CQ 本拍实际捕获该事件，才抑制这次 raw enqueue；未获 grant 或 CQ 无信用仍进原 raw Q。
+  使用不含 kill 的 out_occupied_o 判断是否空，不能让被杀旧 head 与新响应交换 payload。
+  外部 ready、raw 的寄存信用、mem_end 与上游 owner 释放边沿不变；完整 tag 在接受边沿
+  从 LSQ 转交 raw 或 CQ，reuse 投影保持覆盖。错误、IO、atomic 和非对齐请求保留原路径。
 
 正常匹配路径的寄存边界是 mholder → load descriptor Q → query Q → forwarding_results 或可旁路的 physical_hold → 物理服务。
 翻译直入与 prepared 直入省去前面的普通 load 调度/匹配路径。箭头不是固定“一拍”承诺；
@@ -422,7 +431,7 @@ LSQ状态语义：
 FREE → NEW（先reserve，之后bind）→ TRANSLATING → READY；
 普通load选入mholder、翻译直入query、或prepared授权进入query后均可进入MEMORY，
 因此 MEMORY 不等价于“已到cache”，还须看mem_issued_q。
-DONE是本地/翻译异常待捕获；普通load在有效raw response或full-forward terminal捕获时释放原LSQ。
+DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/CQ，或full-forward terminal捕获时释放原LSQ。
 成功副作用保留RETIRE到commit；需要源保护的已提交store再转PINNED，直到无引用。
 已接受翻译/物理请求的dead owner必须等其响应，不能仅凭kill提前复用。
 
@@ -466,7 +475,9 @@ flowchart LR
   FIRE --> ISS["mem_issued / effect记录"]
 ```
 
-新增 out_occupied_o 只导出 query head 的原始 valid Q，不含 reset/flush/kill 条件；它仅用于准备数据。其它五个请求队列不使用这个输出。对外 out_valid_o、接受条件、pop 和取消处理保持原语义。每个 LSQ row 使用静态 slot 匹配写 forward_q；query 离开后不再重读源 store。原 query_take 边沿仍发布 forward_mask，因此待准备或失效的数据不产生架构可见效果。
+out_occupied_o 导出 head 的原始 valid Q，不含 reset/flush/kill 条件。query 使用它准备数据；
+2026-10-08 起 response_queue 也使用它判断 raw lane 是否真正为空，决定能否提供直接进入 CQ 的候选。
+其它四个请求队列不使用这个输出。对外 out_valid_o、接受条件、pop 和取消处理保持原语义。每个 LSQ row 使用静态 slot 匹配写 forward_q；query 离开后不再重读源 store。原 query_take 边沿仍发布 forward_mask，因此待准备或失效的数据不产生架构可见效果。
 
 对应断言检查：同一 row 不被两个 query head 同时声明；physical holder 或 mem_issued 已拥有该 row 后禁止预写；已发请求的有效转发 byte 必须与原 query_take 边沿捕获的参考快照一致。定向测试另外验证 cancel/flush 在组合上压低 out_valid 时，raw occupancy 仍保持原 Q，直到时钟处理取消。
 
@@ -490,3 +501,48 @@ query 出口对满字节转发仍使用 forwarding-results 信用。
 寄存边沿、容量、实际物理 VALID 与接受条件保持；R64_ASSERT 逐拍比较原
 !physical_hold_valid || mfire 公式。
 
+
+
+## 2026-10-08：普通 load 响应空 raw 旁路
+
+本轮保留 raw 缓冲容量与 CQ/WB/ROB 接受边界，只对合格成功响应在空 raw 时省去一次寄存交接。
+空 CQ 的定向依赖链观测中 response→CQ 由1拍变0拍，response→WB由3拍变2拍。
+完整 CoreMark10 / Dhrystone10000 的总周期分别减少2.958743% / 2.063613%。
+该结果以真实 NEMU、断言、同镜像和同约束物理比较为依据；CQ 局部组合路径变长的代价也必须一起看。
+具体代码绑定、定向反例、完整程序与真实库 STA 见
+[本轮实验报告](../../ai/tests/2026-10-08-load-response-bypass/RESULT.md)。
+
+## 2026-10-08 当前设计单元索引
+
+以下 ID 标记可独立讨论的状态与组合网络，不等同于 Verilog 文件、可独立改动的权限或固定流水级。
+同一模块可以包含多个单元；表中宽度是所列字段宽度，不是综合后的总触发器位数。
+当前生产版本保留上节普通 load 响应旁路；第二轮固定槽 CQ/无取消候选仲裁实验已回退，
+不能把其归档拓扑当成当前结构。下文“未知（UNKNOWN）”表示没有当前版本的对应测量，不表示数值为零。
+
+| ID / 对应源码 | 状态 owner、容量与真实寄存边界 | 同拍网络、握手与取消语义 | 可量化事实与待测量项 |
+| --- | --- | --- | --- |
+| LSU-01 canonical LSQ；`R64Lsu.v` 的 `gen_owner_state`、`older_q` | 20 row；每 row 完整 tag9，VA/PA/store/forward 各64，state3、mask8、forward_mask8 等；年龄20×20。reserve 边沿获得 slot；bind 在同 slot/full-tag 条件下登记 operand。 | FREE Q 产生分配信用；最多双 reserve/bind。kill 清存活不代表所有 owner 立即释放：已发翻译、物理访问或 pin 仍须完成原生命周期。`effect_q`/`mem_issued_q` 是实际握手后的事实。 | 20 row 与双入口为静态能力；逐状态占用分布、满表阻塞、由哪类 head 导致无法退休的周期分解 UNKNOWN。 |
+| LSU-02 翻译请求与返回 owner；`R64Lsu.v`、`R64LsuRequestQueue.v` | translation_queue 为2 lane×2槽，data10+tag9；xfifo 每 lane 深4，slot5+protection4。发给 MEM-01 的真实 `tr_valid && tr_ready` 登记 xfifo owner。 | 选择、queue 信用、xfifo 余量是不同边界。返回按原 lane FIFO head 找 canonical row；已 kill 也接收并 drain 翻译返回，不能提前复用被引用的 slot。 | outstanding 上限8个 xfifo记录不等于8个 walker；翻译命中/缺失/阻塞占比及往返延迟 UNKNOWN。 |
+| LSU-03 普通 load descriptor；`R64Lsu.v` 的 `mholder`、`gen_descriptor_payload` | 两个 slot5/tag9 holder → request_queue 2×2槽，data93+tag9+age20。组合读取 row 形成 descriptor，实际入队边沿转移 owner。 | 信用由队列 Q 占用产生；宽 payload one-hot 准备与 valid 接受分开已经存在。kill/flush 抑制有效发布。descriptor 的年龄与 query pin 同为20位但语义不同。 | 每拍至多2个 descriptor；选择等待、descriptor→query 等待、被 older unknown store 阻塞比例 UNKNOWN。 |
+| LSU-04 store/特殊访问准备；`R64Lsu.v` 的 `prepared_*` | 单个 prepared owner，slot5+tag9+data157 与独立 valid。普通 store 可提前准备；head 特殊请求可替换尚未发布的准备项。 | payload 捕获不等于副作用授权；须 head+`effect_allow` 后进入 query lane0。取消的替换不能覆盖有效旧 payload；副作用已发出后按真实终端保持 owner。 | 提前准备已开启 `EARLY_STORE=1`、`HEAD_AUTHORIZED_QUERY=1`；store 地址与数据可用时差、准备命中率、head 等待 B 的归因周期 UNKNOWN。 |
+| LSU-05 转发资格、winner/pin；`R64Lsu.v`、`R64LsuForwardByte.v`、`R64LsuMetaRead.v` | query 为2×2槽，每项 data318（desc157+winner160+full1）+tag9+pin20。每 lane 8 byte×20候选 one-hot winner 在 query 边沿保存。 | word match、youngest 选择是组合；query 后按已保存 winner 读源 store。query pin 与 descriptor head 保守 pin 阻止源 slot/data 过早释放；已 commit 但被 pin 的 store 保持 PINNED。 | 2×8×20是结构宽度，不能等同实际门级延迟；全/部分/零转发比例、pin 寿命、CAM/fanout/PPA 分摊 UNKNOWN。 |
+| LSU-06 full-forward、物理 offer 与 raw；`R64Lsu.v` 的 `forwarding_results`、`physical_hold_*`、`response_queue` | full-forward 2×2槽：data77+tag9；physical_hold 每 lane1项：data157+tag9，空时旁路；raw 2×2槽：data152+tag9。 | physical VALID/READY 接受才登记 `mem_issued`；hold 对背压保存 owner/payload。部分转发先捕获快照再发物理请求。已 kill 的普通 RAM 返回 drain；未获完成旁路捕获的有效响应进入 raw。 | RESPONSE_BYPASS=1 已存在，空 raw 判断使用未受 kill 遮蔽的 Q 占用；raw 满、hold 等待、response→消费者 issue 分布 UNKNOWN。 |
+| LSU-07 故障与六源完成选择；`R64Lsu.v` 的 `faults`、`event_select` | fault队列2×2槽：VA64+cause6+tag9；raw×2、fault×2、full-forward×2共6源取2；`event_before_q[5:0]` 保存轮转历史，bit5按现有更新式恒0。 | 格式化/资格/仲裁/宽结果 mux 是同拍组合；只有 CQ 实际捕获才弹出来源与前移轮转。`event_before_q` 已直接同步 reset；当前 CQ 输入要求 dense prefix，不接受仅第二项的 `2'b10`。 | 六取二与 R=140 已知；每源等待、取消命中频度及仲裁饥饿界实际分布 UNKNOWN。最差 reset→event_before 路径与 Q 起点证据见下文，不能由静态路径推断动态丢失周期。 |
+| LSU-08 完成持有与写回需求；`R64LsuCompletion.v` | 当前为2条物理 lane，每 lane front+skid，总4项，每项 result140+tag9；front/back有效各2位、turn1位。front 被消费/取消时 skid 搬到 front。 | 信用取 `~back_q` 加 reset/flush 门控，不借用当拍 out_ready；输出 valid 当拍检查 kill/flush。`out_request` 可提前申请 WB 端口，但实际 `out_valid && out_ready` 才交付。背压 head 不跨 lane 迁移。 | payload/tag 已无 reset 清零；同步 reset 分支、front_remove（ready/flush/kill）仍进入 payload 更新/保持选择。局部输入改善不能当作 CQ→WB 不退化的证据。占用/等待分布 UNKNOWN。 |
+| LSU-09 普通 store 完成；`R64Lsu.v` 的 `store_done_*` | 独立1项 terminal：tag9+error1+tval64+valid1，接收 DC 真正 B 结果后送 ROB 专用 store_done 端口；不走 LSU-07/08。 | 成功不可逆 owner 保留到退休；错误保留精确异常。完整 tag 认证；commit/flush 与外部 effect 的互斥仍由真实控制合同保证。不能把 enqueue/AW/W 当作成功 B。 | 单终端容量已知；store_done→ROB/retire 延迟与占用瓶颈 UNKNOWN。 |
+| LSU-10 非对齐序列；`R64MemorySplit.v` | 1个慢 owner：state2、token5、address/store/gather 各64、step/last各3等；IDLE→SEND→WAIT→DONE。对齐路径不在这里强加寄存拍。 | 对齐请求可双 lane 旁路；未对齐按 byte 顺序发出并聚合响应。输入预选 request 仅准备 Service 选择；真实 VALID/READY 才建立 owner，pending split 不得借提示创建新 CPU owner。 | 1慢 owner；与错误终止相关的分片数及额外周期 UNKNOWN。 |
+| LSU-11 CPU/PTW 物理服务；`R64MemoryService.v` | 请求2 lane×2槽，payload219=212+token5+source2；aux3路各1个 busy owner/返回 holder，返回data64+error+compare。 | CPU/aux 组合配对与bank判定→请求槽Q→Dcache；token的source负责回包分流。真实 enqueue 才更新 owner/轮转，空槽可预写。没有通过 ROB kill 撤销已接受 PTE/CPU物理请求的端口。 | 最大双 request 接受不等于所有组合都双发；CPU/PTW仲裁等待、same-bank冲突、返回队头阻塞 UNKNOWN。 |
+| LSU-12 Dcache lookup/慢事务/写阵列；`R64Dcache.v` | 见第6节：8KiB、2way、2bank，各 bank 1 lookup+1 response；主慢 owner1+普通cached store B owner1；每bank1项pending write。对 Service token 为7位（slot5+source2）。 | 命中、慢 owner、store B、R/B 写口与 pending 数据转发是不同边界。成功 B 后更新驻留字节，失败不写；invalidate poison不能撤销 AXI。pending write 是已有一拍结构，不是新候选。 | 原始阵列位数/容量已知；实际每类hit/miss延迟、miss并发受限损失、分bank冲突、宏/SRAM替换后的PPA UNKNOWN。 |
+
+当前共享队列 `R64LsuRequestQueue` 已使用 Q 空槽 payload 预写、独立 valid 发布以及 ROB slot one-hot 引用保护，
+不能把它与已回退的固定槽 **Completion** 实验混为一谈。取消网络仍必须覆盖 full-tag 存续与 ROB slot 复用；
+单纯增加全局 epoch 并未自动替代 partial kill、pin 或已接受事务的 drain。
+
+当前版本的动态证据来自 [round1 结果](../../ai/tests/2026-10-08-load-response-bypass/RESULT.md)：
+定向空 CQ load链 response→CQ=0拍、response→WB=2拍；这不是通用 load-to-use 延迟，也未观测消费者 issue。
+当前版本在第二轮对照中作为 B，CoreMark10 为8,968,518 cycles/3,218,537 commits，
+Dhrystone10000 为14,267,505 cycles/4,260,670 commits。
+[第二轮物理对照](../../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md) 中 B 的
+CQ payload Q起点最差 slack 为−1.892150521 ns、raw控制为−1.749530077 ns，均是同一1ns布局前模型的路径集结果。
+[端点对照](../../results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md) 保存 reset→flush→kill→完成/接受状态的映射。
+这些测量不能折算为每个单元的独立面积、可达频率或程序周期贡献；尚缺的分项均保持 UNKNOWN。

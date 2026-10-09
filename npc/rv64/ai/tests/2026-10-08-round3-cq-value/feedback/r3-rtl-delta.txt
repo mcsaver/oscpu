@@ -1,0 +1,1298 @@
+R3 SOURCE DELTA
+This is the exact measured combined candidate relative to B. Current active source is restored B. No standalone mapped ablation exists.
+
+===== SOURCE ADAPTATIONS FROM YOUR PROPOSAL =====
+# R3 落地前源码核查
+
+本文保留实现前核查时的事实；后续实现、测量与淘汰结论见[第三轮报告](../2026-10-08-round3-cq-value/RESULT.md)。
+
+核查对象是 [网页完整回答](response.txt) 的 R3：`LOCAL_CANCEL_PUBLISH + CQ_VALUE_BYPASS`。
+保留网页架构选择；以下是当前源码事实和普通实现适配，不是新架构替案。
+本次未修改生产 RTL、测试或 SDC，未运行新 RTL 仿真、综合或 STA。
+
+## 性能机制成立的条件
+
+当前 Issue 选择只读 ready_q，wake 在时钟边沿更新 ready，没有当拍 wake 直通 issue 的捷径。
+假设 response 在 E0 被 CQ 捕获，已有 hint 及时拿到 WB grant，消费者已初始化、其他源就绪且 RR 有信用：
+
+| 事件 | 当前 B | R3 预期 |
+|---|---|---|
+| response/CQ 捕获 | E0 | E0 |
+| WB payload/accepted/certificate 捕获、CQ pop | E1 | E1 |
+| 消费者 ready 更新 | E2 常规 WB | E1 CQ early |
+| 消费者 issue / RR ingress 接收 | E3 | E2 |
+| RR 实际读值快照 | E4 | E3 |
+| 正常 ROB done / PRF 写入 | E2 | E2 |
+
+这是源码边沿推导，尚非本轮动态实测。CQ→WB→PRF没有必然的数据空窗：CQ pop与WB捕获同边沿，
+随后原WB转发可供值，再下一边沿写PRF。新增CQ路径必须同样捕获实际data和hit，不能只保存lane编号。
+
+证据：[Issue:188](../../../vsrc/backend/R64Issue.v#L188)、[Issue:428](../../../vsrc/backend/R64Issue.v#L428)、
+[WB:153](../../../vsrc/backend/R64Writeback.v#L153)、[WB:172](../../../vsrc/backend/R64Writeback.v#L172)、
+[ROB:394](../../../vsrc/backend/R64Rob.v#L394)、[RR:445](../../../vsrc/backend/R64RegRead.v#L445)。
+
+## 必须带入实现的修正
+
+1. **新增两路独立 ROB short-owner 查询。** 当前 WB 的两个 owner query 已经经过 grant 选择，
+   不能用于 grant-independent 的 CQ early。已有四路 short-owner 全被 ALU early/bypass 使用。
+   可按网页条件化方案扩为六路或另加两路，保持完整tag/preg校验及正常WB certificate边界。
+   证据：[WB:130](../../../vsrc/backend/R64Writeback.v#L130)、[WB:146](../../../vsrc/backend/R64Writeback.v#L146)、
+   [Backend:245](../../../vsrc/backend/R64Backend.v#L245)、[ROB:123](../../../vsrc/backend/R64Rob.v#L123)。
+2. **DEFER_READY 与移位量也必须消费新旁路。** early需接入初始化的ready_query_complete和驻留wake；
+   RR除了最终operand，还在原读边沿形成shift_amount，新CQ命中要覆盖read_bypass_b_w。
+   当前RR原四源是masked-OR加同preg同值断言，不是网页伪码描述的显式优先级树；沿原语义扩展。
+   证据：[Backend:354](../../../vsrc/backend/R64Backend.v#L354)、[RR:201](../../../vsrc/backend/R64RegRead.v#L201)、
+   [RR:287](../../../vsrc/backend/R64RegRead.v#L287)、[RR:635](../../../vsrc/backend/R64RegRead.v#L635)。
+3. **修正 canonical kill 方程。** 令F=full_flush，V=ROB valid，A=原partial publication资格，Y=plan_younger，
+   当前为 `K=V & (F | (A & Y))`，令 `P=V & A & Y`。网页写的 `K=F|P` 对完整位图不成立；
+   LSU实际使用的最终资格满足 `F|K = F|P`。保留原canonical K，分离partial A/C时保留valid、pending、plan_valid。
+   PREPARED_CANCEL的等价断言应核对完整owner denial，不可删除检查；全清仍作用于已退出ROB但尚待drain的owner。
+   证据：[ROB:246](../../../vsrc/backend/R64Rob.v#L246)、[ROB:545](../../../vsrc/backend/R64Rob.v#L545)、
+   [RequestQueue:128](../../../vsrc/lsu/R64LsuRequestQueue.v#L128)。
+4. **ticket和value_ok要在LSQ释放前保存。** birth已有pnew/rd_write/rd_fp，需经CoreTop→Memory→LoadStore透传。
+   raw/空raw旁路响应接受边沿、full-forward terminal接受边沿均能读取原owner字段。
+   raw152和forward77压缩payload不保留全部RAM class/排除条件，因此必须在这些边沿保存value_ok。
+   early资格显式要求普通RAM class<2、对齐、非store/atomic/side-effect、无error和非零GPR目的；fault恒0。
+   空raw ticket选择必须跟raw_occupied而不是受kill遮蔽的raw_valid。不得向响应ready增加同拍partial kill反馈。
+   证据：[Backend:228](../../../vsrc/backend/R64Backend.v#L228)、[LSU:1346](../../../vsrc/lsu/R64Lsu.v#L1346)、
+   [LSU:1382](../../../vsrc/lsu/R64Lsu.v#L1382)、[LSU:1505](../../../vsrc/lsu/R64Lsu.v#L1505)、
+   [LSU:1601](../../../vsrc/lsu/R64Lsu.v#L1601)、[LSU:1754](../../../vsrc/lsu/R64Lsu.v#L1754)。
+5. **269 bit不是整个实现的状态成本。** 按RR现有四源快照直接扩成六源，4个terminal+2个ingress各新增
+   2×64 bit实际数据和3×2 bit命中，共804 bit（数据768、命中36）。与网页ticket/发布位269相加，
+   条件化声明增量小计为1073 bit。仍不是最终综合FF数或面积；常量和未用字段可能裁剪，其他实现改动另计。
+   FPR rank不因新增两个GPR来源而直接加宽。证据：[RR:104](../../../vsrc/backend/R64RegRead.v#L104)、
+   [RR:453](../../../vsrc/backend/R64RegRead.v#L453)、[RR:461](../../../vsrc/backend/R64RegRead.v#L461)。
+
+## 同拍发布公式核对
+
+按 [Commit:133](../../../vsrc/control/R64Commit.v#L133) 的非阻塞赋值优先级，网页简化更新式与
+下一拍 `event_valid && (!event_trap || event_prepared)` 一致。独立枚举7个状态/条件布尔量的128组，0反例；
+reset建立不变量后可逐拍保持。保留原trap_prepare/effect_allow/stop_birth定义，不能写成上一拍flush的寄存。
+owner-denial化简的16组布尔枚举也为0反例；这只是状态方程核对，不是新RTL形式验证或仿真通过。
+
+## 实验仍需回答
+
+当前未发现推翻R3选型的源码前提错误。仍需真实实现与定向测试证明：消费者确实提前；目的凭据和值不串owner；
+WB长背压、两lane、skid晋升、kill+response/交接、DEFER_READY相邻birth、tag/preg复用、load→shift均正确。
+随后同一完整R3的CoreMark/Dhrystone和原约束SystemTop STA才能裁决整核收益。
+重点物理风险是新增short-owner→IQ、CQ→RR扇出/选择、publish D及广播，以及原effect/mem_issued尾段。
+源码核查不能给这些风险出具PASS；本轮不把候选ID CTL-05/BE-10写入当前生产拓扑。
+
+
+===== EXACT PRODUCTION RTL PATCH =====
+--- a/npc/rv64/vsrc/backend/R64Backend.v
++++ b/npc/rv64/vsrc/backend/R64Backend.v
+@@ -1,6 +1,7 @@
+ `include "R64Uop.vh"
+ // Native 2-wide backend: one birth allocates ROB, rename, IQ and MEM LSQ owner.
+-// Only canonical ROB-accepted completion tuples write/wake the PRF. All
++// Only canonical ROB-accepted completion tuples write the PRF. Authorized
++// held CQ values may wake consumers without completing their producer. All
+ // external effects belong to tagged LSU/FP/serial owners beyond their ingress.
+ module R64Backend #(
+   parameter TAG_W = 9,
+@@ -14,6 +15,7 @@
+   parameter WB_DEFER_REQUEST = 0,
+   parameter WB_REQUEST_HINTS = 0,
+   parameter RR_ALU_BYPASS = 1,
++  parameter CQ_VALUE_BYPASS = 0,
+   parameter ISSUE_SLOTS = 16
+ ) (
+   input                        clk,
+@@ -53,6 +55,8 @@
+   output                       resolve_conditional_o, resolve_indirect_o, resolve_taken_o,
+   output [     (1<<ROB_W)-1:0] kill_mask_o, cancel_candidates_o,
+   output                       cancel_active_o,
++  output [     (1<<ROB_W)-1:0] lsu_cancel_candidates_o,
++  output                       lsu_cancel_active_o,
+   output [          TAG_W-1:0] head_tag_o,
+   output                       head_serial_o,
+   output                       head_exception_o,
+@@ -63,6 +67,7 @@
+   output [                1:0] lsu_reserve_fire_o,
+   output [        2*TAG_W-1:0] lsu_reserve_tag_o,
+   output [               15:0] lsu_reserve_func_o,
++  output [               15:0] lsu_reserve_ticket_o,
+   output [                9:0] lsu_reserve_amo_o,
+   input  [                1:0] lsu_reserve_ready_i,
+   input  [        2*LSQ_W-1:0] lsu_reserve_slot_i,
+@@ -91,6 +96,7 @@
+   input                        store_done_error_i,
+   input  [               63:0] store_done_tval_i,
+   input  [                3:0] external_valid_i, external_request_i,
++  input  [               17:0] lsu_value_ticket_i,
+   output [                3:0] external_ready_o,
+   input  [        4*TAG_W-1:0] external_tag_i,
+   input  [4*`R64_RESULT_W-1:0] external_result_i
+@@ -164,6 +170,56 @@
+   wire [2*TAG_W-1:0] wb_owner_query_tag_w;
+   wire [2*WB_OWNER_BANKS*WB_CERT_W-1:0] wb_owner_query_cert_w;
+   wire [2*WB_CERT_W-1:0] wb_owner_cert_w;
++  localparam SHORT_PORTS = CQ_VALUE_BYPASS != 0 ? 6 : 4;
++  localparam EARLY_PORTS = CQ_VALUE_BYPASS != 0 ? 4 : 2;
++  wire [SHORT_PORTS-1:0] short_valid_w, short_accept_w;
++  wire [SHORT_PORTS*TAG_W-1:0] short_tag_w;
++  wire [SHORT_PORTS*P-1:0] short_preg_w;
++  wire [EARLY_PORTS-1:0] issue_early_valid_w;
++  wire [EARLY_PORTS*P-1:0] issue_early_preg_w;
++  wire [1:0] raw_cq_value_valid_w, cq_value_valid_w;
++  wire [2*TAG_W-1:0] cq_value_tag_w;
++  wire [2*P-1:0] cq_value_pdst_w;
++  wire [127:0] cq_value_data_w;
++  assign short_valid_w[3:0] = {raw_alu_bypass_valid_w, raw_early_valid_w};
++  assign short_tag_w[0+:4*TAG_W] = {local_tag_w[0+:2*TAG_W], early_tag_w};
++  assign short_preg_w[0+:4*P] = {alu_bypass_preg_w, early_preg_w};
++  assign {alu_bypass_valid_w, early_valid_w} = short_accept_w[3:0];
++  assign issue_early_valid_w[1:0] = early_valid_w;
++  assign issue_early_preg_w[0+:2*P] = early_preg_w;
++  generate
++    if (CQ_VALUE_BYPASS != 0) begin : gen_cq_value
++      assign short_valid_w[5:4] = raw_cq_value_valid_w;
++      assign short_tag_w[4*TAG_W+:2*TAG_W] = cq_value_tag_w;
++      assign short_preg_w[4*P+:2*P] = cq_value_pdst_w;
++      assign cq_value_valid_w = short_accept_w[5:4];
++      assign issue_early_valid_w[3:2] = cq_value_valid_w;
++      assign issue_early_preg_w[2*P+:2*P] = cq_value_pdst_w;
++      for (genvar cq_lane = 0; cq_lane < 2; cq_lane = cq_lane + 1) begin : lane
++        wire [8:0] ticket_w = lsu_value_ticket_i[cq_lane*9+:9];
++        // Actual held CQ front VALID, never request hints or a WB grant.
++        assign raw_cq_value_valid_w[cq_lane] = external_valid_i[cq_lane] && ticket_w[8] &&
++            ticket_w[7] && !ticket_w[6] && ticket_w[5:0] != 0 &&
++            !external_result_i[cq_lane*R+64];
++        assign cq_value_tag_w[cq_lane*TAG_W+:TAG_W] = external_tag_i[cq_lane*TAG_W+:TAG_W];
++        assign cq_value_pdst_w[cq_lane*P+:P] = ticket_w[5:0];
++        assign cq_value_data_w[cq_lane*64+:64] = external_result_i[cq_lane*R+:64];
++      end
++    end else begin : gen_no_cq_value
++      assign raw_cq_value_valid_w = 0;
++      assign cq_value_valid_w = 0;
++      assign cq_value_tag_w = 0;
++      assign cq_value_pdst_w = 0;
++      assign cq_value_data_w = 0;
++    end
++    for (genvar birth_lane = 0; birth_lane < 2; birth_lane = birth_lane + 1) begin : gen_lsu_ticket
++      // Metadata shares the common birth edge with the canonical LSQ owner.
++      assign lsu_reserve_ticket_o[birth_lane*8+:8] = {
++        rd_write_w[birth_lane], rd_fp_w[birth_lane], pnew_w[birth_lane*P+:P]
++      };
++    end
++  endgenerate
++
+   wire [1:0] wb_valid_w, wb_accept_w, wb_write_w, wb_fp_w;
+   wire [2*TAG_W-1:0] wb_tag_w;
+   wire [2*R-1:0] wb_result_w;
+@@ -197,6 +253,7 @@
+   wire recovery_preview_valid_w;
+   wire [TAG_W-1:0] recovery_preview_tag_w;
+   R64Rob #(
++    .SHORT_PORTS(SHORT_PORTS),
+     .OWNER_CERTIFICATE(1),
+     .SERIAL_PAYLOAD(1),
+     .HEAD_SERIAL_CACHE(1),
+@@ -242,10 +299,10 @@
+     .wb_cause_i(wb_cause_w),
+     .wb_tval_i(wb_tval_w),
+     .wb_fflags_i(wb_fflags_w),
+-    .short_valid_i({raw_alu_bypass_valid_w, raw_early_valid_w}),
+-    .short_tag_i({local_tag_w[0+:2*TAG_W], early_tag_w}),
+-    .short_preg_i({alu_bypass_preg_w, early_preg_w}),
+-    .short_accept_o({alu_bypass_valid_w, early_valid_w}),
++    .short_valid_i(short_valid_w),
++    .short_tag_i(short_tag_w),
++    .short_preg_i(short_preg_w),
++    .short_accept_o(short_accept_w),
+     .wb_accept_o(wb_accept_w),
+     .wb_rd_write_o(wb_write_w),
+     .wb_rd_fp_o(wb_fp_w),
+@@ -274,6 +331,8 @@
+     .undo_pold_o(undo_pold_w),
+     .cancel_candidates_o(cancel_candidates_w),
+     .cancel_active_o(cancel_active_w),
++    .lsu_cancel_active_o(lsu_cancel_active_o),
++    .lsu_cancel_candidates_o(lsu_cancel_candidates_o),
+     .kill_mask_o(kill_mask_o),
+     .recover_o(recover_o),
+     .head_exception_o(head_exception_o),
+@@ -358,7 +417,9 @@
+       assign ready_query_complete_w[l] = ready_query_canonical_w[l] ||
+           (!ready_query_fp_w[l] &&
+            ((alu_bypass_valid_w[0] && ready_query_preg_w[l*P+:P] == alu_bypass_preg_w[0+:P]) ||
+-            (alu_bypass_valid_w[1] && ready_query_preg_w[l*P+:P] == alu_bypass_preg_w[P+:P])));
++            (alu_bypass_valid_w[1] && ready_query_preg_w[l*P+:P] == alu_bypass_preg_w[P+:P]) ||
++             (cq_value_valid_w[0] && ready_query_preg_w[l*P+:P] == cq_value_pdst_w[0+:P]) ||
++             (cq_value_valid_w[1] && ready_query_preg_w[l*P+:P] == cq_value_pdst_w[P+:P])));
+     end
+   endgenerate
+ `ifdef R64_ASSERT
+@@ -389,6 +450,7 @@
+     end
+ `endif
+   R64Issue #(
++    .EARLY_PORTS(EARLY_PORTS),
+     .N(ISSUE_SLOTS),
+     .SLOT_W($clog2(ISSUE_SLOTS)),
+     .MDU_RESOURCE_PAIR(1),
+@@ -427,8 +489,8 @@
+     .wake_valid_i(wb_write_w),
+     .wake_fp_i(wb_fp_w),
+     .wake_preg_i(wb_preg_w),
+-    .early_valid_i(early_valid_w),
+-    .early_preg_i(early_preg_w),
++    .early_valid_i(issue_early_valid_w),
++    .early_preg_i(issue_early_preg_w),
+     .fu_allow_i(6'b111111),
+     .serial_allow_i(serial_allow_i),
+     .issue_ready_i(read_credit_w),
+@@ -445,6 +507,7 @@
+     .count_o()
+   );
+   R64RegRead #(
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
+     .ALU_TERMINAL_BYPASS(RR_ALU_BYPASS),
+     .PREQUALIFIED_ISSUE(1),
+     .Q_ONLY_TERMINAL(1),
+@@ -494,7 +557,10 @@
+     .out_gpr_dst_o(read_dst_w),
+     .alu_bypass_valid_i(alu_bypass_valid_w),
+     .alu_bypass_preg_i(alu_bypass_preg_w),
+-    .alu_bypass_data_i(alu_bypass_data_w)
++    .alu_bypass_data_i(alu_bypass_data_w),
++    .cq_value_valid_i(cq_value_valid_w),
++    .cq_value_pdst_i(cq_value_pdst_w),
++    .cq_value_data_i(cq_value_data_w)
+   );
+   wire [4:0] local_valid_w, local_ready_w;
+   wire [5*TAG_W-1:0] local_tag_w;
+--- a/npc/rv64/vsrc/backend/R64Issue.v
++++ b/npc/rv64/vsrc/backend/R64Issue.v
+@@ -10,6 +10,7 @@
+   parameter TAG_W = 9,
+   parameter PREG_W = 6,
+   parameter DEFER_READY = 0,
++  parameter EARLY_PORTS = 2,
+   parameter MDU_RESOURCE_PAIR = 0,
+   parameter PAYLOAD_W = 128,
+   parameter MEM_WIDTH = 2,
+@@ -42,8 +43,8 @@
+   input  [               1:0] wake_valid_i,
+   input  [               1:0] wake_fp_i,
+   input  [      2*PREG_W-1:0] wake_preg_i,
+-  input  [               1:0] early_valid_i,
+-  input  [      2*PREG_W-1:0] early_preg_i,
++  input  [     EARLY_PORTS-1:0] early_valid_i,
++  input  [EARLY_PORTS*PREG_W-1:0] early_preg_i,
+   input  [               5:0] fu_allow_i,
+   input                       serial_allow_i,
+   input  [               1:0] issue_ready_i,
+@@ -442,10 +443,10 @@
+             if (wake_valid_i[w] && fp_q[s][j] == wake_fp_i[w] &&
+                 src_q[s][j*PREG_W+:PREG_W] == wake_preg_i[w*PREG_W+:PREG_W])
+               ready_q[s][j] <= 1'b1;
+-            // Only a real short-ALU execute acceptance may wake early. The
+-            // producer result is held/bypassable before the consumer reads.
++            // Authorized short ALU accepts and held CQ values may wake early.
++            // Their value remains available through the original read edge.
+             for (j = 0; j < 2; j = j + 1)
+-            for (w = 0; w < 2; w = w + 1)
++            for (w = 0; w < EARLY_PORTS; w = w + 1)
+             if (early_valid_i[w] && !fp_q[s][j] &&
+                 src_q[s][j*PREG_W+:PREG_W] == early_preg_i[w*PREG_W+:PREG_W])
+               ready_q[s][j] <= 1'b1;
+@@ -465,7 +466,7 @@
+                   enq_src_preg_i[(lane*3+j)*PREG_W+:PREG_W] == wake_preg_i[w*PREG_W+:PREG_W])
+                 new_ready[j] = 1'b1;
+               for (j = 0; j < 2; j = j + 1)
+-              for (w = 0; w < 2; w = w + 1)
++              for (w = 0; w < EARLY_PORTS; w = w + 1)
+               if (early_valid_i[w] && !enq_src_fp_i[lane*3+j] &&
+                   enq_src_preg_i[(lane*3+j)*PREG_W+:PREG_W] == early_preg_i[w*PREG_W+:PREG_W])
+                 new_ready[j] = 1'b1;
+--- a/npc/rv64/vsrc/backend/R64RegRead.v
++++ b/npc/rv64/vsrc/backend/R64RegRead.v
+@@ -14,6 +14,7 @@
+   parameter PREQUALIFIED_ISSUE = 0,
+   parameter Q_ONLY_TERMINAL = 0,
+   parameter ALU_TERMINAL_BYPASS = 0,
++  parameter CQ_VALUE_BYPASS = 0,
+   parameter ROB_W = 5,
+   parameter TAG_W = 9,
+   parameter PAYLOAD_W = 128,
+@@ -44,6 +45,9 @@
+   input  [               1:0] alu_bypass_valid_i,
+   input  [      2*PREG_W-1:0] alu_bypass_preg_i,
+   input  [             127:0] alu_bypass_data_i,
++  input  [               1:0] cq_value_valid_i,
++  input  [      2*PREG_W-1:0] cq_value_pdst_i,
++  input  [             127:0] cq_value_data_i,
+   // Native bypass mode publishes a resident candidate to Execute. Only
+   // VALID/READY transfers it; Execute must not retain an unaccepted candidate.
+   // Generic mode retains the original FIFO held-output contract.
+@@ -73,6 +77,8 @@
+     end
+   endfunction
+ 
++  localparam FORWARD_N = CQ_VALUE_BYPASS != 0 ? 6 : 4;
++  localparam FORWARD_HITS = 3 * FORWARD_N;
+   reg [63:0] gpr_q[0:PREG_N-1], fpr_q[0:PREG_N-1];
+   reg [PREG_N-1:0] ginit_q, finit_q;
+   // Three owned slots per lane hide the credit return without a READY cone.
+@@ -101,8 +107,8 @@
+   // A physical read snapshots storage and forward identities independently.
+   // Late WB destination matching only reaches a small hit register; bank/
+   // forward selection occurs from this owned snapshot after the read edge.
+-  reg [11:0] forward_hit_q[0:3], ingress_forward_hit_q[0:1];
+-  reg [255:0] forward_data_q[0:3], ingress_forward_data_q[0:1];
++  reg [FORWARD_HITS-1:0] forward_hit_q[0:3], ingress_forward_hit_q[0:1];
++  reg [FORWARD_N*64-1:0] forward_data_q[0:3], ingress_forward_data_q[0:1];
+   // Address/owner admission precedes physical read. A read result can remain
+   // in ingress if its output is held, without reserving a physical read port.
+   reg [1:0] ingress_valid_q, operand_ready_q;
+@@ -200,20 +206,28 @@
+   endgenerate
+   function [63:0] compose_operand;
+     input [63:0] stored;
+-    input [3:0] hit;
+-    input [255:0] values;
+-    reg [63:0] v0, v1, v2, v3;
++    input [FORWARD_N-1:0] hit;
++    input [FORWARD_N*64-1:0] values;
++    integer source;
+     begin
+-      v0 = values[0+:64] & {64{hit[0]}};
+-      v1 = values[64+:64] & {64{hit[1]}};
+-      v2 = values[128+:64] & {64{hit[2]}};
+-      v3 = values[192+:64] & {64{hit[3]}};
+-      compose_operand = (v0 | v1) | (v2 | v3) | (stored & {64{!(|hit)}});
++      compose_operand = stored & {64{!(|hit)}};
++      for (source = 0; source < FORWARD_N; source = source + 1)
++        compose_operand = compose_operand | (values[source*64+:64] & {64{hit[source]}});
+     end
+   endfunction
+-  wire [3:0] gpr_forward_valid_w = {wb_write_i & ~wb_fp_i, alu_bypass_valid_i};
+-  wire [4*PREG_W-1:0] gpr_forward_preg_w = {wb_preg_i, alu_bypass_preg_i};
+-  wire [255:0] gpr_forward_data_w = {wb_data_i, alu_bypass_data_i};
++  wire [FORWARD_N-1:0] gpr_forward_valid_w;
++  wire [FORWARD_N*PREG_W-1:0] gpr_forward_preg_w;
++  wire [FORWARD_N*64-1:0] gpr_forward_data_w;
++  assign gpr_forward_valid_w[3:0] = {wb_write_i & ~wb_fp_i, alu_bypass_valid_i};
++  assign gpr_forward_preg_w[0+:4*PREG_W] = {wb_preg_i, alu_bypass_preg_i};
++  assign gpr_forward_data_w[0+:256] = {wb_data_i, alu_bypass_data_i};
++  generate
++    if (CQ_VALUE_BYPASS != 0) begin : gen_cq_forward
++      assign gpr_forward_valid_w[5:4] = cq_value_valid_i;
++      assign gpr_forward_preg_w[4*PREG_W+:2*PREG_W] = cq_value_pdst_i;
++      assign gpr_forward_data_w[256+:128] = cq_value_data_i;
++    end
++  endgenerate
+   genvar p;
+   generate
+     for (p = 0; p < 4; p = p + 1) begin : gen_gpr_port
+@@ -230,7 +244,7 @@
+   // mapping in one cycle. Held packets retain all relevant physical values.
+   wire [639:0] read_operand_w;
+   wire [ 11:0] read_rank_w;
+-  wire [ 23:0] read_forward_hit_w;
++  wire [2*FORWARD_HITS-1:0] read_forward_hit_w;
+   generate
+     for (p = 0; p < 6; p = p + 1) begin : gen_operand
+       wire [PREG_W-1:0] source_w = read_src_w[p*PREG_W+:PREG_W];
+@@ -239,12 +253,25 @@
+           wb_preg_i[0+:PREG_W] == source_w;
+       wire wb1_hit_w = source_live_w && wb_write_i[1] && wb_fp_i[1] == read_fp_w[p] &&
+           wb_preg_i[PREG_W+:PREG_W] == source_w;
+-      assign read_forward_hit_w[p*4+0] = source_live_w && !read_fp_w[p] && alu_bypass_valid_i[0] &&
++      wire alu0_hit_w = source_live_w && !read_fp_w[p] && alu_bypass_valid_i[0] &&
+           alu_bypass_preg_i[0+:PREG_W] == source_w;
+-      assign read_forward_hit_w[p*4+1] = source_live_w && !read_fp_w[p] && alu_bypass_valid_i[1] &&
++      wire alu1_hit_w = source_live_w && !read_fp_w[p] && alu_bypass_valid_i[1] &&
+           alu_bypass_preg_i[PREG_W+:PREG_W] == source_w;
+-      assign read_forward_hit_w[p*4+2] = wb0_hit_w && !(read_fp_w[p] && wb1_hit_w);
+-      assign read_forward_hit_w[p*4+3] = wb1_hit_w;
++      assign read_forward_hit_w[p*FORWARD_N+0] = alu0_hit_w;
++      assign read_forward_hit_w[p*FORWARD_N+1] = alu1_hit_w;
++      assign read_forward_hit_w[p*FORWARD_N+2] = wb0_hit_w && !(read_fp_w[p] && wb1_hit_w);
++      assign read_forward_hit_w[p*FORWARD_N+3] = wb1_hit_w;
++      if (CQ_VALUE_BYPASS != 0) begin : cq_hit
++        // Preserve original WB/ALU matching. A CQ source only supplies a
++        // remaining GPR operand, and actual values are snapshotted below.
++        wire old_hit_w = alu0_hit_w || alu1_hit_w || wb0_hit_w || wb1_hit_w;
++        wire cq0_w = source_live_w && !read_fp_w[p] && cq_value_valid_i[0] &&
++            cq_value_pdst_i[0+:PREG_W] == source_w;
++        wire cq1_w = source_live_w && !read_fp_w[p] && cq_value_valid_i[1] &&
++            cq_value_pdst_i[PREG_W+:PREG_W] == source_w;
++        assign read_forward_hit_w[p*FORWARD_N+4] = !old_hit_w && cq0_w;
++        assign read_forward_hit_w[p*FORWARD_N+5] = !old_hit_w && !cq0_w && cq1_w;
++      end
+       assign read_rank_w[p*2+:2] = allocated_rank_q[p*2+:2];
+     end
+   endgenerate
+@@ -262,7 +289,7 @@
+       wire [63:0] stored_operand_w = !operand_used_q[p/3][p%3] ? 64'b0 :
+           operand_fp_q[p/3][p%3] ? stored_fpr_w[rank_q*64+:64] : stored_gpr_w;
+       assign terminal_operand_w[p*64+:64] = compose_operand(
+-          stored_operand_w, forward_hit_q[p/3][(p%3)*4+:4], forward_data_q[p/3]
++          stored_operand_w, forward_hit_q[p/3][(p%3)*FORWARD_N+:FORWARD_N], forward_data_q[p/3]
+       );
+     end
+     for (p = 0; p < 2; p = p + 1) begin : gen_lane
+@@ -285,7 +312,7 @@
+       assign out_operand_o[p*192+:192] = terminal_select_w[p] ?
+           terminal_operand_w[(p*2+1)*192+:192] : terminal_operand_w[p*2*192+:192];
+       wire [63:0] read_bypass_b_w = compose_operand(
+-          gdata_w[p*2+1], read_forward_hit_w[(p*3+1)*4+:4], gpr_forward_data_w
++          gdata_w[p*2+1], read_forward_hit_w[(p*3+1)*FORWARD_N+:FORWARD_N], gpr_forward_data_w
+       );
+       assign read_operand_w[p*320+:320] = {
+         fdata_w[2], fdata_w[1], fdata_w[0], gdata_w[p*2+1], gdata_w[p*2]
+@@ -451,7 +478,7 @@
+             operand_rank_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= operand_ready_q[lane] ?
+                 ingress_operand_rank_q[lane] : read_rank_w[lane*6+:6];
+             forward_hit_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= operand_ready_q[lane] ?
+-                ingress_forward_hit_q[lane] : read_forward_hit_w[lane*12+:12];
++                ingress_forward_hit_q[lane] : read_forward_hit_w[lane*FORWARD_HITS+:FORWARD_HITS];
+             forward_data_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= operand_ready_q[lane] ?
+                 ingress_forward_data_q[lane] : gpr_forward_data_w;
+           end
+@@ -465,7 +492,7 @@
+             ingress_operand_fp_q[lane] <= read_fp_w[lane*3+:3];
+             ingress_operand_used_q[lane] <= read_used_w[lane*3+:3];
+             ingress_operand_rank_q[lane] <= read_rank_w[lane*6+:6];
+-            ingress_forward_hit_q[lane] <= read_forward_hit_w[lane*12+:12];
++            ingress_forward_hit_q[lane] <= read_forward_hit_w[lane*FORWARD_HITS+:FORWARD_HITS];
+             ingress_forward_data_q[lane] <= gpr_forward_data_w;
+           end
+           if (in_fire_i[lane]) begin
+@@ -630,8 +657,8 @@
+   integer forward_a, forward_b;
+   always @(posedge clk)
+     if (!rst && !flush_i) begin
+-      for (forward_a = 0; forward_a < 4; forward_a = forward_a + 1)
+-      for (forward_b = forward_a + 1; forward_b < 4; forward_b = forward_b + 1)
++      for (forward_a = 0; forward_a < FORWARD_N; forward_a = forward_a + 1)
++      for (forward_b = forward_a + 1; forward_b < FORWARD_N; forward_b = forward_b + 1)
+       if (gpr_forward_valid_w[forward_a] && gpr_forward_valid_w[forward_b] &&
+           gpr_forward_preg_w[forward_a*PREG_W+:PREG_W] != 0 && gpr_forward_preg_w[
+           forward_a*PREG_W+:PREG_W] == gpr_forward_preg_w[forward_b*PREG_W+:PREG_W] &&
+--- a/npc/rv64/vsrc/backend/R64Rob.v
++++ b/npc/rv64/vsrc/backend/R64Rob.v
+@@ -1,6 +1,7 @@
+ // Native two-wide reorder buffer. Metadata is retire-only, not an execution uop.
+ // Tags are {generation, physical slot}; wb_accept is the sole authority for
+-// completion, PRF writes and wakeup. All completion inputs are drainable.
++// completion, PRF writes and normal wakeup; short queries authorize early
++// wake without completion. All completion inputs are drainable.
+ //
+ // kill_tag preserves its boundary and squashes only younger entries. Undo
+ // walks the retained rename history backwards, two entries per cycle. A new
+@@ -22,6 +23,7 @@
+   parameter SERIAL_PAYLOAD = 0,
+   parameter HEAD_SERIAL_CACHE = 0,
+   parameter LOCAL_KILL_FREEZE = 0,
++  parameter SHORT_PORTS = 4,
+   parameter OWNER_BANK_BITS = (INDEX_W > 2) ? 2 : 0,
+   parameter OWNER_BANKS = (1 << OWNER_BANK_BITS)
+ ) (
+@@ -68,12 +70,13 @@
+   output [                         1:0] wb_rd_write_o,
+   output [                         1:0] wb_rd_fp_o,
+   output [                2*PREG_W-1:0] wb_preg_o,
+-  // Read-only authorization for early wake (0/1) and ALU bypass (2/3).
++  // Read-only authorization for early wake (0/1), ALU bypass (2/3),
++  // and optional held-value sources. It never depends on a WB grant.
+   // These queries do not complete or mutate an entry.
+-  input  [                         3:0] short_valid_i,
+-  input  [                 4*TAG_W-1:0] short_tag_i,
+-  input  [                4*PREG_W-1:0] short_preg_i,
+-  output [                         3:0] short_accept_o,
++  input  [             SHORT_PORTS-1:0] short_valid_i,
++  input  [       SHORT_PORTS*TAG_W-1:0] short_tag_i,
++  input  [      SHORT_PORTS*PREG_W-1:0] short_preg_i,
++  output [             SHORT_PORTS-1:0] short_accept_o,
+   input  [                         1:0] commit_ready_i,
+   input                                 commit1_allow_i,
+   output [                         1:0] commit_valid_o,
+@@ -99,6 +102,8 @@
+   output [                       N-1:0] kill_mask_o,
+   output [                       N-1:0] cancel_candidates_o,
+   output                                cancel_active_o,
++  output [                       N-1:0] lsu_cancel_candidates_o,
++  output                                lsu_cancel_active_o,
+   output                                recover_o,
+   output                                head_exception_o,
+   output                                serial_valid_o,
+@@ -120,7 +125,7 @@
+   reg [INDEX_W:0] count_q, undo_count_q;
+   genvar short_port;
+   generate
+-    for (short_port = 0; short_port < 4; short_port = short_port + 1) begin : gen_short_owner
++    for (short_port = 0; short_port < SHORT_PORTS; short_port = short_port + 1) begin : gen_short_owner
+       wire [  TAG_W-1:0] query_tag_w = short_tag_i[short_port*TAG_W+:TAG_W];
+       wire [ PREG_W-1:0] query_preg_w = short_preg_i[short_port*PREG_W+:PREG_W];
+       wire [INDEX_W-1:0] slot_w = query_tag_w[INDEX_W-1:0];
+@@ -245,6 +250,10 @@
+   // No cancellation edge is delayed and no owner qualification is removed.
+   wire publication_kill_w = LOCAL_KILL_FREEZE ? (!rst && kill_pending_i && plan_valid_q) : kill_w;
+   assign cancel_active_o = flush_i || publication_kill_w;
++  // LSU receives the partial publication independently of full flush.
++  // Canonical kill/cancel outputs retain their original owner qualification.
++  assign lsu_cancel_active_o = publication_kill_w;
++  assign lsu_cancel_candidates_o = valid_q & plan_younger_q;
+   genvar k;
+   generate
+     for (k = 0; k < N; k = k + 1) begin : gen_kill
+--- a/npc/rv64/vsrc/control/R64Commit.v
++++ b/npc/rv64/vsrc/control/R64Commit.v
+@@ -9,7 +9,8 @@
+   parameter HEAD_SERIAL_STOP = 0,
+   parameter HEAD_EXCEPTION_STOP = 0,
+   parameter HEAD_SERIAL_CLASS = 0,
+-  parameter SCRATCH_READ_RESUME = 0
++  parameter SCRATCH_READ_RESUME = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0
+ ) (
+   input                      clk_i,
+   input                      rst_i,
+@@ -70,6 +71,7 @@
+   reg [63:0] retired_npc_q;
+   reg event_valid_q, event_trap_q, event_interrupt_q;
+   reg event_prepared_q;
++  reg publish_q;
+   // For a trap this is EPC; for serial recovery this same register is target.
+   reg [63:0] event_pc_q, event_tval_q;
+   reg [5:0] event_cause_q;
+@@ -94,7 +96,8 @@
+   wire capture_exception = active && head_exception && !irrevocable;
+   wire capture_interrupt = active && irq_pending_i && rob_empty_i && !irrevocable;
+   assign trap_prepare_o = !rst_i && event_valid_q && event_trap_q && !event_prepared_q;
+-  assign full_flush_o = !rst_i && event_valid_q && (!event_trap_q || event_prepared_q);
++  assign full_flush_o = !rst_i && (LOCAL_CANCEL_PUBLISH ? publish_q :
++      (event_valid_q && (!event_trap_q || event_prepared_q)));
+   assign redirect_o = full_flush_o;
+   assign redirect_target_o = event_trap_q ? trap_target_i : event_pc_q;
+   assign trap_o = full_flush_o && event_trap_q;
+@@ -130,6 +133,13 @@
+   wire scratch_read_w = SCRATCH_READ_RESUME != 0 && kind0 == `R64_K_CSR && rob_meta_i[192+:4] ==
+       4 && serial_inst_w[6:0] == 7'h73 && serial_inst_w[13] && serial_inst_w[19:15] == 0 &&
+       (serial_inst_w[31:20] == 12'h340 || serial_inst_w[31:20] == 12'h140);
++  // Same event boundary, not a delayed copy of full_flush. The event record
++  // remains authoritative; this bit is its current-cycle publication projection.
++  always @(posedge clk_i) begin
++    if (rst_i) publish_q <= 0;
++    else if (capture_exception || capture_interrupt) publish_q <= 0;
++    else publish_q <= (serial_commit_o && !scratch_read_w) || trap_prepare_o;
++  end
+   always @(posedge clk_i) begin
+     if (rst_i) begin
+       retired_npc_q <= RESET_PC;
+@@ -177,6 +187,9 @@
+ `ifdef R64_ASSERT
+   always @(posedge clk_i)
+     if (!rst_i) begin
++      if (LOCAL_CANCEL_PUBLISH && publish_q !==
++          (event_valid_q && (!event_trap_q || event_prepared_q)))
++        $fatal(1, "commit publication projection changed flush cycle");
+       if (HEAD_SERIAL_CLASS && rob_serial_i != {metadata_serial1, metadata_serial0})
+         $fatal(1, "ROB Serial class disagrees with retained metadata");
+       if (retire_fire_o[1] && !retire_fire_o[0]) $fatal(1, "commit retired a non-prefix pair");
+--- a/npc/rv64/vsrc/core/R64CoreTop.v
++++ b/npc/rv64/vsrc/core/R64CoreTop.v
+@@ -4,7 +4,9 @@
+ // The public memory interface is AXI4 including response IDs and last-beat.
+ module R64CoreTop #(
+   parameter [63:0] RESET_PC = 64'h80000000,
+-  parameter ISSUE_SLOTS = 16
++  parameter ISSUE_SLOTS = 16,
++  parameter CQ_VALUE_BYPASS = 1,
++  parameter LOCAL_CANCEL_PUBLISH = 1
+ ) (
+   input          clk_i,
+   input          rst_i,
+@@ -78,6 +80,25 @@
+   wire [63:0] control_target;
+   wire backend_redirect, recover, resolve, resolve_conditional, resolve_indirect, resolve_taken;
+   wire [63:0] backend_target, resolve_pc, resolve_npc;
++`ifdef R64_R3_DISABLE_CQ_VALUE_BYPASS
++  localparam R3_CQ_VALUE_BYPASS = 0;
++`else
++  localparam R3_CQ_VALUE_BYPASS = CQ_VALUE_BYPASS;
++`endif
++`ifdef R64_R3_DISABLE_LOCAL_CANCEL_PUBLISH
++  localparam R3_LOCAL_CANCEL_PUBLISH = 0;
++`else
++  localparam R3_LOCAL_CANCEL_PUBLISH = LOCAL_CANCEL_PUBLISH;
++`endif
++`ifdef R64_CQ_VALUE_PROFILE
++  // Observation-only build keeps the ticket when early consumption is disabled.
++  // It cannot authorize a wake, capture, completion or memory effect.
++  localparam R3_LSU_VALUE_TICKET = 1;
++`else
++  localparam R3_LSU_VALUE_TICKET = R3_CQ_VALUE_BYPASS;
++`endif
++  wire [31:0] partial_cancel_candidates;
++  wire partial_cancel_active;
+   wire [31:0] memory_cancel_candidates;
+   wire memory_cancel_active;
+   wire [8:0] head_tag, resolve_tag;
+@@ -269,11 +290,14 @@
+   wire [1:0] lsu_reserve_want, lsu_reserve_fire, lsu_reserve_ready;
+   wire [17:0] lsu_reserve_tag;
+   wire [15:0] lsu_reserve_func;
++  wire [15:0] lsu_reserve_ticket;
++  wire [17:0] lsu_value_ticket;
+   wire [9:0] lsu_reserve_amo, lsu_reserve_slot, lsu_slot;
+   wire store_done_valid, store_done_ready, store_done_error;
+   wire [ 8:0] store_done_tag;
+   wire [63:0] store_done_tval;
+   R64Backend #(
++    .CQ_VALUE_BYPASS(R3_CQ_VALUE_BYPASS),
+     .WB_REQUEST_HINTS(1),
+     .ISSUE_SLOTS(ISSUE_SLOTS),
+     .DIRECT_MEM_BIND(1),
+@@ -330,6 +354,8 @@
+     .kill_mask_o(kill_mask),
+     .cancel_candidates_o(memory_cancel_candidates),
+     .cancel_active_o(memory_cancel_active),
++    .lsu_cancel_candidates_o(partial_cancel_candidates),
++    .lsu_cancel_active_o(partial_cancel_active),
+     .head_tag_o(head_tag),
+     .head_serial_o(head_serial),
+     .head_exception_o(head_exception_raw),
+@@ -343,6 +369,8 @@
+     .lsu_reserve_slot_i(lsu_reserve_slot),
+     .lsu_reserve_tag_o(lsu_reserve_tag),
+     .lsu_reserve_func_o(lsu_reserve_func),
++    .lsu_reserve_ticket_o(lsu_reserve_ticket),
++    .lsu_value_ticket_i(lsu_value_ticket),
+     .lsu_reserve_amo_o(lsu_reserve_amo),
+     .lsu_fire_o(lsu_fire),
+     .lsu_tag_o(lsu_tag),
+@@ -492,6 +520,7 @@
+     .trigger_address_o(trigger_address)
+   );
+   R64Commit #(
++    .LOCAL_CANCEL_PUBLISH(R3_LOCAL_CANCEL_PUBLISH),
+     .SCRATCH_READ_RESUME(1),
+     .RESET_PC(RESET_PC),
+     .HEAD_SERIAL_ISSUE(1),
+@@ -545,6 +574,8 @@
+     .serial_allow_o(serial_allow)
+   );
+   R64Memory #(
++    .CQ_VALUE_BYPASS(R3_LSU_VALUE_TICKET),
++    .LOCAL_CANCEL_PUBLISH(R3_LOCAL_CANCEL_PUBLISH),
+     .HEAD_AUTHORIZED_QUERY(1),
+     .PREPARED_CANCEL(1)
+   ) memory (
+@@ -560,8 +591,9 @@
+     .flush_i(full_flush),
+     .invalidate_i(dma_invalidate_i),
+     .kill_mask_i(kill_mask),
+-    .cancel_candidates_i(memory_cancel_candidates),
+-    .cancel_active_i(memory_cancel_active),
++    .cancel_candidates_i(R3_LOCAL_CANCEL_PUBLISH ? partial_cancel_candidates :
++        memory_cancel_candidates),
++    .cancel_active_i(R3_LOCAL_CANCEL_PUBLISH ? partial_cancel_active : memory_cancel_active),
+     .head_valid_i(rob_count_o != 0),
+     .head_tag_i(head_tag),
+     .effect_allow_i(effect_allow),
+@@ -576,6 +608,7 @@
+     .reserve_slot_o(lsu_reserve_slot),
+     .reserve_tag_i(lsu_reserve_tag),
+     .reserve_func_i(lsu_reserve_func),
++    .reserve_ticket_i(lsu_reserve_ticket),
+     .reserve_amo_i(lsu_reserve_amo),
+     .in_tag_i(lsu_tag),
+     .in_uop_i(lsu_uop),
+@@ -585,6 +618,7 @@
+     .out_ready_i(external_ready[1:0]),
+     .out_tag_o(external_tag[17:0]),
+     .out_result_o(external_result[2*R-1:0]),
++    .out_value_ticket_o(lsu_value_ticket),
+     .reuse_block_o(lsu_reuse),
+     .irrevocable_o(lsu_irrevocable),
+     .idle_o(memory_owner_idle),
+--- a/npc/rv64/vsrc/lsu/R64LoadStore.v
++++ b/npc/rv64/vsrc/lsu/R64LoadStore.v
+@@ -5,6 +5,8 @@
+ module R64LoadStore #(
+   parameter EARLY_STORE = 1,
+   parameter HEAD_AUTHORIZED_QUERY = 0,
++  parameter CQ_VALUE_BYPASS = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0,
+   parameter PREPARED_CANCEL = 0,
+   parameter ENTRIES = 18,
+   parameter INDEX_W = 5,
+@@ -40,6 +42,7 @@
+   output [      2*INDEX_W-1:0] reserve_slot_o,
+   input  [        2*TAG_W-1:0] reserve_tag_i,
+   input  [               15:0] reserve_func_i,
++  input  [               15:0] reserve_ticket_i,
+   input  [                9:0] reserve_amo_i,
+   input  [                1:0] in_fire_i,
+   output [                1:0] in_ready_o,
+@@ -52,6 +55,7 @@
+   input  [                1:0] out_ready_i,
+   output [        2*TAG_W-1:0] out_tag_o,
+   output [2*`R64_RESULT_W-1:0] out_result_o,
++  output [               17:0] out_value_ticket_o,
+   output [     (1<<ROB_W)-1:0] reuse_block_o,
+   output                       irrevocable_o,
+   output                       idle_o,
+@@ -139,6 +143,8 @@
+     .EARLY_STORE(EARLY_STORE),
+     .HEAD_AUTHORIZED_QUERY(HEAD_AUTHORIZED_QUERY),
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .ENTRIES(ENTRIES),
+     .INDEX_W(INDEX_W),
+     .TAG_W(TAG_W),
+@@ -175,6 +181,7 @@
+     .reserve_slot_o(reserve_slot_o),
+     .reserve_tag_i(reserve_tag_i),
+     .reserve_func_i(reserve_func_i),
++    .reserve_ticket_i(reserve_ticket_i),
+     .reserve_amo_i(reserve_amo_i),
+     .in_fire_i(in_fire_i),
+     .in_ready_o(in_ready_o),
+@@ -187,6 +194,7 @@
+     .out_ready_i(out_ready_i),
+     .out_tag_o(out_tag_o),
+     .out_result_o(out_result_o),
++    .out_value_ticket_o(out_value_ticket_o),
+     .reuse_block_o(reuse_block_o),
+     .irrevocable_o(irrevocable_o),
+     .idle_o(lsu_idle_w),
+--- a/npc/rv64/vsrc/lsu/R64Lsu.v
++++ b/npc/rv64/vsrc/lsu/R64Lsu.v
+@@ -8,6 +8,8 @@
+   parameter HEAD_AUTHORIZED_QUERY = 0,
+   parameter PREPARED_CANCEL = 0,
+   parameter RESPONSE_BYPASS = 1,
++  parameter CQ_VALUE_BYPASS = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0,
+   parameter ENTRIES = 18,
+   parameter INDEX_W = 5,
+   parameter TAG_W = 9,
+@@ -43,6 +45,7 @@
+   output [      2*INDEX_W-1:0] reserve_slot_o,
+   input  [        2*TAG_W-1:0] reserve_tag_i,
+   input  [               15:0] reserve_func_i,
++  input  [               15:0] reserve_ticket_i,
+   input  [                9:0] reserve_amo_i,
+   input  [                1:0] in_fire_i,
+   output [                1:0] in_ready_o,
+@@ -55,6 +58,7 @@
+   input  [                1:0] out_ready_i,
+   output [        2*TAG_W-1:0] out_tag_o,
+   output [2*`R64_RESULT_W-1:0] out_result_o,
++  output [               17:0] out_value_ticket_o,
+   output [     (1<<ROB_W)-1:0] reuse_block_o,
+   output                       irrevocable_o,
+   output                       idle_o,
+@@ -89,6 +93,23 @@
+   input  [                1:0] mem_rsp_error_i,
+   input  [                5:0] mem_rsp_offset_i
+ );
++  // In local-publication mode candidates/active are pure partial victims.
++  // Full flush stays separate until each held owner's final qualification.
++  function owner_cancel;
++    input [ROB_W-1:0] slot;
++    input [(1 << ROB_W)-1:0] candidates, canonical;
++    input active;
++    begin
++      owner_cancel = LOCAL_CANCEL_PUBLISH ? (active && candidates[slot]) : canonical[slot];
++    end
++  endfunction
++`ifdef R64_ASSERT
++  always @(posedge clk_i)
++    if (!rst_i && LOCAL_CANCEL_PUBLISH &&
++        (({(1 << ROB_W){flush_i}} | kill_mask_i) !==
++         ({(1 << ROB_W){flush_i}} | ({(1 << ROB_W){cancel_active_i}} & cancel_candidates_i))))
++      $fatal(1, "R64Lsu partial cancel differs from canonical owner denial");
++`endif
+   localparam FREE = 0,
+       NEW = 1, TRANSLATING = 2, READY = 3, MEMORY = 4, DONE = 5, PINNED = 6, RETIRE = 7;
+   localparam U = `R64_UOP_W, R = `R64_RESULT_W;
+@@ -98,6 +119,7 @@
+   reg [ENTRIES-1:0] bound_q;
+   reg [ENTRIES-1:0] alive_q, tr_issued_q, mem_issued_q, needs_ad_q, effect_q, misaligned_q;
+   reg [TAG_W-1:0] tag_q[0:ENTRIES-1];
++  wire [7:0] value_ticket_w[0:ENTRIES-1];
+   reg [63:0] va_q[0:ENTRIES-1], pa_q[0:ENTRIES-1], store_q[0:ENTRIES-1];
+   reg [7:0] func_q[0:ENTRIES-1], mask_q[0:ENTRIES-1];
+   reg [4:0] amo_q[0:ENTRIES-1];
+@@ -116,9 +138,9 @@
+   assign reserve_slot_o[INDEX_W+:INDEX_W] = reserve_want_i[0] ?
+       allocation_slots_w[INDEX_W+:INDEX_W] : allocation_slots_w[0+:INDEX_W];
+   assign reserve_take_w[0] = reserve_fire_i[0] && reserve_want_i[0] && reserve_ready_o[0] &&
+-      !rst_i && !flush_i && !kill_mask_i[reserve_tag_i[0+:ROB_W]];
++      !rst_i && !flush_i && !owner_cancel(reserve_tag_i[0+:ROB_W], cancel_candidates_i, kill_mask_i, cancel_active_i);
+   assign reserve_take_w[1] = reserve_fire_i[1] && reserve_want_i[1] && reserve_ready_o[1] &&
+-      !rst_i && !flush_i && !kill_mask_i[reserve_tag_i[TAG_W+:ROB_W]];
++      !rst_i && !flush_i && !owner_cancel(reserve_tag_i[TAG_W+:ROB_W], cancel_candidates_i, kill_mask_i, cancel_active_i);
+   assign reserve_mask_w[0] = allocation_first_mask_w & {ENTRIES{reserve_take_w[0]}};
+   assign reserve_mask_w[1] = (reserve_want_i[0] ? allocation_second_mask_w :
+                               allocation_first_mask_w) & {ENTRIES{reserve_take_w[1]}};
+@@ -142,6 +164,16 @@
+   genvar g, z, other;
+   generate
+     for (g = 0; g < ENTRIES; g = g + 1) begin : gen_entry
++      if (CQ_VALUE_BYPASS) begin : g_value_ticket
++        reg [7:0] ticket_q;
++        always @(posedge clk_i)
++          if (!rst_i && (reserve_mask_w[0][g] || reserve_mask_w[1][g]))
++            ticket_q <= ({8{reserve_mask_w[0][g]}} & reserve_ticket_i[0+:8]) |
++                        ({8{reserve_mask_w[1][g]}} & reserve_ticket_i[8+:8]);
++        assign value_ticket_w[g] = ticket_q;
++      end else begin : g_no_value_ticket
++        assign value_ticket_w[g] = 8'b0;
++      end
+       assign live_entry_w[g] = alive_q[g] && state_q[g] != FREE;
+       assign older_relations_w[g*ENTRIES+:ENTRIES] = older_q[g];
+       for (other = 0; other < ENTRIES; other = other + 1) begin : gen_reverse_order
+@@ -150,7 +182,7 @@
+       assign older_barrier_w[g] = |(older_q[g] & barrier_w);
+       assign older_ordering_w[g] = |(older_q[g] & ordering_w);
+       assign issue_barrier_ok_w[g] = side_effect_w[g] || misaligned_q[g] || !older_barrier_w[g];
+-      assign killed_w[g] = flush_i || kill_mask_i[tag_q[g][ROB_W-1:0]];
++      assign killed_w[g] = flush_i || owner_cancel(tag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+ `ifdef R64_ASSERT
+       assign age_w[g] = tag_q[g][ROB_W-1:0] - head_tag_i[ROB_W-1:0];
+ `endif
+@@ -245,7 +277,7 @@
+   wire [TAG_W-1:0] xtag_q[0:1];
+   reg  [TAG_W-1:0] mtag_q[0:1];
+   wire [1:0] xkilled_w, mkilled_w;
+-  wire prepared_killed_w = flush_i || kill_mask_i[prepared_tag_q[ROB_W-1:0]];
++  wire prepared_killed_w = flush_i || owner_cancel(prepared_tag_q[ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+   reg prepared_valid_q, prepared_payload_valid_q;
+   reg [ DESC_W-1:0] prepared_payload_q;
+   reg [INDEX_W-1:0] prepared_slot_q;
+@@ -303,6 +335,7 @@
+   wire prepared_take_w = prepared_offer_w && query_credit_w[0] && !rst_i && !flush_i;
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .DATA_W(LOAD_DESC_W),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W),
+@@ -352,8 +385,8 @@
+   wire [1:0] xfire_w, mfire_w, xresponse_w;
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_lane
+-      assign xkilled_w[g] = flush_i || kill_mask_i[xtag_q[g][ROB_W-1:0]];
+-      assign mkilled_w[g] = flush_i || kill_mask_i[mtag_q[g][ROB_W-1:0]];
++      assign xkilled_w[g] = flush_i || owner_cancel(xtag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
++      assign mkilled_w[g] = flush_i || owner_cancel(mtag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+       assign tr_valid_o[g] = xvalid_q[g] && xcount_q[g] < 4;
+       assign tr_vaddr_o[g*64+:64] = va_q[xslot_q[g]];
+       assign tr_request_protection_o[g*4+:4] = xprotection_q[g];
+@@ -386,7 +419,7 @@
+       assign probe_store_w[g] = probe_atomic_w[g] ? (probe_amo_w[g] != 2) : probe_func_w[g][5];
+       assign
+           probe_side_effect_w[g] = probe_store_w[g] || probe_atomic_w[g] || probe_class_w[g] == 2;
+-      assign physical_hold_killed_w[g] = flush_i || kill_mask_i[physical_hold_tag_q[g][ROB_W-1:0]];
++      assign physical_hold_killed_w[g] = flush_i || owner_cancel(physical_hold_tag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+       assign physical_desc_w[g] = physical_hold_valid_q[g] ? physical_hold_data_q[g] :
+           query_data_w[g*QUERY_W+QD+:DESC_W];
+       assign physical_tag_w[g] = physical_hold_valid_q[g] ? physical_hold_tag_q[g] :
+@@ -701,6 +734,7 @@
+   wire translation_idle_w;
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .DATA_W(XREQUEST_W),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W),
+@@ -1000,6 +1034,7 @@
+   wire [1:0] query_full_w, query_occupied_w;
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .DATA_W(QUERY_W),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W),
+@@ -1273,6 +1308,9 @@
+   assign drain_idle_o = drained_w && terminal_idle_w;
+ 
+   localparam RAW_W = 152, META_W = TAG_W + 153;
++  localparam RAW_PACKET_W = RAW_W + (CQ_VALUE_BYPASS ? 9 : 0);
++  wire [2*RAW_PACKET_W-1:0] raw_packet_in_w, raw_packet_out_w;
++  wire [17:0] raw_in_ticket_w, raw_ticket_w, raw_event_ticket_w;
+   wire [1:0] raw_credit_w, raw_valid_w, raw_fire_w, input_response_live_w;
+   wire [1:0] raw_occupied_w, raw_queue_fire_w;
+   wire [1:0] response_bypass_offer_w, response_bypass_fire_w;
+@@ -1316,7 +1354,8 @@
+   endgenerate
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
+-    .DATA_W(RAW_W),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
++    .DATA_W(RAW_PACKET_W),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W)
+   ) response_queue (
+@@ -1334,16 +1373,33 @@
+     .in_fire_i(raw_queue_fire_w),
+     .in_ready_o(raw_credit_w),
+     .in_tag_i(raw_in_tag_w),
+-    .in_data_i(raw_in_data_w),
++    .in_data_i(raw_packet_in_w),
+     .out_valid_o(raw_valid_w),
+     .out_ready_i(event_grant_w[1:0]),
+     .out_tag_o(raw_tag_w),
+-    .out_data_o(raw_data_w),
++    .out_data_o(raw_packet_out_w),
+     .reuse_block_o(raw_reuse_w),
+     .idle_o(raw_idle_w)
+   );
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_response_capture
++      if (CQ_VALUE_BYPASS) begin : g_value_ticket
++        wire [7:0] ticket_w = value_ticket_w[input_response_slot_w[g]];
++        wire value_ok_w = response_bypass_eligible_w[input_response_slot_w[g]] &&
++            !mem_rsp_error_i[g] && ticket_w[7] && !ticket_w[6] && (|ticket_w[5:0]);
++        assign raw_in_ticket_w[g*9+:9] = {value_ok_w, ticket_w};
++        assign raw_packet_in_w[g*RAW_PACKET_W+:RAW_PACKET_W] =
++            {raw_in_ticket_w[g*9+:9], raw_in_data_w[g*RAW_W+:RAW_W]};
++        assign {raw_ticket_w[g*9+:9], raw_data_w[g*RAW_W+:RAW_W]} =
++            raw_packet_out_w[g*RAW_PACKET_W+:RAW_PACKET_W];
++      end else begin : g_no_value_ticket
++        assign raw_in_ticket_w[g*9+:9] = 9'b0;
++        assign raw_ticket_w[g*9+:9] = 9'b0;
++        assign raw_packet_in_w[g*RAW_PACKET_W+:RAW_PACKET_W] = raw_in_data_w[g*RAW_W+:RAW_W];
++        assign raw_data_w[g*RAW_W+:RAW_W] = raw_packet_out_w[g*RAW_PACKET_W+:RAW_PACKET_W];
++      end
++      assign raw_event_ticket_w[g*9+:9] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
++          raw_ticket_w[g*9+:9] : raw_in_ticket_w[g*9+:9];
+       assign input_response_slot_w[g] = mem_rsp_token_i[g*INDEX_W+:INDEX_W];
+       assign input_response_live_w[g] = alive_q[input_response_slot_w[g]] &&
+           !killed_w[input_response_slot_w[g]];
+@@ -1458,6 +1514,7 @@
+   reg [1:0] completion_fire_w;
+   reg [2*TAG_W-1:0] completion_tag_w;
+   reg [2*R-1:0] completion_result_w;
++  reg [17:0] completion_ticket_w;
+   wire [(1<<ROB_W)-1:0] completion_reuse_w, fault_reuse_w;
+   wire fault_idle_w;
+   wire completion_idle_w;
+@@ -1471,12 +1528,16 @@
+   wire [(1<<ROB_W)-1:0] forward_reuse_w;
+   wire forward_idle_w;
+   wire [153:0] forward_payload_w, forward_input_w;
++  localparam FORWARD_PACKET_W = 77 + (CQ_VALUE_BYPASS ? 9 : 0);
++  wire [2*FORWARD_PACKET_W-1:0] forward_packet_in_w, forward_packet_out_w;
++  wire [17:0] forward_ticket_w;
+   wire [2*TAG_W-1:0] forward_tags_w;
+   wire [1:0] unused_forward_age_w;
+   wire unused_forward_held_age_w;
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
+-    .DATA_W(77),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
++    .DATA_W(FORWARD_PACKET_W),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W)
+   ) forwarding_results (
+@@ -1490,7 +1551,7 @@
+     .in_fire_i(forward_take_w),
+     .in_ready_o(forward_credit_w),
+     .in_tag_i(query_tag_w),
+-    .in_data_i(forward_input_w),
++    .in_data_i(forward_packet_in_w),
+     .in_age_i(2'b0),
+     .age_clear_i(1'b0),
+     .out_age_o(unused_forward_age_w),
+@@ -1498,12 +1559,25 @@
+     .out_valid_o(forward_valid_q),
+     .out_ready_i(event_grant_w[5:4]),
+     .out_tag_o(forward_tags_w),
+-    .out_data_o(forward_payload_w),
++    .out_data_o(forward_packet_out_w),
+     .reuse_block_o(forward_reuse_w),
+     .idle_o(forward_idle_w)
+   );
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_forward_result
++      if (CQ_VALUE_BYPASS) begin : g_value_ticket
++        wire [7:0] ticket_w = value_ticket_w[query_slot_w[g]];
++        wire value_ok_w = response_bypass_eligible_w[query_slot_w[g]] &&
++            ticket_w[7] && !ticket_w[6] && (|ticket_w[5:0]);
++        assign forward_packet_in_w[g*FORWARD_PACKET_W+:FORWARD_PACKET_W] =
++            {value_ok_w, ticket_w, forward_input_w[g*77+:77]};
++        assign {forward_ticket_w[g*9+:9], forward_payload_w[g*77+:77]} =
++            forward_packet_out_w[g*FORWARD_PACKET_W+:FORWARD_PACKET_W];
++      end else begin : g_no_value_ticket
++        assign forward_ticket_w[g*9+:9] = 9'b0;
++        assign forward_packet_in_w[g*FORWARD_PACKET_W+:FORWARD_PACKET_W] = forward_input_w[g*77+:77];
++        assign forward_payload_w[g*77+:77] = forward_packet_out_w[g*FORWARD_PACKET_W+:FORWARD_PACKET_W];
++      end
+       assign forward_input_w[g*77+:77] = {
+         query_data_w[g*QUERY_W+QO+:3],
+         query_data_w[g*QUERY_W+QA+:5],
+@@ -1547,6 +1621,7 @@
+   endgenerate
+   R64LsuRequestQueue #(
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W),
+     .DATA_W(70)
+@@ -1576,10 +1651,14 @@
+   wire [5:0] event_valid_w;
+   wire [TAG_W-1:0] event_tag_w[0:5];
+   wire [R-1:0] event_result_w[0:5];
++  wire [8:0] event_ticket_w[0:5];
+   reg [5:0] event_grant_w;
+   genvar e;
+   generate
+     for (e = 0; e < 2; e = e + 1) begin : gen_events
++      assign event_ticket_w[e] = raw_event_ticket_w[e*9+:9];
++      assign event_ticket_w[2+e] = 9'b0;
++      assign event_ticket_w[4+e] = forward_ticket_w[e*9+:9];
+       assign event_valid_w[e] = raw_valid_w[e] || response_bypass_offer_w[e];
+       assign event_tag_w[e] = raw_event_tag_w[e*TAG_W+:TAG_W];
+       assign event_result_w[e] = {
+@@ -1597,7 +1676,7 @@
+       assign full_forward_w[e] = descriptor_valid_w[e] && probe_allowed_w[e] &&
+           !probe_side_effect_w[e] && !probe_misaligned_w[e] &&
+           (selected_mask_w[e] & probe_mask_w[e]) == probe_mask_w[e];
+-      assign forward_killed_w[e] = flush_i || kill_mask_i[forward_tag_q[e][ROB_W-1:0]];
++      assign forward_killed_w[e] = flush_i || owner_cancel(forward_tag_q[e][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+       assign forward_take_w[e] = query_take_w[e] && query_full_w[e];
+       assign event_valid_w[4+e] = forward_valid_q[e] && !forward_killed_w[e];
+       assign event_tag_w[4+e] = forward_tag_q[e];
+@@ -1665,9 +1744,14 @@
+     completion_fire_w = {event_two_w, |event_valid_w} & completion_credit_w;
+     completion_tag_w = 0;
+     completion_result_w = 0;
++    completion_ticket_w = 0;
+     event_grant_w = (event_first_w & {6{completion_credit_w[0]}}) |
+         (event_second_w & {6{completion_credit_w[1]}});
+     for (ev = 0; ev < 6; ev = ev + 1) begin
++      completion_ticket_w[0+:9] = completion_ticket_w[0+:9] |
++          ({9{event_first_w[ev]}} & event_ticket_w[ev]);
++      completion_ticket_w[9+:9] = completion_ticket_w[9+:9] |
++          ({9{event_second_w[ev]}} & event_ticket_w[ev]);
+       completion_tag_w[0+:TAG_W] = completion_tag_w[0+:TAG_W] |
+           ({TAG_W{event_first_w[ev]}} & event_tag_w[ev]);
+       completion_tag_w[TAG_W+:TAG_W] = completion_tag_w[TAG_W+:TAG_W] |
+@@ -1679,6 +1763,8 @@
+     end
+   end
+   R64LsuCompletion #(
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .TAG_W(TAG_W),
+     .ROB_W(ROB_W)
+   ) completion (
+@@ -1690,11 +1776,15 @@
+     .in_ready_o(completion_credit_w),
+     .in_tag_i(completion_tag_w),
+     .in_result_i(completion_result_w),
++    .in_value_ticket_i(completion_ticket_w),
++    .cancel_candidates_i(cancel_candidates_i),
++    .cancel_active_i(cancel_active_i),
+     .out_valid_o(out_valid_o),
+     .out_request_o(out_request_o),
+     .out_ready_i(out_ready_i),
+     .out_tag_o(out_tag_o),
+     .out_result_o(out_result_o),
++    .out_value_ticket_o(out_value_ticket_o),
+     .reuse_block_o(completion_reuse_w),
+     .idle_o(completion_idle_w)
+   );
+@@ -1949,7 +2039,7 @@
+       if (store_done_q && store_done_ready_i) store_done_q <= 0;
+       // Error terminals have drained all external ownership and may be removed
+       // by synchronous trap; successful visible effects retain the retire owner.
+-      if (store_done_q && (flush_i || kill_mask_i[store_tag_q[ROB_W-1:0]])) store_done_q <= 0;
++      if (store_done_q && (flush_i || owner_cancel(store_tag_q[ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i))) store_done_q <= 0;
+       if (store_response_fire_w) begin
+         mem_issued_q[mem_store_rsp_token_i] <= 0;
+         if (store_response_live_w) begin
+--- a/npc/rv64/vsrc/lsu/R64LsuCompletion.v
++++ b/npc/rv64/vsrc/lsu/R64LsuCompletion.v
+@@ -4,6 +4,8 @@
+ // Backpressured heads never migrate between lanes; explicit kill removes only
+ // its own tagged completion. Ready depends on registered occupancy alone.
+ module R64LsuCompletion #(
++  parameter CQ_VALUE_BYPASS = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0,
+   parameter TAG_W = 9,
+   parameter ROB_W = 5
+ ) (
+@@ -11,19 +13,31 @@
+   input                            rst_i,
+   input                            flush_i,
+   input      [     (1<<ROB_W)-1:0] kill_mask_i,
++  input      [     (1<<ROB_W)-1:0] cancel_candidates_i,
++  input                           cancel_active_i,
+   input      [                1:0] in_fire_i,
+   output     [                1:0] in_ready_o,
+   input      [        2*TAG_W-1:0] in_tag_i,
+   input      [2*`R64_RESULT_W-1:0] in_result_i,
++  input      [               17:0] in_value_ticket_i,
+   output     [                1:0] out_valid_o,
+   output     [                1:0] out_request_o,
+   input      [                1:0] out_ready_i,
+   output     [        2*TAG_W-1:0] out_tag_o,
+   output     [2*`R64_RESULT_W-1:0] out_result_o,
++  output     [               17:0] out_value_ticket_o,
+   output reg [     (1<<ROB_W)-1:0] reuse_block_o,
+   output                           idle_o
+ );
+   localparam R = `R64_RESULT_W;
++  function owner_cancel;
++    input [ROB_W-1:0] slot;
++    input [(1 << ROB_W)-1:0] candidates, canonical;
++    input active;
++    begin
++      owner_cancel = LOCAL_CANCEL_PUBLISH ? (active && candidates[slot]) : canonical[slot];
++    end
++  endfunction
+   reg [1:0] front_q, back_q;
+   reg [TAG_W-1:0] front_tag_q[0:1], back_tag_q[0:1];
+   reg [R-1:0] front_result_q[0:1], back_result_q[0:1];
+@@ -35,7 +49,7 @@
+   genvar g;
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_out
+-      assign out_valid_o[g] = front_q[g] && !flush_i && !kill_mask_i[front_tag_q[g][ROB_W-1:0]] &&
++      assign out_valid_o[g] = front_q[g] && !flush_i && !owner_cancel(front_tag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i) &&
+           !rst_i;
+       assign out_tag_o[g*TAG_W+:TAG_W] = front_tag_q[g];
+       assign out_result_o[g*R+:R] = front_result_q[g];
+@@ -52,8 +66,8 @@
+   generate
+     for (g = 0; g < 2; g = g + 1) begin : gen_write
+       wire front_remove = front_q[g] &&
+-          (out_ready_i[g] || flush_i || kill_mask_i[front_tag_q[g][ROB_W-1:0]]);
+-      wire back_cancel = flush_i || kill_mask_i[back_tag_q[g][ROB_W-1:0]];
++          (out_ready_i[g] || flush_i || owner_cancel(front_tag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i));
++      wire back_cancel = flush_i || owner_cancel(back_tag_q[g][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i);
+       wire first_take = in_fire_i[0] && (first_w == g[0]);
+       wire second_take = in_fire_i[1] && (first_w != g[0]);
+       wire take = first_take || second_take;
+@@ -73,6 +87,21 @@
+       // only the unchanged fire/valid equations below create a completion.
+       wire front_payload_write = !front_q[g] || front_remove;
+       wire back_payload_write = !back_q[g] && front_q[g] && !front_remove;
++      if (CQ_VALUE_BYPASS) begin : g_value_ticket
++        reg [8:0] front_ticket_q, back_ticket_q;
++        wire [8:0] input_ticket = input_lane ? in_value_ticket_i[9+:9] : in_value_ticket_i[0+:9];
++        // Exactly the original tag/result write and skid promotion edges. A
++        // retained CQ value is a read-only offer; using it never pops an owner.
++        always @(posedge clk_i)
++          if (!rst_i) begin
++            if (front_payload_write)
++              front_ticket_q <= back_q[g] ? back_ticket_q : input_ticket;
++            if (back_payload_write) back_ticket_q <= input_ticket;
++          end
++        assign out_value_ticket_o[g*9+:9] = front_ticket_q;
++      end else begin : g_no_value_ticket
++        assign out_value_ticket_o[g*9+:9] = 9'b0;
++      end
+       always @(posedge clk_i) begin
+         if (rst_i) begin
+           front_q[g] <= 0;
+@@ -107,6 +136,11 @@
+   end
+ `ifdef R64_ASSERT
+   always @(posedge clk_i)
++    if (!rst_i && LOCAL_CANCEL_PUBLISH &&
++        (({(1 << ROB_W){flush_i}} | kill_mask_i) !==
++         ({(1 << ROB_W){flush_i}} | ({(1 << ROB_W){cancel_active_i}} & cancel_candidates_i))))
++      $fatal(1, "R64LsuCompletion partial cancel differs from canonical owner denial");
++  always @(posedge clk_i)
+     if (!rst_i) begin
+       if ((in_fire_i & ~in_ready_o) != 0 || in_fire_i == 2)
+         $fatal(1, "R64LsuCompletion credit/prefix violation");
+--- a/npc/rv64/vsrc/lsu/R64LsuRequestQueue.v
++++ b/npc/rv64/vsrc/lsu/R64LsuRequestQueue.v
+@@ -4,6 +4,7 @@
+ module R64LsuRequestQueue #(
+   parameter DATA_W = 157,
+   parameter PREPARED_CANCEL = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0,
+   parameter TAG_W = 9,
+   parameter ROB_W = 5,
+   parameter AGE_W = 1
+@@ -35,7 +36,7 @@
+     input [(1<<ROB_W)-1:0] candidates, mask;
+     input active;
+     begin
+-      cancel_selected = PREPARED_CANCEL ? (active && candidates[slot]) : mask[slot];
++      cancel_selected = (PREPARED_CANCEL || LOCAL_CANCEL_PUBLISH) ? (active && candidates[slot]) : mask[slot];
+     end
+   endfunction
+   // Two fixed storage slots per physical lane. New payload writes only a
+@@ -124,10 +125,13 @@
+   end
+ `ifdef R64_ASSERT
+   generate
+-    if (PREPARED_CANCEL) begin : g_cancel_contract
++    if (PREPARED_CANCEL || LOCAL_CANCEL_PUBLISH) begin : g_cancel_contract
+       always @(posedge clk_i)
+         if (!rst_i)
+-          if (kill_mask_i !== ({(1 << ROB_W) {cancel_active_i}} & cancel_candidates_i))
++          if (LOCAL_CANCEL_PUBLISH ?
++              (({(1 << ROB_W){flush_i}} | kill_mask_i) !==
++               ({(1 << ROB_W){flush_i}} | ({(1 << ROB_W){cancel_active_i}} & cancel_candidates_i))) :
++              (kill_mask_i !== ({(1 << ROB_W){cancel_active_i}} & cancel_candidates_i)))
+             $fatal(1, "LSU request queue prepared cancel differs from canonical mask");
+     end
+   endgenerate
+--- a/npc/rv64/vsrc/memory/R64Memory.v
++++ b/npc/rv64/vsrc/memory/R64Memory.v
+@@ -4,6 +4,8 @@
+ // cache as CPU memory operations after independent S-mode physical protection.
+ module R64Memory #(
+   parameter HEAD_AUTHORIZED_QUERY = 0,
++  parameter CQ_VALUE_BYPASS = 0,
++  parameter LOCAL_CANCEL_PUBLISH = 0,
+   parameter PREPARED_CANCEL = 0
+ ) (
+   input                        clk_i,
+@@ -30,6 +32,7 @@
+   output [                9:0] reserve_slot_o,
+   input  [               17:0] reserve_tag_i,
+   input  [               15:0] reserve_func_i,
++  input  [               15:0] reserve_ticket_i,
+   input  [                9:0] reserve_amo_i,
+   input  [                1:0] in_fire_i,
+   output [                1:0] in_ready_o,
+@@ -42,6 +45,7 @@
+   input  [                1:0] out_ready_i,
+   output [               17:0] out_tag_o,
+   output [2*`R64_RESULT_W-1:0] out_result_o,
++  output [               17:0] out_value_ticket_o,
+   output [               31:0] reuse_block_o,
+   output                       irrevocable_o,
+   output                       idle_o,
+@@ -254,6 +258,8 @@
+     .ENTRIES(20),
+     .HEAD_AUTHORIZED_QUERY(HEAD_AUTHORIZED_QUERY),
+     .PREPARED_CANCEL(PREPARED_CANCEL),
++    .CQ_VALUE_BYPASS(CQ_VALUE_BYPASS),
++    .LOCAL_CANCEL_PUBLISH(LOCAL_CANCEL_PUBLISH),
+     .AUX(3),
+     .SRC_W(2)
+   ) unit (
+@@ -287,6 +293,7 @@
+     .reserve_slot_o(reserve_slot_o),
+     .reserve_tag_i(reserve_tag_i),
+     .reserve_func_i(reserve_func_i),
++    .reserve_ticket_i(reserve_ticket_i),
+     .reserve_amo_i(reserve_amo_i),
+     .in_tag_i(in_tag_i),
+     .in_uop_i(in_uop_i),
+@@ -296,6 +303,7 @@
+     .out_ready_i(out_ready_i),
+     .out_tag_o(out_tag_o),
+     .out_result_o(out_result_o),
++    .out_value_ticket_o(out_value_ticket_o),
+     .reuse_block_o(reuse_block_o),
+     .irrevocable_o(irrevocable_o),
+     .idle_o(subsystem_idle),

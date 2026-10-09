@@ -73,17 +73,6 @@ module R64Execute #(
   output reg [     `R64_UOP_W-1:0] serial_uop_o,
   output reg [              191:0] serial_operand_o
 );
-  // Select this registered owner's candidate bit before applying the late
-  // redirect enable. The ordinary mask remains the default module contract.
-  function cancel_selected;
-    input [ROB_W-1:0] slot;
-    input [(1<<ROB_W)-1:0] candidates, mask;
-    input active;
-    begin
-      cancel_selected = PREPARED_CANCEL ? (active && candidates[slot]) : mask[slot];
-    end
-  endfunction
-
   wire [`R64_UOP_W-1:0] uop_w[0:1];
   wire [TAG_W-1:0] tag_w[0:1];
   wire [2:0] class_w[0:1];
@@ -98,9 +87,11 @@ module R64Execute #(
       assign class_w[l] = in_class_i[l*3+:3];
       assign operand_w[l] = in_operand_i[l*192+:192];
       assign age_w[l] = tag_w[l][ROB_W-1:0] - rob_head_i;
-      assign live_w[l] = in_valid_i[l] && !rst && !flush_i && !cancel_selected(
-          tag_w[l][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-      );
+      // 当前 owner 的取消资格在 FU 接受边界显式检查。
+      wire cancelled_w = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[tag_w[l][ROB_W-1:0]]) :
+          kill_mask_i[tag_w[l][ROB_W-1:0]];
+      assign live_w[l] = in_valid_i[l] && !rst && !flush_i && !cancelled_w;
     end
   endgenerate
   wire older1_w = age_w[1] < age_w[0];
@@ -181,9 +172,13 @@ module R64Execute #(
   assign resolve_conditional_o = resolve_lane_q ? branch_conditional_w[1] : branch_conditional_w[0];
   assign resolve_indirect_o = resolve_lane_q ? branch_indirect_w[1] : branch_indirect_w[0];
   assign resolve_taken_o = resolve_lane_q ? branch_taken_w[1] : branch_taken_w[0];
+  // Long-unit array order is shared by admission, capacity and completion.
+  localparam integer LONG_MUL = 0, LONG_DIV = 1, LONG_CLMUL = 2;
+  localparam integer LONG_RESULT_BASE = 2;  // Result ports 0/1 belong to ALU0/1.
   wire [2:0] long_ready_w;
   // These capacities do not depend on the selected RR class/tag or fire.
   // Only a fire publishes the chosen RR candidate to a downstream owner.
+  // Credit bits, high to low: {FP, CLMUL, DIV, MUL, ALU1, ALU0}.
   assign rr_fu_credit_o = {fp_ready_i, long_ready_w, alu_ready_w};
   wire [2:0] long_valid_w;
   reg [2:0] long_fire_w;
@@ -200,17 +195,17 @@ module R64Execute #(
     .rst(rst),
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
-    .in_valid_i(long_fire_w[0]),
-    .in_ready_o(long_ready_w[0]),
-    .in_tag_i(long_tag_w[0]),
-    .a_i(long_a_w[0]),
-    .b_i(long_b_w[0]),
-    .function_i(long_function_w[0]),
-    .word_i(long_word_w[0]),
-    .out_valid_o(long_valid_w[0]),
-    .out_ready_i(result_ready_i[2]),
-    .out_tag_o(long_result_tag_w[0]),
-    .out_data_o(long_result_data_w[0])
+    .in_valid_i(long_fire_w[LONG_MUL]),
+    .in_ready_o(long_ready_w[LONG_MUL]),
+    .in_tag_i(long_tag_w[LONG_MUL]),
+    .a_i(long_a_w[LONG_MUL]),
+    .b_i(long_b_w[LONG_MUL]),
+    .function_i(long_function_w[LONG_MUL]),
+    .word_i(long_word_w[LONG_MUL]),
+    .out_valid_o(long_valid_w[LONG_MUL]),
+    .out_ready_i(result_ready_i[LONG_RESULT_BASE+LONG_MUL]),
+    .out_tag_o(long_result_tag_w[LONG_MUL]),
+    .out_data_o(long_result_data_w[LONG_MUL])
   );
   R64Divide #(
     .PREQUALIFIED_INPUT(1)
@@ -219,17 +214,17 @@ module R64Execute #(
     .rst(rst),
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
-    .in_valid_i(long_fire_w[1]),
-    .in_ready_o(long_ready_w[1]),
-    .in_tag_i(long_tag_w[1]),
-    .a_i(long_a_w[1]),
-    .b_i(long_b_w[1]),
-    .function_i(long_function_w[1]),
-    .word_i(long_word_w[1]),
-    .out_valid_o(long_valid_w[1]),
-    .out_ready_i(result_ready_i[3]),
-    .out_tag_o(long_result_tag_w[1]),
-    .out_data_o(long_result_data_w[1])
+    .in_valid_i(long_fire_w[LONG_DIV]),
+    .in_ready_o(long_ready_w[LONG_DIV]),
+    .in_tag_i(long_tag_w[LONG_DIV]),
+    .a_i(long_a_w[LONG_DIV]),
+    .b_i(long_b_w[LONG_DIV]),
+    .function_i(long_function_w[LONG_DIV]),
+    .word_i(long_word_w[LONG_DIV]),
+    .out_valid_o(long_valid_w[LONG_DIV]),
+    .out_ready_i(result_ready_i[LONG_RESULT_BASE+LONG_DIV]),
+    .out_tag_o(long_result_tag_w[LONG_DIV]),
+    .out_data_o(long_result_data_w[LONG_DIV])
   );
   R64Clmul #(
     .PREQUALIFIED_INPUT(1)
@@ -238,22 +233,22 @@ module R64Execute #(
     .rst(rst),
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
-    .in_valid_i(long_fire_w[2]),
-    .in_ready_o(long_ready_w[2]),
-    .in_tag_i(long_tag_w[2]),
-    .a_i(long_a_w[2]),
-    .b_i(long_b_w[2]),
-    .function_i(long_function_w[2][1:0]),
-    .out_valid_o(long_valid_w[2]),
-    .out_ready_i(result_ready_i[4]),
-    .out_tag_o(long_result_tag_w[2]),
-    .out_data_o(long_result_data_w[2])
+    .in_valid_i(long_fire_w[LONG_CLMUL]),
+    .in_ready_o(long_ready_w[LONG_CLMUL]),
+    .in_tag_i(long_tag_w[LONG_CLMUL]),
+    .a_i(long_a_w[LONG_CLMUL]),
+    .b_i(long_b_w[LONG_CLMUL]),
+    .function_i(long_function_w[LONG_CLMUL][1:0]),
+    .out_valid_o(long_valid_w[LONG_CLMUL]),
+    .out_ready_i(result_ready_i[LONG_RESULT_BASE+LONG_CLMUL]),
+    .out_tag_o(long_result_tag_w[LONG_CLMUL]),
+    .out_data_o(long_result_data_w[LONG_CLMUL])
   );
   generate
     for (l = 0; l < 3; l = l + 1) begin : gen_long_result
-      assign result_valid_o[l+2] = long_valid_w[l];
-      assign result_tag_o[(l+2)*TAG_W+:TAG_W] = long_result_tag_w[l];
-      assign result_o[(l+2)*`R64_RESULT_W+:`R64_RESULT_W] = {
+      assign result_valid_o[l+LONG_RESULT_BASE] = long_valid_w[l];
+      assign result_tag_o[(l+LONG_RESULT_BASE)*TAG_W+:TAG_W] = long_result_tag_w[l];
+      assign result_o[(l+LONG_RESULT_BASE)*`R64_RESULT_W+:`R64_RESULT_W] = {
         {(`R64_RESULT_W - 64) {1'b0}}, long_result_data_w[l]
       };
     end
@@ -322,7 +317,8 @@ module R64Execute #(
       if (live_w[priority_lane]) begin
         case (class_w[priority_lane])
           `R64_C_MDU: begin
-            unit = uop_w[priority_lane][199] ? 2 : (uop_w[priority_lane][198] ? 1 : 0);
+            unit = uop_w[priority_lane][199] ? LONG_CLMUL :
+                (uop_w[priority_lane][198] ? LONG_DIV : LONG_MUL);
             if (!long_taken[unit]) begin
               long_taken[unit] = 1;
               long_tag_w[unit] = tag_w[priority_lane];
@@ -491,9 +487,9 @@ module R64Execute #(
   integer admission_unit;
   always @(posedge clk) begin
     for (admission_unit = 0; admission_unit < 3; admission_unit = admission_unit + 1)
-    if (long_fire_w[admission_unit] && (rst || flush_i || cancel_selected(
-            long_tag_w[admission_unit][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-        )))
+    if (long_fire_w[admission_unit] && (rst || flush_i || (PREPARED_CANCEL ?
+            (cancel_active_i && cancel_candidates_i[long_tag_w[admission_unit][ROB_W-1:0]]) :
+            kill_mask_i[long_tag_w[admission_unit][ROB_W-1:0]])))
       $fatal(1, "Execute long admission violated prequalified-live contract");
   end
   always @(posedge clk)

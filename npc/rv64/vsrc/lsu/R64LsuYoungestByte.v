@@ -12,6 +12,8 @@ module R64LsuYoungestByte #(
   output [        7:0] data_o,
   output [  AGE_W-1:0] age_o
 );
+  // Each merge keeps the greater age and its byte, with left winning ties.
+  // Heap root=1; source k is leaf LEAVES+k and padded leaves are invalid.
   localparam LEAVES = 1 << SLOT_W;
   genvar n;
   generate

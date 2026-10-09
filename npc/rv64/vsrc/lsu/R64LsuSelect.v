@@ -10,6 +10,8 @@ module R64LsuSelect #(
   output [ SLOT_W-1:0] first_slot_o, second_slot_o,
   output [  AGE_W-1:0] first_age_o, second_age_o
 );
+  // A node retains the two smallest ages from its two children. Equal ages
+  // choose the left child first; root=1 and source k is leaf LEAVES+k.
   localparam LEAVES = 1 << SLOT_W;
   genvar n;
   generate

@@ -355,3 +355,11 @@ negative-service-request-hint: $(BUILD_DIR)/tb_r64_service_request_hint.vvp
 # Reference construction is owned by the DiffTest adapter.
 core-reference: | $(CORE_BUILD_DIR)
 	$(MAKE) --no-print-directory -C ../../difftest reference CORE_REF=$(CORE_REF) > $(CORE_BUILD_DIR)/reference-build.log 2>&1
+
+# Real LSU response-bypass A/B: same public-interface stimuli and scoreboard.
+.PHONY: lsu-response-bypass-matrix
+$(BUILD_DIR)/tb_r64_lsu.vvp $(BUILD_DIR)/tb_r64_lsu_metadata.vvp $(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu_response_bypass.svh
+$(BUILD_DIR)/tb_r64_lsu_response_bypass_%.vvp: modules/tb_r64_lsu.sv modules/tb_r64_lsu_response_bypass.svh $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=4 -Ptb_r64_lsu.RESPONSE_BYPASS=$* -o $@ $(R64_RTL_SRCS) $<
+lsu-response-bypass-matrix: $(BUILD_DIR)/tb_r64_lsu_response_bypass_0.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_1.vvp
+	@set -e; for mode in 0 1; do for stall in plain stalls; do arg=; test $$stall != stalls || arg=+response-stalls; log=$(BUILD_DIR)/response-bypass-$$mode-$$stall.log; timeout 90 $(VVP) $(BUILD_DIR)/tb_r64_lsu_response_bypass_$$mode.vvp +response-bypass $$arg > $$log 2>&1; rg -F "[PASS] tb_r64_lsu response-bypass " $$log; done; done

@@ -1,0 +1,10 @@
+{
+  "scope": "abstract two-state boolean identity only, not RTL/formal equivalence or timing evidence",
+  "assumptions": [
+    "Af implies A",
+    "N2o implies Eo",
+    "A implies not Q2"
+  ],
+  "cases": 48,
+  "mismatches": []
+}

@@ -1,6 +1,6 @@
 # 当前 Backend 高级网络拓扑
 
-依据 2026-09-16 工作区当前生产 RTL 整理，入口为 R64CoreTop.backend。本文描述实际实例、数据流、寄存边界、信用与指令身份，不将模块数或队列容量解释成固定流水延迟。已更新到本轮 Backend 网络优化实现；对应变更与验证见 [优化分析及实施记录](OPTIMIZATION.md)。
+原主体依据 2026-09-16 工作区生产 RTL 整理，入口为 R64CoreTop.backend；2026-10-08 当前设计单元核对见末节。本文描述实际实例、数据流、寄存边界、信用与指令身份，不将模块数或队列容量解释成固定流水延迟。已更新到本轮 Backend 网络优化实现；对应变更与验证见 [优化分析及实施记录](OPTIMIZATION.md)。
 
 Backend 围绕 ROB 保存的指令身份与顺序，连接五个网络：统一分配、依赖调度与操作数、执行分流、结果回流、提交与恢复。
 
@@ -306,3 +306,38 @@ ROB 发布取消集合时，用 raw redirect_pending 与已验证 plan 组成局
 基线 CoreMark 的 decode_iq_block=3,985,961；Dhrystone 的主要信用压力为 ROB，decode_rob_block=9,445,748。因此建立 IQ16→32 的独立实验。后端与CoreTop最终默认保持16，CoreTop暴露ISSUE_SLOTS以保留容量对照。已测IQ32的CoreMark/Dhrystone CPI分别改善0.090241%/0.310911%，但本轮IQ16反馈版的SystemTop setup更好，因此采用该IQ16配置。面积未作为取舍门槛。窗口增大不会增加每拍发射、FPR物理端口或 WB 端口；serial、MEM 和 MDU 的资源限制不变。
 
 ROB、RegRead、Writeback 已有 owner certificate、预解析 FP read plan、Q-only terminal、ALU bypass 和9选2捕获层。本轮先保留这些事务边界；依实际关键路径再决定是否切分，而不继续扩散 ready/kill 跨模块组合链。
+
+
+## 2026-10-08 当前设计单元
+
+本节核对当前保留的生产源码：2-wide、ROB32、IQ16、LSQ20、GPR/FPR各64；上一轮完成队列候选已撤回，
+保留的 load-response bypass 位于 LSU，不能据候选快照推断当前 Backend。以下 ID 按状态 owner 和可修改接口划分，
+不是新增模块，也不表示每条指令固定经历同样拍数。所有状态宽度是 RTL 声明，不是面积估算。
+
+| ID / 状态 owner、源码 | 当前寄存边界 / 容量 / 宽度 | 组合与跨拍数据、valid/ready/credit 关系 | 取消 / 完成责任 |
+| --- | --- | --- | --- |
+| BE-01 DecodeStage，[R64DecodeStage.v](R64DecodeStage.v) | 4 槽 Q，每槽 `UOP218+META204+33=455 bit`，另 count/head/tail、2-bit room Q；尚无 ROB/preg owner | FE指令→组合格式化→payload Q；输入 ready 来自 room Q 加 reset/clear/stop。Q occupancy 提供未过滤资源查询；真正 out_valid 仍受 clear/reset 抑制 | redirect/full flush 清未出生指令；不能凭 raw query 创建 ROB/LSQ owner |
+| BE-02 原子分配；[R64Backend.v](R64Backend.v) 的 `birth_w` + [R64Rename.v](R64Rename.v) | birth 本身是组合事件；它在同一边沿更新 Rename、ROB、IQ，MEM另占 LSQ。Rename为G/F各32×6 bit speculative/committed map，G/F各64-bit free/busy | lane0 同时需要 ROB/Rename/IQ 与条件性 LSQ信用；lane1还需真实lane0 birth。映射/空项选择/同拍RAW/WAW旁路均组合，最终共同 birth 建立各处 Q 状态 | stop/recover/redirect/fullflush 禁止出生；partial恢复使用pnew/pold undo，fullflush恢复 committed map；WB经ROB授权才清busy |
+| BE-03 ROB身份、完成、退休窗口；[R64Rob.v](R64Rob.v) | 32 槽；tag=slot5+generation4；每槽META204、value64、tval64、cause6、fflags5、pnew/pold各6、rd_arch5、各状态bit；head/tail/count Q | 分配进入槽Q；2路WB完成校验通过后设置done/异常；head/head+1 Q组合产生可退休候选，真正退休由Commit授权。窄 store_done 是额外head完成通道，不占9源宽WB | full tag/存活/当前kill/重复完成检查决定结果接收；head优先且异常精确。LSU/Serial reuse_block 约束槽复用，不能因取消立即复用仍有外部响应的身份 |
+| BE-04 IQ就绪与选择；[R64Issue.v](R64Issue.v) | 16固定槽Q；每槽UOP218、tag9、LSQslot5、3×preg6、3-bit source used/fp/ready；older/compatible各16×16 bit；serial_dependency各槽32 bit | birth后DEFER_READY查询初始化ready；2常规WB+2 ALU early事件唤醒。年龄/兼容/FPR预算组合选择，`issue_fire`按RR信用真实接受；入口最多2、出口最多2。`fu_allow=all1`，FU实时ready不直接过滤IQ | prepared cancel/fullflush清年轻owner；Serial head授权及更老Serial依赖限制可发射集合；取消不能形成有效issue |
+| BE-05 PRF读与RR保持；[R64RegRead.v](R64RegRead.v) | GPR/FPR各64×64 bit；4G+3F物理读口；2 lane各1 ingress+2 terminal=6 owner；terminal每槽UOP218+tag9+operand snapshot320，另rank、forward hit/data、预控制/LSQslot等 | IQ接受时锁存源地址/owner；下一读边界采样PRF和WB/ALU转发，阻塞读可存ingress。terminal信用由Q占用产生，不借本拍Execute释放。RR候选operand输出3×64 bit；head不可接收MDU/FP时，可重新选同lane另一ALU | 槽有dead/owner状态；RR→EX的未fire候选可重选，不是承诺payload保持不变的下游owner。最终EX再次检查存活；flush不得写出错误PRF结果 |
+| BE-06 分流与短ALU；[R64Execute.v](R64Execute.v) | Execute仲裁是组合；2个AluLane各有实际token/算术Q与4槽结果Q、4份预约信用；结果每槽140 bit+tag9+preg6及控制 | RR→分类/共享FU竞争→真实FU接受；DIRECT_MEM_BIND保留物理lane→LSQslot绑定。ALU结果head经ROB short-owner校验后供RR旁路；受限early接受唤醒不等于数据已写PRF或ROB done | 分支resolve/redirect有独立Q与预告/发布链；非分支、非异常、有效非零目的preg及空预约等条件约束提前唤醒。当前取消仍由最终接收者检查 |
+| BE-07 长整数执行；[R64Multiply.v](R64Multiply.v)、[R64Divide.v](R64Divide.v)、[R64Clmul.v](R64Clmul.v) | MUL固定6个数值阶段、8份预约/terminal容量；DIV、CLMUL各独立迭代owner及保持结果；每条返回value64+tag9，包装RESULT140 | 每种FU各1入口，可与其它不同FU并行；接受条件来自各自Q信用/状态，不是一个共享MDU。MUL信用覆盖在途和已完成等待；迭代拍数不能从源文件数推断 | 固定数值流水partial kill携带dead状态；消费者拒绝同拍kill。各自fullflush/状态清理规则以源码为准；不承担AXI等不可取消外部owner |
+| BE-08 WB调度与捕获；[R64Writeback.v](R64Writeback.v) | 9源→2 lane；2×9-bit grant Q；2×149-bit(tag9+RESULT140)结果Q；每lane9源×4 ROB bank的accepted Q；各bank owner证书9 bit | 当前`DEFER_REQUEST=0`：source VALID和LSU提示→组合双轮转→下一拍grant Q；source READY只由grant Q。grant Q→宽数据选择→结果Q；本拍真实VALID/kill资格创建accepted Q，owner证书随捕获保存；不新增PRF数据寄存级 | grant不是事务owner，空/取消grant不能制造完成；flush清accepted/grant；最终ROB确认后才写PRF/清busy/唤醒。WB两lane独立可接受，不要求年龄或lane0前缀 |
+| BE-09 恢复与取消发布；[R64Rob.v](R64Rob.v) 联接 Rename / IQ / RR / EX / LSU / FP | ROB有plan_valid、plan_younger[31:0]、plan_tag9、plan_keep6以及undo pointer/count Q；每拍最多2项逆序undo | 已验证branch plan与pending控制组合生成取消资格，fullflush并入；recover期间暂停birth和退休，更老合法结果继续完成。Commit事件是另一个已有Q边界，详见[控制拓扑](../control/TOPOLOGY.md) | 保留分支及更老指令，取消年轻后缀；更老redirect可扩大范围。外部事务由LSU/Serial排空，不能把kill_mask描述成全核瞬间资源释放 |
+
+关键源码锚点：`R64Backend.v:108/163/395/447/595`；`R64DecodeStage.v:35/45`；
+`R64Rename.v:44`；`R64Rob.v:110/139/147/329/388`；`R64Issue.v:74/106/116/263`；
+`R64RegRead.v:76/84/108/229/339/358`；`R64Execute.v:597/622/660`；`R64Writeback.v:39/59/79/157/188`。
+
+| 单元 / 量化问题 | 已有观测及其边界 | 当前 UNKNOWN |
+| --- | --- | --- |
+| BE-01/02 分配空转 | `CPI_PROFILE`有decode_empty、birth_zero/two、decode_rob/iq/prf/lsq_block；直接观测资源不足谓词 | 多个谓词可同拍为真；互斥根因、释放信用到再次birth的等待分布未测 |
+| BE-04/05 发射与操作数等待 | 有issue_zero/two；真实issue tag/class/src及RR owner/credit信号可定位 | ready候选数量、配对/FPR预算/Serial阻塞、每FU导致RR等待、生产者完成→消费者实际issue的逐tag分解 |
+| BE-03/09 head与恢复 | 有recover、branch_redirect、head_serial、rob_nonempty_notdone；另有LOAD_PROFILE的head_notdone_unfrozen | head_notdone不能直接归因为load；head PC/指令类/等待状态、undo长度与外部drain贡献尚无完整互斥计数 |
+| BE-08 完成网络 | 有wb_backpressure，统计本地或外部任一有效来源未ready的周期；LOAD_PROFILE有部分正常load响应→CQ→ROB接收的延迟直方图 | 9个来源各自等待、空grant占比、各源到PRF/消费者的尾延迟；总backpressure不等于退休损失 |
+| 各单元时序 | 已有SystemTop映射STA能定位具体起点/端点；2026-10-08报告与候选标签保留于results/ai-cq-timing-20261008 | 单元自身面积/关键路径并非自动从全局WNS可得；本次不新增综合、STA或仿真结论 |
+
+观察实现见 [R64CpiProfile.svh](../../sim/vsrc/R64CpiProfile.svh) 与
+[R64LoadCompletionProfile.svh](../../sim/vsrc/R64LoadCompletionProfile.svh)。此前数值仍按对应日期/配置阅读，
+本表的 UNKNOWN 不表示没有RTL信号，而表示没有足以填写该定量结论的当前测量。

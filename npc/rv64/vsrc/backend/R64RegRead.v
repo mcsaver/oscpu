@@ -62,20 +62,10 @@ module R64RegRead #(
   output [              41:0] out_branch_imm_o,
   output [               9:0] out_branch_control_o
 );
-  // Select this registered owner's candidate bit before applying the late
-  // redirect enable. The ordinary mask remains the default module contract.
-  function cancel_selected;
-    input [ROB_W-1:0] slot;
-    input [(1<<ROB_W)-1:0] candidates, mask;
-    input active;
-    begin
-      cancel_selected = PREPARED_CANCEL ? (active && candidates[slot]) : mask[slot];
-    end
-  endfunction
-
   reg [63:0] gpr_q[0:PREG_N-1], fpr_q[0:PREG_N-1];
   reg [PREG_N-1:0] ginit_q, finit_q;
-  // Three owned slots per lane hide the credit return without a READY cone.
+  // Each lane owns one ingress slot and two terminal slots, hiding the credit
+  // return without a READY cone. Terminal arrays use lane*2 + local slot.
   // The physical read remains one edge after admission; no latency is added.
   reg [1:0] terminal_head_q, terminal_tail_q;
   reg [1:0] terminal_count_q[0:1];
@@ -85,6 +75,8 @@ module R64RegRead #(
   reg [PAYLOAD_W-1:0] payload_q[0:3];
   reg [2:0] class_q[0:3];
   reg [PREG_W-1:0] gpr_dst_q[0:3];
+  // Physical snapshot, high to low: {FPR2, FPR1, FPR0, GPR1, GPR0}.
+  // Per-source FP/rank fields map the three logical operands into this snapshot.
   reg [319:0] operand_q[0:3];
   reg [2:0] operand_fp_q[0:3], operand_used_q[0:3];
   reg  [ 5:0] operand_rank_q[0:3];
@@ -115,6 +107,7 @@ module R64RegRead #(
   reg [2:0] ingress_operand_fp_q[0:1], ingress_operand_used_q[0:1];
   reg [5:0] ingress_operand_rank_q[0:1];
   wire [1:0] ingress_live_w, read_select_w, transfer_w, out_live_w, out_room_w;
+  wire [1:0] ingress_cancel_w, input_cancel_w, output_cancel_w;
   wire [6*PREG_W-1:0] read_src_w = {ingress_src_q[1], ingress_src_q[0]};
   wire [5:0] read_fp_w = {ingress_fp_q[1], ingress_fp_q[0]};
   wire [5:0] read_used_w = {ingress_used_q[1], ingress_used_q[0]};
@@ -198,19 +191,6 @@ module R64RegRead #(
       end
     end
   endgenerate
-  function [63:0] compose_operand;
-    input [63:0] stored;
-    input [3:0] hit;
-    input [255:0] values;
-    reg [63:0] v0, v1, v2, v3;
-    begin
-      v0 = values[0+:64] & {64{hit[0]}};
-      v1 = values[64+:64] & {64{hit[1]}};
-      v2 = values[128+:64] & {64{hit[2]}};
-      v3 = values[192+:64] & {64{hit[3]}};
-      compose_operand = (v0 | v1) | (v2 | v3) | (stored & {64{!(|hit)}});
-    end
-  endfunction
   wire [3:0] gpr_forward_valid_w = {wb_write_i & ~wb_fp_i, alu_bypass_valid_i};
   wire [4*PREG_W-1:0] gpr_forward_preg_w = {wb_preg_i, alu_bypass_preg_i};
   wire [255:0] gpr_forward_data_w = {wb_data_i, alu_bypass_data_i};
@@ -254,22 +234,31 @@ module R64RegRead #(
   wire [767:0] terminal_operand_w;
   generate
     for (p = 0; p < 12; p = p + 1) begin : gen_terminal_operand
+      localparam integer SLOT = p / 3, SOURCE = p % 3;
       wire [63:0] stored_gpr_w;
-      if (p % 3 < 2) assign stored_gpr_w = operand_q[p/3][(p%3)*64+:64];
+      if (SOURCE < 2) assign stored_gpr_w = operand_q[SLOT][SOURCE*64+:64];
       else assign stored_gpr_w = 0;
-      wire [1:0] rank_q = operand_rank_q[p/3][(p%3)*2+:2];
-      wire [191:0] stored_fpr_w = operand_q[p/3][128+:192];
-      wire [63:0] stored_operand_w = !operand_used_q[p/3][p%3] ? 64'b0 :
-          operand_fp_q[p/3][p%3] ? stored_fpr_w[rank_q*64+:64] : stored_gpr_w;
-      assign terminal_operand_w[p*64+:64] = compose_operand(
-          stored_operand_w, forward_hit_q[p/3][(p%3)*4+:4], forward_data_q[p/3]
-      );
+      wire [1:0] rank_q = operand_rank_q[SLOT][SOURCE*2+:2];
+      wire [191:0] stored_fpr_w = operand_q[SLOT][128+:192];
+      wire [63:0] stored_operand_w = !operand_used_q[SLOT][SOURCE] ? 64'b0 :
+          operand_fp_q[SLOT][SOURCE] ? stored_fpr_w[rank_q*64+:64] : stored_gpr_w;
+      wire [3:0] hit_w = forward_hit_q[SLOT][SOURCE*4+:4];
+      wire [255:0] forward_w = forward_data_q[SLOT];
+      // 已锁存的命中资格选择 ALU0/1、WB0/1；无命中才使用物理读快照。
+      wire [63:0] alu0_w = forward_w[0+:64] & {64{hit_w[0]}};
+      wire [63:0] alu1_w = forward_w[64+:64] & {64{hit_w[1]}};
+      wire [63:0] wb0_w = forward_w[128+:64] & {64{hit_w[2]}};
+      wire [63:0] wb1_w = forward_w[192+:64] & {64{hit_w[3]}};
+      assign terminal_operand_w[p*64+:64] = (alu0_w | alu1_w) | (wb0_w | wb1_w) |
+          (stored_operand_w & {64{!(|hit_w)}});
     end
     for (p = 0; p < 2; p = p + 1) begin : gen_lane
+      wire [31:0] selected_terminal_w = p*2+{31'b0, terminal_select_w[p]};
       if (ALU_TERMINAL_BYPASS != 0 && PAYLOAD_W >= 208) begin : g_resident_select
         wire [2:0] head_class_w = class_q[p*2+{31'b0, terminal_head_q[p]}];
         wire [2:0] other_class_w = class_q[p*2+{31'b0, !terminal_head_q[p]}];
         wire [PAYLOAD_W-1:0] head_payload_w = payload_q[p*2+{31'b0, terminal_head_q[p]}];
+        // Execute credit bits, high to low: {FP, CLMUL, DIV, MUL, ALU1, ALU0}.
         wire head_credit_w = head_payload_w[199] ? fu_credit_i[4] :
             head_payload_w[198] ? fu_credit_i[3] : fu_credit_i[2];
         wire head_blocked_w = (head_class_w == 3'd2 && !head_credit_w) ||
@@ -284,9 +273,14 @@ module R64RegRead #(
       end
       assign out_operand_o[p*192+:192] = terminal_select_w[p] ?
           terminal_operand_w[(p*2+1)*192+:192] : terminal_operand_w[p*2*192+:192];
-      wire [63:0] read_bypass_b_w = compose_operand(
-          gdata_w[p*2+1], read_forward_hit_w[(p*3+1)*4+:4], gpr_forward_data_w
-      );
+      wire [3:0] shift_hit_w = read_forward_hit_w[(p*3+1)*4+:4];
+      // 移位量预计算使用同一组当前旁路来源，保持与 terminal 快照一致。
+      wire [63:0] shift_alu0_w = gpr_forward_data_w[0+:64] & {64{shift_hit_w[0]}};
+      wire [63:0] shift_alu1_w = gpr_forward_data_w[64+:64] & {64{shift_hit_w[1]}};
+      wire [63:0] shift_wb0_w = gpr_forward_data_w[128+:64] & {64{shift_hit_w[2]}};
+      wire [63:0] shift_wb1_w = gpr_forward_data_w[192+:64] & {64{shift_hit_w[3]}};
+      wire [63:0] read_bypass_b_w = (shift_alu0_w | shift_alu1_w) | (shift_wb0_w | shift_wb1_w) |
+          (gdata_w[p*2+1] & {64{!(|shift_hit_w)}});
       assign read_operand_w[p*320+:320] = {
         fdata_w[2], fdata_w[1], fdata_w[0], gdata_w[p*2+1], gdata_w[p*2]
       };
@@ -320,39 +314,41 @@ module R64RegRead #(
         assign branch_imm_w[p] = 0;
         assign branch_control_w[p] = 0;
       end
-      assign out_alu_control_o[p*37+:37] = alu_control_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_add_source_o[p*5+:5] = add_source_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_shift_amount_o[p*6+:6] = shift_amount_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_branch_imm_o[p*21+:21] = branch_imm_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_branch_control_o[p*5+:5] = branch_control_q[p*2+{31'b0, terminal_select_w[p]}];
-      wire killed_w = cancel_selected(
-          tag_q[p*2+{31'b0, terminal_select_w[p]}][ROB_W-1:0],
-          cancel_candidates_i,
-          kill_mask_i,
-          cancel_active_i
-      );
-      assign ingress_live_w[p] = ingress_valid_q[p] && !rst && !flush_i && !cancel_selected(
-          ingress_tag_q[p][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-      );
+      assign out_alu_control_o[p*37+:37] = alu_control_q[selected_terminal_w];
+      assign out_add_source_o[p*5+:5] = add_source_q[selected_terminal_w];
+      assign out_shift_amount_o[p*6+:6] = shift_amount_q[selected_terminal_w];
+      assign out_branch_imm_o[p*21+:21] = branch_imm_q[selected_terminal_w];
+      assign out_branch_control_o[p*5+:5] = branch_control_q[selected_terminal_w];
+      wire [ROB_W-1:0] output_slot_w = tag_q[selected_terminal_w][ROB_W-1:0];
+      // 每个持有位置保留自己的 owner 查询，不把取消掩码提前合并到宽数据选择。
+      assign output_cancel_w[p] = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[output_slot_w]) : kill_mask_i[output_slot_w];
+      assign ingress_cancel_w[p] = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[ingress_tag_q[p][ROB_W-1:0]]) :
+          kill_mask_i[ingress_tag_q[p][ROB_W-1:0]];
+      assign input_cancel_w[p] = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[in_tag_i[p*TAG_W+:ROB_W]]) :
+          kill_mask_i[in_tag_i[p*TAG_W+:ROB_W]];
+      assign ingress_live_w[p] = ingress_valid_q[p] && !rst && !flush_i && !ingress_cancel_w[p];
       // Output is a raw registered owner. Execute checks the same current
       // kill/flush before any FU/LSU admission; local state cancels at this edge.
       assign out_live_w[p] = terminal_count_q[p] != 0 &&
-          !terminal_dead_q[p*2+{31'b0, terminal_select_w[p]}];
+          !terminal_dead_q[selected_terminal_w];
       assign out_valid_o[p] = out_live_w[p];
       assign out_fire_w[p] = out_valid_o[p] && out_ready_i[p];
       assign terminal_pop_w[p] = terminal_count_q[p] != 0 &&
-          (out_fire_w[p] || terminal_dead_q[p*2+{31'b0, terminal_select_w[p]}]);
+          (out_fire_w[p] || terminal_dead_q[selected_terminal_w]);
       // Q-only capacity prevents Execute READY/cancellation from re-entering
       // terminal admission. A full queue can pop now and accept ingress next edge.
       assign out_room_w[p] = terminal_count_q[p] < 2 || (Q_ONLY_TERMINAL == 0 && terminal_pop_w[p]);
       assign transfer_w[p] = ingress_valid_q[p] && out_room_w[p] &&
           (operand_ready_q[p] || read_select_w[p]);
       assign in_ready_o[p] = !(terminal_count_q[p][1] && ingress_valid_q[p]);
-      assign out_mem_slot_o[p*LSQ_W+:LSQ_W] = mem_slot_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_tag_o[p*TAG_W+:TAG_W] = tag_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_payload_o[p*PAYLOAD_W+:PAYLOAD_W] = payload_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_class_o[p*3+:3] = class_q[p*2+{31'b0, terminal_select_w[p]}];
-      assign out_gpr_dst_o[p*PREG_W+:PREG_W] = gpr_dst_q[p*2+{31'b0, terminal_select_w[p]}];
+      assign out_mem_slot_o[p*LSQ_W+:LSQ_W] = mem_slot_q[selected_terminal_w];
+      assign out_tag_o[p*TAG_W+:TAG_W] = tag_q[selected_terminal_w];
+      assign out_payload_o[p*PAYLOAD_W+:PAYLOAD_W] = payload_q[selected_terminal_w];
+      assign out_class_o[p*3+:3] = class_q[selected_terminal_w];
+      assign out_gpr_dst_o[p*PREG_W+:PREG_W] = gpr_dst_q[selected_terminal_w];
     end
   endgenerate
   // Port allocation belongs to the address admission edge. Every pending
@@ -406,9 +402,9 @@ module R64RegRead #(
       operand_ready_q <= 0;
     end else begin
       for (terminal_slot = 0; terminal_slot < 4; terminal_slot = terminal_slot + 1)
-      if (cancel_selected(
-              tag_q[terminal_slot][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-          ))
+      if (PREPARED_CANCEL ?
+              (cancel_active_i && cancel_candidates_i[tag_q[terminal_slot][ROB_W-1:0]]) :
+              kill_mask_i[tag_q[terminal_slot][ROB_W-1:0]])
         terminal_dead_q[terminal_slot] <= 1;
       for (lane = 0; lane < 2; lane = lane + 1) begin
         if (flush_i) begin
@@ -428,9 +424,7 @@ module R64RegRead #(
           end
           if (transfer_w[lane]) begin
             terminal_tail_q[lane] <= ~terminal_tail_q[lane];
-            terminal_dead_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= cancel_selected(
-                ingress_tag_q[lane][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-            );
+            terminal_dead_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= ingress_cancel_w[lane];
             tag_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= ingress_tag_q[lane];
             payload_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= ingress_payload_q[lane];
             class_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= ingress_class_q[lane];
@@ -470,9 +464,7 @@ module R64RegRead #(
           end
           if (in_fire_i[lane]) begin
             // Issue already qualifies a new owner; held owners retain cancellation.
-            ingress_valid_q[lane] <= PREQUALIFIED_ISSUE != 0 ? 1'b1 : !cancel_selected(
-                in_tag_i[lane*TAG_W+:ROB_W], cancel_candidates_i, kill_mask_i, cancel_active_i
-            );
+            ingress_valid_q[lane] <= PREQUALIFIED_ISSUE != 0 ? 1'b1 : !input_cancel_w[lane];
             operand_ready_q[lane] <= 0;
             ingress_tag_q[lane] <= in_tag_i[lane*TAG_W+:TAG_W];
             ingress_payload_q[lane] <= in_payload_i[lane*PAYLOAD_W+:PAYLOAD_W];
@@ -599,12 +591,8 @@ module R64RegRead #(
           observed_slot_q[in_tag_i[slot_check*TAG_W+:ROB_W]] <=
               in_mem_slot_i[slot_check*LSQ_W+:LSQ_W];
         end
-        if (out_valid_o[slot_check] && out_class_o[slot_check*3+:3] == 3'd4 && !cancel_selected(
-                out_tag_o[slot_check*TAG_W+:ROB_W],
-                cancel_candidates_i,
-                kill_mask_i,
-                cancel_active_i
-            ) && (observed_tag_q[out_tag_o[slot_check*TAG_W+:ROB_W]] != out_tag_o[
+        if (out_valid_o[slot_check] && out_class_o[slot_check*3+:3] == 3'd4 &&
+            !output_cancel_w[slot_check] && (observed_tag_q[out_tag_o[slot_check*TAG_W+:ROB_W]] != out_tag_o[
                   slot_check*TAG_W+:TAG_W] || observed_slot_q[out_tag_o[slot_check*TAG_W+:ROB_W]] !=
                   out_mem_slot_o[slot_check*LSQ_W+:LSQ_W]))
           $fatal(1, "R64 RR LSQ slot separated from canonical fulltag");

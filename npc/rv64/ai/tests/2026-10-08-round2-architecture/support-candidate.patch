@@ -1,0 +1,800 @@
+--- a/npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh
++++ b/npc/rv64/sim/vsrc/R64LoadCompletionProfile.svh
+@@ -16,6 +16,7 @@
+ reg [63:0] lp_eligible, lp_raw_empty, lp_raw_empty_credit, lp_raw_empty_two_credit;
+ reg [63:0] lp_cq_captured, lp_wb_accepted, lp_cancelled, lp_tag_collision;
+ reg [63:0] lp_head_notdone, lp_head_notdone_unfrozen, lp_freeze;
++reg [63:0] lp_candidate_killed, lp_sparse_capture, lp_dead_first_one_credit;
+ integer lp_i, lp_lane, lp_mem_slot, lp_rob_slot, lp_bucket, lp_pending;
+ reg [LP_TAG_W-1:0] lp_current_tag;
+ reg [63:0] lp_latency;
+@@ -34,6 +35,9 @@
+     lp_head_notdone = 0;
+     lp_head_notdone_unfrozen = 0;
+     lp_freeze = 0;
++    lp_candidate_killed = 0;
++    lp_sparse_capture = 0;
++    lp_dead_first_one_credit = 0;
+     for (lp_i = 0; lp_i < LP_SLOTS; lp_i = lp_i + 1) begin
+       lp_tag[lp_i] = 0;
+       lp_response_cycle[lp_i] = 0;
+@@ -45,6 +49,18 @@
+       lp_cq_to_wb[lp_i] = 0;
+     end
+   end else if (run_i) begin
++    // Candidate ranks may be occupied by a cancelled source. These are
++    // observations of arbitration cost, not additive lost-program cycles.
++    if (|(`R64_LOAD_L.event_first_w & ~`R64_LOAD_L.event_valid_w))
++      lp_candidate_killed = lp_candidate_killed + 1;
++    if (|(`R64_LOAD_L.event_second_w & ~`R64_LOAD_L.event_valid_w))
++      lp_candidate_killed = lp_candidate_killed + 1;
++    if (`R64_LOAD_L.completion_fire_w == 2'b10)
++      lp_sparse_capture = lp_sparse_capture + 1;
++    if (`R64_LOAD_L.completion_credit_w == 2'b01 &&
++        (|(`R64_LOAD_L.event_first_w & ~`R64_LOAD_L.event_valid_w)) &&
++        (|(`R64_LOAD_L.event_second_w & `R64_LOAD_L.event_valid_w)))
++      lp_dead_first_one_credit = lp_dead_first_one_credit + 1;
+     if (`R64_LOAD_R.freeze_w) lp_freeze = lp_freeze + 1;
+     if (`R64_LOAD_R.count_q != 0 && `R64_LOAD_R.valid_q[`R64_LOAD_R.head_q] &&
+         !`R64_LOAD_R.done_q[`R64_LOAD_R.head_q]) begin
+@@ -127,6 +143,8 @@
+            lp_cq_captured, lp_wb_accepted, lp_cancelled, lp_pending, lp_tag_collision);
+   $display("LOAD_PROFILE head_notdone=%0d head_notdone_unfrozen=%0d freeze=%0d",
+            lp_head_notdone, lp_head_notdone_unfrozen, lp_freeze);
++  $display("LOAD_PROFILE tentative_winner_killed=%0d sparse_capture_10=%0d live_rank1_blocked_by_dead_rank0_with_one_credit=%0d",
++           lp_candidate_killed, lp_sparse_capture, lp_dead_first_one_credit);
+   for (lp_i = 0; lp_i < 17; lp_i = lp_i + 1)
+     $display("LOAD_PROFILE latency_bin=%0d response_to_cq=%0d response_to_wb=%0d cq_to_wb=%0d",
+              lp_i, lp_response_to_cq[lp_i], lp_response_to_wb[lp_i], lp_cq_to_wb[lp_i]);
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_response_bypass.svh
+@@ -116,8 +116,45 @@
+   end
+ endtask
+ 
++// Toggle only cancellation between clock edges while a real, held response
++// is offered. Routing is speculative; a handshake/capture never occurs here.
++task rb_check_cancel_route;
++  reg [17:0] saved_masks;
++  reg [17:0] saved_tags;
++  reg [2*`R64_RESULT_W-1:0] saved_results;
++  reg [31:0] saved_kill;
++  reg saved_flush;
++  begin
++    saved_kill = kill;
++    saved_flush = flush;
++    response_hold = 0;
++    #1;
++    if (!(|mresp) || !(|mrespready) || !(|dut.response_bypass_candidate_w))
++      $fatal(1, "cancel route fixture lacks a real eligible response");
++    saved_masks = {dut.event_candidate_w, dut.event_first_w, dut.event_second_w};
++    saved_tags = dut.completion_tag_w;
++    saved_results = dut.completion_result_w;
++    kill = 32'hffffffff;
++    #1;
++    if ({dut.event_candidate_w, dut.event_first_w, dut.event_second_w} !== saved_masks ||
++        dut.completion_tag_w !== saved_tags || dut.completion_result_w !== saved_results ||
++        dut.completion_fire_w !== 0 || dut.raw_queue_fire_w !== 0)
++      $fatal(1, "partial kill changed response routing or published a dead owner");
++    kill = saved_kill;
++    flush = 1;
++    #1;
++    if ({dut.event_candidate_w, dut.event_first_w, dut.event_second_w} !== saved_masks ||
++        dut.completion_tag_w !== saved_tags || dut.completion_result_w !== saved_results ||
++        dut.completion_fire_w !== 0 || dut.raw_queue_fire_w !== 0 || (|mrespready))
++      $fatal(1, "flush changed response routing or original ready/capture semantics");
++    flush = saved_flush;
++    #1;
++  end
++endtask
++
+ task run_response_bypass;
+   integer q;
++  integer rb_first_tag, rb_other_tag;
+   begin
+     for (q = 0; q < 512; q = q + 1) begin
+       rb_rsp_cycle[q] = -1; rb_cq_cycle[q] = -1;
+@@ -133,6 +170,18 @@
+     rb_check_latency(0, RESPONSE_BYPASS ? 0 : 1);
+     rb_drain;
+     $display("RESPONSE_BYPASS_CASE single_empty delta=%0d", rb_cq_cycle[0]-rb_rsp_cycle[0]);
++
++    if (RESPONSE_BYPASS) begin
++      response_hold = 3;
++      enqueue(128, 0, 0, 8'h03, 0, memory[0], 0, 0);
++      while (mn[0] + mn[1] == 0) @(negedge clk);
++      repeat (4) @(negedge clk);
++      rb_check_cancel_route;
++      wait_result(0);
++      rb_check_latency(128, 0);
++      rb_drain;
++      $display("RESPONSE_BYPASS_CASE cancel_route_invariant real_response_no_force");
++    end
+ 
+     response_hold = 3;
+     rb_pair(1, 2, 8, 16);
+@@ -317,6 +366,43 @@
+     rb_drain;
+     $display("RESPONSE_BYPASS_CASE dual_one_credit exactly_once=5 raw_fallback=%0d",
+              rb_raw_count[83] + rb_raw_count[84]);
++    if (RESPONSE_BYPASS) begin
++      // Kill exactly the first chosen real response while the second remains
++      // live. Two credits must capture sparse rank1 without moving its data.
++      out_ready = 0;
++      response_hold = 3;
++      rb_pair(160, 161, 0, 8);
++      repeat (4) @(negedge clk);
++      response_hold = 0;
++      #1;
++      if (mresp !== 3 || dut.completion_credit_w !== 3 ||
++          dut.response_bypass_candidate_w !== 3)
++        $fatal(1, "sparse response fixture is not a two-response/two-credit offer");
++      rb_first_tag = int'(dut.completion_tag_w[0+:9]);
++      rb_other_tag = int'(dut.completion_tag_w[9+:9]);
++      if (!((rb_first_tag == 160 && rb_other_tag == 161) ||
++            (rb_first_tag == 161 && rb_other_tag == 160)))
++        $fatal(1, "sparse response fixture selected wrong identities");
++      killed[rb_first_tag%32] = 1;
++      kill = 32'b1 << (rb_first_tag%32);
++      #1;
++      if (dut.completion_fire_w !== 2'b10 ||
++          dut.completion_tag_w[9+:9] !== 9'(rb_other_tag))
++        $fatal(1, "live second response was compacted or lost after first kill");
++      @(negedge clk);
++      kill = 0;
++      out_ready = 3;
++      wait_result(5'(rb_other_tag));
++      rb_drain;
++      if (rb_rsp_count[rb_first_tag] != 1 || rb_cq_count[rb_first_tag] != 0 ||
++          rb_raw_count[rb_first_tag] != 0 || rb_wb_count[rb_first_tag] != 0 ||
++          rb_cq_count[rb_other_tag] != 1 || rb_raw_count[rb_other_tag] != 0 ||
++          rb_wb_count[rb_other_tag] != 1)
++        $fatal(1, "sparse response drain/capture identity conservation failed");
++      rb_check_latency(9'(rb_other_tag), 0);
++      $display("RESPONSE_BYPASS_CASE sparse_live_rank1 dead=%0d live=%0d",
++               rb_first_tag, rb_other_tag);
++    end
+     $display("[PASS] tb_r64_lsu response-bypass parameter=%0d stalls=%0d full_tag_exactly_once",
+              RESPONSE_BYPASS, random_stall);
+     $finish;
+--- /dev/null
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_completion_fixed_slots.sv
+@@ -0,0 +1,315 @@
++`timescale 1ns / 1ps
++`include "R64Uop.vh"
++module tb_r64_completion_fixed_slots;
++  localparam R = `R64_RESULT_W;
++  reg clk = 0;
++  always #5 clk = ~clk;
++  reg rst = 1, flush = 0, probe_flush = 0;
++  reg [31:0] kill = 0, probe_kill = 0;
++  reg [1:0] fire = 0, consume = 0, probe_consume = 0;
++  reg [17:0] tags = 0;
++  reg [2*R-1:0] packets = 0;
++  wire [1:0] ready, valid, request;
++  wire [17:0] output_tag;
++  wire [2*R-1:0] output_packet;
++  wire [31:0] reuse;
++  wire idle;
++  R64LsuCompletion dut (
++    .clk_i(clk), .rst_i(rst), .flush_i(flush), .kill_mask_i(kill),
++    .in_fire_i(fire), .in_ready_o(ready), .in_tag_i(tags), .in_result_i(packets),
++    .out_valid_o(valid), .out_request_o(request), .out_ready_i(consume),
++    .out_tag_o(output_tag), .out_result_o(output_packet), .reuse_block_o(reuse), .idle_o(idle)
++  );
++  R64LsuCompletion probe (
++    .clk_i(clk), .rst_i(rst), .flush_i(probe_flush), .kill_mask_i(probe_kill),
++    .in_fire_i(fire), .in_ready_o(), .in_tag_i(tags), .in_result_i(packets),
++    .out_valid_o(), .out_request_o(), .out_ready_i(probe_consume),
++    .out_tag_o(), .out_result_o(), .reuse_block_o(), .idle_o()
++  );
++  // Optional exact frozen previous-round RTL, renamed only at compile time.
++  // Default regression uses the independent FIFO scoreboard below.
++  reg compare_baseline = 0;
++`ifdef R64_CQ_BASELINE_EQ
++  wire [1:0] base_ready, base_valid, base_request;
++  wire [17:0] base_tag;
++  wire [2*R-1:0] base_packet;
++  wire [31:0] base_reuse;
++  wire base_idle;
++  R64LsuCompletionBaseline baseline (
++    .clk_i(clk), .rst_i(rst || !compare_baseline), .flush_i(1'b0), .kill_mask_i(32'b0),
++    .in_fire_i(compare_baseline ? fire : 2'b0), .in_ready_o(base_ready),
++    .in_tag_i(tags), .in_result_i(packets), .out_valid_o(base_valid),
++    .out_request_o(base_request), .out_ready_i(consume), .out_tag_o(base_tag),
++    .out_result_o(base_packet), .reuse_block_o(base_reuse), .idle_o(base_idle)
++  );
++`endif
++  // Abstract ordered owner queues: deliberately no physical slot/head model.
++  integer count[0:1];
++  reg [8:0] owner[0:1][0:1];
++  reg [R-1:0] payload[0:1][0:1];
++  reg turn = 0;
++  reg [3:0] generation[0:31];
++  reg [31:0] rng = 32'hcb401af7;
++  integer cycle = 0, serial = 0, allocated = 0, retired = 0, cancelled = 0;
++  integer sparse = 0, no_credit = 0, one_credit = 0, two_credit = 0;
++  integer head_kill = 0, tail_kill = 0, pop_capture = 0, kill_capture = 0;
++  integer reused = 0, held_tail_kill = 0, prep_checks = 0, baseline_cycles = 0;
++  integer reset_checks = 0;
++  integer i, j;
++  function [31:0] step;
++    input [31:0] x;
++    reg [31:0] y;
++    begin y = x ^ (x << 13); y = y ^ (y >> 17); step = y ^ (y << 5); end
++  endfunction
++  function [31:0] owners_mask;
++    integer a, b;
++    begin
++      owners_mask = 0;
++      for (a = 0; a < 2; a = a + 1)
++        for (b = 0; b < count[a]; b = b + 1) owners_mask[owner[a][b][4:0]] = 1;
++    end
++  endfunction
++  task check_outputs;
++    integer lane, first;
++    reg [1:0] free_lane, credits, expected_valid, expected_request;
++    begin
++      free_lane = {count[1] < 2, count[0] < 2};
++      credits = {&free_lane, |free_lane} & {2{!rst && !flush}};
++      first = free_lane[turn] ? turn : !turn;
++      expected_valid = 0;
++      expected_request = 0;
++      for (lane = 0; lane < 2; lane = lane + 1) begin
++        expected_valid[lane] = count[lane] != 0 && !rst && !flush && !kill[owner[lane][0][4:0]];
++        expected_request[lane] = count[lane] != 0 || fire[first != lane];
++        if (expected_valid[lane] &&
++            {output_tag[lane*9+:9], output_packet[lane*R+:R]} !== {owner[lane][0], payload[lane][0]})
++          $fatal(1, "fixed-slot owner/payload/order mismatch cycle=%0d lane=%0d", cycle, lane);
++      end
++      if ({ready, valid, request, reuse, idle} !==
++          {credits, expected_valid, expected_request, owners_mask(), (count[0] + count[1] == 0)})
++        $fatal(1, "fixed-slot control mismatch cycle=%0d ready=%b valid=%b request=%b", cycle, ready, valid, request);
++`ifdef R64_CQ_BASELINE_EQ
++      if (compare_baseline) begin
++        if ({base_ready, base_valid, base_request, base_reuse, base_idle} !==
++            {ready, valid, request, reuse, idle})
++          $fatal(1, "frozen CQ cycle/control/request mismatch cycle=%0d", cycle);
++        for (lane = 0; lane < 2; lane = lane + 1)
++          if (valid[lane] && {output_tag[lane*9+:9], output_packet[lane*R+:R]} !==
++              {base_tag[lane*9+:9], base_packet[lane*R+:R]})
++            $fatal(1, "frozen CQ owner/payload/timing mismatch cycle=%0d lane=%0d", cycle, lane);
++        baseline_cycles = baseline_cycles + 1;
++      end
++`endif
++    end
++  endtask
++`define CQ_PREP(D,G) {D.gen_lane[G].input_lane, D.gen_lane[G].target_slot, \
++ D.gen_lane[G].gen_slot[0].payload_write, D.gen_lane[G].gen_slot[1].payload_write, \
++ D.gen_lane[G].input_tag, D.gen_lane[G].input_result}
++  task check_preparation;
++    begin
++      // The revised noninterference property holds at rst=0 only.
++      if (rst) $fatal(1, "cancellation noninterference tested outside rst=0 boundary");
++      // Both instances have identical registered state. Change only current
++      // cancellation and WB acceptance between edges, then restore before edge.
++      probe_flush = !flush;
++      probe_kill = ~kill;
++      probe_consume = ~consume;
++      #1;
++      if (dut.first_w !== probe.first_w || `CQ_PREP(dut,0) !== `CQ_PREP(probe,0) ||
++          `CQ_PREP(dut,1) !== `CQ_PREP(probe,1))
++        $fatal(1, "cancel/pop reached fixed-slot payload preparation cycle=%0d", cycle);
++      prep_checks = prep_checks + 1;
++      probe_flush = flush;
++      probe_kill = kill;
++      probe_consume = consume;
++      #1;
++    end
++  endtask
++`undef CQ_PREP
++  task model_edge;
++    integer lane, first, n, old_count, rank, idx;
++    reg [1:0] free_lane;
++    begin
++      free_lane = {count[1] < 2, count[0] < 2};
++      first = free_lane[turn] ? turn : !turn;
++      if (fire == 2) sparse = sparse + 1;
++      case (ready)
++        0: no_credit = no_credit + 1;
++        1: one_credit = one_credit + 1;
++        3: two_credit = two_credit + 1;
++      endcase
++      for (lane = 0; lane < 2; lane = lane + 1) begin
++        rank = first != lane;
++        old_count = count[lane];
++        if (old_count && kill[owner[lane][0][4:0]]) head_kill = head_kill + 1;
++        if (old_count == 2 && kill[owner[lane][1][4:0]]) begin
++          tail_kill = tail_kill + 1;
++          if (!consume[lane] && !kill[owner[lane][0][4:0]]) held_tail_kill = held_tail_kill + 1;
++        end
++        if (fire[rank] && old_count && consume[lane] && !kill[owner[lane][0][4:0]])
++          pop_capture = pop_capture + 1;
++        if (fire[rank] && old_count && kill[owner[lane][0][4:0]]) kill_capture = kill_capture + 1;
++        n = 0;
++        for (idx = 0; idx < old_count; idx = idx + 1) begin
++          if (flush || kill[owner[lane][idx][4:0]]) cancelled = cancelled + 1;
++          else if (idx == 0 && consume[lane]) retired = retired + 1;
++          else begin
++            owner[lane][n] = owner[lane][idx];
++            payload[lane][n] = payload[lane][idx];
++            n = n + 1;
++          end
++        end
++        if (fire[rank]) begin
++          owner[lane][n] = tags[rank*9+:9];
++          payload[lane][n] = packets[rank*R+:R];
++          n = n + 1;
++          allocated = allocated + 1;
++        end
++        count[lane] = n;
++      end
++      if (fire[0]) turn = !first;
++      else if (fire[1]) turn = first;
++      if (allocated != retired + cancelled + count[0] + count[1])
++        $fatal(1, "owner conservation mismatch");
++    end
++  endtask
++  task tick;
++    input [1:0] wanted, pop;
++    input [31:0] killed;
++    input do_flush;
++    integer rank, slot, scan;
++    reg [31:0] unavailable;
++    begin
++      fire = 0;
++      consume = pop;
++      kill = killed;
++      flush = do_flush;
++      probe_consume = consume;
++      probe_kill = kill;
++      probe_flush = flush;
++      rng = step(rng);
++      tags = rng[17:0];
++      for (scan = 0; scan < 2; scan = scan + 1) begin
++        rng = step(rng);
++        packets[scan*R+:R] = {12'hace, rng, ~rng, serial[31:0], (rng ^ serial)};
++      end
++      #1;
++      unavailable = owners_mask() | kill;
++      for (rank = 0; rank < 2; rank = rank + 1)
++        if (wanted[rank] && ready[rank]) begin
++          slot = -1;
++          for (scan = 0; scan < 32; scan = scan + 1)
++            if (slot < 0 && !unavailable[scan]) slot = scan;
++          if (slot >= 0) begin
++            tags[rank*9+:9] = {generation[slot], slot[4:0]};
++            generation[slot] = generation[slot] + 1'b1;
++            if (serial > 32) reused = reused + 1;
++            unavailable[slot] = 1;
++            serial = serial + 1;
++            fire[rank] = 1;
++          end
++        end
++      #1;
++      check_outputs();
++      check_preparation();
++      @(posedge clk);
++      model_edge();
++      @(negedge clk);
++      cycle = cycle + 1;
++    end
++  endtask
++  task reset_boundary;
++    integer slot, beat;
++    reg [8:0] saved_tag[0:3];
++    reg [R-1:0] saved_data[0:3];
++    begin
++      // Capture live owners, then prewrite the other two slots without capture.
++      tick(3, 0, 0, 0);
++      tick(0, 0, 0, 0);
++      for (slot = 0; slot < 4; slot = slot + 1) begin
++        saved_tag[slot] = dut.slot_tag_q[slot];
++        saved_data[slot] = dut.slot_result_q[slot];
++      end
++      rst = 1;
++      fire = 0;
++      consume = 0;
++      probe_consume = 0;
++      cancelled = cancelled + count[0] + count[1];
++      count[0] = 0; count[1] = 0; turn = 0;
++      for (beat = 0; beat < 3; beat = beat + 1) begin
++        tags = ~tags;
++        packets = ~packets;
++        #1;
++        if ({dut.gen_lane[0].gen_slot[0].payload_write,
++             dut.gen_lane[0].gen_slot[1].payload_write,
++             dut.gen_lane[1].gen_slot[0].payload_write,
++             dut.gen_lane[1].gen_slot[1].payload_write} !== 4'b0 || ready != 0 || valid != 0)
++          $fatal(1, "reset permits payload prewrite or completion");
++        @(posedge clk);
++        @(negedge clk);
++        if (!idle || reuse != 0 || request != 0 || dut.turn_q != 0)
++          $fatal(1, "reset retained owner, hint, reuse or arbitration state");
++        for (slot = 0; slot < 4; slot = slot + 1)
++          if ({dut.slot_tag_q[slot], dut.slot_result_q[slot]} !== {saved_tag[slot], saved_data[slot]})
++            $fatal(1, "reset changed stored payload without prewrite permission");
++        reset_checks = reset_checks + 1;
++      end
++      rst = 0;
++      // New payload can be prepared after reset; it must never revive an owner.
++      tick(0, 0, 0, 0); tick(0, 0, 0, 0);
++      if (!idle || valid || reuse || request) $fatal(1, "pre-reset/prewrite owner revived");
++      // Only this new real capture establishes owner with its current payload.
++      tick(2, 0, 0, 0); tick(0, 3, 0, 0); tick(0, 3, 0, 0);
++    end
++  endtask
++  reg [1:0] wanted;
++  reg [31:0] killed;
++  initial begin
++    count[0] = 0; count[1] = 0;
++    for (i = 0; i < 32; i = i + 1) generation[i] = 0;
++    compare_baseline = 1;
++    repeat (3) @(negedge clk);
++    rst = 0;
++    // Exact previous-round baseline comparison: no kill, original prefix fire.
++    for (i = 0; i < 6000; i = i + 1) begin
++      rng = step(rng);
++      wanted = rng[1:0] == 2 ? 1 : rng[1:0];
++      tick(wanted, (i % 113 < 12) ? 0 : rng[3:2], 0, 0);
++    end
++    tick(0, 3, 0, 0); tick(0, 3, 0, 0); tick(0, 3, 0, 0);
++    compare_baseline = 0;
++    reset_boundary();
++    // Explicit sparse rank, no-credit, head/back kill and replacement cases.
++    tick(2, 0, 0, 0); tick(3, 0, 0, 0); tick(3, 0, 0, 0);
++    if (ready != 0) $fatal(1, "directed case did not fill all four slots");
++    killed = (32'b1 << owner[0][1][4:0]) | (32'b1 << owner[1][0][4:0]);
++    tick(3, 0, killed, 0);
++    tick(3, 0, 0, 0);
++    tick(0, 3, 0, 0);
++    tick(3, 3, 0, 0);
++    killed = (32'b1 << owner[0][0][4:0]) | (32'b1 << owner[1][0][4:0]);
++    tick(2, 0, killed, 0);
++    tick(0, 0, 0, 1);
++    // Deterministic randomized cancellation, independent stall and sparse fire.
++    for (i = 0; i < 24000; i = i + 1) begin
++      rng = step(rng);
++      killed = rng[6:3] == 0 ? (32'b1 << rng[11:7]) : 0;
++      if (i % 19 == 5 && count[0]) killed = killed | (32'b1 << owner[0][0][4:0]);
++      if (i % 29 == 7 && count[1] == 2) killed = killed | (32'b1 << owner[1][1][4:0]);
++      wanted = rng[1:0];
++      tick(wanted, (i % 131 < 15) ? 0 : rng[15:14], killed, i % 277 == 276);
++    end
++    tick(0, 3, 0, 0); tick(0, 3, 0, 0); tick(0, 3, 0, 0);
++    fire = 0;
++    if (!idle || allocated != retired + cancelled || sparse < 1000 || no_credit < 100 ||
++        one_credit < 100 || two_credit < 100 || head_kill < 20 || tail_kill < 20 ||
++        pop_capture < 100 || kill_capture < 10 || held_tail_kill < 10 || reused < 1000 || reset_checks != 3)
++      $fatal(1, "fixed-slot coverage missing allocated=%0d sparse=%0d credits=%0d/%0d/%0d headkill=%0d tailkill=%0d popcap=%0d killcap=%0d heldtailkill=%0d reused=%0d",
++        allocated, sparse, no_credit, one_credit, two_credit, head_kill, tail_kill, pop_capture, kill_capture, held_tail_kill, reused);
++    $display("[PASS] tb_r64_completion_fixed_slots cycles=%0d allocated=%0d retired=%0d cancelled=%0d sparse10=%0d credits0/1/2=%0d/%0d/%0d headkill=%0d tailkill=%0d pop_capture=%0d kill_capture=%0d held_tail_kill=%0d reused=%0d preparation_checks=%0d baseline_cycles=%0d reset_checks=%0d",
++      cycle, allocated, retired, cancelled, sparse, no_credit, one_credit, two_credit,
++      head_kill, tail_kill, pop_capture, kill_capture, held_tail_kill, reused, prep_checks, baseline_cycles, reset_checks);
++    $finish;
++  end
++  initial begin #500000; $fatal(1, "timeout"); end
++endmodule
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_completion_payload.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_completion_payload.sv
+@@ -92,7 +92,7 @@
+         if (oldheld[q]) held = held + 1;
+         if (a.front_q[q] && kill[a.front_tag_q[q][4:0]]) frontkill = frontkill + 1;
+         if (a.back_q[q] && kill[a.back_tag_q[q][4:0]]) backkill = backkill + 1;
+-        if (!a.front_q[q] && a.front_result_q[q] !== b.front_result_q[q])
++        if (!a.front_q[q] && a.front_result_q[q] !== data[1][q*140+:140])
+           freechanges = freechanges + 1;
+       end
+       if (ready[0] == 0) full = full + 1;
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_event_count.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_event_count.sv
+@@ -1,9 +1,11 @@
+ `timescale 1ns / 1ps
++`include "R64Uop.vh"
+ module tb_r64_lsu_event_count;
+-  reg clk = 0;
+-  always #5 clk = ~clk;
+-  reg [5:0] valid_mask, before_mask;
+-  reg [1:0] credit;
++  localparam TAG_W = 9;
++  localparam R = `R64_RESULT_W;
++  reg clk = 0, rst = 1;
++  reg [5:0] candidate_mask = 0, live_mask = 0, before_mask = 0;
++  reg [1:0] credit = 0;
+   R64Lsu #(
+     .ENTRIES(20),
+     .INDEX_W(5),
+@@ -11,41 +13,119 @@
+     .PREPARED_CANCEL(1)
+   ) dut (
+     .clk_i(clk),
+-    .rst_i(1'b1)
++    .rst_i(rst),
++    .flush_i(1'b0),
++    .kill_mask_i(32'b0)
+   );
+-  integer v, b, c, i, count, cases = 0;
+-  reg [1:0] expected;
++
++  function [TAG_W-1:0] source_tag(input integer source);
++    source_tag = TAG_W'(32 + source * 33);
++  endfunction
++  function [R-1:0] source_result(input integer source);
++    source_result = {5'(source + 1), 64'h1234567887654321 ^ 64'(source * 257),
++                     6'(source * 7), 1'(source), 64'hfedcba9801234567 ^ 64'(source * 65537)};
++  endfunction
++  // Unique full-width data makes wrong source selection observable even when
++  // the selected candidate is killed and consequently has no semantic capture.
++  generate
++    for (genvar source = 0; source < 6; source = source + 1) begin : gen_source
++      localparam [TAG_W-1:0] TAG = source_tag(source);
++      localparam [R-1:0] RESULT = source_result(source);
++      initial begin
++        force dut.event_tag_w[source] = TAG;
++        force dut.event_result_w[source] = RESULT;
++      end
++    end
++  endgenerate
++
++  integer cand, live, phase, credits, step, source_index, first, second, last;
++  integer cases = 0, sparse_second = 0, blocked_second = 0, no_capture = 0;
++  reg [5:0] first_mask, second_mask, expected_grant, expected_last, expected_before;
++  reg [1:0] expected_fire;
++  reg [2*TAG_W-1:0] expected_tags;
++  reg [2*R-1:0] expected_results;
+   initial begin
+-    // Exhaust the actual production combinational slice. The rest of the LSU
+-    // stays in reset; this test makes no claim about forced transaction traffic.
+-    for (b = 0; b < 64; b = b + 1)
+-    for (v = 0; v < 64; v = v + 1)
+-    for (c = 0; c < 4; c = c + 1) begin
+-      before_mask = 6'(b);
+-      valid_mask = 6'(v);
+-      credit = 2'(c);
+-      count = 0;
+-      force dut.event_valid_w = valid_mask;
+-      force dut.event_before_q = before_mask;
+-      force dut.completion_credit_w = credit;
+-      for (i = 0; i < 6; i = i + 1) if (v & (1 << i)) count = count + 1;
+-      expected = {count >= 2, count >= 1} & credit;
++    // Reset once, then stop the clock: only the production combinational
++    // arbiter is exercised here. Synthetic events never enter transaction state.
++    #1; clk = 1;
++    #1; clk = 0;
++    #1; rst = 0;
++    force dut.event_candidate_w = candidate_mask;
++    force dut.event_valid_w = live_mask;
++    force dut.event_before_q = before_mask;
++    force dut.completion_credit_w = credit;
++    for (phase = 0; phase < 6; phase = phase + 1)
++    for (cand = 0; cand < 64; cand = cand + 1)
++    for (live = 0; live < 64; live = live + 1)
++    if ((live & ~cand) == 0)
++    for (credits = 0; credits < 3; credits = credits + 1) begin
++      candidate_mask = 6'(cand);
++      live_mask = 6'(live);
++      before_mask = 6'((1 << phase) - 1);
++      credit = credits == 0 ? 2'b00 : (credits == 1 ? 2'b01 : 2'b11);
++      // Independent cyclic scan, not the RTL pairwise-order/count equations.
++      first = -1;
++      second = -1;
++      for (step = 0; step < 6; step = step + 1) begin
++        source_index = (phase + step) % 6;
++        if ((cand & (1 << source_index)) != 0) begin
++          if (first < 0) first = source_index;
++          else if (second < 0) second = source_index;
++        end
++      end
++      first_mask = 0;
++      second_mask = 0;
++      expected_fire = 0;
++      expected_tags = 0;
++      expected_results = 0;
++      if (first >= 0) begin
++        first_mask[first] = 1;
++        expected_tags[0+:TAG_W] = source_tag(first);
++        expected_results[0+:R] = source_result(first);
++        if (credits >= 1 && live_mask[first]) expected_fire[0] = 1;
++      end
++      if (second >= 0) begin
++        second_mask[second] = 1;
++        expected_tags[TAG_W+:TAG_W] = source_tag(second);
++        expected_results[R+:R] = source_result(second);
++        if (credits >= 2 && live_mask[second]) expected_fire[1] = 1;
++      end
++      expected_grant = 0;
++      last = -1;
++      if (expected_fire[0]) begin
++        expected_grant[first] = 1;
++        last = first;
++      end
++      if (expected_fire[1]) begin
++        expected_grant[second] = 1;
++        last = second;
++      end
++      expected_last = last < 0 ? 6'b0 : (6'b1 << last);
++      expected_before = last < 0 ? before_mask : 6'((1 << ((last + 1) % 6)) - 1);
+       #1;
+-      if (dut.completion_fire_w !== expected ||
+-          dut.completion_fire_w !== ({|dut.event_second_w, |dut.event_first_w} & credit))
+-        $fatal(
+-            1,
+-            "actual LSU event count equivalence failed before=%0h valid=%0h credit=%0h",
+-            before_mask,
+-            valid_mask,
+-            credit
+-        );
++      if (dut.event_first_w !== first_mask || dut.event_second_w !== second_mask ||
++          dut.completion_tag_w !== expected_tags || dut.completion_result_w !== expected_results)
++        $fatal(1, "candidate route changed phase=%0d candidates=%h live=%h credit=%b first=%h/%h second=%h/%h",
++               phase, candidate_mask, live_mask, credit,
++               dut.event_first_w, first_mask, dut.event_second_w, second_mask);
++      if (dut.completion_fire_w !== expected_fire || dut.event_grant_w !== expected_grant)
++        $fatal(1, "rank capture mismatch phase=%0d candidates=%h live=%h credit=%b capture=%b/%b grant=%h/%h",
++               phase, candidate_mask, live_mask, credit,
++               dut.completion_fire_w, expected_fire, dut.event_grant_w, expected_grant);
++      if (dut.event_last_grant_w !== expected_last ||
++          (last >= 0 && dut.event_before_next_w !== expected_before))
++        $fatal(1, "RR advanced from a noncaptured rank phase=%0d candidates=%h live=%h credit=%b",
++               phase, candidate_mask, live_mask, credit);
++      if (expected_fire == 2'b10) sparse_second = sparse_second + 1;
++      if (credits == 1 && first >= 0 && second >= 0 &&
++          !live_mask[first] && live_mask[second]) blocked_second = blocked_second + 1;
++      if (expected_fire == 0) no_capture = no_capture + 1;
+       cases = cases + 1;
+     end
+-    release dut.event_valid_w;
+-    release dut.event_before_q;
+-    release dut.completion_credit_w;
+-    $display("[PASS] tb_r64_lsu_event_count actual_rtl_exhaustive_cases=%0d", cases);
++    if (cases != 13122 || sparse_second == 0 || blocked_second == 0 || no_capture == 0)
++      $fatal(1, "missing cancellation/rank coverage");
++    $display("[PASS] tb_r64_lsu_event_count actual_rtl_exhaustive_cases=%0d sparse_10=%0d dead_first_one_credit=%0d no_capture=%0d",
++             cases, sparse_second, blocked_second, no_capture);
+     $finish;
+   end
+ endmodule
+--- a/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_network.sv
++++ b/npc/rv64/testbench/chengyue64/modules/tb_r64_lsu_network.sv
+@@ -11,6 +11,7 @@
+   reg [ 2:0] trigger_enable = 0;
+   reg [63:0] trigger_address = 0;
+   reg trigger_test = 0, no_external = 0;
++  reg fair_mode = 0;
+   reg [8:0] full_tag[0:31];
+   reg head_valid = 1, effect_allow = 1, fp_enable = 1;
+   reg [8:0] head_tag = 0;
+@@ -215,7 +216,7 @@
+           mt[a] <= (mt[a] + 1) % 8;
+           memcount = memcount + 1;
+         end
+-        if (out_valid[a] && out_ready[a]) begin
++        if (!fair_mode && out_valid[a] && out_ready[a]) begin
+           tag = out_tag[a*9+:5];
+           if (trigger_test && out_tag[a*9+:9] !== full_tag[tag])
+             $fatal(1, "trigger generation mismatch");
+@@ -300,9 +301,13 @@
+   reg [4:0] head_amo;
+   integer n, before_mem, before_tr, issued, retired, start_cycle, stream_cycles;
+ 
+-  reg [5:0] fair_valid = 0;
++  reg [5:0] fair_valid = 0, fair_candidate = 0;
+   reg [1:0] fair_credit = 0;
+   integer grants[0:5], age[0:5], max_wait = 0, got, total;
++  integer rr_phase, rr_first, rr_second, rr_last;
++  integer rr_sparse = 0, rr_blocked = 0, rr_held = 0;
++  reg [5:0] rr_grant, rr_next;
++  reg [1:0] rr_fire;
+   integer refill_events = 0;
+   always @(posedge clk)
+     if (!rst)
+@@ -315,6 +320,7 @@
+   reg [31:0] wanted;
+   initial begin
+     baseline = $test$plusargs("baseline");
++    fair_mode = $test$plusargs("fair");
+     if ($test$plusargs("reverse")) mode = 1;
+     if ($test$plusargs("dead")) mode = 2;
+     if ($test$plusargs("spill-cancel")) mode = 3;
+@@ -329,17 +335,22 @@
+     end
+     repeat (4) @(negedge clk);
+     rst = 0;
+-    if ($test$plusargs("fair")) begin
+-      // Exercise the production arbiter with synthetic complete sources.
+-      // Suppress only its sink publication: no fake transaction enters LSU queues.
++    if (fair_mode) begin
++      // Exercise actual capture, grant and RR updates with synthetic complete
++      // sources. CQ naturally pops through out_ready=3; only the transaction
++      // scoreboard above is inapplicable to these synthetic events. Known sink
++      // payload avoids uninitialized source data; event_count checks routing.
++      force dut.event_candidate_w = fair_candidate;
+       force dut.event_valid_w = fair_valid;
+       force dut.completion_credit_w = fair_credit;
+-      force dut.completion_fire_w = 2'b0;
++      force dut.completion_tag_w = {9'd1, 9'd0};
++      force dut.completion_result_w = 0;
+       for (n = 0; n < 6; n = n + 1) begin
+         grants[n] = 0;
+         age[n] = 0;
+       end
+       fair_valid = 6'h3f;
++      fair_candidate = fair_valid;
+       for (waited = 0; waited < 120; waited = waited + 1) begin
+         @(negedge clk);
+         fair_credit = waited % 4 == 0 ? 2'b0 : (waited % 2 == 0 ? 2'b01 : 2'b11);
+@@ -367,6 +378,7 @@
+       for (waited = 1; waited < 64; waited = waited + 1) begin
+         @(negedge clk);
+         fair_valid  = 6'(waited);
++        fair_candidate = fair_valid;
+         fair_credit = waited % 2 ? 2'b11 : 2'b01;
+         @(posedge clk);
+         got   = 0;
+@@ -378,7 +390,54 @@
+         if ((dut.event_grant_w & ~fair_valid) != 0 || got != (total > 1 && fair_credit[1] ? 2 : 1))
+           $fatal(1, "sparse completion arbitration lost/duplicated source");
+       end
+-      $display("[PASS] tb_r64_lsu_network fairness source eligibility, credit, bounded service");
++      // Sequential check for cancellation holes: only the highest actually
++      // captured rank may advance RR. In particular zero capture must hold RR.
++      for (waited = 0; waited < 36; waited = waited + 1) begin
++        @(negedge clk);
++        rr_phase = -1;
++        for (n = 0; n < 6; n = n + 1)
++          if (dut.event_before_q == 6'((1 << n) - 1)) rr_phase = n;
++        if (rr_phase < 0) $fatal(1, "illegal RR phase");
++        fair_candidate = 6'h3f;
++        fair_valid = 0;
++        fair_credit = (waited / 4) % 3 == 0 ? 2'b00 :
++            ((waited / 4) % 3 == 1 ? 2'b01 : 2'b11);
++        rr_first = rr_phase;
++        rr_second = (rr_phase + 1) % 6;
++        if (waited % 4 == 1 || waited % 4 == 3) fair_valid[rr_second] = 1;
++        if (waited % 4 == 2 || waited % 4 == 3) fair_valid[rr_first] = 1;
++        rr_fire = {fair_credit[1] && fair_valid[rr_second],
++                   fair_credit[0] && fair_valid[rr_first]};
++        rr_grant = 0;
++        rr_last = -1;
++        if (rr_fire[0]) begin
++          rr_grant[rr_first] = 1;
++          rr_last = rr_first;
++        end
++        if (rr_fire[1]) begin
++          rr_grant[rr_second] = 1;
++          rr_last = rr_second;
++        end
++        rr_next = rr_last < 0 ? 6'((1 << rr_phase) - 1) :
++            6'((1 << ((rr_last + 1) % 6)) - 1);
++        #1;
++        if (dut.completion_fire_w !== rr_fire || dut.event_grant_w !== rr_grant)
++          $fatal(1, "fairness sparse capture mismatch");
++        @(posedge clk);
++        #1;
++        if (dut.event_before_q !== rr_next)
++          $fatal(1, "RR state followed unaccepted candidate got=%h expected=%h",
++                 dut.event_before_q, rr_next);
++        if (rr_fire == 2'b10) rr_sparse = rr_sparse + 1;
++        if (fair_credit == 2'b01 && !fair_valid[rr_first] && fair_valid[rr_second])
++          rr_blocked = rr_blocked + 1;
++        if (rr_fire == 0) rr_held = rr_held + 1;
++      end
++      if (rr_sparse == 0 || rr_blocked == 0 || rr_held == 0)
++        $fatal(1, "fairness cancellation coverage missing");
++      $display("LSU_NETWORK rr_capture sparse_10=%0d dead_first_one_credit=%0d held=%0d",
++               rr_sparse, rr_blocked, rr_held);
++      $display("[PASS] tb_r64_lsu_network fairness source eligibility, credit, bounded service, capture-only RR");
+       $finish;
+     end
+     if (mode == 0) begin
+--- a/npc/rv64/testbench/chengyue64/Makefile
++++ b/npc/rv64/testbench/chengyue64/Makefile
+@@ -1,7 +1,7 @@
+ .DEFAULT_GOAL := all
+ include ../../sim/build.mk
+ BUILD_DIR ?= ../../build/chengyue64/regress
+-TESTS ?= tb_r64_service_request_hint tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_dcache_write_buffer tb_r64_issue32 tb_r64_free_select tb_r64_dcache_split_owner tb_r64_fabric_groups tb_r64_fabric_read_continue tb_r64_dcache_store_overlap tb_r64_axi_write_bypass tb_r64_fabric_latency_bypass tb_r64_writeback_demand tb_r64_rr_bypass tb_r64_issue_mdu_pair tb_r64_scratch_resume tb_r64_lsu_network tb_r64_dcache_overlap tb_r64_dispatch_wants tb_r64_rr_raw_fp_pair tb_r64_completion_payload tb_r64_predictor_local_counter tb_r64_fetch_facts_reset tb_r64_fast_raw_owner tb_r64_fma_raw_owner tb_r64_direct_mem_execute tb_r64_lsu_direct_bind tb_r64_lsu_owner_bypass tb_r64_lsu_descriptor_payload tb_r64_lsu_query_pin tb_r64_direct_bind_trigger tb_r64_head_serial_class tb_r64_fetch_protection_owner tb_r64_frontend_prepared tb_r64_fp_qcredit tb_r64_fp_qcredit_vectors tb_r64_service_bank_pair tb_r64_service_cache_hot tb_r64_service_aux_owner tb_r64_service_qcredit tb_r64_dcache_amo_pipe tb_r64_data_terminal tb_r64_fetch_translation tb_r64_fetch_translation_owners tb_r64_packet_map tb_r64_packet_missing tb_r64_packet_headcut tb_r64_align_plan_threebank tb_r64_translation_equiv tb_r64_translation_poison tb_r64_frontend_ingress tb_r64_decode_stage tb_r64_rr_lsq_slot tb_r64_lsu_reserve tb_r64_platform_reset tb_r64_trap_prepare tb_r64_control_pipeline tb_r64_recovery_plan tb_r64_frontend_bundle tb_r64_frontend_training tb_r64_lsu_progress tb_r64_alu_pipe tb_r64_alu_lane tb_r64_fp_normalize tb_r64_clmul_writeback tb_r64_issue_serial tb_r64_fp_fast_pipeline tb_r64_fp_completion tb_r64_trap_vector tb_r64_counter tb_r64_fp_grs tb_r64_mul_booth tb_r64_fp_writeback tb_r64_lsu_metadata tb_r64_fp_product tb_r64_fabric_reset tb_r64_div_pipeline tb_r64_regread_pipeline tb_r64_div_writeback tb_r64_lsu_request_queue tb_r64_writeback_lanes tb_r64_mul_writeback tb_uart tb_axi_clint tb_r64_mul_pipeline tb_axi_reset_syscon tb_r64_lsu_order_select tb_axi_to_uart tb_r64_numeric_helpers tb_r64_lsu_select tb_r64_fabric_latency tb_r64_early_frontend tb_r64_early_wakeup tb_r64_store_done tb_axi_plic tb_r64_tensor_memory tb_r64_mem_admission tb_r64_fetch tb_r64_rvc tb_r64_rob_rename tb_r64_issue_regread tb_r64_writeback tb_r64_axi_read tb_r64_axi_write tb_r64_icache tb_r64_tlb tb_r64_pagewalk tb_r64_translation tb_r64_decode tb_r64_arithmetic tb_r64_backend tb_r64_frontend tb_r64_protection tb_r64_pte_port tb_r64_csr tb_r64_serial tb_r64_commit tb_r64_fp_round tb_r64_fp_fma tb_r64_fp_long tb_r64_fp_fast tb_r64_fp_execute tb_r64_backend_fp tb_r64_predictor tb_r64_pipeline tb_r64_lsu tb_r64_lsu_completion tb_r64_lsu_memory tb_r64_memory_service tb_r64_lsu_coupled tb_r64_lsu_misaligned tb_r64_dcache tb_r64_fabric tb_r64_fabric_devices tb_r64_rtc
++TESTS ?= tb_r64_completion_fixed_slots tb_r64_service_request_hint tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_dcache_write_buffer tb_r64_issue32 tb_r64_free_select tb_r64_dcache_split_owner tb_r64_fabric_groups tb_r64_fabric_read_continue tb_r64_dcache_store_overlap tb_r64_axi_write_bypass tb_r64_fabric_latency_bypass tb_r64_writeback_demand tb_r64_rr_bypass tb_r64_issue_mdu_pair tb_r64_scratch_resume tb_r64_lsu_network tb_r64_dcache_overlap tb_r64_dispatch_wants tb_r64_rr_raw_fp_pair tb_r64_completion_payload tb_r64_predictor_local_counter tb_r64_fetch_facts_reset tb_r64_fast_raw_owner tb_r64_fma_raw_owner tb_r64_direct_mem_execute tb_r64_lsu_direct_bind tb_r64_lsu_owner_bypass tb_r64_lsu_descriptor_payload tb_r64_lsu_query_pin tb_r64_direct_bind_trigger tb_r64_head_serial_class tb_r64_fetch_protection_owner tb_r64_frontend_prepared tb_r64_fp_qcredit tb_r64_fp_qcredit_vectors tb_r64_service_bank_pair tb_r64_service_cache_hot tb_r64_service_aux_owner tb_r64_service_qcredit tb_r64_dcache_amo_pipe tb_r64_data_terminal tb_r64_fetch_translation tb_r64_fetch_translation_owners tb_r64_packet_map tb_r64_packet_missing tb_r64_packet_headcut tb_r64_align_plan_threebank tb_r64_translation_equiv tb_r64_translation_poison tb_r64_frontend_ingress tb_r64_decode_stage tb_r64_rr_lsq_slot tb_r64_lsu_reserve tb_r64_platform_reset tb_r64_trap_prepare tb_r64_control_pipeline tb_r64_recovery_plan tb_r64_frontend_bundle tb_r64_frontend_training tb_r64_lsu_progress tb_r64_alu_pipe tb_r64_alu_lane tb_r64_fp_normalize tb_r64_clmul_writeback tb_r64_issue_serial tb_r64_fp_fast_pipeline tb_r64_fp_completion tb_r64_trap_vector tb_r64_counter tb_r64_fp_grs tb_r64_mul_booth tb_r64_fp_writeback tb_r64_lsu_metadata tb_r64_fp_product tb_r64_fabric_reset tb_r64_div_pipeline tb_r64_regread_pipeline tb_r64_div_writeback tb_r64_lsu_request_queue tb_r64_writeback_lanes tb_r64_mul_writeback tb_uart tb_axi_clint tb_r64_mul_pipeline tb_axi_reset_syscon tb_r64_lsu_order_select tb_axi_to_uart tb_r64_numeric_helpers tb_r64_lsu_select tb_r64_fabric_latency tb_r64_early_frontend tb_r64_early_wakeup tb_r64_store_done tb_axi_plic tb_r64_tensor_memory tb_r64_mem_admission tb_r64_fetch tb_r64_rvc tb_r64_rob_rename tb_r64_issue_regread tb_r64_writeback tb_r64_axi_read tb_r64_axi_write tb_r64_icache tb_r64_tlb tb_r64_pagewalk tb_r64_translation tb_r64_decode tb_r64_arithmetic tb_r64_backend tb_r64_frontend tb_r64_protection tb_r64_pte_port tb_r64_csr tb_r64_serial tb_r64_commit tb_r64_fp_round tb_r64_fp_fma tb_r64_fp_long tb_r64_fp_fast tb_r64_fp_execute tb_r64_backend_fp tb_r64_predictor tb_r64_pipeline tb_r64_lsu tb_r64_lsu_completion tb_r64_lsu_memory tb_r64_memory_service tb_r64_lsu_coupled tb_r64_lsu_misaligned tb_r64_dcache tb_r64_fabric tb_r64_fabric_devices tb_r64_rtc
+ TEST_ARGS_tb_r64_lsu := +prepared-capture
+ TEST_ARGS_tb_r64_dcache_amo_pipe := +late-invalidate
+ TEST_ORACLES := oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v oracles/legacy/OooRvcDecompressor.v oracles/legacy/DecodeUnit.v oracles/legacy/OooFpDecode.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v

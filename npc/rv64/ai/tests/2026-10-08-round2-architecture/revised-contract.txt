@@ -1,0 +1,348 @@
+ChatGPT 说：
+结论：批准这个修正，方案C不变
+
+你的反例成立。我上一版4.2把bus_fire放进取消无关的response候选，是接口定义错误；6.1的非干扰预测不能由那版公式满足。 raw_credit_w并非纯结构信用，它已经包含当前flush。
+
+采用你提出的修正：
+
+response候选仅表示“当前有可预路由的数据”，使用mem_rsp_valid、取消前Q态身份与descriptor资格、raw真实空状态及响应结果；真实外部握手和当前语义存活只进入最终capture及原有raw_fire/raw_enqueue。
+
+允许未握手response预写Q态无owner的CQ空槽。 这不是提前接收，不建立临时owner，不预留槽，不释放LSQ，不更新仲裁历史，也不允许随后凭这份旧预写数据直接建立owner。
+
+下面的合同替换上一版4.2，并明确6.1的检查边界。
+
+一、修订后的候选与捕获定义
+
+以下是接口语义伪RTL，不假定这些中间信号已经存在。
+
+1.1 取消无关的response呈现
+systemverilog
+// 必须来自该raw lane所有真实占用位。
+// 不能用被flush/kill遮罩后的out_valid，也不能用in_ready代替。
+raw_empty_q[g] = !raw_occupied_q[g];
+
+// 使用当前呈现的response token，读取受生命周期保护的Q态descriptor。
+// 保留原成功普通load快速路径的全部资格，不扩大类型。
+rsp_route_present[g] =
+       !rst_i
+    && RESPONSE_BYPASS
+    && mem_rsp_valid[g]
+    && alive_q[rsp_token[g]]
+    && raw_empty_q[g]
+    && !rsp_error[g]
+    && descriptor_eligible_q[g];
+
+descriptor_eligible_q包含原资格需要的owner状态、load类别、对齐、非atomic、非side-effect等条件。已有token范围及身份合法性检查也必须保留。
+
+这条预路由锥中禁止使用：
+
+纯文本
+mem_rsp_ready、bus_fire、raw_fire；
+当前flush/kill；
+最终capture/event_grant；
+由上述信号遮罩后的eligible、token、tag或payload。
+
+不仅候选布尔式要改，token选择、descriptor读取、完整tag及result拼接也必须取消这些间接依赖。 不能删除公式中的bus_fire，却继续从一个以raw_fire为条件的旧mux取得payload或tag。
+
+同一raw来源已有Q态记录时，仍路由该记录；不能因为它本拍被kill，就将其视为“真实空”而改选response。
+
+1.2 真实握手与原响应生命周期保持
+systemverilog
+// 原表达式保持，不修改ready的任何条件。
+bus_fire[g] =
+    mem_rsp_valid[g] && mem_rsp_ready_o[g];
+
+// 原语义保持。
+raw_fire[g] =
+       bus_fire[g]
+    && alive_q[rsp_token[g]]
+    && !killed_w[rsp_token[g]];
+
+对于RR选中的response候选，最终capture还必须满足raw_fire[g]。不能以“raw为空，所以应当能握手”替代真实握手检查。
+
+六源统一表达可以写为：
+
+systemverilog
+capture_rank[r] =
+       !rst_i
+    && !flush_i
+    && structural_credit_q[r]
+    && selected_present[r]
+    && selected_real_transfer_ok[r];
+
+其中，response候选的selected_real_transfer_ok取对应raw_fire；其他驻留来源则保持各自原有的真实交接与当前存活资格。structural_credit_q必须是取消前Q态容量，不能重新接回含!flush的旧in_ready来参与数据选择。
+
+之后才反向产生真实grant：
+
+systemverilog
+event_grant[s] =
+       (winner_rank0[s] && capture_rank[0])
+    || (winner_rank1[s] && capture_rank[1]);
+
+bypass_fire[g] =
+    event_grant[raw_source(g)] && selected_is_response[g];
+
+raw_enqueue[g] = raw_fire[g] && !bypass_fire[g];
+
+这里的selected_is_response由取消前raw占用及预路由选择确定。
+
+不能保留“winner与信用相与即grant”的旧定义。 在新接口中，候选赢得路由位置，不代表其已经发生真实交接。
+
+二、为什么raw为空的蕴含足够，但不能拿来代替握手
+
+根据你提供的实际表达式：
+
+𝑟
+𝑎
+𝑤
+_
+𝑒
+𝑚
+𝑝
+𝑡
+𝑦
+𝑞
+⇒
+¬
+(
+&
+𝑟
+𝑎
+𝑤
+_
+𝑣
+𝑎
+𝑙
+𝑖
+𝑑
+𝑞
+)
+raw_empty
+q
+	​
+
+⇒¬(&raw_valid
+q
+	​
+
+)
+
+因此，在!rst && !flush时：
+
+𝑟
+𝑎
+𝑤
+_
+𝑒
+𝑚
+𝑝
+𝑡
+𝑦
+𝑞
+⇒
+𝑟
+𝑎
+𝑤
+_
+𝑐
+𝑟
+𝑒
+𝑑
+𝑖
+𝑡
+=
+1
+⇒
+𝑚
+𝑒
+𝑚
+_
+𝑟
+𝑠
+𝑝
+_
+𝑟
+𝑒
+𝑎
+𝑑
+𝑦
+=
+1
+raw_empty
+q
+	​
+
+⇒raw_credit=1⇒mem_rsp_ready=1
+
+所以，对于无当前取消的合资格live response，新呈现定义与原来依赖握手的候选在正常运行条件下等价，不会凭空引入一个“正常情况下不能被接收”的新候选。
+
+这条蕴含用于证明正常行为不变，而不是用于放松capture合同。保留真实raw_fire检查，也能防止以后ready增加合法约束时，预路由被误当成接收。
+
+在raw真实为空的前提下，关键情况如下：
+
+情况	response呈现	bus_fire	raw_fire	response→CQ捕获	raw_enqueue
+正常、选中且有CQ信用	1	1	1	1	0
+正常、未选中或无CQ信用	1	1	1	0	1
+当前flush，Q态仍alive=1	1	0	0	0	0
+当前部分kill，flush=0、Q态仍alive=1	1	1	0	0	0
+Q态已经alive=0的晚响应	0	由原ready/drain决定	0	0	0
+reset有效	0	0	0	0	0
+
+其中两点不能混淆。
+
+第一，部分kill与响应同拍时，可能已经发生物理握手，但没有live完成交接。 此时继续使用原有kill/response并发终结逻辑。dead_load_match是ready的一条例外来源，不是“所有被取消响应发生物理消费”的充要条件。
+
+第二，flush当拍未握手，不意味着可以释放issued token。 按你核实的合同，边沿后可以清alive，但MEMORY/TRANSLATING状态及外部事务身份仍保留，直到原条件下的真实晚响应握手。预写CQ对此没有任何作用。
+
+三、未握手预写的精确权限
+3.1 只允许写入Q态已经无owner的物理槽
+
+继续采用方案C的固定物理槽CQ。建议本轮保持预写使能只受Q态落点、Q态空槽和reset控制：
+
+systemverilog
+payload_prewrite_en[lane][slot] =
+       !rst_i
+    && target_from_q[lane][slot]
+    && !occupied_q[lane][slot];
+
+这里不加入bus_fire、capture、当前flush或kill。
+
+因此，flush有效时，Q态原本空的槽可以继续写入预路由数据，但不能建立有效owner。Q态原本有owner的槽，即使本拍将被kill，也不得据此获得预写许可。
+
+这维持了本轮要切断的结构：
+
+纯文本
+取消无关候选 → RR → 宽payload → Q态空槽
+
+真实握手 + 当前存活 + 信用 → 有效owner成立
+3.2 预写不具有跨拍承诺
+
+一份未握手response可以连续几拍被预写，也可以下一拍被别的候选覆盖。其落点不必保持，也不能因此锁定CQ信用。
+
+真正capture的边沿，必须同时写入当拍选中来源的完整payload、full tag及全部元数据。
+
+纯文本
+capture_slot
+⇒ 当拍该槽payload写使能有效
+⇒ 写入值与当拍真实交接的来源完全一致
+
+本轮不实现“上拍已经预写，本拍只置valid”的优化。否则需要额外证明预写身份、内容与当拍真实交接仍然完全一致，反而引入本轮不需要的暂存生命周期。
+
+这也覆盖一种容易漏掉的情况：response未获CQ捕获而进入raw时，CQ空槽中可能已经有它的数据副本。只有raw记录是owner，CQ中的无效位模式不是第二个owner。
+
+3.3 预写不能产生其他隐含效果
+
+预写本身不能推进RR、CQ turn、源出队、LSQ释放、完成计数或reuse保护状态。空槽中的tag不能被计入有效CQ owner，也不能被当作WB来源资格。
+
+你已经核实的wb_write共同资格是有效的安全边界，应原样保持，包括PRF、rename ready、IQ wake和RR WB旁路的共同驱动关系。
+
+CQ的提前request提示也不能因为新信号叫“candidate”就自动改接它。保持基线提示语义；若原提示来自真实输入完成事件，继续使用真实capture相关事件，而不是未握手的rsp_route_present。 不新增由纯预写产生的WB端口需求。
+
+四、reset与非干扰预测的边界
+Reset合同
+
+reset时，候选呈现、真实capture、grant及上述payload预写使能均为0；CQ有效位及仲裁状态按原复位合同处理。不要求给所有宽payload寄存器增加清零复位。 无owner槽的数据可以保持旧值，其内容不能成为资格来源。
+
+reset解除后，任何新有效槽仍须来自真实capture，不能让复位前的预写内容复活。外部事务跨reset如何处理，继续遵守基线系统复位合同，不把reset擅自替换成普通flush后的dead-drain机制。
+
+新增或保留的reset使能仍须接受真实ICG和hold检查，不设时序豁免。
+
+修订后的6.1
+
+在rst=0、全部相关Q态相同，并固定以下非取消输入时：
+
+纯文本
+mem_rsp_valid、token、payload、error；
+其他来源呈现数据；
+配置输入及非取消资格输入。
+
+只改变当前flush/partial-kill，下列对象必须不变：
+
+纯文本
+取消前候选集合；
+RR第一/第二候选；
+宽tag/result及元数据预路由；
+rank到physical lane映射；
+输入目标槽；
+payload预写使能。
+
+允许变化：
+
+纯文本
+mem_rsp_ready与bus_fire；
+raw_fire、capture、event_grant、raw_enqueue；
+owner取消/终结；
+有效位、头指针、RR及turn的下一状态。
+
+这是同一拍、相同Q态下的组合非干扰性质，不是要求flush跨过时钟边沿后候选继续保持。 下一拍alive_q或队列占用已经变化，候选自然可以改变。
+
+尤其要用你给出的反例检查：flush切换时，ready与capture改变，但候选和宽数据预路由不变。不能因为ready不同，就把两份响应数据也换成不同输入来比较。
+
+五、RR与sparse CQ接口：批准所提修正
+
+以capture_rank={rank1,rank0}表示，RR最后成功来源应为：
+
+systemverilog
+case (capture_rank)
+  2'b00: event_last_grant_d = event_last_grant_q;
+  2'b01: event_last_grant_d = selected_source_rank0;
+  2'b10,
+  2'b11: event_last_grant_d = selected_source_rank1;
+endcase
+
+更新依据是最高实际捕获rank，不是最高候选rank，也不是candidate加credit。取消和独立drain不当作成功grant。
+
+CQ turn按你给出的方式实现：
+
+实际capture mask	turn_d
+00	保持
+01	!first_w
+11	!first_w，保留基线双捕获行为
+10	first_w
+
+10只在第二预定物理lane建立owner，不将宽payload压缩到第一lane。下一次优先另一lane的修正合理。
+
+也不要为了统一某种抽象轮转规则，顺带修改基线11行为。该变更没有本轮证据支持，会额外改变正常完成流。
+
+六、本次修订必须补齐的断言与定向用例
+必须成立的断言
+类别	必查性质
+握手资格	response bypass capture必然蕴含mem_rsp_valid && mem_rsp_ready && alive_q && !killed及原全部快速资格
+live响应守恒	每个raw_fire恰好发生一次bypass capture或raw enqueue；二者互斥，且二者都不能脱离raw_fire
+空槽预写	payload_prewrite_en → !occupied_q && !rst；本拍kill不能使Q态占用槽提前成为写入目标
+owner建立	空槽从无效变有效必有对应真实capture；预写但未capture不能建立owner
+数据同源	capture边沿写入的完整tag、result及元数据与该真实交接来源一致，并使用受保护的当拍descriptor
+仲裁历史	RR与turn严格遵循实际capture mask；00时不因预写或取消候选推进
+取消与reuse	继续启用原canonical reference_accept等价断言，以及issued token直到真实终结才可释放的断言
+
+live响应守恒建议直接核对为：
+
+systemverilog
+assert (!(bypass_fire[g] && raw_enqueue[g]));
+assert ((bypass_fire[g] || raw_enqueue[g]) == raw_fire[g]);
+
+并保留完整owner账本，而非只核对计数总量。
+
+响应稳定性检查应绑定实际协议边界。在外部AXI读响应通道，VALID && !READY期间的VALID及数据、ID、响应状态、LAST保持均属于协议检查项；内部mem_rsp则按本工程已有的接口保持合同检查。不能通过在flush时禁用检查，掩盖真实总线上的响应撤回。 
+AMD Documentation
+
+最少新增定向用例
+
+本次应先覆盖四组情况，再进入原定整核回归：
+
+你提供的flush反例及部分kill变体。 固定Q态和response，检查预路由不变、真实capture正确变化；部分kill时还要覆盖“物理握手已发生，但无live完成”。
+预写后没有capture。 随后分别由另一来源占槽、原响应正常交接、原owner被取消并晚到drain；不得使用旧预写内容建立错误owner。
+sparse 10及连续背压。 检查物理落点、RR最后grant、turn更新、其他live来源保持，以及取消来源按原机制终结。
+reset边界。 reset期间无新owner、无grant，解除后无预写复活；保留基线外部复位与晚响应测试合同。
+
+无需为修订公式重跑昂贵基线。候选仍按原计划检查正常load的response→CQ为0拍、response→WB为2拍，并完成完整NEMU、断言及同约束整核物理比较。
+
+七、其余核查事实对决策的影响
+
+WB共同资格和token生命周期核查结果，消除了我上一轮要求核验的两项关键正确性不确定性，支持继续实施C，不需要另建WB安全机制或修改外部token。
+
+普通store已经具备非头prepared、B_BYPASS及独立store_done→ROB通路这一事实也纳入架构判断：不能将普通store完成计入CQ/9→2 WB压力，更不能将已有prepared能力计作新方案收益。 我原方案B所讨论的更早地址/数据部分发射是另一件事，本轮不触碰。
+
+补充的CQ输出→WB STA仍用于检查固定槽输出mux是否转移了物理代价；它不影响这次握手合同修订的成立，也不代表最终时序收益已经得到证明。
+
+执行结论：按上述修订实现方案C。候选从真实握手中解耦，capture绝不解耦；未握手数据只能预写无owner空槽，不能获得任何事务资格。保持原ready、当前kill生效、LSQ释放、晚响应drain及store通路不变。

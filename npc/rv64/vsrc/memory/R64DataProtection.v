@@ -27,6 +27,7 @@ module R64DataProtection #(
   output [  4:0] rsp_cause_o,
   output [  3:0] rsp_protection_o
 );
+  // Protection metadata follows its translation owner as {write, read, log2(bytes)}.
   wire [4:0] size_w = 5'b1 << req_protection_i[1:0];
   wire [2:0] access_w = {1'b0, req_protection_i[3:2]};
   wire pma_fault_w;

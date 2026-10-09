@@ -54,6 +54,9 @@ module R64MemoryService #(
   output                             idle_o
 );
   localparam CT = TOKEN_W + SRC_W;
+  // The token's high field is 0 for CPU and n+1 for aux[n]; only CPU
+  // consumes the low TOKEN_W bits. AUX packet indexing removes that base.
+  localparam CPU_SOURCE = 0, FIRST_AUX_SOURCE = 1;
   // Each physical lane owns two fixed request slots. Admission observes
   // only Q occupancy; cache completion never grants same-cycle CPU capacity.
   localparam PAYLOAD_W = 212 + CT;
@@ -81,19 +84,19 @@ module R64MemoryService #(
       assign eligible_aux_w[candidate] = aux_valid_i[candidate] && !busy_q[candidate];
       for (earlier = 0; earlier < AUX; earlier = earlier + 1) begin : gen_preceding
         if (earlier < candidate) begin : g_before
-          assign preceding_w[earlier] = eligible_aux_w[earlier] && start_w != 0 &&
-              start_w <= earlier + 1;
+          assign preceding_w[earlier] = eligible_aux_w[earlier] && start_w != CPU_SOURCE &&
+              start_w <= earlier + FIRST_AUX_SOURCE;
         end else begin : g_after
           assign preceding_w[earlier] = 1'b0;
         end
       end
       wire within_turn_w;
-      if (candidate + 1 >= (1 << SRC_W) - 1) begin : g_full_range
+      if (candidate + FIRST_AUX_SOURCE >= (1 << SRC_W) - 1) begin : g_full_range
         assign within_turn_w = 1'b1;
       end else begin : g_bounded_range
-        assign within_turn_w = start_w <= candidate + 1;
+        assign within_turn_w = start_w <= candidate + FIRST_AUX_SOURCE;
       end
-      assign selected_aux_w[candidate] = eligible_aux_w[candidate] && start_w != 0 &&
+      assign selected_aux_w[candidate] = eligible_aux_w[candidate] && start_w != CPU_SOURCE &&
           within_turn_w && !(|preceding_w);
       assign pair_aux_w[candidate] = selected_aux_w[candidate] && aux_op_i[candidate*2+:2] == 0;
     end
@@ -121,9 +124,10 @@ module R64MemoryService #(
   integer choice_w, i;
   reg found_w;
   always @* begin
-    choice_w = 0;
+    choice_w = CPU_SOURCE;
     found_w  = 1;
-    for (i = 0; i < AUX; i = i + 1) choice_w = choice_w | ({32{selected_aux_w[i]}} & (i + 1));
+    for (i = 0; i < AUX; i = i + 1)
+      choice_w = choice_w | ({32{selected_aux_w[i]}} & (i + FIRST_AUX_SOURCE));
     cpu_ready_o = 0;
     aux_ready_o = 0;
     if (!rst_i) begin
@@ -157,7 +161,7 @@ module R64MemoryService #(
 `endif
   wire [1:0] cpu_take_w = cpu_valid_i & cpu_ready_o;
   wire [AUX-1:0] aux_take_w = aux_valid_i & aux_ready_o;
-  wire aux_select_w = found_w && choice_w != 0;
+  wire aux_select_w = found_w && choice_w != CPU_SOURCE;
 
 
   assign aux_rsp_valid_o = out_valid_q & {AUX{!rst_i}};
@@ -189,7 +193,7 @@ module R64MemoryService #(
         cpu_amo_i[g*5+:5],
         cpu_fast_store_i[g]
       };
-      assign cpu_rsp_valid_o[g] = cache_rsp_valid_i[g] && source_w == 0;
+      assign cpu_rsp_valid_o[g] = cache_rsp_valid_i[g] && source_w == CPU_SOURCE;
       assign cpu_rsp_token_o[g*TOKEN_W+:TOKEN_W] = cache_rsp_token_i[g*CT+:TOKEN_W];
       assign cpu_rsp_data_o[g*64+:64] = cache_rsp_data_i[g*64+:64];
     end
@@ -203,27 +207,23 @@ module R64MemoryService #(
     cache_rsp_ready_o = 0;
     for (b = 0; b < 2; b = b + 1) begin
       s = {{(32 - SRC_W) {1'b0}}, cache_rsp_token_i[b*CT+TOKEN_W+:SRC_W]};
-      if (s == 0) cache_rsp_ready_o[b] = cpu_rsp_ready_i[b];
-      else if (s <= AUX) cache_rsp_ready_o[b] = !out_valid_q[s-1] || aux_rsp_ready_i[s-1];
+      if (s == CPU_SOURCE) cache_rsp_ready_o[b] = cpu_rsp_ready_i[b];
+      else if (s <= AUX)
+        cache_rsp_ready_o[b] = !out_valid_q[s-FIRST_AUX_SOURCE] ||
+            aux_rsp_ready_i[s-FIRST_AUX_SOURCE];
     end
   end
   integer l, a;
   wire [1:0] destination_w = {1'b1, aux_select_w};
-  function [CT-1:0] aux_token;
-    input [SRC_W-1:0] number;
-    begin
-      aux_token = {number[SRC_W-1:0], {TOKEN_W{1'b0}}};
-    end
-  endfunction
   assign aux_payload_w = {
-    aux_token(choice_w[SRC_W-1:0]),
-    aux_addr_i[(choice_w-1)*64+:64],
-    aux_data_i[(choice_w-1)*64+:64],
-    aux_expected_i[(choice_w-1)*64+:64],
-    aux_op_i[(choice_w-1)*2+:2],
-    aux_cache_i[choice_w-1],
-    aux_size_i[(choice_w-1)*3+:3],
-    aux_strb_i[(choice_w-1)*8+:8],
+    {choice_w[SRC_W-1:0], {TOKEN_W{1'b0}}},
+    aux_addr_i[(choice_w-FIRST_AUX_SOURCE)*64+:64],
+    aux_data_i[(choice_w-FIRST_AUX_SOURCE)*64+:64],
+    aux_expected_i[(choice_w-FIRST_AUX_SOURCE)*64+:64],
+    aux_op_i[(choice_w-FIRST_AUX_SOURCE)*2+:2],
+    aux_cache_i[choice_w-FIRST_AUX_SOURCE],
+    aux_size_i[(choice_w-FIRST_AUX_SOURCE)*3+:3],
+    aux_strb_i[(choice_w-FIRST_AUX_SOURCE)*8+:8],
     5'b0,
     1'b0
   };
@@ -280,7 +280,8 @@ module R64MemoryService #(
         if (aux_take_w[a]) busy_q[a] <= 1;
         for (l = 0; l < 2; l = l + 1)
         if (cache_rsp_valid_i[l] && cache_rsp_ready_o[l] &&
-            {{(32 - SRC_W) {1'b0}}, cache_rsp_token_i[l*CT+TOKEN_W+:SRC_W]} == a + 1) begin
+            {{(32 - SRC_W) {1'b0}}, cache_rsp_token_i[l*CT+TOKEN_W+:SRC_W]} ==
+            a + FIRST_AUX_SOURCE) begin
           out_valid_q[a] <= 1;
           out_data_q[a] <= cache_rsp_data_i[l*64+:64];
           out_error_q[a] <= cache_rsp_error_i[l];

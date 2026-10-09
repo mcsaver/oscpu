@@ -63,6 +63,10 @@ module R64Predictor #(
   // merely on a repeated lookup under backpressure. Recovery clears validity;
   // no architectural owner depends on stack contents or finite depth.
   localparam RAS_DEPTH = 1 << RAS_PTR_W;
+  // Preparation bits beyond the lane-local arithmetic/classification:
+  // 169 compares this lane return PC with the plan; 170 compares the
+  // previous lane return PC with this lane return PC.
+  localparam PREP_RETURN_PLAN_MATCH = 169, PREP_PAIR_RETURN_EQUAL = 170;
   reg [62:0] ras_q[0:RAS_DEPTH-1];
   reg [RAS_PTR_W-1:0] ras_pointer_q;
   reg [RAS_PTR_W:0] ras_count_q;
@@ -284,11 +288,13 @@ module R64Predictor #(
       // Direct control-flow discontinuity is an immediate comparison, independent
       // of the 64-bit target adder. Indirect targets compare with the return PC.
       wire [63:0] indirect_target_w = ras_hit_w ? {return_target_w, 1'b0} : {target_value_w, 1'b0};
+      // Pair forwarding selects lane 0 return data, so use lane 0
+      // preparation here, not the current lane-local prepared_w.
       assign planned_match_o[lane] = indirect_w ?
-          (ras_hit_w && pair_forward_w ? preparation_i[169] :
+          (ras_hit_w && pair_forward_w ? preparation_i[PREP_RETURN_PLAN_MATCH] :
            indirect_target_w == planned_target_i) : direct_match_w;
       assign divert_o[lane] = take_w &&
-          (indirect_w ? (ras_hit_w && pair_forward_w ? !prepared_w[170] :
+          (indirect_w ? (ras_hit_w && pair_forward_w ? !prepared_w[PREP_PAIR_RETURN_EQUAL] :
                          indirect_target_w != return_pc_w) : direct_divert_w);
       assign next_pc_o[lane*64+:64] = !take_w ? return_pc_w :
           (indirect_w ? (ras_hit_w ? {return_target_w, 1'b0} : {target_value_w, 1'b0}) :

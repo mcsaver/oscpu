@@ -3,6 +3,7 @@
 module tb_r64_lsu;
   parameter DEPTH = 18;
   parameter EARLY_STORE = 0;
+  parameter RESPONSE_BYPASS = 1;
   localparam IW = $clog2(DEPTH);
   reg clk = 0;
   always #5 clk = ~clk;
@@ -60,6 +61,7 @@ module tb_r64_lsu;
   end
   R64Lsu #(
     .EARLY_STORE(EARLY_STORE),
+    .RESPONSE_BYPASS(RESPONSE_BYPASS),
     .ENTRIES(DEPTH),
     .INDEX_W(IW)
   ) dut (
@@ -160,6 +162,8 @@ module tb_r64_lsu;
   reg tr_hold = 0, mem_hold = 0, error_write = 0, bad_response = 0;
   reg [31:0] rng = 32'h947312bd;
   reg random_stall = 0;
+  reg [1:0] response_hold = 0;
+  reg error_read = 0;
   genvar g;
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_model
@@ -173,7 +177,7 @@ module tb_r64_lsu;
       assign tcause[g*5+:5] = taqueue[g*8+th[g]] == 2 ? 5'd15 : 5'd13;
       assign mr[g] = mn[g] < 7 && !mem_hold && (!random_stall || rng[g+2]);
       assign mresp[g] = (bad_response && g == 0) ||
-          (mn[g] != 0 && mdue[g*8+mh[g]] <= cycles && !mem_hold);
+          (mn[g] != 0 && mdue[g*8+mh[g]] <= cycles && !mem_hold && !response_hold[g]);
       assign mresptoken[g*IW+:IW] = bad_response ? {IW{1'b0}} : mqtoken[g*8+mh[g]];
       assign mrd[g*64+:64] = mqdata[g*8+mh[g]];
       assign merror[g] = mqerror[g*8+mh[g]];
@@ -222,7 +226,8 @@ module tb_r64_lsu;
             for (j = 0; j < 8; j = j + 1) if (mstrb[a*8+j]) memory[index][j*8+:8] = md[a*64+j*8+:8];
           mqtoken[a*8+mt[a]] = mtoken[a*IW+:IW];
           mqdata[a*8+mt[a]] = response_data;
-          mqerror[a*8+mt[a]] = mop[a*2+:2] != 0 && error_write;
+          mqerror[a*8+mt[a]] = (mop[a*2+:2] != 0 && error_write) ||
+              (mop[a*2+:2] == 0 && error_read);
           mdue[a*8+mt[a]] = cycles + mem_delay;
           mt[a] <= (mt[a] + 1) % 8;
           memcount = memcount + 1;
@@ -342,6 +347,7 @@ module tb_r64_lsu;
           dut.prepared_payload_q !== prepared_expected_payload_q)
         $fatal(1, "prepared descriptor not ready with exact owner at capture edge");
     end
+  `include "tb_r64_lsu_response_bypass.svh"
   integer n, before_mem, before_tr, issued, retired, start_cycle, stream_cycles;
   initial begin
     for (n = 0; n < 1024; n = n + 1) memory[n] = 64'h1234567880000000 + n;
@@ -355,6 +361,7 @@ module tb_r64_lsu;
     end
     repeat (4) @(negedge clk);
     rst = 0;
+    if ($test$plusargs("response-bypass")) run_response_bypass;
     // Late physical classification must not let younger ordinary descriptors
     // block the precise head request which releases their ordering barrier.
     if ($test$plusargs("late-io")) begin

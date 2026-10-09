@@ -7,6 +7,35 @@
 `define R64_RTC_BASE 64'h0000000010003000
 `define R64_RTC_MASK 64'hfffffffffffff000
 `define R64_PLATFORM_SLAVES 16
+// Endpoint indices are shared by BASE/MASK and every packed AXI channel.
+// BASE/MASK below are written from the highest endpoint down to endpoint 0.
+`define R64_PORT_CLINT 4'd0
+`define R64_PORT_PLIC 4'd1
+`define R64_PORT_RESET_SYSCON 4'd2
+`define R64_PORT_UART 4'd3
+`define R64_PORT_VIRTIO_BLK 4'd4
+`define R64_PORT_RTC 4'd5
+`define R64_PORT_PS2 4'd6
+`define R64_PORT_MROM 4'd7
+`define R64_PORT_VGA 4'd8
+`define R64_PORT_FLASH 4'd9
+`define R64_PORT_CHIPLINK_MMIO 4'd10
+`define R64_PORT_PSRAM 4'd11
+`define R64_PORT_LEGACY_MMIO 4'd12
+`define R64_PORT_SDRAM 4'd13
+`define R64_PORT_CHIPLINK_MEM 4'd14
+`define R64_PORT_DEFAULT 4'd15
+// The live memory read service contains PSRAM and SDRAM only. Other memory
+// address windows can still terminate at an unimplemented/error endpoint.
+`define R64_PLATFORM_READ_MEMORY ((16'h0001 << `R64_PORT_PSRAM) | \
+                                  (16'h0001 << `R64_PORT_SDRAM))
+`define R64_PLATFORM_ERROR_PORTS ((16'h0001 << `R64_PORT_PS2) | \
+                                  (16'h0001 << `R64_PORT_MROM) | \
+                                  (16'h0001 << `R64_PORT_VGA) | \
+                                  (16'h0001 << `R64_PORT_FLASH) | \
+                                  (16'h0001 << `R64_PORT_CHIPLINK_MMIO) | \
+                                  (16'h0001 << `R64_PORT_CHIPLINK_MEM) | \
+                                  (16'h0001 << `R64_PORT_DEFAULT))
 `define R64_PLATFORM_BASE { \
   `NPC_AXI_DEFAULT_BASE, `NPC_AXI_CHIPLINK_MEM_BASE, \
   `NPC_AXI_SDRAM_BASE, `NPC_AXI_LEGACY_MMIO_BASE, \

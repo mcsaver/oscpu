@@ -1,0 +1,542 @@
+ChatGPT 说：
+一、架构决策
+
+我建议本轮实施“完成搬运与取消资格解耦”：联合修改LSU六源完成仲裁、CQ输入合同与CQ物理槽管理，保留现有load response bypass，不增加正常完成流水级，也不推迟kill生效。
+
+这是一个物理路径主导、以保住现有完整程序周期收益为约束的候选。它不是“CQ已经被证明是主要CPI瓶颈”的结论。
+
+更直接面向CPI的两个竞争方案是：
+
+确定的load结果提前供消费者使用，不再等待统一WB接受。
+store地址/数据部分发射，拆分准备完成与真实副作用执行。
+
+它们都有机制价值，但当前尚缺少决定其收益的依赖链证据。相比之下，完成路径中“取消决定源选择，再决定宽数据落点”的结构性代价已经有真实映射STA支持。因此，本轮先消除这项已确认的控制/数据耦合，而不是同时押注尚未证明的窗口、唤醒、存储顺序重构。
+
+本轮不联合增加ROB/IQ/LSQ容量，不增加WB口，不改预测器，不引入posted store，不再重复上一轮的空raw bypass优化。
+
+二、从证据推导限制：哪些已证明，哪些仍是工作假设
+2.1 首要现象是“退休队首长期等完成”，不是单纯宽度不足
+
+以下比例由给定完整程序数据计算，分母均为完整程序cycles；这些事件仍然可能重叠。
+
+观测	CoreMark	Dhrystone	可以说明什么
+head_notdone_unfrozen / cycles	69.04%	77.15%	大量非冻结周期中，退休队首尚未完成
+decode_iq_block / cycles	38.96%	2.46%	CoreMark存在显著IQ占用压力
+decode_rob_block / cycles	14.29%	58.16%	Dhrystone存在显著ROB占用压力
+wb_backpressure / cycles	7.00%	9.34%	完成端存在背压，尚不能直接归因为WB带宽不足
+store_b_owner / cycles	6.61%	16.85%	Dhrystone中store响应owner的占用更突出
+recover / cycles	4.38%	2.25%	回滚冻结有直接成本，但不是全部分支损失
+
+两个程序的IPC分别只有约0.359和0.299。结合大量issue_zero和head_notdone_unfrozen，我的工作假设是：
+
+有效执行窗口被“尚不能取得操作数、尚不能越过存储序关系、或者结果尚未完成交付”的指令占据，形成依赖延迟与事务串行化的混合瓶颈；并非首先缺少更多每拍执行槽。
+
+但这里还没有证明，队首阻塞的最终根因究竟是load消费者等待、store顺序、调度/读口冲突、执行单元等待，还是完成仲裁。
+
+因此：
+
+IQ满不等于加IQ有效；ROB满不等于加ROB有效；WB背压不等于必须加WB口。 单独IQ扩容失败与这一判断一致，但不能否定有完整配套的窗口扩容。
+
+2.2 已经证明load完成延迟重要，但没有证明其剩余延迟全部可回收
+
+上一轮把合资格load的response→CQ缩短一拍，串行链和两个完整程序均有改善。这是比某个占用计数更强的机制证据。
+
+同时，当前同拍CQ捕获已经几乎覆盖全部合资格成功load。继续围绕“空raw时再少排一次队”寻找收益，剩余空间很小。
+
+真正尚待区分的是：
+
+load值已经真实返回并被CQ持有之后，其消费者是否仍主要因为等待WB资格而停住？
+
+若答案是肯定，下一项CPI优化应当改变操作数可消费时刻，而不是继续调整raw入队。
+
+2.3 store的约4拍B-owner占用不能解释完整store生命周期
+
+由给定计数：
+
+592424
+148644
+≈
+3.986
+,
+2404764
+601433
+≈
+3.998
+148644
+592424
+	​
+
+≈3.986,
+601433
+2404764
+	​
+
+≈3.998
+
+这只是B-owner占用周期/写命令数，不是已经测得的完整store延迟，更不是精确的外部B往返延迟。
+
+完整store可能经历：
+
+纯文本
+等待地址/数据
+→ 属性与翻译条件确定
+→ 等待head/effect许可
+→ 真实写握手
+→ 等待真实B
+→ 完成上报
+→ 退休
+
+目前不能确定上述哪一段造成了Dhrystone的大量队首等待。因此既不能把store问题简化为“B等4拍”，也不能拿write_wait=0证明store通路没有优化空间。
+
+2.4 物理限制已有明确的结构证据
+
+当前路径不是CLMUL算术慢，而是：
+
+纯文本
+trap / flush
+→ ROB kill
+→ LSU响应owner存活资格
+→ 六源候选集合
+→ 第一/第二winner
+→ 宽payload选择
+→ CQ物理落点与输入选择
+→ payload寄存器
+
+本拍“这条完成是否还活着”正在决定“本拍搬哪一份宽数据、搬到哪里”。
+
+这就是本轮可以明确攻击的依赖。它在上一轮前已有雏形，load bypass加深了它，不能简单关闭bypass来换时序。
+
+也不能把内部Q起点路径与包含输入起点的路径混用：当前CQ相关最坏输入起点路径与global仅相差约7.6ps，确实不存在可以直接宣称的227ps余量。
+
+三、三个竞争架构
+方案A：load“可消费结果”与“统一WB完成”分离
+
+改变的依赖：
+
+纯文本
+当前待验证的限制：
+load结果已确定 → 等CQ/WB → 消费者ready → issue
+
+候选：
+load结果已确定且被稳定owner持有 → 消费者可取得值并issue
+                              └→ 后续统一WB、ROB完成
+
+这里不是预测cache命中，也不是未返回数据的推测唤醒。只有已经成功完成、满足现有资格的普通RAM load，才可以提前提供值。快唤醒与等待写回的慢唤醒是不同的调度机制；BOOM文档也明确区分了这两类路径。
+RISCV-BOOM 文档
+
+最小联合修改范围： LSU/CQ结果持有接口、物理寄存器就绪状态、IQ唤醒、RR取数选择、WB交接和取消。
+
+必须有一个连续成立的取数合同：
+
+从消费者被标记为“可消费”开始，到结果真正进入PRF为止，该值始终可以按正确owner身份取得。
+
+不能只发一个提前wake脉冲，然后假定消费者下一拍一定发射。WB背压下，消费者可能很晚才取得发射机会。可行实现可以利用现有CQ驻留结果建立小型带tag的取数目录，并在WB接受时无缝切换到PRF；不能把已经释放的CQ槽继续当作值来源。
+
+ROB完成、异常状态和退休仍按照真实完成合同更新，不因提前供值而提前退休。发生取消时，提前值及相关消费者资格必须同时失效。
+
+价值与代价： 它可能同时削减串行load链和WB争用造成的消费者等待，不需要第三个PRF写口；但会增加唤醒分发、tag比较、RR宽数据选择，以及CQ释放到PRF可读之间的交接复杂度。当前已经紧张的物理路径可能转移到IQ/RR。
+
+本轮不选的原因： 当前只有response→WB延迟，没有“值已存在，但关键消费者确实被WB资格挡住”的归因，也没有现有RR取数时序。不能保证新接口实际省掉消费者的一拍。
+
+方案B：store地址/数据部分发射，准备阶段与effect阶段分离
+
+改变的依赖：
+
+纯文本
+可能存在的当前限制：
+store等地址和数据齐备 → 才确定地址/属性 → 才能解除较年轻load的限制
+
+候选：
+地址操作数先ready → 地址/允许提前完成的属性检查先进入LSQ
+数据稍后ready     → 同一个store owner补齐数据
+head/effect许可   → 才进入原真实写/B响应生命周期
+
+store仍是一个ROB指令owner，不是复制两条架构指令。地址和数据可以在都ready时合并发送，只有必要时才部分发射。BOOM的store调度说明给出了类似的地址/数据部分发射机制，同时说明提前提供store地址有助于后续load处理依赖。
+RISCV-BOOM 文档
+
+最小联合修改范围： IQ的部分完成状态、RR实际读口调度、LSQ的地址/数据独立有效位及数据补齐机制、load序关系判断，以及prepared store到effect owner的交接。
+
+核心状态可概括为：
+
+纯文本
+ALLOCATED
+  → ADDRESS_READY / DATA_READY（可以分先后）
+  → PREPARED
+  → HEAD_EFFECT_GRANTED
+  → WRITE_PROTOCOL_IN_PROGRESS
+  → B_PENDING
+  → ACK_OK 或 FAULT
+  → 按原合同退休或陷入
+
+PREPARED绝不等于可以产生副作用。未确定属性、非对齐、原子、IO、翻译及A/D条件仍按现有合同限制。尤其不能把“地址准备提前”扩大成推测执行D位更新；RISC-V规范要求由显式store导致的D位更新是精确、非推测的。
+RISC-V 文档
+
+价值与代价： 即使不提前退休store，仍可能提前解除独立load的序关系等待，并减少store对IQ的占用。代价是一个store owner的两段执行状态，以及数据已写回、尚未读取、同拍唤醒和取消之间的竞态处理。
+
+本轮不选的原因： 尚不知道当前store是否已经支持部分发射，也不知道关键阻塞是否来自地址迟到。若大部分store到head前早已准备完成，这个方案对真实B等待和后续完成等待帮助有限。它也不能把已有descriptor同边沿接力重新计作收益。
+
+方案C：完成候选、真实接收与物理槽管理分层——本轮首选
+
+改变的依赖：
+
+纯文本
+当前：
+本拍kill → 有效源集合 → RR winner → 宽payload与物理落点
+
+候选：
+旧状态/真实响应数据 → 候选RR → 宽payload与预定物理落点
+本拍kill ─────────────────→ 是否建立/终结有效owner
+
+取消过滤与计算或结果保留分层，是已有乱序执行实现采用的方法；例如BOOM通过执行单元包装层控制被取消结果的可见性。但这不构成本项目推迟kill生效的许可。
+RISCV-BOOM 文档
+
+本方案的三个部分必须联合完成：
+
+六源仲裁使用取消前的候选存在性，而不是当前已被kill遮掉的event_valid。
+CQ允许双输入接收中存在空洞，不因某个候选被kill而重排另一份宽payload。
+CQ改为每lane两个固定物理槽，owner消失或出队时只改有效位和头指针，不搬移payload。
+
+这不是“从payload去掉credit”，也不是“增加空位预写”；这两项基线已经具备。新变化是候选选择、有效owner成立、物理存储位置不再由同一个最终grant链共同决定。
+
+预期代价： 存储容量仍为四条完成记录，但每lane输出增加固定槽选择，少量指针和sideband逻辑也会增加。当前被kill的候选可能浪费当拍仲裁位置。输入路径改善可能转移成CQ输出到WB的路径代价，因此必须测整核，而非只看原端点。
+
+为什么本轮选C
+
+A、B更直接面向CPI，但收益前提尚未证明。C的收益前提已经有真实路径证据，而且能够在不改变cache、store副作用、发射宽度和正常load完成级数的范围内实施。
+
+我选择的是当前证据最充分的有界联合重构，不是在宣称它具有最大的潜在CPI收益。
+
+检查点恢复与协同窗口扩容暂不入围。recover计数不是分支全部损失，但仅靠消除回滚周期的直接收益也不能无限外推。完整检查点方案还必须处理rename、分配回收及嵌套分支生命周期；简单恢复free-list快照并不充分，BOOM文档明确说明了这种做法可能遗漏重新分配过的物理寄存器。
+RISCV-BOOM 文档
+
+四、首选方案的最小完整合同
+
+以下名称是拟议接口语义，不假定源码已有同名端口。
+
+4.1 三个事件必须严格区分
+概念	含义	能否释放live源owner
+candidate_present	当前有一份可供路由的数据记录	不能
+reserved	按寄存信用为候选预定当拍接收位置	不能
+capture	数据、完整tag及元数据真实进入CQ有效owner	可以，按原交接合同
+
+另有独立的cancel/drain终结路径。取消终结不是一次成功完成传输。
+
+取消前候选必须来自真实旧状态或真实响应握手，不能通过把当前event_valid中的某个名字替换成cancel_candidates来得到。已给出的cancel_candidates仍含flush依赖，不适合作为取消无关信号。
+
+4.2 响应资格分成“可以路由”与“可以成为owner”
+
+对空raw的成功load，概念上拆成：
+
+systemverilog
+// 真实总线握手；ready合同保持基线。
+bus_fire = mem_rsp_valid && mem_rsp_ready;
+
+// 现有语义，不改变其live判定。
+raw_fire = bus_fire
+        && alive_q[token]
+        && !killed_now(token);
+
+// 仅用于候选路由；不得含本拍flush/kill。
+rsp_candidate = RESPONSE_BYPASS
+             && bus_fire
+             && alive_q[token]
+             && !raw_occupied_q
+             && !rsp_error
+             && eligible_from_protected_descriptor;
+
+// 只有最终真实捕获，才算bypass成功。
+bypass_fire = selected_as_response && cq_capture;
+
+raw_enqueue = raw_fire && !bypass_fire;
+
+这里的eligible_from_protected_descriptor仍是原来的成功、对齐、普通RAM load资格，不扩大类别。
+
+必须保持以下边界：
+
+响应token仍然只是受生命周期保护的LSQ slot。 在真实捕获边沿，从该slot的受保护descriptor取得完整ROB tag，并与result及异常元数据一起捕获。不能假定外部响应突然携带了完整tag。
+
+raw lane已有寄存占用时，选择原raw记录；不能因为它本拍被kill，就把它当成“旧状态为空”并塞入新的response bypass。
+
+mem_rsp_ready继续只使用原寄存信用或原已登记dead-load drain条件，不引入CQ/WB当前组合反馈。
+
+未赢仲裁、没有CQ信用的live响应仍然回退raw。被取消或已死亡token的响应按原drain处理，不能因为预写了数据就建立CQ owner。
+
+4.3 六源仲裁先选候选，再判断是否真实接收
+
+每个源提供：
+
+纯文本
+candidate_present
+candidate_payload
+candidate_full_tag
+semantic_live_now
+
+前三项的数据选择锥不能依赖本拍取消。semantic_live_now承接该源完整的现有存活资格。
+
+RR根据候选集合选第一、第二候选；宽tag/result按这两个候选选择。CQ信用和rank到physical lane的映射都由Q态决定。
+
+然后才产生：
+
+systemverilog
+capture_rank[r] =
+    selected_present[r]
+ && structural_credit_q[r]
+ && selected_semantic_live_now[r]
+ && !rst
+ && !flush;
+
+event_grant只由真实capture_rank反向映射产生。RR状态只根据真实捕获更新；预定但取消、空位预写、独立dead drain都不当作成功grant。
+
+不能在发现第一候选被kill之后，把第二候选重新挤到第一位置。 那会把kill重新接回宽数据选择链。
+
+以向量顺序{rank1, rank0}为例：
+
+寄存信用	第一候选	第二候选	实际接收mask	行为
+11	live	live	11	正常双捕获
+11	killed	live	10	第二份保持原物理落点，不压缩
+11	live	killed	01	第一份正常捕获
+01	killed	live	00	本拍不重新分配第一位置；live源保持或回退raw
+
+最后一行是明确接受的机制代价。不能一边要求kill完全不影响路由，一边又要求零代价地把kill空出的当拍位置重新分配。
+
+CQ因此必须接受稀疏有效mask，而不再要求真实接收只出现00/01/11。信用仍可以是prefix；输入有效性不必是prefix。
+
+4.4 CQ每lane改为两个固定物理槽
+
+每lane保留两份完整payload/tag存储，增加或重组织：
+
+纯文本
+occupied_q[2]
+head_q
+payload_q[2]
+
+不增加CQ深度。head_q指向该lane最老的有效owner。
+
+输入落点只看旧状态空槽，不看本拍pop、kill或flush。
+
+systemverilog
+slot_credit = 存在Q态空槽;
+target_slot = 由Q态占用和head确定的空槽;
+
+// 允许对无owner空槽预写；不会覆盖任何现存owner。
+payload_write[s] = slot_credit && (s == target_slot);
+
+payload写使能不使用最终capture，也不使用本拍kill。空位中的预写值没有任何完成语义。
+
+旧owner的终结和新owner建立分别处理：
+
+systemverilog
+drop[s] = occupied_q[s]
+       && (entry_killed_now[s]
+           || ((s == head_q) && actual_wb_accept));
+
+survive = occupied_q & ~drop;
+occupied_d = survive;
+
+if (input_capture)
+    occupied_d[target_slot] = 1'b1;
+
+if (rst || flush)
+    occupied_d = '0;
+
+头指针优先指向仍存活的旧head，其次旧的另一个owner，最后才是本拍新捕获的owner。
+
+由此得到以下合同：
+
+持有稳定。 一个live输出owner在没有真实WB接受、也没有被取消时，payload和完整tag不变，不跨lane、不跨物理槽迁移。
+
+单占用同拍替换。 旧head出队，同时新输入写入另一空槽；边沿后头指针指向新槽，不新增流水泡。
+
+双占用出队。 只切换头指针，不把back宽数据搬进front寄存器。
+
+旧状态满时不借用本拍释放信用。 即使本拍pop或kill，也不进行组合信用返还。这与当前free=~back_q的保守信用思想一致，不新增CQ→源→CQ回路。
+
+部分kill可以清除任意槽。 清除back不移动仍被背压的head；清除head时，边沿后指向幸存的另一个owner。
+
+需要正视的物理代价是：固定槽方案在CQ输出增加了槽选择mux。原输入路径可能缩短，但CQ→WB可能变差；这必须进入本轮全局STA验收。
+
+4.5 取消不延迟，副作用不提前
+
+本拍取消仍须阻止：
+
+纯文本
+新的CQ有效owner成立；
+被取消CQ结果的PRF写入；
+由该结果产生的有效唤醒/旁路；
+ROB完成或异常记录写入。
+
+不能只依靠“边沿后CQ valid会清零”来阻止同一边沿的写回。
+
+CQ输出request继续允许作为提前需求提示，但只有VALID、真实接受和正确owner资格共同成立，才允许产生写回效果。必须检查PRF写与ROB接受的共同资格：ROB拒绝旧tag，并不自动证明PRF没有被旧结果误写。
+
+全局flush保持现有语义：取消所有现存LSU语义owner，不保留较老owner。部分kill仍按原年龄与tag保护规则处理。
+
+已经存在的外部总线义务、晚响应接收与drain规则保持；清除内部完成owner不等于撤销一个已经进入真实总线生命周期的事务。
+
+4.6 错误、reuse与守恒
+
+错误响应不进入成功load快速资格，继续原raw/fault路径。所有fault payload与普通结果一样携带完整tag，被取消的fault不能向新复用owner上报异常。
+
+store许可、真实写接受、B响应、成功B后cache更新，以及异常退休规则全部保持。本轮不改变任何store能否对外执行的判断。
+
+reuse保护不因“payload已预写”而提前结束。释放LSQ slot只能依据原真实mem_end、取消和drain合同。CQ捕获之后自行持有完整tag，不再回查一个可能复用的LSQ descriptor来补全身份。
+
+最重要的守恒式是：
+
+live raw_fire
+⇒
+恰好一个
+{
+CQ真实捕获
+,
+raw enqueue
+}
+live raw_fire⇒恰好一个{CQ真实捕获,raw enqueue}
+
+物理dead-response握手不属于这个等式的live前提，可以只drain而两者皆不发生。
+
+对已经真实进入CQ的记录：
+
+𝑁
+captured
+=
+𝑁
+WB accepted
++
+𝑁
+CQ cancelled
++
+𝑁
+pending
+N
+captured
+	​
+
+=N
+WB accepted
+	​
+
++N
+CQ cancelled
+	​
+
++N
+pending
+	​
+
+
+计数必须按完整owner身份核对，不能只比较总量。
+
+五、Codex实施入口：只核验三组材料，不重新选择优化方向
+
+架构方向已经选定。实现前需要下面三组精确片段；不需要重跑昂贵完整基线。
+
+请求	精确范围	如何影响实施
+1. 六源取消前呈现锥	响应lane/token选择，到raw/forward/fault的tag、payload、valid赋值，以及原寄存占用和取消/drain转移	确定每源能否提供真正取消无关的候选。不能用已遮kill的输出反推
+2. CQ与真实WB接受边界	CQ全部状态转移、payload写使能、lane映射、request/valid/ready连接；实际PRF/ROB写资格。附既有STA中CQ输出→WB的最坏路径	确定固定槽接口落地方式，并提前暴露输出mux与同拍取消风险
+3. token释放与身份保护	LSQ slot申请、mem_end、释放、flush后dead标记及晚响应drain；完整tag字段与WB reuse检查	证明取消前候选只能预写无效数据，不能提前释放token或误接新owner
+
+这三组材料不是让Codex自行选其他局部优化。
+
+若提供取消前候选必须给正常load额外加一级，或必须改写外部响应token合同，应停止扩大实现范围并回传具体依赖锥。若实际WB接受边界无法保证同拍kill抑制全部写回效果，也应先回传反例，由我修订架构。
+
+不得默认把问题转成关闭bypass、延迟kill、放松STA或另加一条未经选择的优化。
+
+六、可证伪预测与最低充分验证
+6.1 本轮必须接受被证伪的预测
+
+预测一：原取消到宽payload的组合链被切断。
+
+固定Q态、响应数据及非取消输入，只改变当前flush/partial-kill时，下列对象应不变：
+
+纯文本
+候选第一/第二选择；
+rank到physical lane映射；
+输入目标物理槽；
+CQ payload D选择；
+CQ payload写使能。
+
+允许变化的是capture、owner有效位、取消终结和头指针下一状态。
+
+这可以用局部双实例组合对照检查，再由真实网表和STA确认。若综合后的ICG或数据mux又受当前取消链控制，机制目标没有完成；不能通过false path隐藏。
+
+预测二：无取消条件下，不增加正常load完成级数。
+
+合资格、无争用且有信用时继续保持：
+
+纯文本
+response → CQ：0拍
+response → WB：2拍
+
+8194次串行依赖load测试应以当前114849 cycles及现有事件时序为对照目标，而不是要求它再次获得上一轮的改善。
+
+预测三：没有取消的完成流，应能保持原逻辑出队行为。
+
+对相同候选与相同WB接受序列，新的固定槽CQ与原CQ应在逻辑owner序列、可接受容量和正常交付时刻上对应。比较的是owner序列，不是内部物理寄存器内容。
+
+预测四：完整程序周期主要预期持平，而不是显著下降。
+
+可能的退化来源是被kill候选占据当拍rank、稀疏接收改变后续lane分配，以及输出选择增加的物理代价。不能假定这些成本全部藏在冻结期内。
+
+因此我不预报CoreMark或Dhrystone的改善百分比。
+
+6.2 最低充分验证矩阵
+层级	必测内容
+CQ定向/随机	0/1/2信用；空、单占用、双占用；pop与capture同拍；head/back分别kill；稀疏10；两lane独立背压；槽反复复用
+LSU完成交接	六源同时竞争；raw驻留与response候选竞争；未获CQ信用回退raw；kill与响应同拍；fault与普通结果混合；取消无需CQ信用即可按原合同终结
+身份与取消	同ROB index不同生命周期；LSQ token复用保护；flush后晚响应；捕获后再kill；kill与WB接受同拍；request有而VALID无时不得写状态
+真实存储协议	原总线下的合法背压、延迟R/B和错误响应；store仍满足head/effect、真实写与B响应合同；原子、IO、非对齐、翻译/A/D回归
+完整整核	同ELF/bin、CoreMark10及Dhrystone10000，完整NEMU DiffTest和断言，自然退出PASS
+
+新增观察项只需围绕本方案：
+
+纯文本
+tentative_winner_killed
+sparse_capture_10
+live_rank1_blocked_by_dead_rank0_with_one_credit
+
+同时继续保留captured、WB accepted、cancelled、pending及tag-collision账本。不能拿上述机会损失计数直接当作可加减的程序周期。
+
+6.3 比较方式与保留条件
+
+继续使用冻结基线，不重新制造一个不同约束的“新baseline”：
+
+CoreMark：8,968,518 cycles。
+Dhrystone：14,267,505 cycles。
+全系统面积：3,144,021.999995 μm²。
+setup WNS：−2.119304419 ns；setup TNS：−137753。
+hold WNS：−0.036660694 ns；hold TNS：−0.087889202。
+
+候选继续使用真实全R64SystemTop、真实数组标准单元映射、相同库角、1ns与0.05ns uncertainty、ABC600ps和fanout8。必须同时报告global、CQ输入、CQ输出到WB、raw控制、owner控制和ICG路径，不能只报告原来那一条变好的路径。
+
+CoreMark若再次因计时值改变而改变printf动态指令，必须重新解释这一次的commit和write差异，不能沿用上一轮“+13 commits/+2 writes”的解释。CRC、完整退出和DiffTest仍必须成立。
+
+最清楚的保留结果是：正确性全部通过，两个完整程序周期不退化或差异被精确解释，面积代价有限且明确，目标路径实质缩短，并且global WNS/TNS及hold没有被新路径抵消。
+
+若只有局部路径改善、global不变或更差，或者以明显周期退化换来局部slack，结果应作为真实trade-off回传，不自动判定保留。
+
+更不能用：
+
+cycles
+×
+(
+1
+ns
+−
+𝑊
+𝑁
+𝑆
+)
+cycles×(1ns−WNS)
+
+构造所谓实际运行时间。当前负WNS不提供可靠Fmax，布局前映射STA也不是布线后签核。
+
+七、给Codex的执行顺序
+
+先核验上述三组边界，然后只实现方案C的一个最小完整原型：取消前候选、稀疏双输入接收、固定物理槽CQ，以及必要的真实接受资格接线。
+
+先完成模块定向、身份守恒和整核冒烟，再运行候选的两个完整程序与同约束完整综合/STA。冻结基线可复用；只有证据条件不兼容时，才重跑对应基线。不要在验证中顺带增加队列、修改发射策略或调整预测器，以免失去归因。
+
+本轮成功的定义不是“改了CQ”，而是：
+
+正常load仍保留当前快速完成时序；kill仍在原时刻阻止错误owner和副作用；但kill不再决定同拍宽payload的仲裁与物理落点。这个结构改变随后必须在完整程序周期、真实面积与整核STA上证明值得保留。

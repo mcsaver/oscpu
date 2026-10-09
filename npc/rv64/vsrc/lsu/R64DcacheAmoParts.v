@@ -5,6 +5,8 @@ module R64DcacheAmoParts (
   input  [63:0] a_i, b_i,
   output [99:0] parts_o
 );
+  // parts_o from MSB: high_equal, high_less, low_less, high_sum(carry=1),
+  // high_sum(carry=0), low_carry, low_sum. Dcache retains this one AMO packet.
   genvar half, level, bitno;
   generate
     for (half = 0; half < 2; half = half + 1) begin : gen_half

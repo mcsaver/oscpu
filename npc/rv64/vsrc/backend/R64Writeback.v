@@ -43,6 +43,7 @@ module R64Writeback #(
   // arrival without weakening cancellation or adding a completion cycle.
   localparam BANK_BITS = (ROB_W > 2) ? 2 : 0, LOCAL_BITS = ROB_W - BANK_BITS;
   localparam BANKS = 1 << BANK_BITS, LOCAL_SLOTS = 1 << LOCAL_BITS;
+  // Acceptance masks are source-major, then bank; each mask owns one WB lane.
   reg [SOURCES*BANKS-1:0] accepted0_q, accepted1_q;
   wire [1:0] valid_q = {|accepted1_q, |accepted0_q};
   reg [2*TAG_W-1:0] tag_q;
@@ -154,6 +155,8 @@ module R64Writeback #(
         {tag_q[lane*TAG_W+:TAG_W], result_q[lane*RESULT_W+:RESULT_W]} <= tree[1].data_w;
     end
   endgenerate
+  // ROB certificates pack {owner_valid, rd_write, rd_fp, pnew}. The query bus
+  // is lane-major, then bank; accepted*_q above remains source-major.
   localparam CERT_W = PREG_W + 3;
   generate
     if (OWNER_CERTIFICATE != 0) begin : g_owner_certificate

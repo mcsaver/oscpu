@@ -32,6 +32,8 @@ module R64DecodeStage #(
   output [              9:0] rd_arch_o,
   output [             29:0] src_arch_o
 );
+  // Queue payload, high to low: {fetch_fault, uop[U], meta[M], dispatch[32]}.
+  // The dispatch tail is the class/destination/source/serial concatenation below.
   localparam U = `R64_UOP_W, M = `R64_META_W, W = U + M + 33;
   wire [W-1:0] decoded_w  [0:1];
   reg  [W-1:0] payload_q  [0:3];
@@ -110,9 +112,10 @@ module R64DecodeStage #(
           formatted_w[read_slot_w];
     end
     for (slot = 0; slot < 4; slot = slot + 1) begin : gen_slot
-      localparam B = M + 32;
+      localparam B = M + 32;  // Uop starts above the dispatch tail and metadata.
       wire [U-1:0] stored_uop_w = payload_q[slot][B+:U];
       wire illegal_w = stored_uop_w[`R64_U_EXCEPTION] && !payload_q[slot][W-1];
+      // Raw instruction starts at payload bit 32 + metadata RAW offset 64.
       wire [63:0] instruction_tval_w = stored_uop_w[`R64_U_LEN] == 2 ?
           {48'b0, payload_q[slot][96+:16]} : {32'b0, payload_q[slot][96+:32]};
       // Each fixed owner prepares its own exception value before the output

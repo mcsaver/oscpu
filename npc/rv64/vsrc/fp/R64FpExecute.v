@@ -26,6 +26,9 @@ module R64FpExecute #(
   output [        TAG_W-1:0] out_tag_o,
   output [`R64_RESULT_W-1:0] out_result_o
 );
+  // One encoding indexes every path payload, ready/valid bit and return rank.
+  localparam [1:0] PATH_FMA = 2'd0, PATH_LONG = 2'd1, PATH_FAST = 2'd2, PATH_FAULT = 2'd3;
+  localparam RETURN_TUPLE_W = TAG_W + `R64_RESULT_W;
   wire [31:0] command = in_uop_i[159:128];
   wire fused = command[6:0] != 7'h53;
   wire [6:0] function_code = command[31:25];
@@ -44,8 +47,9 @@ module R64FpExecute #(
   wire [2:0] rounding_q;
   wire [1:0] path_q;
   wire [1:0] input_path = illegal ?
-      2'd3 : (!fused && (function_code == 7'h0c || function_code == 7'h0d || function_code ==
-                         7'h2c || function_code == 7'h2d)) ? 2'd1 : arithmetic ? 2'd0 : 2'd2;
+      PATH_FAULT : (!fused && (function_code == 7'h0c || function_code == 7'h0d ||
+                              function_code == 7'h2c || function_code == 7'h2d)) ?
+      PATH_LONG : arithmetic ? PATH_FMA : PATH_FAST;
   wire input_source_double = command[25] ^ (command[31:26] == 6'h10);
   wire ingress_live = ingress_valid_q && !kill_mask_i[tag_q[ROB_W-1:0]];
   wire [3:0] path_ready, path_valid;
@@ -60,13 +64,13 @@ module R64FpExecute #(
   // a resident raw head on its cancellation edge. Reset/fullflush are
   // consumed locally by both Fast's token pipe and completion owner.
   // Canonical dispatch still governs this ingress and all other paths.
-  wire fast_offer_w = RAW_FAST_DISPATCH ? (ingress_valid_q && path_q == 2'd2 && path_ready[2]) :
-      fire[2];
+  wire fast_offer_w = RAW_FAST_DISPATCH ?
+      (ingress_valid_q && path_q == PATH_FAST && path_ready[PATH_FAST]) : fire[PATH_FAST];
   // FMA's fixed-advance token owns a reservation even when arithmetic
   // stage_live is suppressed. Its existing birth dead bit is sampled on
   // the accepting edge and stays with that token through terminal drain.
-  wire fma_offer_w = RAW_FMA_DISPATCH ? (ingress_valid_q && path_q == 2'd0 && path_ready[0]) :
-      fire[0];
+  wire fma_offer_w = RAW_FMA_DISPATCH ?
+      (ingress_valid_q && path_q == PATH_FMA && path_ready[PATH_FMA]) : fire[PATH_FMA];
   wire [3:0] result_ready;
   wire fused_q = command_q[6:0] != 7'h53;
   wire [6:0] f7_q = command_q[31:25];
@@ -83,7 +87,7 @@ module R64FpExecute #(
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
     .in_fire_i(fma_offer_w),
-    .in_ready_o(path_ready[0]),
+    .in_ready_o(path_ready[PATH_FMA]),
     .in_tag_i(tag_q),
     .a_i(operand_q[63:0]),
     .b_i(operand_q[127:64]),
@@ -93,11 +97,11 @@ module R64FpExecute #(
     .kind_i(fma_kind),
     .negate_product_i(negate_product),
     .negate_addend_i(negate_addend),
-    .out_valid_o(path_valid[0]),
-    .out_ready_i(result_ready[0]),
-    .out_tag_o(path_tag[0+:TAG_W]),
-    .out_value_o(path_value[0+:64]),
-    .out_flags_o(path_flags[0+:5])
+    .out_valid_o(path_valid[PATH_FMA]),
+    .out_ready_i(result_ready[PATH_FMA]),
+    .out_tag_o(path_tag[PATH_FMA*TAG_W+:TAG_W]),
+    .out_value_o(path_value[PATH_FMA*64+:64]),
+    .out_flags_o(path_flags[PATH_FMA*5+:5])
   );
   R64FpLong #(
     .TAG_W(TAG_W),
@@ -107,19 +111,19 @@ module R64FpExecute #(
     .rst(rst),
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
-    .in_fire_i(fire[1]),
-    .in_ready_o(path_ready[1]),
+    .in_fire_i(fire[PATH_LONG]),
+    .in_ready_o(path_ready[PATH_LONG]),
     .in_tag_i(tag_q),
     .a_i(operand_q[63:0]),
     .b_i(operand_q[127:64]),
     .double_i(double_q),
     .rounding_i(rounding_q),
     .sqrt_i(f7_q[5]),
-    .out_valid_o(path_valid[1]),
-    .out_ready_i(result_ready[1]),
-    .out_tag_o(path_tag[TAG_W+:TAG_W]),
-    .out_value_o(path_value[64+:64]),
-    .out_flags_o(path_flags[5+:5])
+    .out_valid_o(path_valid[PATH_LONG]),
+    .out_ready_i(result_ready[PATH_LONG]),
+    .out_tag_o(path_tag[PATH_LONG*TAG_W+:TAG_W]),
+    .out_value_o(path_value[PATH_LONG*64+:64]),
+    .out_flags_o(path_flags[PATH_LONG*5+:5])
   );
   R64FpFast #(
     .TAG_W(TAG_W),
@@ -130,27 +134,27 @@ module R64FpExecute #(
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
     .in_fire_i(fast_offer_w),
-    .in_ready_o(path_ready[2]),
+    .in_ready_o(path_ready[PATH_FAST]),
     .in_tag_i(tag_q),
     .inst_i(command_q),
     .source_double_i(fast_source_double_q),
     .a_i(operand_q[63:0]),
     .b_i(operand_q[127:64]),
     .rounding_i(rounding_q),
-    .out_valid_o(path_valid[2]),
-    .out_ready_i(result_ready[2]),
-    .out_tag_o(path_tag[2*TAG_W+:TAG_W]),
-    .out_value_o(path_value[128+:64]),
-    .out_flags_o(path_flags[10+:5])
+    .out_valid_o(path_valid[PATH_FAST]),
+    .out_ready_i(result_ready[PATH_FAST]),
+    .out_tag_o(path_tag[PATH_FAST*TAG_W+:TAG_W]),
+    .out_value_o(path_value[PATH_FAST*64+:64]),
+    .out_flags_o(path_flags[PATH_FAST*5+:5])
   );
   reg fault_valid_q;
   reg [TAG_W-1:0] fault_tag_q;
   reg [31:0] fault_command_q;
-  assign path_valid[3] = fault_valid_q && !kill_mask_i[fault_tag_q[ROB_W-1:0]];
-  assign path_ready[3] = !path_valid[3] || result_ready[3];
-  assign path_tag[3*TAG_W+:TAG_W] = fault_tag_q;
-  assign path_value[192+:64] = 0;
-  assign path_flags[15+:5] = 0;
+  assign path_valid[PATH_FAULT] = fault_valid_q && !kill_mask_i[fault_tag_q[ROB_W-1:0]];
+  assign path_ready[PATH_FAULT] = !path_valid[PATH_FAULT] || result_ready[PATH_FAULT];
+  assign path_tag[PATH_FAULT*TAG_W+:TAG_W] = fault_tag_q;
+  assign path_value[PATH_FAULT*64+:64] = 0;
+  assign path_flags[PATH_FAULT*5+:5] = 0;
   reg output_valid_q;
   reg [TAG_W-1:0] output_tag_q;
   reg [`R64_RESULT_W-1:0] output_result_q;
@@ -159,8 +163,10 @@ module R64FpExecute #(
   reg [1:0] next_q, selected;
   wire [3:0] selected_mask_w;
   wire found = |selected_mask_w;
-  wire [4*(TAG_W+`R64_RESULT_W)-1:0] source_tuple_w;
-  wire [3:0] upper_segment_w = {1'b1, next_q != 2'd3, !next_q[1], next_q == 0};
+  wire [4*RETURN_TUPLE_W-1:0] source_tuple_w;
+  // Visit next_q..FAULT before wrapping to FMA..next_q-1. Within either
+  // segment, the lower path index is older in the round-robin order.
+  wire [3:0] upper_segment_w = {1'b1, next_q != PATH_FAULT, !next_q[1], next_q == PATH_FMA};
   genvar candidate, other;
   generate
     for (candidate = 0; candidate < 4; candidate = candidate + 1) begin : g_return_rank
@@ -172,21 +178,22 @@ module R64FpExecute #(
       end
       assign selected_mask_w[candidate] = path_valid[candidate] && !(|older_request_w);
       wire [`R64_RESULT_W-1:0] result_w;
-      if (candidate == 3) assign result_w = {5'b0, 32'b0, fault_command_q, 6'd2, 1'b1, 64'b0};
+      if (candidate == PATH_FAULT)
+        assign result_w = {5'b0, 32'b0, fault_command_q, 6'd2, 1'b1, 64'b0};
       else
         assign result_w = {
           path_flags[candidate*5+:5], 64'b0, 6'b0, 1'b0, path_value[candidate*64+:64]
         };
-      assign source_tuple_w[candidate*(TAG_W+`R64_RESULT_W)+:(TAG_W+`R64_RESULT_W)] =
-          {(TAG_W + `R64_RESULT_W) {selected_mask_w[candidate]}} &
+      assign source_tuple_w[candidate*RETURN_TUPLE_W+:RETURN_TUPLE_W] =
+          {RETURN_TUPLE_W {selected_mask_w[candidate]}} &
           {path_tag[candidate*TAG_W+:TAG_W], result_w};
     end
   endgenerate
-  wire [TAG_W+`R64_RESULT_W-1:0]
-      selected_tuple_w = (source_tuple_w[0*(TAG_W+`R64_RESULT_W)+:(TAG_W+`R64_RESULT_W)] |
-                          source_tuple_w[1*(TAG_W+`R64_RESULT_W)+:(TAG_W+`R64_RESULT_W)]) |
-      (source_tuple_w[2*(TAG_W+`R64_RESULT_W)+:(TAG_W+`R64_RESULT_W)] |
-       source_tuple_w[3*(TAG_W+`R64_RESULT_W)+:(TAG_W+`R64_RESULT_W)]);
+  wire [RETURN_TUPLE_W-1:0]
+      selected_tuple_w = (source_tuple_w[PATH_FMA*RETURN_TUPLE_W+:RETURN_TUPLE_W] |
+                          source_tuple_w[PATH_LONG*RETURN_TUPLE_W+:RETURN_TUPLE_W]) |
+      (source_tuple_w[PATH_FAST*RETURN_TUPLE_W+:RETURN_TUPLE_W] |
+       source_tuple_w[PATH_FAULT*RETURN_TUPLE_W+:RETURN_TUPLE_W]);
   integer n;
   always @* begin
     selected = 0;
@@ -278,9 +285,9 @@ module R64FpExecute #(
       output_valid_q <= 0;
       next_q <= 0;
     end else begin
-      if (path_ready[3]) begin
-        fault_valid_q <= fire[3];
-        if (fire[3]) begin
+      if (path_ready[PATH_FAULT]) begin
+        fault_valid_q <= fire[PATH_FAULT];
+        if (fire[PATH_FAULT]) begin
           fault_tag_q <= tag_q;
           fault_command_q <= command_q;
         end
@@ -298,14 +305,14 @@ module R64FpExecute #(
 `ifdef R64_ASSERT
   always @(posedge clk)
     if (RAW_FMA_DISPATCH && !rst && !flush_i) begin
-      if (fire[0] && !fma_offer_w) $fatal(1, "FP raw FMA offer lost canonical dispatch");
-      if (fma_offer_w && !fire[0] && !kill_mask_i[tag_q[ROB_W-1:0]])
+      if (fire[PATH_FMA] && !fma_offer_w) $fatal(1, "FP raw FMA offer lost canonical dispatch");
+      if (fma_offer_w && !fire[PATH_FMA] && !kill_mask_i[tag_q[ROB_W-1:0]])
         $fatal(1, "FP extra FMA offer has no cancellation owner");
     end
   always @(posedge clk)
     if (RAW_FAST_DISPATCH && !rst && !flush_i) begin
-      if (fire[2] && !fast_offer_w) $fatal(1, "FP raw Fast offer lost canonical dispatch");
-      if (fast_offer_w && !fire[2] && !kill_mask_i[tag_q[ROB_W-1:0]])
+      if (fire[PATH_FAST] && !fast_offer_w) $fatal(1, "FP raw Fast offer lost canonical dispatch");
+      if (fast_offer_w && !fire[PATH_FAST] && !kill_mask_i[tag_q[ROB_W-1:0]])
         $fatal(1, "FP extra Fast offer has no cancellation owner");
     end
   always @(posedge clk)

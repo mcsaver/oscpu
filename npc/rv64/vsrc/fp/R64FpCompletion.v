@@ -30,6 +30,8 @@ module R64FpCompletion #(
   // Admission cancellation has its own one-bit register. Allocated slots
   // cannot complete in their birth cycle, so this correction reaches both
   // the resident owner and the front cache before any result becomes valid.
+  // The correction is a per-slot fact, stored only in dead group 0;
+  // group 0 here does not mean the incoming tag belongs to ROB group 0.
   reg birth_pending_q, birth_killed_q;
   reg [SLOT_W-1:0] birth_slot_q;
   reg [SLOT_W-1:0] head_q, tail_q, next_head_q;

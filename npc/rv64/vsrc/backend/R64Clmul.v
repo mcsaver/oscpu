@@ -68,6 +68,8 @@ module R64Clmul #(
     if (state_q[IDLE] && in_valid_i) begin
       acc_q <= 0;
       iteration_q <= 0;
+      // function 1/2/3 = CLMUL/CLMULR/CLMULH. The reverse traversal serves
+      // CLMULR directly; CLMULH shifts A once to select the next product window.
       low_q <= function_i == 1;
       a_q <= function_i == 3 ? {1'b0, a_i[63:1]} : a_i;
       b_q <= b_i;

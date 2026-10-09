@@ -186,3 +186,7 @@ always @(posedge clk_i) begin
     profile_wb_backpressure_q <= profile_wb_backpressure_q + 64'd1;
 end
 final $display("CPI_PROFILE wb_backpressure=%0d", profile_wb_backpressure_q);
+
+`ifdef R64_LOAD_COMPLETION_PROFILE
+`include "R64LoadCompletionProfile.svh"
+`endif

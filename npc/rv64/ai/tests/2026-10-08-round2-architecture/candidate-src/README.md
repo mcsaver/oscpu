@@ -1,0 +1,7 @@
+# 已淘汰候选C的源码
+
+这里保存第二轮完整候选实际被测试/综合时的两个生产RTL与七个支持文件，路径结构相对工作区根目录；另保留候选期间的LSU拓扑说明。它们是实验归档，不进入活动filelist或默认测试目录。
+
+候选已因完整物理取舍不接受而从主工作树恢复为本轮前B。不要把此目录当作当前生产实现。各文件校验值见上一级candidate-manifest.json，差异见production-candidate.patch和support-candidate.patch；完整冻结vsrc、仿真二进制和真实网表仍在本轮build/results目录。
+
+本轮未独立验证任何C子项作为B上的单独优化，不能将候选的局部改动直接摘回主树并引用联合候选的结果。完整结果与Pro裁决见上一级RESULT.md和measurement-response.txt。

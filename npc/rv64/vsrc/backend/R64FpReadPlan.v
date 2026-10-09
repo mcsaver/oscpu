@@ -10,7 +10,11 @@ module R64FpReadCompact #(
 );
   wire [2:0] request_w = used_i & fp_i;
   wire [1:0] count_w = {1'b0, request_w[0]} + {1'b0, request_w[1]} + {1'b0, request_w[2]};
-  wire [5:0] rank_w = {{1'b0, request_w[0]} + {1'b0, request_w[1]}, 1'b0, request_w[0], 2'b0};
+  // Each logical source's rank counts requesting FP sources before it.
+  wire [5:0] rank_w;
+  assign rank_w[0+:2] = 2'b0;
+  assign rank_w[2+:2] = {1'b0, request_w[0]};
+  assign rank_w[4+:2] = {1'b0, request_w[0]} + {1'b0, request_w[1]};
   wire [3*PREG_W-1:0] address_w;
   genvar port, source;
   generate
@@ -23,6 +27,8 @@ module R64FpReadCompact #(
       assign address_w[port*PREG_W+:PREG_W] = (item_w[0] | item_w[1]) | item_w[2];
     end
   endgenerate
+  // Plan, high to low: {request count[1:0], source ranks[5:0], port addresses}.
+  // Source/port zero occupies the low slice within each field.
   assign plan_o = {count_w, rank_w, address_w};
 endmodule
 
@@ -35,15 +41,16 @@ module R64FpReadJoin #(
   output [              11:0] rank_o
 );
   localparam PLAN_W = 3 * PREG_W + 8;
-  wire [1:0] count0_w = plan_i[3*PREG_W+6+:2];
-  wire [1:0] count1_w = plan_i[PLAN_W+3*PREG_W+6+:2];
+  localparam RANK_LSB = 3 * PREG_W, COUNT_LSB = RANK_LSB + 6;
+  wire [1:0] count0_w = plan_i[COUNT_LSB+:2];
+  wire [1:0] count1_w = plan_i[PLAN_W+COUNT_LSB+:2];
   wire [1:0] offset_w = count0_w & {2{fire_i[0]}};
   genvar source, port;
   generate
     for (source = 0; source < 3; source = source + 1) begin : g_rank
-      assign rank_o[source*2+:2] = plan_i[3*PREG_W+source*2+:2] & {2{fire_i[0]}};
+      assign rank_o[source*2+:2] = plan_i[RANK_LSB+source*2+:2] & {2{fire_i[0]}};
       assign rank_o[(source+3)*2+:2] = offset_w +
-          (plan_i[PLAN_W+3*PREG_W+source*2+:2] & {2{fire_i[1]}});
+          (plan_i[PLAN_W+RANK_LSB+source*2+:2] & {2{fire_i[1]}});
     end
     for (port = 0; port < 3; port = port + 1) begin : g_port
       wire [PREG_W-1:0] item_w[0:3];

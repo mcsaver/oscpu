@@ -50,6 +50,10 @@ module R64FetchProtectionPrepare (
   output [129:0] facts_o,
   output         uncached_o
 );
+  // Each word stores 16 overlap bits below 16 deny bits; sector-wide
+  // no-match privilege and PMA fault occupy the two high bits.
+  localparam WORD_FACT_W = 32, DENY_OFFSET = 16,
+      NO_MATCH_FAULT_BIT = 128, PMA_FAULT_BIT = 129;
   wire pma_fault_w;
   wire [1:0] class_w;
   R64FetchPma16 pma (
@@ -58,7 +62,7 @@ module R64FetchProtectionPrepare (
     .class_o  (class_w)
   );
   assign uncached_o = class_w != 0;
-  assign facts_o[129:128] = {pma_fault_w || class_w == 2, privilege_i != 3};
+  assign facts_o[PMA_FAULT_BIT:NO_MATCH_FAULT_BIT] = {pma_fault_w || class_w == 2, privilege_i != 3};
   genvar entry, word_index;
   generate
     for (entry = 0; entry < 16; entry = entry + 1) begin : g_entry
@@ -82,9 +86,9 @@ module R64FetchProtectionPrepare (
         end else begin : g_end
           assign end_below_w = LAST < lo_w[3:0];
         end
-        assign facts_o[word_index*32+entry] = pmp_active_i[entry] && !above_w &&
+        assign facts_o[word_index*WORD_FACT_W+entry] = pmp_active_i[entry] && !above_w &&
             !(hi_equal_w && start_above_w) && !below_w && !(lo_equal_w && end_below_w);
-        assign facts_o[word_index*32+16+entry] = deny_mode_w || below_w ||
+        assign facts_o[word_index*WORD_FACT_W+DENY_OFFSET+entry] = deny_mode_w || below_w ||
             (lo_equal_w && FIRST < lo_w[3:0]) || above_w || (hi_equal_w && LAST > hi_w[3:0]);
       end
     end
@@ -96,11 +100,15 @@ module R64FetchProtectionFinish (
   input  [129:0] facts_i,
   output [  7:0] fault_mask_o
 );
+  // Each word stores 16 overlap bits below 16 deny bits; sector-wide
+  // no-match privilege and PMA fault occupy the two high bits.
+  localparam WORD_FACT_W = 32, DENY_OFFSET = 16,
+      NO_MATCH_FAULT_BIT = 128, PMA_FAULT_BIT = 129;
   genvar word_index, entry;
   generate
     for (word_index = 0; word_index < 4; word_index = word_index + 1) begin : g_word
-      wire [15:0] overlap_w = facts_i[word_index*32+:16];
-      wire [15:0] deny_w = facts_i[word_index*32+16+:16];
+      wire [15:0] overlap_w = facts_i[word_index*WORD_FACT_W+:16];
+      wire [15:0] deny_w = facts_i[word_index*WORD_FACT_W+DENY_OFFSET+:16];
       wire [15:0] selected_deny_w;
       for (entry = 0; entry < 16; entry = entry + 1) begin : g_priority
         if (entry == 0) begin : g_first
@@ -111,7 +119,8 @@ module R64FetchProtectionFinish (
         end
       end
       assign fault_mask_o[word_index*2+:2] = {
-          2{facts_i[129] || (facts_i[128] && !(|overlap_w)) || (|selected_deny_w)}};
+          2{facts_i[PMA_FAULT_BIT] || (facts_i[NO_MATCH_FAULT_BIT] && !(|overlap_w)) ||
+            (|selected_deny_w)}};
     end
   endgenerate
 endmodule

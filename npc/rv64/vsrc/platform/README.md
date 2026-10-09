@@ -17,7 +17,7 @@
 R64AxiFabric #(
   .SLAVES(`R64_PLATFORM_SLAVES), .SLAVE_W(4),
   .BASE(`R64_PLATFORM_BASE), .MASK(`R64_PLATFORM_MASK),
-  .READ_MEMORY_MASK(16'h2800), // 实际 PSRAM / SDRAM
+  .READ_MEMORY_MASK(`R64_PLATFORM_READ_MEMORY), // 实际 PSRAM / SDRAM
   .MEMORY(`R64_PLATFORM_MEMORY),
   .EXECUTABLE(`R64_PLATFORM_EXECUTABLE)
 ) u_fabric (...);
@@ -41,6 +41,11 @@ slave packed buses 保留 `NpcTop` 当前顺序，低位为 port 0：
 | 13 | SDRAM DPI memory |
 | 14 | chiplink memory stub |
 | 15 | default stub（新 fabric 对未命中地址内部 DECERR，此端口不选中） |
+
+端点编号统一定义为 `R64PlatformMap.vh` 中的 `R64_PORT_*`。外部端口的顺序由
+`R64AxiPlatform.v` 的 `EXTERNAL_SLAVE_MAP` 直接列出：`ext[0]` → PSRAM（11），
+`ext[1]` → SDRAM（13），`ext[2]` → legacy MMIO（12），`ext[3]` → virtio block（4）。
+`g_external` 仅按此常量表重复 AXI 接线；未实现端点由 `R64_PLATFORM_ERROR_PORTS` 逐设备列出。
 
 现有外设 IP 可以继续实例化；PSRAM/SDRAM/legacy/virtio 对外导出端口保持单拍 ABI。每一个合法 burst 会产生 LEN+1 个真实下游子事务，地址按 SIZE 递增（FIXED 保持地址），上游收到真实全部 R 拍或聚合所有子 B 错误的唯一 B。不能把此转换误称为 full-AXI memory：现有 DPI 端点自身单 outstanding 且至少有一个空拍，cache miss 补行吞吐受到这个端点限制。未来提高外部补行速率应增加真正的 full-AXI memory 端点与旁路路由，不能跳过末拍计数或伪造完成。
 

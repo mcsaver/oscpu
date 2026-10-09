@@ -50,6 +50,8 @@ module R64Translation #(
   input mem_compare_ok_i
 );
 
+  // This parameter selects a complete owner pipeline, including its response
+  // storage contract: D-side lookup/outcome versus the basic elastic path.
   generate
     if (DATA_PROTECTION) begin : g_data
       R64DataTranslation #(
@@ -113,25 +115,8 @@ module R64Translation #(
       reg [63:0] response_pa_q;
       reg [1:0] response_pbmt_q, response_priv_q;
       reg [4:0] response_cause_q;
-      reg [3:0] protection_q, response_protection_q;
+      reg [3:0] response_protection_q;
       reg  [64:0] response_last_q;
-      // D-side legal translated accesses do not cross a 4KiB page: ordinary
-      // cross-page misalignment and all atomic misalignment are rejected by LSU.
-      // Bare accesses still retain full physical carry and 64-bit overflow.
-      wire [11:0] byte_delta_w = (12'b1 << protection_q[1:0]) - 12'd1;
-      wire [12:0] last_low_w = {1'b0, va_q[11:0]} + {1'b0, byte_delta_w};
-      wire [64:0] bare_last_w;
-      assign bare_last_w[11:0] = last_low_w[11:0];
-      genvar high_bit;
-      for (high_bit = 12; high_bit < 64; high_bit = high_bit + 1) begin : g_last
-        if (high_bit == 12) begin : g_first
-          assign bare_last_w[high_bit] = va_q[high_bit] ^ last_low_w[12];
-        end else begin : g_prefix
-          assign
-              bare_last_w[high_bit] = va_q[high_bit] ^ (last_low_w[12] && (&va_q[high_bit-1:12]));
-        end
-      end
-      assign bare_last_w[64] = last_low_w[12] && (&va_q[63:12]);
       assign rsp_protection_o = response_protection_q;
       assign rsp_last_o = response_last_q;
 
@@ -257,6 +242,7 @@ module R64Translation #(
           poison_q <= 0;
           pbmt_enable_q <= 0;
           response_valid_q <= 0;
+          // Preserve the original procedural behavior for an X/Z parameter.
           if (!DATA_PROTECTION) begin
             response_fault_q <= 0;
             response_needs_ad_q <= 0;
@@ -310,7 +296,6 @@ module R64Translation #(
           if (req_fire_w) begin
             request_valid_q <= 1;
             va_q <= req_vaddr_i;
-            if (DATA_PROTECTION) protection_q <= req_protection_i;
             // New request replaces completed LOOKUP ownership, never WAIT_WALK.
             // Preserve pre-admission invalidation across the later miss decision.
             poison_q <= req_poison_i;
@@ -327,45 +312,11 @@ module R64Translation #(
           end
         end
       end
-      // D-side response storage prepares the payload of the current Q owner.
-      // Only the original terminal/walk_take event publishes VALID. This keeps
-      // late permission/AD qualification off the full payload write-enable tree.
-      // A live stalled output retains all fields; a free/consumed slot has no
-      // obligation to retain an invalid payload. No new request or stage exists.
-      if (DATA_PROTECTION) begin : g_data_response
-        wire walk_source_w = state_q == WAIT_WALK;
-        always @(posedge clk_i)
-          if (output_free_w) begin
-            response_priv_q <= priv_q;
-            response_protection_q <= protection_q;
-            response_pa_q <= walk_source_w ? {8'b0, walk_pa_w} : (bare_w ? va_q : {8'b0, tlb_pa_w});
-            response_pbmt_q <= walk_source_w ? walk_pbmt_w : (bare_w ? 2'b0 : tlb_pbmt_w);
-            response_fault_q <= walk_source_w ?
-                walk_fault_w : (!bare_w && (address_fault_w || permission_fault_w));
-            response_needs_ad_q <= walk_source_w ? (walk_ad_w && !walk_fault_w) :
-                (!bare_w && !address_fault_w && !permission_fault_w && ad_needed_w);
-            response_cause_q <= walk_source_w ? walk_cause_w : page_cause_w;
-            response_last_q <= walk_source_w ? {9'b0, walk_pa_w[55:12], last_low_w[11:0]} :
-                (bare_w ? bare_last_w : {9'b0, tlb_pa_w[55:12], last_low_w[11:0]});
-          end
-      end else begin : g_no_data_response
-        assign response_protection_q = 4'b0;
-        assign response_last_q = 65'b0;
-      end
-      wire unused_protection_w = DATA_PROTECTION ? 1'b0 : (|req_protection_i);
+      assign response_protection_q = 4'b0;
+      assign response_last_q = 65'b0;
+      wire unused_protection_w = |req_protection_i;
       wire unused_mstatus_w = |{req_mstatus_i[63:20], req_mstatus_i[16:13], req_mstatus_i[10:0]};
 `ifdef R64_ASSERT
-      always @(posedge clk_i)
-        if (!rst_i && DATA_PROTECTION) begin
-          if (request_valid_q && state_q == LOOKUP && terminal_w && output_free_w && !bare_w &&
-              !address_fault_w && !permission_fault_w && last_low_w[12])
-            $fatal(1, "R64Translation data owner crossed page without LSU rejection");
-          if (walk_take_w && !walk_fault_w && last_low_w[12])
-            $fatal(1, "R64Translation walked data owner crossed page without LSU rejection");
-          if (rsp_valid_o && !rsp_fault_o &&
-              rsp_last_o !== ({1'b0, rsp_paddr_o} + (65'b1 << rsp_protection_o[1:0]) - 65'd1))
-            $fatal(1, "R64Translation prepared endpoint changed physical range");
-        end
       always @(posedge clk_i)
         if (!rst_i && req_fire_w && req_access_i == 3)
           $fatal(1, "invalid translation access");

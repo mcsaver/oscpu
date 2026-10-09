@@ -1,0 +1,112 @@
+{
+  "kind": "local topology and existing-evidence export; no network submission",
+  "topologies": [
+    "vsrc/TOPOLOGY.md",
+    "vsrc/frontend/TOPOLOGY.md",
+    "vsrc/backend/TOPOLOGY.md",
+    "vsrc/fp/TOPOLOGY.md",
+    "vsrc/control/TOPOLOGY.md",
+    "vsrc/memory/TOPOLOGY.md",
+    "vsrc/lsu/TOPOLOGY.md",
+    "vsrc/bus/TOPOLOGY.md"
+  ],
+  "evidence": [
+    "ai/tests/2026-10-08-round2-architecture/RESULT.md",
+    "results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md",
+    "results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md",
+    "results/ai-cq-timing-20261008/paired-path-diagnostic/baseline-global-top32.csv",
+    "results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/cq_payload-register-max.rpt",
+    "results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/raw_control-register-max.rpt",
+    "results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/raw_payload-register-max.rpt"
+  ],
+  "excerpts": [
+    [
+      "vsrc/control/R64Commit.v",
+      90,
+      105
+    ],
+    [
+      "vsrc/control/R64Commit.v",
+      130,
+      175
+    ],
+    [
+      "vsrc/lsu/R64LsuCompletion.v",
+      1,
+      116
+    ],
+    [
+      "vsrc/lsu/R64Lsu.v",
+      1617,
+      1685
+    ],
+    [
+      "syn/chengyue64.sdc",
+      1,
+      100
+    ]
+  ],
+  "outputs": {
+    "rv64-current-topology.txt": {
+      "bytes": 143503,
+      "characters": 88509
+    },
+    "rv64-measurements.txt": {
+      "bytes": 72936,
+      "characters": 61220
+    }
+  },
+  "design_unit_ids": [
+    "BE-01",
+    "BE-02",
+    "BE-03",
+    "BE-04",
+    "BE-05",
+    "BE-06",
+    "BE-07",
+    "BE-08",
+    "BE-09",
+    "BUS-01",
+    "BUS-02",
+    "BUS-03",
+    "BUS-04",
+    "BUS-05",
+    "CTL-01",
+    "CTL-02",
+    "CTL-03",
+    "CTL-04",
+    "FE-01",
+    "FE-02",
+    "FE-03",
+    "FE-04",
+    "FE-05",
+    "FE-06",
+    "FE-07",
+    "FE-08",
+    "FP-01",
+    "FP-02",
+    "FP-03",
+    "FP-04",
+    "FP-05",
+    "FP-06",
+    "LSU-01",
+    "LSU-02",
+    "LSU-03",
+    "LSU-04",
+    "LSU-05",
+    "LSU-06",
+    "LSU-07",
+    "LSU-08",
+    "LSU-09",
+    "LSU-10",
+    "LSU-11",
+    "LSU-12",
+    "MEM-01",
+    "MEM-02",
+    "MEM-03",
+    "MEM-04",
+    "MEM-05",
+    "MEM-06",
+    "MEM-07"
+  ]
+}

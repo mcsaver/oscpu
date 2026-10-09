@@ -95,6 +95,9 @@ module R64AxiFabric #(
   // Shared four-owner table, independent memory/MMIO launch and return
   // services, and one two-entry output FIFO. The registered merge grant
   // limits physical return consumption to the FIFO's real single write port.
+  // Group 0 accepts unclassified/default reads and descriptor errors. With
+  // READ_MEMORY_MASK=0 it serves every endpoint; group 1 serves only that mask.
+  localparam integer DEFAULT_READ_GROUP = 0, MEMORY_READ_GROUP = 1;
   reg merge_q;
   wire radmit_w, rpush_w;
   reg [1:0] rc_q;
@@ -103,10 +106,11 @@ module R64AxiFabric #(
   wire [63:0] group_ar_addr[0:1], group_return_data[0:1];
   wire [2:0] group_ar_size[0:1], group_ar_prot[0:1];
   wire [1:0] group_ar_id[0:1], group_return_id[0:1], group_return_resp[0:1];
-  wire [SLAVES-1:0] launch_mask_q = group_ar_mask[0] | group_ar_mask[1];
+  wire [SLAVES-1:0] launch_mask_q =
+      group_ar_mask[DEFAULT_READ_GROUP] | group_ar_mask[MEMORY_READ_GROUP];
   wire [SLAVES-1:0] return_mask_q = group_return_mask[merge_q];
   wire [1:0] return_id_q = group_return_id[merge_q];
-  wire [SLAVES-1:0] rbusy_q = group_busy[0] | group_busy[1];
+  wire [SLAVES-1:0] rbusy_q = group_busy[DEFAULT_READ_GROUP] | group_busy[MEMORY_READ_GROUP];
   wire [255:0] owner_addr;
   wire [31:0] owner_len;
   wire [11:0] owner_size, owner_prot;
@@ -125,8 +129,8 @@ module R64AxiFabric #(
       R64AxiReadService #(
         .SLAVES(SLAVES),
         .SLAVE_W(SLAVE_W),
-        .GROUP_MASK(service == 0 ? ~READ_MEMORY_MASK : READ_MEMORY_MASK),
-        .ACCEPT_BAD(service == 0 ? 1 : 0),
+        .GROUP_MASK(service == DEFAULT_READ_GROUP ? ~READ_MEMORY_MASK : READ_MEMORY_MASK),
+        .ACCEPT_BAD(service == DEFAULT_READ_GROUP ? 1 : 0),
         .READ_CONTINUE(READ_CONTINUE),
         .EARLY_RETURN(EARLY_RETURN)
       ) group (
@@ -505,7 +509,7 @@ module R64AxiFabric #(
       rterminal_q <= 0;
       rbad_q <= 0;
       rfixed_q <= 0;
-      merge_q <= 0;
+      merge_q <= DEFAULT_READ_GROUP[0];
       aw_pending_q <= 0;
       w_pending_q <= 0;
       aw_owner0_q <= 0;
@@ -737,9 +741,10 @@ module R64AxiFabric #(
       if (w_pending_q !== ((oc_q != 0 && dc_q != 0 && wwait_q[wh_w] && !ww_q[wh_w]) ?
                            ({{(SLAVES - 1) {1'b0}}, 1'b1} << wt_q[wh_w]) : {SLAVES{1'b0}}))
         $fatal(1, "Fabric registered W route disagrees with owner");
-      if ((|(group_busy[0] & group_busy[1])) || (|(group_ar_mask[0] & group_ar_mask[1])))
+      if ((|(group_busy[DEFAULT_READ_GROUP] & group_busy[MEMORY_READ_GROUP])) ||
+          (|(group_ar_mask[DEFAULT_READ_GROUP] & group_ar_mask[MEMORY_READ_GROUP])))
         $fatal(1, "fabric service groups share an endpoint owner");
-      if (group_ar_fire == 3 && group_ar_id[0] == group_ar_id[1])
+      if (group_ar_fire == 3 && group_ar_id[DEFAULT_READ_GROUP] == group_ar_id[MEMORY_READ_GROUP])
         $fatal(1, "fabric service groups launched one descriptor twice");
       if (rc_q > 2 || dc_q > 2 || oc_q > 2) $fatal(1, "fabric queue capacity exceeded");
       if (wbeat_w && wl_q[dh_q] != (wn_q[wh_w] == 0))

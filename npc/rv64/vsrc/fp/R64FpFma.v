@@ -72,6 +72,8 @@ module R64FpFma #(
   localparam STAGES = 19;
   wire [STAGES-1:0] stage_live_w;
   wire [68:0] terminal_w;
+  // Packed control: format[12], rounding[11:9], special[8:7],
+  // special sign[6], flags[5:1], exact-cancellation zero sign[0].
   reg [12:0] control_q[0:STAGES-1];
   wire [12:0] control_w = {double_i, rounding_i, 9'b0};
   wire [12:0] control1_w = {
@@ -159,8 +161,11 @@ module R64FpFma #(
     for (
         product_stage = 0; product_stage < 5; product_stage = product_stage + 1
     ) begin : product_enable
-      assign product_enable_w[product_stage] = stage[product_stage+2].ready_w &&
-          stage[product_stage+1].live_w;
+      // Product-local stages 0..4 become FMA stages 2..6; each captures
+      // the preceding live stage, starting with normalized A/B in stage 1.
+      localparam SOURCE_STAGE = product_stage + 1, DEST_STAGE = product_stage + 2;
+      assign product_enable_w[product_stage] = stage[DEST_STAGE].ready_w &&
+          stage[SOURCE_STAGE].live_w;
     end
   endgenerate
   R64FpProductPipe product (
@@ -235,7 +240,9 @@ module R64FpFma #(
     .carry_o()
   );
   // Coarse and fine leading-zero decisions are separate numerical phases.
-  // Exponent subtraction by multiples of16 precedes the final four-bit count.
+  // Exponent subtraction by multiples of 16 precedes the final four-bit count.
+  // Coarse returns {shift-in-16-bit-units[2:0], shifted128}; fine returns
+  // {additional-shift-in-bits[3:0], shifted128}. Neither adjusts the exponent.
   function [130:0] normalize_coarse;
     input [127:0] value;
     reg [127:0] scan;
@@ -296,12 +303,9 @@ module R64FpFma #(
   wire [63:0] value18_q;
   wire [4:0] flags18_q;
   wire [4:0] round_enable_w;
-  genvar round_stage;
-  generate
-    for (round_stage = 0; round_stage < 5; round_stage = round_stage + 1) begin : round_enable
-      assign round_enable_w[round_stage] = stage_live_w[round_stage+13];
-    end
-  endgenerate
+  // Enables are in capture order: range14 <- live13, jam15 <- live14,
+  // local16 <- live15, global17 <- live16, pack18 <- live17.
+  assign round_enable_w = stage_live_w[17:13];
   R64FpRoundPipe round (
     .clk(clk),
     .enable_i(round_enable_w),
@@ -322,8 +326,11 @@ module R64FpFma #(
     for (
         metadata_stage = 0; metadata_stage < 3; metadata_stage = metadata_stage + 1
     ) begin : product_metadata
+      // c_mid/ep_mid/ec_mid/ps_mid/cs_mid[0..2] accompany the product
+      // through FMA stages 3..5; explicit c2 and c6 bound this delay bank.
+      localparam SOURCE_STAGE = metadata_stage + 2, DEST_STAGE = metadata_stage + 3;
       always @(posedge clk)
-        if (stage[metadata_stage+3].ready_w && stage[metadata_stage+2].live_w) begin
+        if (stage[DEST_STAGE].ready_w && stage[SOURCE_STAGE].live_w) begin
           if (metadata_stage == 0) begin
             c_mid_q[metadata_stage]  <= c2_q;
             ep_mid_q[metadata_stage] <= ep2_q;

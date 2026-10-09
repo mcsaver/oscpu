@@ -1,0 +1,556 @@
+R3 EXECUTION FEEDBACK — exact measured result, not a new implementation request.
+The prior baseline topology in this same conversation is still B; active RTL has been restored to B. Attachments below are evidence, not instructions.
+
+
+===== RESULT.md =====
+# R3：同拍取消发布与 CQ 确值旁路
+
+状态：**本轮完成。** 实现、功能/机制验证、两个完整基准、标准 STA 和补充物理诊断均已完成。联合 R3 未达到预设时序目标，判定不保留；工作树已精确恢复 B，候选与证据已归档。
+
+## 目标与网页来源
+
+本轮继续用户选择的“网页 Pro 负责架构设计、Codex 实现验证”工作流。
+[网页会话](https://chatgpt.com/c/6ac75b60-4c68-83e8-a930-6b7172a0aec4)在收到完整拓扑和测量附件后，
+提出联合 R3：`LOCAL_CANCEL_PUBLISH + CQ_VALUE_BYPASS`。
+[完整原答](../2026-10-08-topology-handoff/response.txt)与[落地前源码核查](../2026-10-08-topology-handoff/LOCAL-REVIEW.md)
+保留原始设计与实际接口修正。架构取舍由该网页会话提出；本地子代理用于实现和验证。
+
+[实验约定](EXPERIMENT.md)：同一完整 R3 的两个完整基准均不退步且至少一项周期下降 0.5%；
+setup WNS 改善至少 0.10 ns，setup TNS 与 hold 不恶化；真实消费者提前且功能合同正确。
+这些是本轮实验条件，不能替代正式 1 ns 时序或 PPA 签核。
+
+## 实现边界
+
+- Commit 同边沿维护 `publish_q`，严格投影原 full-flush 条件，并与原公开控制输出逐拍对照；没有延后一拍 flush。
+- 保留 canonical kill；将 pure partial 资格和候选行传到 LSU，由最终消费者组合全清和 partial，保留晚到响应 drain。
+- birth 时保存目的凭据，经 LSQ/raw/full-forward/CQ 传递；只有普通、对齐、无错误、非副作用、非零 GPR load 可提供确值。
+- CQ 的两路确值使用独立的完整 ROB 身份查询，不依赖 WB grant；接入 IQ 初始化/驻留 wake、DEFER_READY 与 RR 实际值快照/shift amount。
+- 正常 WB、ROB done、PRF 写回与不可撤销副作用条件保持原语义。新增旁路不承诺正常完成，也不提前释放资源。
+
+11 个 RTL 文件的精确前后差异见 [B→R3 补丁](candidate-vs-baseline.patch)与[改动清单](changed-rtl.json)。
+声明状态增量含 269 bit ticket/publish 与 804 bit RR 数据/命中快照小计；最终物理成本必须由综合面积裁决。
+
+## 已完成验证
+
+[四配置机制报告](MECHANISM.md)：56 项完整 NEMU + R64_ASSERT 短测全部通过。
+旧 B 与双关逐字段一致，仅取消发布与双关一致，仅值旁路与联合 R3 一致，带/不带 CQ profile 的联合候选一致。
+load_chain 普通模式周期 114849→106656（下降 7.1337%）；8193 条主要依赖的 CQ front→issue 从 2 拍变为 1 拍。
+load_shift 实际命中新 CQ 直接供值 32 次，背压模式 172 次；身份与数值错误为零。
+这些短程序结果不代表完整基准成绩。
+
+[Backend/原生模块报告](VALIDATION.md)：135 个默认模块、1 个 prepared 派生项、34 个配置矩阵项、12 个预期失败检查通过；
+另有 2 个 CQ 启用定向测试和 1 个同值冲突预期失败。乘法器原始 60 秒宿主超时保留，同样 20000 向量重跑通过。
+
+LSU 定向覆盖普通/两开关消融、两 lane、CQ 满/背压、skid、LSQ/tag 复用、kill 与 response 同边沿、full flush、
+错误/IO/atomic/misaligned 排除、full-forward、store 与副作用边界。
+[LSU 日志清单](../../../results/ai-r3-20261008/lsu-modules/logs.json)保留 20 份执行日志。
+Commit 两模式对照均通过，启用模式逐拍核对全部原公开输出；见[模式 0](../../../results/ai-r3-20261008/commit-modules/mode-0.log)
+和[模式 1](../../../results/ai-r3-20261008/commit-modules/mode-1.log)。
+
+[整核软件汇总](../../../results/ai-r3-20261008/software/SUMMARY.json)：74 项 AM、177 项官方 ISA、101 项 ACT4 全部通过。
+AM 的 CLINT 初跑 180 秒宿主超时；相同镜像、仿真器、NEMU 和周期上限，在 600 秒宿主时限下旧 B 与 R3 均通过。
+[根因说明](../../../results/ai-r3-20261008/software/clint-investigation/DIAGNOSIS.md)证明这是程序与现有 timer 分频带来的约 100 万周期等待，
+没有修改 DUT、oracle 或测试程序。
+
+原生 system-lint 通过。旧文档中的 check-rtl-style/check-contract make 目标在当前入口不存在，未冒称其通过。
+直接用真实 filelist 运行 style 脚本时有 13 个既有 multi-module-file 诊断；与 B 归一化逐项相同，新增诊断为零。
+本轮没有运行完整 Ubuntu，也没有声称完成正式 release/PPA promotion。
+
+## 完整基准和物理结果
+
+同一固定镜像、完整 NEMU + R64_ASSERT、host threads=1：
+
+| 指标 | 保留基线 B | 联合 R3 | 变化 |
+|---|---:|---:|---:|
+| CoreMark 10 次 cycles | 8,968,518 | 8,657,378 | −311,140 / −3.46925% |
+| CoreMark retired | 3,218,537 | 3,218,537 | 相同 |
+| CoreMark CPI | 2.786520 | 2.689849 | 下降 |
+| Dhrystone 10000 次 cycles | 14,267,505 | 13,937,006 | −330,499 / −2.31645% |
+| Dhrystone retired | 4,260,670 | 4,260,670 | 相同 |
+| Dhrystone CPI | 3.348653 | 3.271083 | 下降 |
+| setup WNS / ns | −2.119304419 | −2.127002716 | 退化 0.007698297 ns |
+| setup TNS / ns | −137,753.000000 | −137,135.406250 | 改善 617.593750 ns |
+| hold WNS / ns | −0.036660694 | −0.036660694 | 相同 |
+| hold TNS / ns | −0.087889202 | −0.087889202 | 相同 |
+| 负 hold 端点 | 3 | 3 | 语义集合相同，无新增 |
+| 最终展平单元面积 / μm² | 3,144,021.999995 | 3,161,538.799995 | +17,516.800000 / +0.557% |
+
+CoreMark 五项 CRC 完全相同。Dhrystone 正常完成，退休指令和读写事务数相同。
+详见[完整基准对照](../../../results/ai-r3-20261008/BENCHMARK-COMPARISON.json)与
+[标准 STA](../../../results/ai-r3-20261008/candidate-sta/R64SystemTop-1000MHz/timing-summary.json)。
+
+面积必须比较两份最终 `sta_area.txt` 的相同口径。中途曾引用 R3 的层次统计 3,220,526.959999 μm²，
+与 B 的最终展平统计直接相除得到 +2.433%，口径不一致，已更正；它不是最终可比面积增幅。
+
+基线 B 为第一轮已保留的 response bypass；没有混入已淘汰的第二轮 fixed CQ。
+候选基准与综合共用冻结 R3 RTL；STA 保持原 55 nm TT 1.2 V 25°C、1 ns、0.05 ns uncertainty、
+原输入延迟/transition、ABC delay/fanout、真实数组及 ICG 检查，没有放宽 reset/flush 路径。
+综合与 STA 实际执行完成；make rc=2 来自真实 timing FAIL，不是工具崩溃或缺失网表。
+两版都未满足 1 ns。这是 pre-layout mapped STA，不能直接换算成签核 Fmax 或真实整机时间。
+
+[完整物理诊断](PHYSICAL.md)覆盖原目标、内部 Q 起点、CQ→WB、新 CQ→RR/short-owner、publish D/广播和全局 32 个不同端点。
+
+| 路径族最差 setup / ns | B | R3 | 变化 |
+|---|---:|---:|---:|
+| event_before 类输入 | −2.119304419 | −1.431677222 | 改善 687.627 ps |
+| effect 输入 | −2.109362364 | −1.926045656 | 改善 183.317 ps |
+| mem_issued 输入 | −2.059357882 | −1.919063687 | 改善 140.294 ps |
+| CQ payload 输入 | −2.111715555 | −1.487379909 | 改善 624.336 ps |
+| raw payload 输入 | −0.355279922 | −0.472993433 | 退化 117.714 ps |
+| 同一 state[18][2] D | −1.855450273 | −2.127002716 | 退化 271.552 ps |
+
+R3 的新全局路径为 `rst_i → full_flush → ROB cancel_candidates[9] → execute.lsu_fire[1] → LSU state[18][2] D`。
+同一个状态位的 B 路径经过 cancel[15]，不能把两条路径的局部最大值任意拼接。
+在两份实际路径中，lsu_fire[1] 的到达时间 2.224713087→2.072791338 ns，提前 151.922 ps；
+其后到 state D 的尾段 0.546298266→0.970248222 ns，增加 423.950 ps。
+这定位了抵消前段改善的物理尾段；仍不是某一 RTL 表达式独立造成全部退化的消融证明。
+
+B 整个 state D 族最差为 −2.060335159 ns，距旧全局仅 58.969 ps；该族应作为下一轮明确的近最差约束。
+需区分：全局 WNS 退化 **7.698 ps**、同一个 state 位退化 **271.552 ps**、目标 CQ 族改善 **624.336 ps**。
+它们是不同范围的真实测量，不能互相替代。局部改进与全局目标未达同时成立。
+
+## 本轮裁决与保留点
+
+**联合 R3 不保留为当前实现。** 性能目标满足，真实消费者提前和完整程序收益均成立；
+但 setup WNS 没有改善至少 0.10 ns，反而退化 7.698 ps，已经不满足事先约定的联合条件。
+不能以 CoreMark/Dhrystone 的收益替代时序验收，也不能把本次结果表述为“没有性能收益”。
+
+这轮只测一个完整物理设计点。值旁路、取消发布的单独模式只做了功能/短测消融，
+不能从两项中挑一半宣称已完成独立整核 PPA 验证。
+生产恢复只涉及本轮修改，保持第一轮成果和修改前用户已有内容。
+11 个 RTL 与 6 个既有支持文件已恢复，5 个新增 R3 支持文件归档；全部 108 份 vsrc 与本轮前 B 快照逐文件相同。
+完整 R3 的 [RTL 补丁](candidate-vs-baseline.patch)、[验证/观测补丁](candidate-support.patch)、
+[实验边界](EXPERIMENT.md)、机制、原始命令和测量结果都保留，供后续网页设计使用。
+[恢复记录](../../../results/ai-r3-20261008/RESTORE.json)记录了实际文件范围。两个归档补丁均通过 `git apply --check`，
+可在该 B 上重新落地候选；检查只验证可重放，没有再次改变当前 B。
+
+
+===== EXPERIMENT.md =====
+# R3：同拍取消发布与CQ确值旁路
+
+用户要求继续直到完成本轮。按[网页完整方案](../2026-10-08-topology-handoff/response.txt)及
+[已核对修正](../2026-10-08-topology-handoff/LOCAL-REVIEW.md)实施一个完整R3，不重新预选架构。
+
+完整边界：Commit同拍publish、LSU全清/partial分离及等价断言、birth目的凭据贯穿LSQ/raw/fullforward/CQ、
+两路独立ROB身份查询、IQ初始化/驻留wake、RR实际data/hit快照及shift_amount、CQ→WB→PRF连续性。
+保持正常WB完成、真实mem_issued/effect/store B、取消与drain边沿。
+
+当前工作树已有round1响应旁路及文档/测试改动。修改前108份vsrc和相关sim/testbench支持文件已保存到
+`npc/rv64/build/ai-r3-20261008/baseline-vsrc`及`baseline-support`。回退只恢复本轮实际修改文件，保留新增证据。
+
+两个实验开关位于CoreTop：CQ_VALUE_BYPASS、LOCAL_CANCEL_PUBLISH；默认R3两者开启。
+定向消融可用 R64_R3_DISABLE_CQ_VALUE_BYPASS / R64_R3_DISABLE_LOCAL_CANCEL_PUBLISH 编译定义。
+这两个开关只用于有边界的机制与等价比较，未独立完整验证的半方案不进入保留点。
+
+可观察裁决：真实消费者提前、相关定向/整核DiffTest正确；完整CoreMark10和Dhrystone10000均不退步且至少一项
+周期下降0.5%；同约束SystemTop setup WNS改善至少0.10ns、setup TNS与hold不恶化。该实验目标不替代原正式PPA规范；
+仍未满足1ns必须报告FAIL。基线分别8968518/14267505 cycles、WNS −2.119304419ns。
+
+预算为一个完整R3物理设计点，两个开关仅做短测消融。完整bench历史并行宿主约53分钟，综合STA约44分钟峰值8.8GiB，
+仅在资源允许时并行，不重复同一确定性测试。实现错误按root cause修复；架构事实推翻则回传同一网页会话。
+结果已测：两个完整程序周期下降3.46925%/2.31645%，全局WNS退化7.698ps，联合R3未达到上述时序保留要求。
+已恢复B，当前生产拓扑未标成R3；完整收益、反证与可重放补丁见[RESULT.md](RESULT.md)。
+
+
+===== MECHANISM.md =====
+# R3：四配置消融与真实供值机制
+
+冻结后的完整 R3 用四个独立 SystemTop 可执行文件验证；每个执行 7 个程序的普通/背压两种模式，共 **56 项完整 NEMU + R64_ASSERT 短测全部通过**。所有配置使用 host threads=1、同一 reference 与固定镜像。冻结 RTL 和 probe 在构建与测量期间没有更改。
+
+## 对照准确性
+
+- **双关 = 原 B**：14 项的 cycles/commits/dual/traps/reads/writes、全部 CPI_PROFILE、原 LOAD_PROFILE 均逐字段相同。复用原 retained baseline exe 与已有结果；缺少旧日志的 8 项已用该旧 exe 和本轮同一镜像补测通过，load_shift 的旧 B 普通/背压也已单独执行。
+- **只开取消发布 = 双关**：上述全部共有计数、周期及 profile 相同。该控制变换在这些动态场景中保持周期合同。
+- **只开值旁路 = 两项全开**：14 项上述结果完全相同，因此短测的周期变化来自值旁路。
+- **profile 全开 = 无 CQ profile 的主候选**：14 项上述结果完全相同。CQ 关闭时，观测构建只保留目的 ticket 以独立识别 front；没有授权 early wake。这一观测方式在本组短测中没有改变行为。
+
+完整逐字段对照、旧日志来源、实例和直方图见 [结构化矩阵](../../../results/ai-r3-20261008/MECHANISM-COMPARISON.json) 与 [详细矩阵报告](../../../results/ai-r3-20261008/MECHANISM-COMPARISON.md)。
+
+## 程序周期
+
+| 程序 | 原 B / 双关 | 仅取消发布 | 仅值旁路 | 联合 R3 |
+|---|---:|---:|---:|---:|
+| program | 1074 | 1074 | 1074 | 1074 |
+| program-stalls | 1133 | 1133 | 1133 | 1133 |
+| sv39 | 993 | 993 | 991 | 991 |
+| sv39-stalls | 1079 | 1079 | 1078 | 1078 |
+| sdtrig | 4075 | 4075 | 4074 | 4074 |
+| sdtrig-stalls | 4207 | 4207 | 4207 | 4207 |
+| lsu_contention | 29426 | 29426 | 29415 | 29415 |
+| lsu_contention-stalls | 36006 | 36006 | 36006 | 36006 |
+| backend_network | 4354 | 4354 | 4354 | 4354 |
+| backend_network-stalls | 4439 | 4439 | 4439 | 4439 |
+| load_chain | 114849 | 114849 | 106656 | 106656 |
+| load_chain-stalls | 114893 | 114893 | 106702 | 106702 |
+| load_shift | 14797 | 14797 | 13967 | 13967 |
+| load_shift-stalls | 15099 | 15099 | 14726 | 14726 |
+
+load_chain 普通减少 8,193 周期（7.1337%），背压减少 8,191 周期（7.1292%）；load_shift 普通减少 830 周期（5.6092%），背压减少 373 周期（2.4704%）。这些是该定向程序的周期变化，不能替代完整 CoreMark/Dhrystone 结果。
+
+## 消费者确实提前，而非只增加 early 计数
+
+probe 在每个 consumer birth 时保存其 source preg 对应的 producer **完整 tag**。producer 的首次 CQ front 独立核对 ticket、ROB generation、live、未完成、GPR/pnew 与取消资格；随后关联 consumer issue 和 RR 真正保存操作数的边沿，检查真实选择的来源和数值。tag/preg 重用时建立新生命周期。
+
+front 时间戳是 CQ 捕获后第一次合资格 front 的预边沿采样；因此它与旧 response→CQ profile 的捕获时间相差一个边沿。两配置使用同一口径。
+
+| load_chain 依赖读群体（普通及背压均相同） | 原 B / 双关 | 联合 R3 |
+|---|---|---|
+| 8,193 次主要依赖：front→issue | 2 拍 | 1 拍 |
+| 8,193 次主要依赖：front→RR 实际 read | 3 拍 | 2 拍 |
+| 另外 1 次依赖：front→issue/read | 5 / 6 拍 | 4 / 5 拍 |
+| first_front / first_early | 8,194 / 0 | 8,194 / 8,194 |
+| 实际读源：PRF | 8,194 次 | 8,194 次 |
+
+同一首条 fulltag 实例 consumer=0x023、producer=0x021、preg=33、PC=0x8000000c：
+
+| 配置 | front | early | WB 接受 | issue | RR read | 实际来源 |
+|---|---:|---:|---:|---:|---:|---|
+| 双关 | 91 | 无 | 92 | 93 | 94 | PRF |
+| 联合 R3 | 91 | 91 | 92 | 92 | 93 | PRF |
+
+**实际来源为 PRF 与提前一拍并不矛盾**：CQ 先使 IQ ready，随后原 WB 正常完成，消费者在更早的 RR read 边沿已经能从 PRF 读到该值。仅在“早醒后 WB 尚未完成”的场景中才需要直接 CQ 供值，下面的程序覆盖了该场景。
+
+## 完整系统中的 CQ 直接供值
+
+| 程序 / 配置 | 关联依赖读 | 实际 PRF | 实际 WB | 实际 CQ | early 次数 |
+|---|---:|---:|---:|---:|---:|
+| load_shift / both-off | 8232 | 8232 | 0 | 0 | 0 |
+| load_shift / both-on | 8232 | 7873 | 327 | 32 | 2056 |
+| load_shift-stalls / both-off | 8232 | 8232 | 0 | 0 | 0 |
+| load_shift-stalls / both-on | 8232 | 7457 | 603 | 172 | 2056 |
+
+普通 load_shift 的真实实例：consumer=0x0b7、producer=0x0b6、preg=46，front/early=318、issue=319、read=320；read 时尚未观察到正式 WB 接受（wb_seen=0），实际 CQ lane 0 提供 0x8765432187654321。另一实例使用 CQ lane 1。因此不仅验证了早唤醒，也在完整 NEMU 流程中实际执行了 CQ→RR 供值与移位相关依赖。
+
+所有 56 项的 `identity_mismatch=0`、`value_mismatch=0`；probe 对真实读值不一致会 fatal。全部打印的 RR read 都在相应 issue 后一拍。
+
+## 边界与解释
+
+- 定向程序覆盖 64 种移位量、RV64/word 左移和两种右移、两个 load 的双源依赖、符号扩展、普通/背压以及重复 tag/preg 使用；长 WB 背压、blocked ingress、两 CQ lane、交接和 DEFER_READY 的精确时间反例另由模块 TB 提供。
+- 每条 histogram 统计一个 source 的读取，一条指令可以出现多个 source；它们是重叠事件，不能相加为整核节省周期。32 桶包含全部 ≥32 拍。
+- waiting cohort 只要求 consumer birth 不晚于首次 front；其他源、FU、信用和仲裁仍可能限制发射。load_shift 的跨运行部分样本存在调度推迟，不代表每条指令必然提前。
+- trace 只打印每程序前 128 条，完整运行仍累计所有 histogram 并做值检查；跨运行按 fulltag/PC/preg 匹配的样本用于说明，不能冒称完成所有动态指令的一对一对齐。
+- 本文只裁决机制及短测对照；完整基准、面积、setup/hold 与 1 ns 是否满足，由本轮完整结果单独裁决。
+
+
+===== PHYSICAL.md =====
+# R3 物理结果：局部输入锥改善，全局未达到联合目标
+
+本轮组合候选改善了 event/RR、effect、mem_issued 和 CQ 输入的多条路径，也产生了新的 CQ→RR/Issue 路径；但标准全局 setup WNS 退化 7.698297 ps，最终可比面积增加 0.557146%，1 ns 下两版正式判断均为 FAIL。按本轮预设联合目标，物理证据不支持保留 R3。功能与程序周期结果见主报告；不能用程序周期降低抵消本轮约定的时序条件。
+
+## 比较对象与测量口径
+
+- B：上一轮保留版本，`results/ai-architecture-20261008/mapped-export-recovery/candidate`。R3：`results/ai-r3-20261008/candidate-sta/R64SystemTop-1000MHz`，标准流程使用冻结的 `build/ai-r3-20261008/candidate-vsrc`。
+- 同一 OpenSTA 3.1.0、icsprout55 TT 1.2 V 25°C Liberty、原 1 ns SDC。SDC、工具、Liberty 和加载脚本 SHA-256 已逐项相同；未改变 input delay、uncertainty、reset 检查或任何例外。所有全局报告保留输入/reset；Q-only 是附加视图。
+- 这是 mapped pre-layout STA，保留真实库 ICG 检查，没有提取布局布线寄生。静态可达不等于已证明功能可激活；这些数据不能当成最终 Fmax。
+- 本次为组合候选实测，没有各功能开关的独立综合消融。路径差异可以定位测量中的延迟变化，不能把它自动归因于某一项 RTL 改动。
+
+## 全局结果
+
+| 指标 | B | R3 | R3−B |
+|---|---:|---:|---:|
+| setup_wns_ns | -2.119304419 | -2.127002716 | -0.007698297 |
+| setup_tns_ns | -137753.000000000 | -137135.406250000 | +617.593750000 |
+| hold_wns_ns | -0.036660694 | -0.036660694 | +0.000000000 |
+| hold_tns_ns | -0.087889202 | -0.087889202 | +0.000000000 |
+| 最终 flat cell area / µm² | 3144021.999995 | 3161538.799995 | +17516.800000 |
+| 面积相对变化 | — | +0.557146% | — |
+| 正式 timing 判断 | FAIL | FAIL | — |
+
+面积需严格使用两版 `sta_area.txt` 的最终扁平映射网表：B 3,144,021.999995 µm²，R3 3,161,538.799995 µm²。候选综合日志中较早的层次统计为 3,220,526.959999 µm²；后续 flatten/opt_clean 会去掉不再使用的单元及连线，因此它不能直接与 B 的最终 flat 面积混比。先前约 2.43% 的临时比较混用了这两个阶段，已纠正；本报告及 RESULT.json 只采用可比的 +0.557146%。
+
+## 全部负 hold 端点
+
+每版均完整覆盖 3 个负 hold 检查端点，低于每组 100000 的报告上限。按 FF 的实际 Q 语义、以及 ICG 驱动的完整 FF Q 集合匹配，集合完全相同，新增 0、消失 0；hold WNS 与 TNS 也精确相同。没有仅凭最差 hold 不变推断分布。
+
+| 语义 | B 与 R3 的关系 | R3 slack / ns |
+|---|---|---:|
+| CLINT reset FF：`platform_clint_rst` | 同一语义 FF D | −0.036660694 |
+| Fabric read-service group reset FF | 同一语义 FF D | −0.036660694 |
+| LSU request_queue age ICG E | 驱动四槽共 80 个 age FF Q 的集合相同 | −0.014567821 |
+
+旧基线的逐端点原始 JSON/常规文本精度较低，故这里不把其舍入数冒充 9 位精确读数；精确全局 TNS/WNS 与完整端点语义匹配证据均保留。
+
+## 必须区分的三个 state 数字
+
+| 比较 | B / ns | R3 / ns | 差值 / ps |
+|---|---:|---:|---:|
+| 全局最差 WNS | -2.119304419 | -2.127002716 | -7.698297 |
+| B 全 60 个 state D 族最差 | −2.060335159 | R3 全局最差也是 state D | — |
+| 同一 `state_q[18][2]` | -1.855450273 | -2.127002716 | -271.552443 |
+
+B 的整个 state D 族最差仅比旧全局宽松 **58.969260 ps**，已经是近最差族；具体 `state_q[18][2]` 的旧值则为 −1.855450273 ns。该位退化 271.552443 ps 是同 bit 结论，不能误写成整核 WNS 退化 271.55 ps。下一轮在缩短 event/CQ 输入锥前，必须将这个接近全局最差的 state 族纳入约束。
+
+候选全局前 32 个不同端点为：5 个 LSU state Q、1 个 cause Q、16 个以 forward byte-data 保留的 Q 别名、10 个以 check-row 保留的 Q 别名。后两类是网表中实际存活的语义名，不据此臆造新的流水级。B 旧前 32 为 1 个 event/RR、1 个 effect 和 30 个 CQ payload 端点。完整不同端点及对应 Q 名在 RESULT.json。
+
+## 同一 state 位的完整路径对照
+
+B 实际最差链：`rst_i → full_flush → ROB cancel_candidates[15] → execute.lsu_fire[1] → LSU state_q[18][2] D`。R3 实际最差链：`rst_i → full_flush → ROB cancel_candidates[9] → execute.lsu_fire[1] → LSU state_q[18][2] D`。两条路径的前段分支不同，下面每列都来自该版本这一条连续实际路径，没有拼接多个路径的阶段最大值。
+
+| 边界到达时间 / ns | B | R3 |
+|---|---:|---:|
+| rst_i | 0.399999976 | 0.399999976 |
+| full_flush 驱动输出 | 0.968477547 | 1.000235081 |
+| 各自实际 ROB cancel 输出 | 1.491005421（bit15） | 1.375341535（bit9） |
+| 同语义 lsu_fire[1] | 2.224713087 | 2.072791338 |
+| state[18][2] D arrival | 2.771011353 | 3.043039560 |
+| required time | 0.915560961 | 0.916036963 |
+| lsu_fire[1] 后尾段 | 0.546298266 | 0.970248222 |
+
+R3 的 lsu_fire[1] 在这两条路径上反而早 151.921749 ps，但之后到 state D 的尾段增加 423.949956 ps。尾段逐点 cell 增量求和为 B 0.546298125 ns、R3 0.970248134 ns，reported net 增量都为 0；微小差额来自工具浮点及逐点打印舍入。这里的零 net 增量属于未提取互连的模型，不能理解为真实布线零延迟。full_flush 驱动 fanout 为 87→92、cap 为 0.074117251→0.079914354 pF、slew 为 0.794148684→0.855817556 ns。
+
+这证明同位时序发生了实际退化，同时指出当前最差路径中的后段代价；并未证明一个孤立 RTL 改动就是原因。完整每个 cell/input-pin/net 增量、slew、负载、fanout 见文末证据和附录。
+
+## CQ/raw 输入：所有起点与真实寄存器 Q 起点
+
+单位均为 ns；max 列是 setup slack，min 列是 hold slack。端点按实际存活 FF D 或 ICG E 动态映射，未将新端点或新可达 Q 剔除。
+
+### 所有起点（含输入/reset）
+
+| 组 | D/E 数 B→R3 | max B | max R3 | min B | min R3 |
+|---|---:|---:|---:|---:|---:|
+| cq_control | 5→5 | -1.650204420 | -1.038629413 | 0.046396572 | 0.066614203 |
+| cq_icg_enable | 4→4 | -0.936215937 | -0.286948740 | 0.011962098 | 0.054439060 |
+| cq_payload | 596→596 | -2.111715555 | -1.487379909 | 0.101587519 | 0.101581365 |
+| cq_ticket | N/A→24 | N/A | -1.436832428 | N/A | 0.106045626 |
+| raw_control | 6→6 | -1.969095349 | -1.339763403 | 0.031943168 | 0.084161267 |
+| raw_icg_enable | 4→4 | 0.331729323 | 0.337150991 | 0.057298563 | 0.055573322 |
+| raw_payload | 772→808 | -0.355279922 | -0.472993433 | 0.121811524 | 0.123880200 |
+
+### 寄存器 Q 起点
+
+| 组 | D/E 数 B→R3 | max B | max R3 | min B | min R3 |
+|---|---:|---:|---:|---:|---:|
+| cq_control | 5→5 | -1.430639386 | -0.671506464 | 0.135617226 | 0.141274974 |
+| cq_icg_enable | 4→4 | -0.716650844 | 0.065974779 | 0.145302907 | 0.139012590 |
+| cq_payload | 596→596 | -1.892150521 | -1.487379909 | 0.101587519 | 0.101581365 |
+| cq_ticket | N/A→24 | N/A | -1.119359255 | N/A | 0.106045626 |
+| raw_control | 6→6 | -1.749530077 | -1.011375070 | 0.125699684 | 0.154802158 |
+| raw_icg_enable | 4→4 | 0.624680877 | 0.559347928 | 0.121856123 | 0.099068850 |
+| raw_payload | 772→808 | -0.355279922 | -0.472993433 | 0.121811524 | 0.123880200 |
+
+输入侧改善并不均匀：CQ payload all-max 改善 624.335646 ps、raw control 改善 629.331946 ps；raw payload 却退化 117.713511 ps。R3 的 full_flush 仍实际可达 CQ control、payload D 与 payload ICG E，本轮没有消除此通路；publish 改变了其生成边界，不能据此写成“flush 到 payload 已完全切断”。
+
+## 旧目标与新增输出边界
+
+| 查询 | max B / ns | max R3 / ns | min B / ns | min R3 / ns |
+|---|---:|---:|---:|---:|
+| event_rr-all | -2.119304419 | -1.431677222 | 0.108199716 | 0.108196944 |
+| lsu_effect-all | -2.109362364 | -1.926045656 | 0.124723002 | 0.119327135 |
+| lsu_mem_issued-all | -2.059357882 | -1.919063687 | 0.125480294 | 0.126816288 |
+| pair_event_before_0 | -2.119304419 | -1.431677222 | 0.154778078 | 0.154837653 |
+| pair_effect_14 | -2.020954609 | -1.737352490 | 0.149866089 | 0.137040764 |
+| CQ-to-issue_ready | -1.380924582 | -1.333543420 | 1.004850507 | 0.455812871 |
+| CQ-to-issue_ready_icg_enable | -1.365428686 | -1.224463582 | 1.067148566 | 0.440432966 |
+| CQ-to-rr_forward_data | absent | 0.690918624 | absent | 0.038835861 |
+| CQ-to-rr_forward_hit | absent | -0.617506444 | absent | 0.271356374 |
+| CQ-to-rr_shift | absent | -0.730398297 | absent | 0.136354372 |
+| CQ-through-short-owner-to-issue_ready | N/A | -0.704741776 | N/A | 0.455812871 |
+| CQ-through-short-owner-to-issue_ready_icg_enable | N/A | -0.627381921 | N/A | 0.440432966 |
+| CQ-through-short-owner-to-rr_forward_hit | N/A | -0.617506444 | N/A | 0.271356374 |
+| CQ-through-short-owner-to-rr_shift | N/A | -0.730398297 | N/A | 0.387030989 |
+| publish-all | N/A | -0.900515378 | N/A | 0.096475758 |
+| publish-Q | N/A | -0.900515378 | N/A | 0.161824167 |
+| publish-broadcast | N/A | -1.744508028 | N/A | 0.136093706 |
+
+B 的 CQ→Issue 最差路径是已有的 `CQ tag → reuse_block → ROB alloc_ready → birth → Issue ready`，不能等同于新 CQ value 唤醒。R3 短 owner 资格是组合逻辑，其实际驱动保留为 `Issue early_valid_i[2:3]`；冻结 Backend 的连接证实其等同 `short_accept[5:4]`。through 查询用该真实组合 pin，终点仍为 RR/Issue 真实 D 或 ICG E，没有用时钟 CK 冒充启动 Q。
+新增 CQ 数据到 RR forward-data 快照 max 为 +0.690918624 ns，最短 hold 余量 +0.038835861 ns；资格/命中到 RR forward-hit 和 shift 捕获仍分别为 −0.617506444、−0.730398297 ns。CQ→RR operand 及相应 ICG 组没有直接可达路径，absent 与零 slack 含义不同。RR forward-data 实际位数 1536→2304，forward-hit 72→108；各版全部实际端点均保留。
+publish D 的最差 setup 是真实 Q 启动的 −0.900515378 ns；publish Q 广播最差到同一 state[18][2] D 为 −1.744508028 ns。即使只看内部 publish Q 启动，这条广播也有明显违例；仍不能把静态路径当成功能激活证明或最终运行频率。
+
+### CQ→WB
+
+| 组 | max B / ns | max R3 / ns | min B / ns | min R3 / ns |
+|---|---:|---:|---:|---:|
+| wb_payload | 0.489983857 | 0.469630510 | 0.121043526 | 0.121183954 |
+| wb_accepted | 0.013875512 | 0.039652504 | 0.126087084 | 0.127184376 |
+| wb_certificate | -0.292893618 | -0.215427577 | 0.265788913 | 0.274830997 |
+
+CQ→WB payload max 退化 20.353347 ps，accepted 与 certificate 改善。新增更早消费者的收益和资格网络代价应分别读取，不能用 CQ 输入改善替代输出侧检查。
+
+## 执行完整性与证据
+
+- 标准 `make sta` 返回 2，原因是原 timing checker 的真实 FAIL；综合网表 CHECK 0 problems，OpenSTA 正常完成。标准全过程 `/usr/bin/time` 峰值 RSS 9,268,600 KiB，未使用不足的 6 GiB cap。
+- 候选补充 OpenSTA 返回 0，52 个扩展 query，加既定 7 个 CQ/raw all/Q 组、flush-through、CQ→WB 与全部负 hold；运行记录 800.139529 s，`/usr/bin/time` wall 13:28.72，峰值 RSS 3,877,352 KiB。输入身份前后完全一致。
+- B 旧结果复用；新增参照 32 query 已完成，补充 state 族与同 bit 两组又一次有界分析 31.040914 s、rc0，全局值完全不变。没有重综合、重映射或新增设计点。
+- 两次只在候选准备阶段失败：严格旧组集合需要显式加入 cq_ticket；优化后的 short-owner 公共别名需核对真实连接。失败目录保留，均未启动 EDA。末尾详细解析遇到合法空 checks JSON 后只修复空集合处理并重跑解析，STA 没有重跑；原失败日志与解析恢复日志保留。
+- 所有路径对象均在该次 query 内立即转成不可变字段，不跨后续 timing query 保存 OpenSTA PathEnd。
+
+[完整数字对照 RESULT.json](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/RESULT.json)；[全部查询表 RESULT.md](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/RESULT.md)；[候选逐点证据](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/candidate/path-evidence.json)；[B 同 state 位逐点证据](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/baseline-state/path-evidence.json)。
+
+[R3 global32 全时钟展开报告](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/candidate/r3-global_top32-max.rpt)；[B state[18][2] 全时钟展开报告](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/baseline-state/r3-pair_state_18_2-max.rpt)；[完整负 hold 语义核对](/home/lyg/PA/ysyx-workbench/npc/rv64/results/ai-r3-20261008/physical-diagnostics/candidate/negative-hold-map.json)。
+
+## 附录：R3 全局最差这一条路径的全部实际数据点
+
+下表依序来自这一条已测路径，不是各阶段最大值拼接。required 0.916036963 ns，arrival 3.043039560 ns；路径分组和启动/捕获时钟均为 core_clock。时钟网络保持标准模型。完整 clock-expanded 内容见上面的原始报告。
+
+| pin | cell | arc | increment / ns | arrival / ns | slew / ns | cap / pF | fanout |
+|---|---|---|---:|---:|---:|---:|---:|
+| `rst_i` | in | input_port | 0.000000000 | 0.399999976 | 0.049999997 | 0.197396934 | 220 |
+| `_1052924_/A` | BUFX1P4H7L | net | 0.000000000 | 0.399999976 | 0.049999997 | — | — |
+| `_1052924_/Y` | BUFX1P4H7L | cell | 0.080809526 | 0.480809510 | 0.076569818 | 0.011609214 | 8 |
+| `_1052925_/B` | NOR2BX1P4H7L | net | 0.000000000 | 0.480809510 | 0.076569818 | — | — |
+| `_1052925_/Z` | NOR2BX1P4H7L | cell | 0.042083949 | 0.522893488 | 0.045209069 | 0.000962446 | 1 |
+| `_1052926_/A` | BUFX1P4H7L | net | 0.000000000 | 0.522893488 | 0.045209069 | — | — |
+| `_1052926_/Y` | BUFX1P4H7L | cell | 0.477341563 | 1.000235081 | 0.855817556 | 0.079914354 | 92 |
+| `_0959637_/A` | BUFX1P4H7L | net | 0.000000000 | 1.000235081 | 0.855817556 | — | — |
+| `_0959637_/Y` | BUFX1P4H7L | cell | 0.093838938 | 1.094074011 | 0.097144000 | 0.007046810 | 8 |
+| `_0959662_/A` | BUFX1P4H7L | net | 0.000000000 | 1.094074011 | 0.097144000 | — | — |
+| `_0959662_/Y` | BUFX1P4H7L | cell | 0.076036178 | 1.170110106 | 0.079787463 | 0.006880240 | 8 |
+| `_0959714_/A` | BUFX1P4H7L | net | 0.000000000 | 1.170110106 | 0.079787463 | — | — |
+| `_0959714_/Y` | BUFX1P4H7L | cell | 0.072627686 | 1.242737889 | 0.077182852 | 0.006659343 | 8 |
+| `_0959773_/A0N` | AOI2BB1X0P5H7L | net | 0.000000000 | 1.242737889 | 0.077182852 | — | — |
+| `_0959773_/Y` | AOI2BB1X0P5H7L | cell | 0.060546458 | 1.303284287 | 0.047134623 | 0.000962446 | 1 |
+| `_0959774_/A` | BUFX1P4H7L | net | 0.000000000 | 1.303284287 | 0.047134623 | — | — |
+| `_0959774_/Y` | BUFX1P4H7L | cell | 0.072057255 | 1.375341535 | 0.083518833 | 0.007308286 | 10 |
+| `_0762649_/C` | MUX4X1H7L | net | 0.000000000 | 1.375341535 | 0.083518833 | — | — |
+| `_0762649_/Y` | MUX4X1H7L | cell | 0.083100975 | 1.458442569 | 0.028083917 | 0.000744346 | 1 |
+| `_0762650_/D` | MUX4X1P4H7L | net | 0.000000000 | 1.458442569 | 0.028083917 | — | — |
+| `_0762650_/Y` | MUX4X1P4H7L | cell | 0.085153773 | 1.543596268 | 0.043655910 | 0.002240680 | 1 |
+| `_0762653_/B1` | AOI221X4H7L | net | 0.000000000 | 1.543596268 | 0.043655910 | — | — |
+| `_0762653_/Y` | AOI221X4H7L | cell | 0.034131587 | 1.577727914 | 0.045330323 | 0.004655552 | 5 |
+| `_0762677_/AN` | NOR2BX1P4H7L | net | 0.000000000 | 1.577727914 | 0.045330323 | — | — |
+| `_0762677_/Z` | NOR2BX1P4H7L | cell | 0.045611959 | 1.623339891 | 0.043719221 | 0.001920850 | 2 |
+| `_0762678_/A` | BUFX3H7L | net | 0.000000000 | 1.623339891 | 0.043719221 | — | — |
+| `_0762678_/Y` | BUFX3H7L | cell | 0.064910188 | 1.688250065 | 0.039146625 | 0.008556383 | 8 |
+| `_0762679_/B` | NOR2X3H7L | net | 0.000000000 | 1.688250065 | 0.039146625 | — | — |
+| `_0762679_/Y` | NOR2X3H7L | cell | 0.039168559 | 1.727418542 | 0.046278294 | 0.003010620 | 2 |
+| `_0762680_/A` | BUFX3P5H7L | net | 0.000000000 | 1.727418542 | 0.046278294 | — | — |
+| `_0762680_/Y` | BUFX3P5H7L | cell | 0.081709534 | 1.809128165 | 0.097940207 | 0.018114243 | 8 |
+| `_0762720_/S0` | MUX2X0P5H7L | net | 0.000000000 | 1.809128165 | 0.097940207 | — | — |
+| `_0762720_/Y` | MUX2X0P5H7L | cell | 0.082448609 | 1.891576767 | 0.038333710 | 0.002573771 | 3 |
+| `_0762721_/B` | NOR2BX1P4H7L | net | 0.000000000 | 1.891576767 | 0.038333710 | — | — |
+| `_0762721_/Z` | NOR2BX1P4H7L | cell | 0.041753270 | 1.933329940 | 0.049688067 | 0.001700775 | 2 |
+| `_0765370_/B` | MUX2X0P5H7L | net | 0.000000000 | 1.933329940 | 0.049688067 | — | — |
+| `_0765370_/Y` | MUX2X0P5H7L | cell | 0.049078744 | 1.982408762 | 0.025628053 | 0.000805258 | 1 |
+| `_0765371_/C` | AND3X1P4H7L | net | 0.000000000 | 1.982408762 | 0.025628053 | — | — |
+| `_0765371_/Y` | AND3X1P4H7L | cell | 0.052706730 | 2.035115480 | 0.026850780 | 0.000965796 | 1 |
+| `_0765372_/A` | BUFX3H7L | net | 0.000000000 | 2.035115480 | 0.026850780 | — | — |
+| `_0765372_/Y` | BUFX3H7L | cell | 0.037675865 | 2.072791338 | 0.020246070 | 0.001821954 | 2 |
+| `_1656058_/AN` | NOR3BX0P5H7L | net | 0.000000000 | 2.072791338 | 0.020246070 | — | — |
+| `_1656058_/Y` | NOR3BX0P5H7L | cell | 0.127367452 | 2.200158834 | 0.179167554 | 0.003306461 | 4 |
+| `_1656059_/AN` | NOR2BX1P4H7L | net | 0.000000000 | 2.200158834 | 0.179167554 | — | — |
+| `_1656059_/Z` | NOR2BX1P4H7L | cell | 0.090437219 | 2.290596008 | 0.092860892 | 0.003893360 | 5 |
+| `_1656060_/C` | NAND3X0P5H7L | net | 0.000000000 | 2.290596008 | 0.092860892 | — | — |
+| `_1656060_/Y` | NAND3X0P5H7L | cell | 0.084094070 | 2.374690056 | 0.108564183 | 0.003702941 | 5 |
+| `_1656094_/A` | NOR4X0P5H7L | net | 0.000000000 | 2.374690056 | 0.108564183 | — | — |
+| `_1656094_/Y` | NOR4X0P5H7L | cell | 0.194419816 | 2.569109917 | 0.278692365 | 0.003861731 | 5 |
+| `_1656116_/A1` | AOI21X0P5H7L | net | 0.000000000 | 2.569109917 | 0.278692365 | — | — |
+| `_1656116_/Y` | AOI21X0P5H7L | cell | 0.077896357 | 2.647006273 | 0.112817071 | 0.002623788 | 3 |
+| `_1656173_/AN` | NAND2BX0P5H7L | net | 0.000000000 | 2.647006273 | 0.112817071 | — | — |
+| `_1656173_/Y` | NAND2BX0P5H7L | cell | 0.069783516 | 2.716789722 | 0.076018080 | 0.001955288 | 2 |
+| `_1703007_/AN` | NOR2BX1P4H7L | net | 0.000000000 | 2.716789722 | 0.076018080 | — | — |
+| `_1703007_/Z` | NOR2BX1P4H7L | cell | 0.051585626 | 2.768375397 | 0.024432437 | 0.001671575 | 2 |
+| `_1703008_/AN` | NOR3BX0P5H7L | net | 0.000000000 | 2.768375397 | 0.024432437 | — | — |
+| `_1703008_/Y` | NOR3BX0P5H7L | cell | 0.038729019 | 2.807104349 | 0.043681815 | 0.001426816 | 2 |
+| `_1703045_/B` | NAND4X0P5H7L | net | 0.000000000 | 2.807104349 | 0.043681815 | — | — |
+| `_1703045_/Y` | NAND4X0P5H7L | cell | 0.035050631 | 2.842154980 | 0.041238409 | 0.000792724 | 1 |
+| `_1703046_/C` | OR3X1H7L | net | 0.000000000 | 2.842154980 | 0.041238409 | — | — |
+| `_1703046_/Y` | OR3X1H7L | cell | 0.063148603 | 2.905303717 | 0.067925133 | 0.005069836 | 6 |
+| `_1710214_/C` | NAND4X0P5H7L | net | 0.000000000 | 2.905303717 | 0.067925133 | — | — |
+| `_1710214_/Y` | NAND4X0P5H7L | cell | 0.052849725 | 2.958153248 | 0.066994607 | 0.000868145 | 1 |
+| `_1710215_/C0` | OA211X1P4H7L | net | 0.000000000 | 2.958153248 | 0.066994607 | — | — |
+| `_1710215_/Y` | OA211X1P4H7L | cell | 0.050776273 | 3.008929729 | 0.025813114 | 0.001070400 | 1 |
+| `_1710216_/A` | BUFX3P5H7L | net | 0.000000000 | 3.008929729 | 0.025813114 | — | — |
+| `_1710216_/Y` | BUFX3P5H7L | cell | 0.034109827 | 3.043039560 | 0.012758485 | 0.000816887 | 1 |
+| `_1712858_/D` | DFFQX1H7L | net | 0.000000000 | 3.043039560 | 0.012758485 | — | — |
+
+
+===== VALIDATION.md =====
+# R3 Backend 与 native 模块验证
+
+日期：2026-10-08。范围：Backend CQ early wake/value bypass 定向验证、完整 native 默认模块回归与既有参数/行为矩阵。LSU/Commit 开启模式、整核 DiffTest/软件、CPI 与 STA 由本轮最终 `RESULT` 汇总；这里不代替这些证据。
+
+## 结论与候选身份
+
+完整 native 兼容性回归已完成：**135/135 默认模块 target、1/1 额外 prepared-store target、34/34 矩阵场景、12/12 预期负测试**。冻结候选上另行重跑 **2/2 CQ 开启定向正测试**，以及 **1/1 CQ forwarding 同值负测试**，全部满足原检查条件。
+
+候选为 `build/ai-r3-20261008/candidate-vsrc`。运行开始时当前 RTL 与冻结候选逐文件 SHA-256 一致；结束时记录的 225 个 RTL/测试 fixture/Makefile 文件无变化。该验证任务没有修改 RTL、冻结树、测试向量、DUT 时钟、oracle 或断言，也没有修改 Makefile 全局规则。
+
+首轮整套命令真实返回 `2`，唯一中断是未改动的 `tb_r64_mul_booth` 达到宿主机 60 秒超时。它在相同 vvp、相同 20,000 向量下独立通过，随后完整续跑返回 `0`。这一失败及诊断单独保留，不能将首轮写成全部通过。
+
+完整清单和逐项证据：
+
+- [完整计数与逐项日志索引](../../../results/ai-r3-20261008/full-modules/SUMMARY.json)
+- [可读汇总](../../../results/ai-r3-20261008/full-modules/SUMMARY.md)
+- [源码 SHA-256 清单](../../../results/ai-r3-20261008/full-modules/source-manifest.json)
+- [归档的逐用例日志目录](../../../results/ai-r3-20261008/full-modules/logs/)
+
+## Backend 定向验证
+
+开发阶段在独立 `backend-modules` 构建目录完成以下 7 个 target，全部 PASS：
+
+|Target|主要覆盖|
+|---|---|
+|`tb_r64_regread_pipeline`|既有 RR 寄存边界和读数行为兼容性|
+|`tb_r64_issue_regread`|既有 Issue/RR 连接和发射行为兼容性|
+|`tb_r64_rob_rename`|既有 ROB/Rename 所有权行为兼容性|
+|`tb_r64_early_wakeup`|既有 early wake 与真实执行/写回 owner 行为|
+|`tb_r64_backend`|Backend 默认参数兼容性|
+|`tb_r64_regread_cq`|CQ 开启后的实际值快照、数据连续性和阻塞保持|
+|`tb_r64_cq_owner_wake`|6 路 short-owner 下 CQ 资格和 IQ 唤醒边沿|
+
+开发阶段 [RESULT.json](../../../results/ai-r3-20261008/backend-modules/RESULT.json) 同时记录 CQ 不同值负测试真实 `rc=1`、同值断言匹配、修正组合向量自回读后的 RR 重测 `rc=0` 及当时的定向 diff-check `rc=0`。这里的 7 个 target 与完整 native 清单存在重叠，不相加成独立用例数。
+
+冻结候选后，两个新增 CQ target 再次在独立 `full-modules/cq-enabled` 子目录编译和执行。明确使用 `TESTS=tb_r64_regread_cq tb_r64_cq_owner_wake`，未把它们暗中加入默认清单；make 真实 `rc=0`，耗时 `5.714 s`。具体覆盖为：
+
+- `tb_r64_regread_cq`：两个 CQ 源和两个 RR lane；原读边沿捕获实际 forwarding 值；CQ 变化或撤销后的值保持；CQ 与 WB 同 preg 同值时保留旧源优先级；WB forwarding 与 PRF 写入同拍、后继消费者经 PRF 读数；terminal 满时 ingress 保存原值并在随后正确转移；forwarded B 生成正确 shift amount；部分 kill 清理 consumer。
+- `tb_r64_cq_owner_wake`：真实 ROB 分配的双 owner；CQ 对应 short port 4/5 无需 WB grant 即可查询；错误 generation、错误 pdst、零寄存器拒绝；普通 WB/ALU 不唤醒的前提下，只由 CQ 唤醒驻留 entry；`DEFER_READY` 初始化边沿只有 CQ 命中的情形；不出现组合直通到同拍 issue；完成后的 ROB owner 和 full flush 撤销资格。
+- `tb_r64_regread_cq +bad-value`：故意使同 preg 的 WB/CQ 值不一致，真实 `rc=1`，匹配 `R64 two forwarding stages disagree on a live physical value`。没有通过关闭断言或改变数据匹配判据来放行。
+
+证据：[CQ 命令](../../../results/ai-r3-20261008/full-modules/cq-enabled-command.json)、[返回码与负测结果](../../../results/ai-r3-20261008/full-modules/cq-enabled-result.json)、[RR 日志](../../../results/ai-r3-20261008/full-modules/logs/cq-enabled/tb_r64_regread_cq.log)、[owner/wake 日志](../../../results/ai-r3-20261008/full-modules/logs/cq-enabled/tb_r64_cq_owner_wake.log)、[预期负测日志](../../../results/ai-r3-20261008/full-modules/cq-enabled-negative.log)。
+
+## 完整默认模块与参数矩阵
+
+工作目录 `/home/lyg/PA/ysyx-workbench`，独立构建目录 `npc/rv64/build/ai-r3-20261008/full-modules`。原始命令：
+
+```text
+make -C npc/rv64/testbench/chengyue64 -j3   run negative pipeline-matrix admission-matrix store-matrix trigger-matrix rr-qcredit-matrix   BUILD_DIR=/home/lyg/PA/ysyx-workbench/npc/rv64/build/ai-r3-20261008/full-modules
+```
+
+最终按 Makefile target 和明确场景计数，不用嵌套参考模块或重复日志中的 PASS 行增加通过数：
+
+|范围|通过数|说明|
+|---|---:|---|
+|默认 `TESTS` 清单|135/135|全部对应 `.pass` 标记；默认参数兼容性|
+|额外 prepared store target|1/1|`tb_r64_lsu_prepared`，来自 `store-matrix`|
+|Pipeline 矩阵|7/7|4 个 plain workload + 3 个 stalls workload|
+|Admission 矩阵|16/16|credit-cap 6/4 × mode 0–3 × plain/stalls|
+|Dispatch query 矩阵|4/4|mode 0/1/3 与 mode 2 stop-query|
+|Store 额外场景|2/2|baseline 与 source-pin；默认 coupled 和 prepared 不重复计数|
+|Trigger 场景|1/1|load/store/LR/SC/AMO、取消、代际与无副作用检查|
+|RR qcredit 矩阵|4/4|Q_ONLY_TERMINAL 0/1 × TARGET_INGRESS_KILL 0/1|
+
+34 个矩阵场景全部匹配各自 PASS 判据。默认 `tb_r64_lsu_progress` target 内部还执行 4 个 late 场景，这里保持按 1 个默认 target 计数。没有发现预期负测以外的 FATAL 日志。
+
+## 预期负测试
+
+既有 `negative` 目标的 12 个场景全部满足“进程非零退出，且匹配指定断言”的原 Makefile 判据；完整续跑 make `rc=0` 确认该条件，而不是将单独的 FATAL 字样当作通过。
+
+|场景|匹配的断言语义|
+|---|---|
+|AXI read bad ID|响应无 owner 或 RLAST 错误|
+|AXI write early B|AW/W owner 未完成便到达 B|
+|Fabric bad last|WLAST 与接受的 AWLEN 不一致|
+|LSU bad owner|物理响应无 owner|
+|LSU bad store cancel|取消较老 store 后仍保留较年轻 memory owner|
+|Store bad flush|可见 store 在退休前被取消|
+|LSU bind class|bind 改变已预留分类|
+|LSU duplicate bind|重复绑定 live owner|
+|Data terminal|保留终端响应被背压|
+|FP qcredit overflow|occupied ingress 被覆盖或无 credit 接收|
+|AXI bypass early B|bypass 路径的 AW/W owner 未完成便到达 B|
+|Memory service request hint|live CPU 请求的 hint 不一致|
+
+[SUMMARY.json](../../../results/ai-r3-20261008/full-modules/SUMMARY.json) 保存每项实际匹配语句和日志名。默认负测试的非零条件由 Makefile 原 recipe 验证；没有凭空补造每个子进程的数值返回码。新增 CQ 不同值负测的数值返回码单独捕获为 `1`。
+
+## Booth 超时与复跑记录
+
+1. 首轮完整命令 `rc=2`，耗时 `343.273 s`，停止时有 102 个 `.pass`。唯一 make 失败为 `tb_r64_mul_booth` 的 `timeout 60` 返回 `124`，运行日志为空，无数值比较或断言失败输出。
+2. 此 TB 只实例化 `R64Multiply`；该模块与 `baseline-vsrc` 字节一致。TB 的目标是固定 20,000 个向量，带 40,000 个模拟周期的内部边界。
+3. 明确仅以 `TEST_TIMEOUT_tb_r64_mul_booth=180` 增加这一 case 的宿主等待上限，独立执行同一已编译 vvp，真实 make `rc=0`，实际 `47.272 s`。20,000 向量全部完成，连续吞吐记录 `II1=1993`；时钟、向量、oracle、断言均未变。这支持首次超时源于并发构建/模拟的宿主负载。
+4. 在保留已通过 target 的基础上，续跑原完整命令并显式携带上述单 case timeout 参数。续跑真实 `rc=0`，耗时 `357.445 s`，最终 136 个常规模块 `.pass` 等于默认 135 加额外 prepared 1。CQ 开启 2 个 `.pass` 位于独立子目录，另计。
+
+原始证据：[首轮命令](../../../results/ai-r3-20261008/full-modules/command.json)、[首轮结果](../../../results/ai-r3-20261008/full-modules/result.json)、[首轮日志](../../../results/ai-r3-20261008/full-modules/make.log)、[原超时空日志](../../../results/ai-r3-20261008/full-modules/tb_r64_mul_booth-first-timeout60.log)、[单例诊断命令](../../../results/ai-r3-20261008/full-modules/booth-timeout-diagnostic-command.json)、[诊断结果](../../../results/ai-r3-20261008/full-modules/booth-timeout-diagnostic-result.json)、[续跑命令](../../../results/ai-r3-20261008/full-modules/resume-command.json)、[续跑结果](../../../results/ai-r3-20261008/full-modules/resume-result.json)。
+
+## 覆盖边界
+
+这些结果确认现有模块兼容性，以及局部 CQ qualification、wake 边沿、值快照和转移不变量。它们不能单独证明全核性能收益、所有异常/取消交织、实际 STA 路径和 PPA 改善。Backend 新定向 owner/wake TB 覆盖 full flush；完整部分 branch kill 与 LSU late-response/ticket 生命周期由相应独立验证及整核测试承担，不能从这两项局部 TB 外推已穷尽覆盖。

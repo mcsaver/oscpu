@@ -48,6 +48,8 @@ module R64AxiReadService #(
   reg return_q;
   reg [1:0] return_id_q, return_rr_q;
   wire [3:0] member, launch_eligible, return_eligible, contender;
+  // g indexes the four Fabric owner slots, not the external AXI transaction ID.
+  // Endpoint membership and eligibility repeat for each held descriptor.
   genvar g;
   generate
     for (g = 0; g < 4; g = g + 1) begin : gen_owner

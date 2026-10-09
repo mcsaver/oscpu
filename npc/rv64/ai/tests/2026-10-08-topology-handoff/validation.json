@@ -1,0 +1,17 @@
+{
+  "domain_topologies": 7,
+  "global_topology": 1,
+  "design_units": 51,
+  "export_syntax_and_execution": "PASS",
+  "new_workflow_relative_links": "PASS",
+  "whitespace": "PASS",
+  "representative_complete_Q_paths": 3,
+  "measured_source_applicability": {
+    "status": "MATCH",
+    "scope": "Current vsrc Verilog/header/filelist bytes vs measured baseline snapshot only; workloads, tools and constraints remain the historical report identity.",
+    "checked_files": 93,
+    "different_files": []
+  },
+  "rtl_modified_in_this_handoff": false,
+  "new_simulation_or_sta": false
+}

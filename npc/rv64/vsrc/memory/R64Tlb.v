@@ -83,6 +83,8 @@ module R64Tlb #(
           (invalidate_all_vaddr_i || vpn_match(
           vpn_q[entry], invalidate_vpn_w, level_q[entry], napot_q[entry]
       ));
+      // Either mapping may be the larger leaf, so test containment using
+      // both the resident and incoming page sizes before replacing overlaps.
       assign overlap_w[entry] = (global_q[entry] || fill_global_i ||
                                  asid_q[entry] == fill_asid_i) && (vpn_match(
           vpn_q[entry], fill_vpn_w, level_q[entry], napot_q[entry]

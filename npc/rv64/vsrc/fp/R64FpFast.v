@@ -24,6 +24,7 @@ module R64FpFast #(
   output [           4:0] out_flags_o
 );
   localparam STAGES = 10, SLOT_W = 4;
+  localparam DIRECT_STAGE = 1, CONVERSION_STAGE = STAGES - 1;
   localparam SIGN = 0, DOUBLE = 1, FROM_INT = 5, TO_INT = 6, CROSS = 7, LONG = 8, UNSIGNED = 9,
       NAN = 10, INVALID = 11;
   wire [6:0] input_f7_w = inst_i[31:25];
@@ -84,13 +85,15 @@ module R64FpFast #(
   reg [SLOT_W-1:0] slot_q[0:STAGES-1];
   wire [SLOT_W-1:0] allocation_w;
   wire [68:0] completion_data_w;
-  wire short1_w = !(control_q[1][FROM_INT] || control_q[1][TO_INT] || control_q[1][CROSS]);
-  wire convert9_w = control_q[9][FROM_INT] || control_q[9][TO_INT] || control_q[9][CROSS];
+  wire short1_w = !(control_q[DIRECT_STAGE][FROM_INT] || control_q[DIRECT_STAGE][TO_INT] ||
+                    control_q[DIRECT_STAGE][CROSS]);
+  wire convert9_w = control_q[CONVERSION_STAGE][FROM_INT] ||
+      control_q[CONVERSION_STAGE][TO_INT] || control_q[CONVERSION_STAGE][CROSS];
   wire [63:0] direct1_q;
   wire [4:0] direct_flags1_q;
   wire [63:0] fp_value9_w, int_value9_q;
   wire [4:0] fp_flags9_w, int_flags9_q;
-  wire [68:0] conversion_w = control_q[9][TO_INT] ?
+  wire [68:0] conversion_w = control_q[CONVERSION_STAGE][TO_INT] ?
       {int_flags9_q, int_value9_q} : {fp_flags9_w, fp_value9_w};
   R64FpCompletion #(
     .SLOT_W(SLOT_W),
@@ -107,8 +110,11 @@ module R64FpFast #(
     .in_ready_o(in_ready_o),
     .in_tag_i(in_tag_i),
     .allocation_o(allocation_w),
-    .complete_valid_i({token_q[9] && convert9_w, token_q[1] && short1_w}),
-    .complete_slot_i({slot_q[9], slot_q[1]}),
+    // Completion port 0 is direct; port 1 is conversion. Valid, slot
+    // and the flags/value pair use this same order on every cycle.
+    .complete_valid_i({token_q[CONVERSION_STAGE] && convert9_w,
+                       token_q[DIRECT_STAGE] && short1_w}),
+    .complete_slot_i({slot_q[CONVERSION_STAGE], slot_q[DIRECT_STAGE]}),
     .complete_data_i({conversion_w, direct_flags1_q, direct1_q}),
     .out_valid_o(out_valid_o),
     .out_ready_i(out_ready_i),
@@ -279,6 +285,9 @@ module R64FpFast #(
   );
   reg [52:0] fp_sig_q[1:3];
   reg signed [13:0] fp_exp_q[1:3];
+  // Both helpers return {count[2:0], shifted64}; coarse count is in
+  // eight-bit units, fine count in bits. Their concatenation is the LZC
+  // for nonzero inputs; integer_zero3_q handles zero separately.
   function [66:0] coarse_normalize;
     input [63:0] value;
     reg [63:0] scan;
@@ -332,6 +341,8 @@ module R64FpFast #(
   reg [55:0] round_sig4_q;
   reg signed [13:0] round_exp4_q;
   reg [1:0] round_special4_q;
+  // Rounding captures stages 5..9 from producer tokens in stages 4..8;
+  // stage 9 completes conversions independently of the direct stage-1 producer.
   wire [4:0] round_enable_w = token_q[8:4] & ~{5{1'b0}};
   R64FpRoundPipe round (
     .clk(clk),

@@ -1,0 +1,148 @@
+ChatGPT 说：
+结论
+
+这个候选在架构上可以成立，值得作为本轮固定容量的完整 RTL 优化候选实施并验收；但给出的公式尚不能单独证明正确。 必须补齐三个条件：event_grant 确实对应 CQ 的实际捕获；直通继承原 raw 事件的全部取消与准入门控；同拍 LSQ→CQ 的完整 tag 交接被复用保护覆盖。
+
+它不是新的 load 提前唤醒，也不改变退休权限，而是让部分真实响应绕过一拍 raw 存储，仍进入原完成与写回体系。以下判断依据你提供的当前链路，未声称本地核查或测试已经通过。
+
+1. 架构合同：成立的理由与必须补齐的边界
+occupancy-credit 隔离可以保持
+
+只要 original_raw_fire 使用改动前的真实响应接受条件，且 raw_credit/in_ready 仍只依赖原有寄存状态，CQ 仲裁仅决定“本次已接受响应存入 raw，还是被 CQ 接管”，就不会新增 CQ/WB ready→上游响应 ready 的组合依赖。
+
+回退也有存储保证：允许提出直通的前提是真实 Q 为空；未被 CQ 接受时，原有 raw 信用足以接住该响应。旁路成功会改变下一拍 occupancy、进而改变未来信用，这是正常的时序状态变化，不是组合信用穿透。
+
+但必须查完整逻辑锥，不能只看 mem_rsp_ready 的直接赋值。 不要让 alive、复用判定或 original_raw_fire 间接引用已经含有旁路结果的下一态，再形成反馈。
+
+“选中”必须与“捕获”分开
+
+最危险的漏项是：
+
+Q 空、响应真实握手，仲裁器选中了 raw 源，但 CQ 因信用、同拍 flush、写使能或真实 ICG 条件而没有保存它；raw 入队却已被抑制。
+
+因此，只有对应 CQ 入队实际发生，而且遵守其取消合同，才可令 bypass_fire=1。若现有 event_grant 已严格具备该语义，可以复用；否则必须另取实际接受信号。
+
+还要继承原 raw 事件的非 occupancy 门控。例如同拍 flush 可能禁止所有 raw 输出，即便 incoming 是未被杀的较老指令。仅检查 incoming 的 alive && !killed 未必足够；这种情况下应回退原 raw 路径，不能把较老响应送入本拍被清空的 CQ。
+
+full-tag 生命周期必须连续，但不要求延迟 LSQ release
+
+真实握手边沿应完成以下二选一交接：
+
+LSQ/原事务 owner 
+⟶
+ 
+{
+raw owner
+,
+	
+未直通
+
+
+CQ owner
+,
+	
+直通被捕获
+LSQ/原事务 owner ⟶ {
+raw owner,
+CQ owner,
+	​
+
+未直通
+直通被捕获
+	​
+
+
+release_alive、mem_end 保持各自原有真实握手条件，不改到 offer、仲裁选择或 WB 时刻。
+
+incoming 必须取自该握手时刻、完整 tag 匹配的 LSQ 当前行快照，包含原 raw 输入会保存的所有语义信息。CQ 接收后不得再依赖可能已经复用的 LSQ 行读取 func、VA、异常或转发字节。
+
+复用保护要检查其实际实现：若使用当拍释放后的可复用状态，必须同时覆盖本拍新进入 CQ 的完整 tag，不能只看旧 CQ occupancy 和 raw 入队。允许不同 generation 按原规则复用同一索引；不允许不同指令在旧义务尚存时复用同一个 full tag。晚到响应必须先匹配完整 tag，再判断 live，不能借新行的属性把旧响应解释成新指令。
+
+2. 我会采用的最小完整设计
+
+保留原队列、六源位置、仲裁策略、CQ、WB 和退休逻辑，只分离三类信号：原响应接受、原 Q 出队、事件实际接受。
+
+纯文本
+R[i] = 改动前本应进入 raw 的 live response fire
+Q[i] = raw 寄存 head_occupied
+O[i] = R[i] && !Q[i] && eligible[i] && 原 raw 事件准入门控
+
+event_req[raw_i]  = Q[i] ? raw_out_valid[i] : O[i]
+event_data[raw_i] = Q[i] ? raw_q_data[i]    : original_raw_in_data[i]
+
+A[i] = 原仲裁选择 raw_i，且对应 CQ 本拍实际接受该事件
+B[i] = O[i] && A[i]
+
+raw_enqueue[i] = R[i] && !B[i]
+raw_pop[i]     = Q[i] && raw_out_valid[i] && A[i]
+
+这里的 R 必须保留原表达式，不能在改动后又指回新的 raw_enqueue。队列内部 kill 清除仍走原逻辑，不与正常 raw_pop 混为一谈。
+
+eligible 应正向确认“已明确为普通 RAM load、属性和必要访问检查已完成、无异常、对齐”，而不是仅凭若干默认清零的排除位猜测。保留原 partial-forward merge 和 load-format 语义，不另写一套简化格式器。
+
+各阶段的权限归属如下：
+
+阶段	归属与允许的动作
+Request	内存请求、token 和副作用许可均沿用原 LSU 合同；本改动不提前发请求。
+Offer	只是同一个 raw 源位置的候选，不创建完成，不释放额外 owner，不写 PRF。
+Grant	只是原仲裁选择；每个源至多对应一个 CQ 接受位置，不能被双 lane 重复选择。
+Capture	CQ 实际接受才抑制 raw 入队，并接管完整身份与正确结果；未接受必回原 raw。
+Retire	仍经原 CQ/WB、ROB wb_accept、PRF write、canonical wake 和退休检查；store B 义务不变。
+
+必须审计原 raw grant 的全部使用点。 现在它可能代表“空 Q 的 incoming 被接受”，不能仍被无条件用于 raw 占用递减、旧 raw tag 释放或旧队首统计。raw_q_data 继续服务 Q 自身的 kill、owner 和出队；只有仲裁/CQ 数据通路使用 event_data。
+
+最低限度断言应覆盖：每 lane 的 raw_enqueue + B = R；B 必须对应 Q 真空及 CQ 实际接受；同一源不能被两次捕获；队列 invariant 持续成立；owner 投影覆盖当拍接管；被杀或旧 generation 响应不能产生有效完成。这里的“不能丢失”允许之后按原合同被 squash，不等于所有曾经 live 的响应都必须最终 WB。
+
+3. 用什么证据保留或淘汰
+先验证消掉的是依赖链气泡，而不只是一个存储阶段
+
+用预热后的真实 RAM/cache 命中依赖链，分别测 load→ALU 和 load→下一条 load 地址。按每个运行内的 full tag 串联：
+
+真实响应握手 → CQ 接受 → WB 接受 → 依赖消费者实际可发射/实际发射。
+
+只看到响应→CQ 提前，不能认定真实依赖链已缩短。原 WB hint 的时机、WB 竞争或发射边界可能把这一拍重新吃掉；hint 也不能被当成事实接受。
+
+另外统计 offer、capture、未中选回退、无 CQ 信用回退，以及被竞争事件的源和年龄。“仍是六源 RR”不等于其他源的服务顺序不变。 新到 raw 响应可能抢走原本会给 head full-forward 或另一条关键 load 的唯一 CQ 信用，使局部响应更快而退休更慢。
+
+完整程序是收益裁决，不是附加展示
+
+使用本轮当前基线和候选、相同 ELF/bin、reference、设备条件及测量边界完成两个工作负载。记录自然结束 cycles、commits 和正确结果；提交数差异需要解释，不能无条件当作执行了同样工作。真实 head !done 与 recovery freeze 分开，但两者计数仍不直接等于可回收周期。
+
+本候选应按真实 load response 统计机会，不能用旧的少量 bus internal command 代替 cache 命中响应统计。跨版本对齐关键指令时，也不能假定物理 tag 分配始终相同。
+
+STA 必须检查重新接起来的路径
+
+不只比较一个最差 WNS。至少检查：
+
+响应/token→LSQ metadata、merge/format→源选择→CQ 数据及使能；
+alive/kill/资格→仲裁→raw 入队抑制与 occupancy 下一态；
+新 CQ owner 投影→复用保护/访存绑定，以及真实 ICG 检查。
+
+最差 WNS 不变，也可能只是新恶化路径被旧的更差路径遮住。 应同时报告相关路径组、TNS、hold、扇出和面积变化。原本 setup/hold 均 FAIL 不构成放宽标准的理由，也不能由新 WNS 换算并宣称最终 Fmax。
+
+本轮我建议采用以下裁决：
+
+裁决	条件
+保留	定向断言与完整 DiffTest 全通过；依赖链改善机制得到验证；两个完整程序均不退步且至少一个有明确 cycles 改善；同约束物理结果没有不可接受的新恶化，面积代价完整列出。
+淘汰	任一 owner/取消/重复完成/精确错误合同失败；或只有局部快一拍而完整程序无收益；或出现没有收益支撑的物理代价恶化。一个程序改善、另一个退步，不能事后选择平均权重掩盖。
+证据不足	完整程序或同约束 STA 未完成，基线不匹配，或观测不能区分“CQ 早到”和“消费者真正早执行”。这不等于默认保留。
+
+若改成仅 full-width LD 且无部分转发，应单独命名、重新报告资格覆盖及全套结果。它是不同资格条件的实验；也仍有 full-tag、kill 和仲裁路径，不能预设它必然解决时序。
+
+4. 最有杀伤力的定向用例
+
+建议用可控合法响应时序、CQ/WB stall 和取消事件驱动以下组合；不能只依赖两个完整程序碰巧覆盖。
+
+用例	刻意制造的并发条件	必须观察到的结果
+旧 Q owner 与新响应撞拍	raw 有 A，新 B 同 lane 握手；分别令 A 正常、A 本拍被 kill。数据/tag 刻意不同。	A 正常时只能以 A 参加仲裁，B 入 Q；A 被 kill 时即使 out_valid=0，也不得直通 B。Q 的旧 owner 判断不能跟随 incoming 数据改变。
+两 lane 抢一个信用	两个 raw 都空，两个 live 响应同时到达，CQ 仅一个可用信用，并让 fault/full-forward 同时请求；遍历 RR 起点。	全部源合计只能占用实际可用信用；未被接受的 raw 响应各自入 Q；没有双选、覆盖或多推进一次轮转。
+CQ 满、随后同拍出入	CQ 无信用而两个 raw 为空；持续阻塞 WB，先接收响应填满 raw，再释放 CQ。	初始响应正常回退，raw 满后按原信用背压；同拍 CQ 出队是否提供信用严格沿用原规则，不新增上游 ready 穿透。
+flush 与空闲时钟门控	Q 空时，较老且未被杀的响应与 flush 同拍；另测 CQ 已空闲门控时的首次合法直通。	前者遵守原事件门控并保存幸存响应，不能被 CQ 清空吞掉；后者实际唤起 CQ 捕获，不能只有 grant 没有寄存写入。
+晚到响应＋索引复用	A 被杀后索引供新 generation 的 B 使用；A、B 响应从两 lane 同拍返回。再将 B 长时间卡在 CQ/WB，施压 generation 复用。	A 只 drain，不能用 B metadata 发完成或清掉 B 的状态；B 正常接管；旧完整 tag 的义务未结束前不能被另一指令复用。
+格式、错误与副作用交叉	所有支持的普通 load 格式、不同字节偏移、partial-forward mask；总线字节与转发字节故意冲突。另注入 load 错误，并测试 store/atomic/MMIO/misalign 排除。	广资格版本逐位等价于原格式化结果；排除项不直通。特别让较老 store 的 B 错误晚到、较年轻 RAM load 直通：年轻完成不能导致越过 store 退休或丢失精确错误。
+
+最后一组还应覆盖“直通已进入 CQ、随后才被恢复杀掉”，验证新的早到完成继续受原 CQ/WB 取消体系约束，而不是只检查响应当拍的 kill。
+
+本轮最大的不确定性，是 raw 这一拍究竟主要提供了可回收的依赖等待，还是提供了当前时序下重要的组合切分。 旁路没有删除 raw 队列硬件，却增加了跨级数据、控制和 owner 接管路径。empty-raw/CQ-credit 机会多，只能证明它经常有机会工作；消费者更早执行、完整程序更少 cycles、同约束物理代价可接受，三者同时成立，才支持保留。
+
+当前建议是按上述最小设计完成本轮实现与验收；当前证据裁决仍为“证据不足”，而不是提前保留。局部一拍的改善不能成为完整无收益版本继续留在主线的理由。

@@ -1,0 +1,899 @@
+RV64 MEASUREMENTS AND CONTRACT EXCERPTS — 2026-10-08 handoff
+This file contains existing measured evidence; exporting it did not run a new benchmark or STA.
+Baseline B is the retained round1 response-bypass implementation. Candidate C in round2 was rejected.
+Current production was restored to B. Do not treat C's fixed slots as current architecture.
+Global target: improve useful whole-core execution and make progress toward 1ns timing without
+weakening correctness. Codex is not preselecting an architecture or a critical-path interpretation.
+
+CURRENT BASELINE:
+CoreMark10: 8,968,518 cycles, 3,218,537 retired, CPI 2.7865200866.
+Dhrystone10000: 14,267,505 cycles, 4,260,670 retired, CPI 3.3486529114.
+R64SystemTop prelayout, real standard-cell arrays, icsprout55 TT/1.2V/25C, 1ns,
+0.05ns uncertainty, max input delay 0.4ns including rst_i. Setup WNS -2.119304419ns,
+hold WNS -0.036660694ns. FAIL. Not post-route Fmax; do not infer runtime from 1ns-WNS.
+Known previous successful round: CoreMark 9,241,964 -> 8,968,518 cycles;
+Dhrystone 14,568,135 -> 14,267,505 cycles. Normal eligible load response -> CQ=0,
+response -> WB accepted=2 cycles in load_chain; neither is full load-to-use latency.
+
+IMPORTANT FACTS / UNKNOWN:
+Reset is synchronous state clear plus combinational interface suppression. rst_i gates full_flush
+with !rst_i; it is not ORed into a runtime reset/flush event. event_before_q has direct synchronous
+reset. CQ payload is not cleared on reset, but its hold/write logic still depends on reset/cancel.
+The Q-only worst CQ/raw-control launch maps to Commit event_trap_q, a runtime event register,
+not a reset synchronizer. Static path reachability is not a proof of functional sensitization.
+Runtime load dependency-chain delay, exact head wait causes, and branch loss decomposition
+are UNKNOWN. Existing occupancy/stall counters overlap and cannot be added into lost cycles.
+Stores use DCache -> LSU store_done -> ROB, not the load completion/WB 9-to-2 result path.
+Already present: ALU early wake/bypass, non-head store preparation, head-authorized store query,
+real B-error completion, retained load response bypass. Do not propose these as absent features.
+No choice of next candidate is implied by the facts above. You may request narrowly missing source
+or measurements; no need to demand a new full observability framework before a useful design.
+
+EXPERIMENT COST CONTEXT:
+Previous complete CoreMark/Dhrystone pair took about 53min host time; full synthesis/STA about
+43.5min; mapped export peak RSS about 8.8GiB. Existing-netlist paired timing queries ~33s/version.
+These are host costs, not CPU performance. A concrete next proposal should justify its smallest
+complete experiment and distinguish predicted gains, mechanism evidence and measured gains.
+
+
+===== SOURCE: npc/rv64/ai/tests/2026-10-08-round2-architecture/RESULT.md =====
+# 第二轮：网页 Pro 设计、Codex 实现的完成路径重构
+
+**结论：淘汰当前完整候选，已恢复本轮前实现。** 网页Pro独立提出方案，经本地实现、完整验证和实测反证回访后作出不保留裁决。两个完整基准均正确且周期不变，但全局setup WNS和CQ输出路径退化；局部输入改善不足以支持替换主代码。上一轮保留的load response bypass及本轮前已有修改保持。
+
+## 架构方案从哪里来
+
+使用用户授权新建的[网页会话：架构优化方案推导](https://chatgpt.com/c/6ac732fa-befc-83e8-a497-7bf8b3c72ff0)。页面核实 GPT-6、Pro 第5/5档。向新会话发送当前硬件、完整负载计数、真实STA、生命周期约束及未知项，未把本地预选方案作为输入结论。
+
+Pro比较了三个方向：确定load值提前供消费者使用、store地址/数据部分发射、完成搬运与取消资格解耦。它选择第三项，理由是现有映射网表已经显示取消控制进入宽完成数据路径，而前两项的收益还缺依赖链证据。本轮因此是以维持周期数为约束的物理结构优化，不预期重复上一轮的CPI收益。
+
+- [实际发送的独立事实包](request.md)
+- [Pro第一次完整设计](response.txt)
+- [本地核查及接口反例](LOCAL_REVIEW.md)
+- [实际发送的反例反馈](clarification-request.md)
+- [Pro接受反例后的修订合同](revised-contract.txt)
+
+初版候选公式使用bus_fire，但真实ready包含当前flush，因此取消仍间接进入宽数据选择。本地返回了固定状态下切换flush的具体反例；Pro随后将候选改为真实response VALID加取消前状态，而最终capture仍要求原raw_fire。实际实现采用修订合同，没有修改ready或延迟kill。
+
+## 联合实现
+
+实验候选修改仅两处，以下链接指向归档实现；当前主工作树已恢复本轮前版本：
+
+- [R64Lsu.v](candidate-src/npc/rv64/vsrc/lsu/R64Lsu.v)：六个完成来源先按取消前候选选择和路由完整数据，再按真实握手、当前存活及信用建立完成owner；允许实际capture为10，RR只按真实捕获推进。
+- [R64LsuCompletion.v](candidate-src/npc/rv64/vsrc/lsu/R64LsuCompletion.v)：每lane两个固定物理槽，总容量仍四条；出队/取消修改有效位和head，不搬运宽payload。只有旧状态已经空闲的槽允许预写，同一边沿真实capture才建立owner；reset关闭预写。
+
+正常完成路径没有增加流水级，外部响应、LSQ/token生命周期、晚响应drain、store副作用和WB共同资格保持原合同。无owner的预写内容没有完成或reuse权限。取消候选可能占用当拍仲裁位置，以及固定槽输出mux的代价，都由实测裁决。
+
+[本轮生产差异](production-candidate.patch)和[本轮测试/观察差异](support-candidate.patch)均相对本轮开始时的保留点，避免混入上一轮已有修改。工作区有用户及前轮未提交内容，未执行提交或整树回退。
+
+## 已完成的正确性与机制验证
+
+| 证据 | 覆盖与结果 |
+| --- | --- |
+| system-lint | 保持原规则及R64_ASSERT，通过；首次编译发现的旧event_two_w断言引用已改为稀疏capture守恒断言 |
+| CQ直接验证 | 原完成/完整payload/WB request测试通过；30,022拍独立FIFO scoreboard，21,022捕获=19,493写回+1,529取消；含3,211次sparse10 |
+| CQ非干扰及对照 | 相同Q态双实例改变取消和pop，路由/预写保持；reset无预写复活；冻结旧CQ无取消流逐拍对比6,003拍通过 |
+| LSU仲裁 | 13,122组独立candidate/live/RR/credit oracle通过；六来源各25次服务，最长等待3拍；真实RR的00保持、10及dead-first/one-credit均覆盖 |
+| 真实响应矩阵 | RESPONSE_BYPASS=0/1 × 普通/背压全部通过；实际响应同Q态kill/flush反例、双响应中取消rank0后的sparse10通过，未强制DUT内部状态 |
+| 相关模块 | 14项相关模块通过；2项非法响应/非法store取消的负向测试按预期fatal |
+| 整核短测 | program、sv39、sdtrig、lsu_contention、backend_network、load_chain各普通/背压，共12项完整NEMU与断言验证通过 |
+| 正常load延迟 | load_chain中8,194个合资格load均保持response→CQ 0拍、response→WB 2拍；普通114,849周期、背压114,893周期，与基线完全一致 |
+
+证据目录：[CQ](../../../results/ai-cq-timing-20261008/cq-modules/RESULT.txt)、[仲裁](../../../results/ai-cq-timing-20261008/lsu-arbitration-tests/results.json)、[相关模块](../../../results/ai-cq-timing-20261008/related-tests/result.json)、[整核短测](../../../results/ai-cq-timing-20261008/candidate/short-tests.json)、[load机制对照](../../../results/ai-cq-timing-20261008/candidate/mechanism-comparison.json)。
+
+## 完整性能比较
+
+基线为上一轮保留的response-bypass实现，候选仿真和综合均使用本轮同一冻结RTL。固定同一CoreMark 10次/Dhrystone 10000次镜像、完整NEMU、R64_ASSERT、threads=1。新增计数器只观察，不驱动RTL。
+
+| 负载 | 基线周期 | 候选周期 | 基线/候选退休数 | 基线/候选CPI |
+| --- | ---: | ---: | ---: | ---: |
+| CoreMark 10 | 8,968,518 | 8,968,518 | 3,218,537 | 2.786520087 |
+| Dhrystone 10000 | 14,267,505 | 14,267,505 | 4,260,670 | 3.348652911 |
+
+两项均自然结束、完整DiffTest与断言通过；全部PASS计数、CPI_PROFILE、共有LOAD_PROFILE、17个延迟桶和程序输出完全一致。CoreMark五项CRC一致：seedcrc=e9f5、list=e714、matrix=1fd7、state=8e3a、final=fcaf。退休数、reads、writes差值全0，本轮不需要借用上一轮的printf差异解释。
+
+新观察的取消candidate rank分别为599/10000次；sparse10和dead-first/one-credit在两项完整基准中均为0，但定向测试已覆盖。三个计数的单位和条件不同，不能相加当作损失周期。
+
+[完整基准报告](../../../results/ai-cq-timing-20261008/candidate/BENCHMARK-COMPARISON.md)及[完整计数与分布](../../../results/ai-cq-timing-20261008/candidate/benchmark-comparison.json)。两个基准并行的宿主耗时约53.15分钟，此时间不作为RTL性能指标。
+
+## 真实综合与STA取舍
+
+完整R64SystemTop、实际数组标准单元映射、icsprout55 TT/1.2V/25C、1ns约束、0.05ns uncertainty、ABC600ps、fanout8，保持工具/脚本/约束/库身份。原生make sta完成综合、check 0 problems、网表导出和OpenSTA；返回码2来自原timing checker的真实FAIL，没有工具失败，没有blackbox或额外时序例外。全过程约43.50分钟，标准export峰值约8967MiB。
+
+| 指标 | 基线 | 候选 | 变化 |
+| --- | ---: | ---: | ---: |
+| 单元面积 / μm² | 3,144,021.999995 | 3,142,155.239995 | −0.059375% |
+| 全局setup WNS / ns | −2.119304419 | −2.164543390 | 退化45.238971ps |
+| 全局setup TNS / ns | −137753.000000 | −137741.593750 | 改善11.406250ns |
+| 全局hold WNS / ns | −0.036660694 | −0.036660694 | 不变 |
+| 全局hold TNS / ns | −0.087889202 | −0.087889202 | 不变 |
+| 负hold端点 | 3 | 3 | 语义一一对应，无新增/消失 |
+| 原1ns timing判定 | FAIL | FAIL | 均未通过 |
+
+目标输入路径有实质改善，输出路径则付出代价。以下为真实对应端点组的最差setup slack，单位ns：
+
+| 路径组 | 基线 | 候选 | 变化 |
+| --- | ---: | ---: | ---: |
+| CQ payload输入D | −2.111715555 | −1.302782774 | 改善808.932781ps |
+| CQ payload ICG使能 | −0.936215937 | +0.326810688 | 改善1263.026625ps |
+| CQ→WB payload/tag | +0.489983857 | +0.155513659 | 退化334.470198ps |
+| CQ→WB accepted | +0.013875512 | +0.029436233 | 改善15.560721ps |
+| CQ→WB certificate | −0.292893618 | −0.478821874 | 退化185.928256ps |
+
+真实网表通过full_flush驱动pin查询及独立fanin检查，证明基线到596个CQ payload D和4个payload ICG E的取消路径在候选中消失；候选max/min均无路径。两版owner-control仍有flush路径作为阳性对照。没有用false_path隐藏取消或reset。
+
+全局最差端点由event_before_q[0]转为effect_q[14]：基线经过full_flush→kill_mask→event_select；候选经过full_flush→cancel_candidates→forward_query.out_valid→mem_valid→mem_ready→effect。两个极值捕获端点不同，45.238971ps不是同一FF延迟的变化；仅凭这两条最差路径不能证明变化由共享扇出、门尺寸或其它映射因素中的哪一个引起。
+
+[完整物理对照](../../../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)保留六组输入的all/Q-only setup与hold、CQ→WB、全部负hold语义匹配、原始逐门路径和网表信号解释。所有负hold仍为基线已有的CLINT reset、fabric reset和同80个FF的request_queue ICG。
+
+这是布局前映射测量，不是布线后签核或功耗资格化，不能用cycles×(1ns−WNS)推算真实运行时间，也不能据局部改善宣称整核时序提升。
+
+## 实测回访与裁决
+
+[实际回访材料](measurement-request.md)已在同一新Pro会话提交，明确完整CoreMark、全部物理事实以及发送当时Dhrystone尚未结束，并要求按Dhrystone保持周期不变这一条件作出保留/淘汰判断。之后Dhrystone已完整通过且计数不变，条件已得到实测满足。
+
+[Pro完整实测裁决](measurement-response.txt)明确：若Dhrystone自然PASS且周期不变，仍淘汰C并恢复B；最终实际结果满足这一条件。网页原回答保留其发送/回答时的“Dhrystone待结案”状态，不改写历史消息；本报告使用随后得到的完整结果。[裁决截图](final-decision.png)保存该条件与决定。
+
+这是一项工程取舍：C的面积和TNS略好，不能说它被B在所有维度严格支配；但没有程序周期收益，全局WNS更差，CQ输出侧也有代价，因而不接受本轮完整联合实现作为新基线。不能将已经完成的候选事后改称“还要另一个未定义大改造才能获益的中间态”。
+
+机制层面的有效认识保留：取消前候选与真实capture可以分层，正常完成级数可以保持，目标full_flush宽数据锥可切断。未兑现的是这组联合改动带来值得保留的整核物理收益。当前测量也不能证明CQ没有吞吐瓶颈，因为本轮没有提高其正常吞吐作反事实实验。
+
+## 恢复与交付状态
+
+候选的两个生产文件、相关测试和观察代码完整保存在[candidate-src](candidate-src)，生产/支持patch、冻结RTL、原生网表、真实PASS/FAIL及完整日志保留。恢复前逐文件检查候选未被他人改动，再从本轮开始快照恢复。本轮新增的固定槽专用测试已归档并从活动测试目录移出；没有摘取未经独立验证的候选局部回主树。
+
+[恢复核对](../../../results/ai-cq-timing-20261008/restoration.json)确认108个vsrc文件和189个sim/testbench支持文件全部与本轮前逐字节一致。没有git reset、提交、推送或覆盖前轮修改。恢复后的system-lint及五项直接测试（lsu_completion、completion_payload、lsu_event_count、lsu_network、lsu）全部PASS，见[恢复验证](../../../results/ai-cq-timing-20261008/restoration-checks/RESULT.json)。首次lint调用目录错误、目标不存在的失败日志保留；修正到原sim入口后通过，没有改RTL或降低lint规则。只读配对诊断也已完成，见下文。
+
+Pro建议追加的有界诊断仅复用两份已有网表：将effect、RR历史、CQ owner/control和WB certificate按相同语义配对，并查看两版全局前32个不同端点，区分基线本身的共同限制与候选特有退化。该诊断服务下一轮选型，不改当前淘汰裁决、不修改RTL、不重新综合或运行完整程序。
+
+
+## 配对诊断的关键结果
+
+[完整配对诊断](../../../results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md)及其逐点/分段数据已完成，复用两份现有网表、原库与约束。两版各自global指标与原报告精确一致；同语义实际DFF的对应查询为：
+
+| 同语义端点 | 基线setup slack / ns | 候选setup slack / ns | 变化 |
+| --- | ---: | ---: | ---: |
+| event_before_q[0] | −2.119304419 | −1.483735442 | 改善635.568977ps |
+| effect_q[14] | −2.020954609 | −2.164543390 | 退化143.588781ps |
+
+在effect[14]各自同一条真实最坏路径上，两版均经过cancel_candidates[15]→forward valid→mem_valid→mem_ready。到mem_ready的累计arrival只增加4.049301ps；mem_ready→effect D尾段从452.170133ps增加到601.916551ps，增加149.746418ps。slack还包含required时间，不能只把arrival增量当作slack差。这说明该对应路径的主要新增延迟在后半段，不支持直接归因为前段取消传播变慢；仍不能仅凭此拆分归因到某个具体RTL子改动。
+
+基线20/20个effect和5/5个实际RR历史FF的最差路径均从reset经过full_flush；基线最坏32个不同端点中1个RR、1个effect、30个指定配对族以外端点，族外最差为CQ payload external_result[43]，slack −2.111715555ns。六个仲裁来源并不等于六个历史FF，event_before_q[5]为常量，被综合删除。
+
+这些结果供下一轮网页架构选型使用，不能单凭候选特有退化就让主树追逐新热点。本轮淘汰C的裁决保持，未启动第三份RTL、重综合或新的完整基准。
+
+
+两版有效配对分析均返回0，原全局指标精确一致；初次采集的PathEnd对象生命周期错误及工具崩溃日志保留，修正采集顺序后完成，未修改RTL、库或约束。当前无遗留仿真/综合/STA进程。本轮文件链接与git差异空白检查通过。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md =====
+# 第二轮固定物理 CQ：物理比较
+
+测量状态 COMPLETE 只表示真实工具和诊断完整执行。正式 timing 判定保留在标准 timing-summary.json；没有修改 SDC、删除 reset/flush 检查或推算最终 Fmax。基线复用上一轮保留候选，候选从本轮冻结 candidate-vsrc 经原生 make sta 完整综合、真实 Liberty 映射及 STA。
+
+## 全局、面积及判定
+
+| 指标 | baseline | candidate | candidate − baseline |
+|---|---:|---:|---:|
+| setup WNS / ns | -2.119304419 | -2.164543390 | -0.045238971 |
+| hold WNS / ns | -0.036660694 | -0.036660694 | +0.000000000 |
+| setup TNS / ns | -137753.000000000 | -137741.593750000 | +11.406250000 |
+| hold TNS / ns | -0.087889202 | -0.087889202 | +0.000000000 |
+| cell area / μm² | 3144021.999995 | 3142155.239995 | -1866.760000 (-0.059375%) |
+| 正式 timing | FAIL | FAIL | 保留真实判定 |
+
+## 最差路径迁移与实际信号链
+
+全局最差均从受约束的 rst_i 输入启动。基线结束于 LSU event_before_q[0]，候选结束于 LSU effect_q[14]，因此全局 WNS 变化不是同一个 FF 上的延迟差。完整标准逐 cell 路径及 mapped pin 解释保存在 sta-diagnostics/{baseline,candidate}-global-worst.rpt / -map.json。
+
+| 版本 | launch | 真实 capture D | capture Q 语义 |
+|---|---|---|---|
+| baseline | rst_i | core_memory_unit_lsu__106725_/D | core_memory_unit_lsu_event_before_q_0_ |
+| candidate | rst_i | _1686813_/D | core_memory_unit_lsu_effect_q_14_ |
+
+基线实际公开信号链：rst_i → full_flush（core_commit__1191_/Y）→ kill_mask[18] → event_select.valid[1] → event_second[2] → event_before_q[0]。
+候选实际公开信号链：rst_i → full_flush（_1029190_/Y）→ cancel_candidates[15] → forward_query.out_valid[0] → mem_valid[0] → mem_ready[0] → effect_q[14]。这里只列路径上保留下来的公开信号；节点间组合门没有省略检查，完整逐门路径另附。
+标准报告的 data arrival 约 3.0345 → 3.0908 ns，required time 约 0.9151 → 0.9263 ns（这两个值遵循原文本显示精度）；高精度 WNS 见全局表。
+
+CQ 输入优化有效：all CQ payload setup slack 改善 808.932781 ps，CQ payload ICG enable 改善 1263.026625 ps；输出 WB payload setup slack 退化 334.470198 ps，WB certificate 退化 185.928256 ps。新全局 WNS 又退化 45.238971 ps。因此这份测量不支持直接声称整体时序提升；面积减少 0.059375%、TNS 改善和局部输入改善，应与输出代价共同裁决。
+
+## CQ/raw 输入端点，保留输入和 reset
+
+数值单位 ns。max 为 setup，min 为 hold；局部 slack 取高精度文本报告，避免 OpenSTA 路径 JSON 的四位有效数字舍入。
+
+| 组 | endpoint 数 B→C | max B | max C | min B | min C |
+|---|---|---:|---:|---:|---:|
+| cq_control | 5 → 7 | -1.650204420 | -1.635059953 | 0.046396572 | 0.058652125 |
+| cq_icg_enable | 4 → 4 | -0.936215937 | 0.326810688 | 0.011962098 | 0.059529953 |
+| cq_payload | 596 → 596 | -2.111715555 | -1.302782774 | 0.101587519 | 0.248354346 |
+| raw_control | 6 → 6 | -1.969095349 | -1.762629390 | 0.031943168 | 0.031943168 |
+| raw_icg_enable | 4 → 4 | 0.331729323 | 0.331729323 | 0.057298563 | 0.057298563 |
+| raw_payload | 772 → 772 | -0.355279922 | -0.398821324 | 0.121811524 | 0.121722870 |
+
+## 相同输入端点，仅额外报告寄存器 Q 启动视图
+
+数值单位 ns。max 为 setup，min 为 hold；局部 slack 取高精度文本报告，避免 OpenSTA 路径 JSON 的四位有效数字舍入。
+
+| 组 | endpoint 数 B→C | max B | max C | min B | min C |
+|---|---|---:|---:|---:|---:|
+| cq_control | 5 → 7 | -1.430639386 | -1.415495276 | 0.135617226 | 0.128988594 |
+| cq_icg_enable | 4 → 4 | -0.716650844 | 0.473377973 | 0.145302907 | 0.120184019 |
+| cq_payload | 596 → 596 | -1.892150521 | -1.302782774 | 0.101587519 | 0.248354346 |
+| raw_control | 6 → 6 | -1.749530077 | -1.543064833 | 0.125699684 | 0.125699684 |
+| raw_icg_enable | 4 → 4 | 0.624680877 | 0.624680877 | 0.121856123 | 0.121856123 |
+| raw_payload | 772 → 772 | -0.355279922 | -0.398821324 | 0.121811524 | 0.121722870 |
+
+所有候选 slot_tag_q/slot_result_q、occupied_q/head_q/turn_q 以及真实关联 ICG 都按映射网表重新生成选择器；没有限定为旧 FF 数或旧 Q 集合。各组实际可达寄存器 Q 数与精确起终点保存在 JSON 及原始报告。
+
+## CQ 输出 → WB 真实接收边界
+
+| 组 | endpoint 数 B→C | 可达 CQ Q 数 B→C | max B | max C | min B | min C |
+|---|---|---|---:|---:|---:|---:|
+| wb_accepted | 72 → 72 | 12 → 26 | 0.013875512 | 0.029436233 | 0.126087084 | 0.206057563 |
+| wb_certificate | 72 → 72 | 14 → 30 | -0.292893618 | -0.478821874 | 0.265788913 | 0.336523235 |
+| wb_payload | 298 → 298 | 298 → 598 | 0.489983857 | 0.155513659 | 0.121043526 | 0.187528744 |
+
+候选相关 WB ICG 端点数：0。这里的 Q 是实际 edge-triggered FF 输出，与各 WB D/E 的真实 fanin 求交；没有用 CK 冒充 Q。
+
+## full_flush → CQ payload 的直接时序锥
+
+通过真实 full_flush 驱动 pin 的 -through 路径查询，并独立检查相同 pin 是否存在于 endpoint 的实际 timing fanin；CQ control D 必须仍有 flush 路径，作为映射正对照。
+
+| 端点组 | B/C 端点数 | baseline 实际 fanin / max路径数 | candidate 实际 fanin / max路径数 |
+|---|---|---|---|
+| cq_control_D | 5 / 7 | True / 5 | True / 7 |
+| cq_payload_D | 596 / 596 | True / 20 | False / 0 |
+| cq_payload_ICG_E | 4 / 4 | True / 4 | False / 0 |
+
+candidate 中只有 fanin 缺失且 max/min 都无路径的组才标为 direct_flush_cone_absent；这不是 false_path，也不表示删除了 reset 或 flush 对 occupied/owner 的作用。原始 min/max 通过路径与空路径报告均保留。
+
+## 全部负 hold 端点及分布
+
+baseline 3 个，candidate 3 个；新增 0 个，消失 0 个。候选完整负 hold 报告未触及每组 100000 条预算，每端点保留最差 min 路径；基线最差 10 条中只有 3 条负、7 条非负，原报告已覆盖全部负端点。两版 hold TNS 列于全局表。
+
+使用 mapped FF Q 语义，或 ICG 实际驱动的 FF Q 集合进行对照，避免数字 cell 名重排被误认为新增/消失。JSON 保存全部端点、启动点、slack、mapped cell/pins 和 ICG sink 清单。
+
+| 版本 | 负 hold endpoint | 语义 | slack / ns（路径 JSON 精度） |
+|---|---|---|---:|
+| baseline | platform__42_/D | FF D feeding platform_clint_rst | -0.036660000 |
+| baseline | platform_fabric__11909_/D | FF D feeding platform_fabric_gen_read_service_0__group_reset_i | -0.036660000 |
+| baseline | core_memory_unit_lsu_request_queue__2552_/E | ICG enable；80 FF；例如 core_memory_unit_lsu_request_queue_age_q_0__0_ | -0.014570000 |
+| candidate | _1760345_/D | FF D feeding platform_clint_rst | -0.036660000 |
+| candidate | _1768365_/D | FF D feeding platform_fabric_gen_read_service_0__group_reset_i | -0.036660000 |
+| candidate | _1732314_/E | ICG enable；80 FF；例如 core_memory_unit_lsu_request_queue_age_q_0__0_ | -0.014570000 |
+
+## 证据与复核
+
+- candidate-sta-command.json、candidate-sta-identity.json：真实命令、冻结输入、脚本/工具/库/SDC 身份。
+- candidate-sta-build.log、candidate-sta-exit.json：完整原生工具输出、返回码与输入未改变检查。
+- candidate-sta/R64SystemTop-1000MHz：标准配置、网表、原 SDC、面积和原 timing judgment。
+- sta-diagnostics/candidate：六组 all/register max/min、CQ→WB、flush-through、全部负 hold、逐 pin fanout。
+- sta-diagnostics/baseline-flush：本轮新增的基线 flush-through 查询；没有重复运行等同的基线综合或完整 STA。
+- cq-to-wb-baseline：本轮已有 CQ→WB 基线测量。
+- sta-diagnostics/{baseline,candidate}-negative-hold.json：负 hold 的实际映射身份。
+
+这是前布局单元/路径比较。输入路径改善、输出路径代价、hold 分布和正式 timing 结论必须分别报告，不能由某个局部正 slack 越级声称整体收敛。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md =====
+# B/C 既有网表的配对关键路径诊断
+
+本诊断已完成。生产候选 C 的淘汰与恢复 B 由既有网页裁决决定；本报告只提供下一轮事实，不选择新 RTL 改造。两版各完成一次有效 OpenSTA 分析，复用原网表、同一真实 Liberty、原 SDC、1 ns 时钟与 0.05 ns uncertainty，全部起点保留 reset。未重综合、未重跑 benchmark、未启动第三设计点。
+
+## 实测结论与归因边界
+
+- 同语义 event_before_q[0] 的 setup slack 从 -2.119304419 ns 改善至 -1.483735442 ns（+635.568977 ps）；effect_q[14] 从 -2.020954609 ns 退化至 -2.164543390 ns（-143.588781 ps）。
+- effect_q[14] 两版实际最坏路径都经过 cancel_candidates[15] → forward_query.out_valid[0] → mem_valid[0] → mem_ready[0]。到 mem_ready 的累计 arrival 只增加 4.049301 ps，而 mem_ready → capture D 的尾段增加 149.746418 ps。该对应端点的实测退化主要位于事务接受后的状态更新段，不能把它归为取消传播段变慢。
+- B 的 effect 族本身已经接近全局最差：effect_q[1] 为 -2.109362364 ns，距 B global worst 仅 9.942055 ps。20/20 个 effect 与 5/5 个 RR 历史状态的各自最坏 max 路径都由 reset 经 full_flush 启动。因此 effect 并非 C 才存在的全新问题，但 C 的额外退化位置也不能代表 B 应优先改哪一段。
+- C 相比 B，20 个 effect 对应端点中 17 个 setup slack 退化、3 个改善；5 个 RR 历史端点全部改善。此事实支持检查一族消费者，而不是只看一个 bit。具体每 bit 的 max/min 对照见 paired-endpoints.csv。
+- 没有受控消融，无法独立归因到“取消前仲裁”“固定槽”或综合重映射各自的贡献。一个结构上可见的迟到取消路径，也不等于已证明某个重构能改善整核性能；本报告不作这种推断。
+
+## 双向同语义端点与检查身份
+
+两指定 bit 在每版都一对一映射到 DFFQX1H7L，没有拆分或合并，CK 都接 clk_i，实际检查为 core_clock 的 max/setup 与 min/hold。对应 max 的 startpoint 都为受约束 rst_i。effect[14] 的最坏 capture 数据转换为 B 的下降沿、C 的上升沿，比较的是同一语义端点各自最坏检查；不是宣称两版逐门或转换条件完全相同。
+
+| 语义端点 | 版本 | 真实 D | arrival / ns | required / ns | setup slack / ns |
+|---|---|---|---:|---:|---:|
+| event_before_q[0] | B | core_memory_unit_lsu__106725_/D | 3.034454107 | 0.915149868 | -2.119304419 |
+| event_before_q[0] | C | _1685927_/D | 2.396645546 | 0.912910163 | -1.483735442 |
+| effect_q[14] | B | core_memory_unit_lsu__107428_/D | 2.937054157 | 0.916099787 | -2.020954609 |
+| effect_q[14] | C | _1686813_/D | 3.090849876 | 0.926306546 | -2.164543390 |
+
+数值直接取 OpenSTA 9 位文本输出；slack 使用工具原值，未用已显示舍入的 arrival/required 重算。原始 JSON 路径只有较少有效位，补充 get_property 输出为 UI ns 且约 6 位小数，因此精确表和分段一律取 9 位文本。
+
+## 有界端点族的全部检查
+
+LSU 当前实际映射有 20 个 effect D。六源 RR 使用 6 位温度计向量，但 event_before_q[5] 的复位与所有更新均为 0；它被合法综合消除，故真实 RR 历史 FF 为 5 个。所有存活语义 FF 均已选入并核对 flat/mapped D/Q/CK，没有按假定数量截断。CQ 的 front/back owner 结构变为 occupied/head，属于族级覆盖 5→7，不能将不同含义的 bit 硬凑成一一配对。WB bank certificate 共 72 个。
+
+| 族 | D 端点数 B→C | max B / ns | max C / ns | min B / ns | min C / ns | 最坏 max 经 reset/full_flush 的端点 B/C |
+|---|---|---:|---:|---:|---:|---|
+| lsu_effect | 20→20 | -2.109362364 | -2.164543390 | 0.124723002 | 0.120941333 | 20/20 |
+| event_rr | 5→5 | -2.119304419 | -1.546578407 | 0.108199716 | 0.116854236 | 5/5 |
+| cq_control | 5→7 | -1.650204420 | -1.635059953 | 0.046396572 | 0.058652125 | 5/7 |
+| wb_certificate | 72→72 | -1.249615908 | -1.249238014 | 0.168614566 | 0.168614566 | 8/8 |
+
+这里的 certificate 表包含全部起点；与上一份限定 CQ Q 启动的 certificate 表不是同一视图。全部起点最坏检查略有改善，不能抹去已测得的 CQ→certificate 路径退化 185.928256 ps。
+
+## effect_q[14] 的同一路径分段
+
+每版的分段都连续取自该版同一条实际 max 路径，保持 source_path pin 顺序完全一致，未拼接不同路径的最大值。以下 elapsed 包含该段实际单元和网络增量；本次无布线寄生的 mapped STA 中报告网络增量均为 0，实际延迟体现在负载条件下的单元弧上。这不表示布局布线后的网络延迟为 0。
+
+| 连续边界 | B 段延迟 / ns | C 段延迟 / ns | C−B / ps | B 终点 arrival / ns | C 终点 arrival / ns |
+|---|---:|---:|---:|---:|---:|
+| start → full_flush | 0.568477571 | 0.564566016 | -3.911555 | 0.968477547 | 0.964565992 |
+| full_flush → ROB_cancel | 0.522527874 | 0.522447944 | -0.079930 | 1.491005421 | 1.487013936 |
+| ROB_cancel → LSU_forward_valid | 0.371825456 | 0.371843576 | +0.018120 | 1.862830877 | 1.858857512 |
+| LSU_forward_valid → mem_valid | 0.164818526 | 0.179700733 | +14.882207 | 2.027649403 | 2.038558245 |
+| mem_valid → mem_ready | 0.457234621 | 0.450375080 | -6.859541 | 2.484884024 | 2.488933325 |
+| mem_ready → capture_D | 0.452170133 | 0.601916551 | +149.746418 | 2.937054157 | 3.090849876 |
+
+输入外部 delay 在两版均为 0.399999976 ns；表中第一段从该输入 arrival 开始。effect[14] 的总 arrival 增加 153.795719 ps，required time 增加 10.206759 ps，直接报告的 slack 退化 143.588781 ps。上述边界上的 cell sum 与 elapsed 允许原工具浮点显示误差，完整增量逐点保留。
+
+| effect[14] 边界 | B slew / ns | C slew / ns | B load / pF | C load / pF | B/C fanout |
+|---|---:|---:|---:|---:|---|
+| start | 0.049999997 | 0.049999997 | 0.198814034 | 0.195761532 | 223/219 |
+| full_flush | 0.794148684 | 0.786698580 | 0.074117251 | 0.073416956 | 87/86 |
+| ROB_cancel | 0.373462528 | 0.373462528 | 0.034573097 | 0.034573097 | 46/46 |
+| LSU_forward_valid | 0.014944907 | 0.014961286 | 0.001523457 | 0.001532634 | 2/2 |
+| mem_valid | 0.030336449 | 0.024989402 | 0.003853214 | 0.003853214 | 5/5 |
+| mem_ready | 0.037023596 | 0.028524237 | 0.004840663 | 0.003239757 | 5/4 |
+
+每个族的代表最坏路径、双向指定路径及族外最坏路径均保存 *-detail.rpt、*-detail.points.csv、*-detail.segments.csv。它们包含 arrival、required、逐单元/网络增量、slew、capacitance、fanout 和真实公开信号映射；未公开保留名称的中间节点继续以真实 cell/pin 列出，不推测它的 RTL 归属。
+
+## 全局前 32 个不同端点与族外限制
+
+报告使用 endpoint_path_count=1，脚本核对每版恰好 32 个不同检查端点。原工具按 slack 查询，细微浮点相等附近的顺序保留为工具顺序；没有用同一端点多条边沿路径填数。完整列表见 baseline-global-top32.csv 与 candidate-global-top32.csv。
+
+- B：1 个 RR 历史端点、1 个 effect 端点、30 个 CQ payload 端点。后者在本次指定的 owner/head/control 族之外，并不表示属于另一条不相关机制。
+- C：5 个 effect 端点；族外 27 个端点由 4 个 mem_issued、4 个 cause 和 19 个公开名为 check_rows_w 的映射 FF 构成。对后者仅报告保存的映射 Q 语义，不从别名猜测其它 RTL 寄存器身份。
+
+| 版本 | 指定族之外的最坏端点 | 映射 Q 语义 | arrival / ns | required / ns | setup slack / ns |
+|---|---|---|---:|---:|---:|
+| B | core_memory_unit_lsu_completion__3122_/D | core_backend_external_result_i_43_ | 3.027364016 | 0.915648460 | -2.111715555 |
+| C | _1686785_/D | core_memory_unit_lsu_mem_issued_q_6_ | 3.061107635 | 0.930157125 | -2.130950689 |
+
+B 的族外最坏 CQ payload 路径与其 RR 最差路径共享 rst → full_flush → kill_mask[18] → event_select.valid[1] 前缀，但后续 selection/capture 分支不同。它仅比 B global worst 好 7.588864 ps。即使下一方案改善 RR/effect，也不能忽略这一现存约束；其未来重映射后的 slack 无法由本报告保证。
+C 的族外最坏 mem_issued_q[6] 同样经过 cancel_candidates[15] → forward_valid[0] → mem_valid[0] → mem_ready[0]，其 ready 后捕获段另见实际代表路径；不能把 effect 尾段数字替它使用。
+
+## 执行、恢复记录与可复用入口
+
+- baseline 有效分析 32.748 秒，candidate 33.065 秒；均返回 0，输入前后身份不变。global setup/hold 与各自原标准结果精确一致。
+- 峰值 RSS：B 3165228 KiB（3091.043 MiB），C 3062724 KiB（2990.941 MiB）。两份资源报告 Exit status 均为 0，EDA 严格串行，完成后没有遗留 STA/Yosys 进程。
+- 同一 Liberty、OpenSTA、common/PDK 脚本与原标准 STA 身份一致，见 identity-validation.json；每版 command.json 记录真实网表/SDC、命令和 12 GiB 资源上限。
+- 初始映射预检曾发现对 effect/RR 数量的错误假定，在任何 STA 运行前纠正为实际完整映射并保留日志。随后一次 baseline 采集中 OpenSTA signal11，原因是后续 timing query 使缓存 PathEnd 对象失效；旧目录 baseline-failed-path-object-read 及原脚本保留。修复后在后续查询前保存不可变 endpoint 字符串，B/C 两份完整有效报告才标 COMPLETE。没有把失败当通过，也没有修改工具/SDC来绕过错误。
+- 执行脚本 run_pair.py → map_families.py / paired.tcl；只读汇总 collect_results.py → render_report.py。每版 run.log、resources.txt、execution.json 和 command.json 均保留。
+- RESULT.json 包含全部端点的 max/min、同语义检查身份、前32端点、逐代表路径实际点序列与分段。paired-endpoints.csv 覆盖所有可一对一配对的 effect/RR/certificate max/min。
+
+事实到此为止：B 有多个共享取消资格传播前缀的关键消费者；C 对应 effect 的额外退化主要落在 ready 后更新段。这两项事实并不独立确定下一轮重构范围，也不替代受控消融、真实 correctness 或整核 PPA 验证。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-cq-timing-20261008/paired-path-diagnostic/baseline-global-top32.csv =====
+rank,endpoint,mapped_q,families,slack_ns,arrival_ns,required_ns,startpoint,endpoint_clock,endpoint_clock_pin
+1,core_memory_unit_lsu__106725_/D,core_memory_unit_lsu_event_before_q_0_,event_rr,-2.119304419,3.034454107,0.915149868,rst_i,core_clock,core_memory_unit_lsu__106725_/CK
+2,core_memory_unit_lsu_completion__3122_/D,core_backend_external_result_i_43_,outside_requested_families,-2.111715555,3.027364016,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3122_/CK
+3,core_memory_unit_lsu_completion__3123_/D,core_backend_external_result_i_44_,outside_requested_families,-2.111715555,3.027364016,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3123_/CK
+4,core_memory_unit_lsu_completion__3125_/D,core_backend_external_result_i_46_,outside_requested_families,-2.111715555,3.027364016,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3125_/CK
+5,core_memory_unit_lsu_completion__2980_/D,core_backend_external_result_i_183_,outside_requested_families,-2.109485865,3.025435209,0.915949225,rst_i,core_clock,core_memory_unit_lsu_completion__2980_/CK
+6,core_memory_unit_lsu_completion__2981_/D,core_backend_external_result_i_184_,outside_requested_families,-2.109485865,3.025435209,0.915949225,rst_i,core_clock,core_memory_unit_lsu_completion__2981_/CK
+7,core_memory_unit_lsu_completion__2983_/D,core_backend_external_result_i_186_,outside_requested_families,-2.109485865,3.025435209,0.915949225,rst_i,core_clock,core_memory_unit_lsu_completion__2983_/CK
+8,core_memory_unit_lsu_completion__3100_/D,core_backend_external_result_i_21_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3100_/CK
+9,core_memory_unit_lsu_completion__3101_/D,core_backend_external_result_i_22_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3101_/CK
+10,core_memory_unit_lsu_completion__3102_/D,core_backend_external_result_i_23_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3102_/CK
+11,core_memory_unit_lsu_completion__3119_/D,core_backend_external_result_i_40_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3119_/CK
+12,core_memory_unit_lsu_completion__3120_/D,core_backend_external_result_i_41_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3120_/CK
+13,core_memory_unit_lsu_completion__3121_/D,core_backend_external_result_i_42_,outside_requested_families,-2.109441996,3.025090456,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3121_/CK
+14,core_memory_unit_lsu__107415_/D,core_memory_unit_lsu_effect_q_1_,lsu_effect,-2.109362364,3.041849613,0.932487249,rst_i,core_clock,core_memory_unit_lsu__107415_/CK
+15,core_memory_unit_lsu_completion__3110_/D,core_backend_external_result_i_31_,outside_requested_families,-2.109351397,3.024999857,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3110_/CK
+16,core_memory_unit_lsu_completion__2958_/D,core_backend_external_result_i_161_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2958_/CK
+17,core_memory_unit_lsu_completion__2959_/D,core_backend_external_result_i_162_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2959_/CK
+18,core_memory_unit_lsu_completion__2960_/D,core_backend_external_result_i_163_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2960_/CK
+19,core_memory_unit_lsu_completion__2968_/D,core_backend_external_result_i_171_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2968_/CK
+20,core_memory_unit_lsu_completion__2977_/D,core_backend_external_result_i_180_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2977_/CK
+21,core_memory_unit_lsu_completion__2978_/D,core_backend_external_result_i_181_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2978_/CK
+22,core_memory_unit_lsu_completion__2979_/D,core_backend_external_result_i_182_,outside_requested_families,-2.107208967,3.02315855,0.915949643,rst_i,core_clock,core_memory_unit_lsu_completion__2979_/CK
+23,core_memory_unit_lsu_completion__3124_/D,core_backend_external_result_i_45_,outside_requested_families,-2.106895447,3.022543907,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3124_/CK
+24,core_memory_unit_lsu_completion__3126_/D,core_backend_external_result_i_47_,outside_requested_families,-2.106895447,3.022543907,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3126_/CK
+25,core_memory_unit_lsu_completion__2982_/D,core_backend_external_result_i_185_,outside_requested_families,-2.104665756,3.020615101,0.915949225,rst_i,core_clock,core_memory_unit_lsu_completion__2982_/CK
+26,core_memory_unit_lsu_completion__2984_/D,core_backend_external_result_i_187_,outside_requested_families,-2.104665756,3.020615101,0.915949225,rst_i,core_clock,core_memory_unit_lsu_completion__2984_/CK
+27,core_memory_unit_lsu_completion__3098_/D,core_backend_external_result_i_19_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3098_/CK
+28,core_memory_unit_lsu_completion__3099_/D,core_backend_external_result_i_20_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3099_/CK
+29,core_memory_unit_lsu_completion__3103_/D,core_backend_external_result_i_24_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3103_/CK
+30,core_memory_unit_lsu_completion__3104_/D,core_backend_external_result_i_25_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3104_/CK
+31,core_memory_unit_lsu_completion__3105_/D,core_backend_external_result_i_26_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3105_/CK
+32,core_memory_unit_lsu_completion__3106_/D,core_backend_external_result_i_27_,outside_requested_families,-2.103912592,3.019561052,0.91564846,rst_i,core_clock,core_memory_unit_lsu_completion__3106_/CK
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/cq_payload-register-max.rpt =====
+Startpoint: core_commit__2629_
+            (rising edge-triggered flip-flop clocked by core_clock)
+Endpoint: core_memory_unit_lsu_completion__3122_
+          (rising edge-triggered flip-flop clocked by core_clock)
+Path Group: core_clock
+Path Type: max
+
+Fanout            Cap           Slew          Delay           Time   Description
+---------------------------------------------------------------------------------------------------------
+                         0.000000000    0.000000000    0.000000000   clock core_clock (rise edge)
+                                        0.000000000    0.000000000   clock network delay (ideal)
+                         0.000000000    0.000000000    0.000000000 ^ core_commit__2629_/CK (DFFQX1H7L)
+     5    0.004559785    0.045494422    0.081645697    0.081645697 v core_commit__2629_/Q (DFFQX1H7L)
+     8    0.008540741    0.057865620    0.069066204    0.150711909 v core_commit__1188_/Y (BUFX1P4H7L)
+     8    0.014431531    0.093818180    0.092276700    0.242988601 v core_commit__1189_/Y (BUFX1P4H7L)
+     1    0.000962446    0.057088528    0.059156377    0.302144974 ^ core_commit__1190_/Y (AOI21X0P5H7L)
+    87    0.074117251    0.794148684    0.446767569    0.748912573 ^ core_commit__1191_/Y (BUFX1P4H7L)
+     3    0.002993842    0.153412819    0.035081938    0.783994496 v core_backend_rob__070495_/Y (INVX1P4H7L)
+     8    0.006633617    0.034121249    0.077369504    0.861364007 v core_backend_rob__070496_/Y (BUFX3P5H7L)
+     8    0.006189374    0.043983493    0.057387874    0.918751895 v core_backend_rob__070578_/Y (BUFX1P4H7L)
+     7    0.005508355    0.079580903    0.082155287    1.000907183 v core_backend_rob__070690_/Y (OAI2BB1X1H7L)
+    42    0.032688033    0.352371842    0.213534310    1.214441419 ^ core_backend_rob__070691_/Y (INVX1P4H7L)
+     8    0.005279719    0.096039444    0.087459154    1.301900625 ^ core_memory_unit_lsu__052408_/Y (BUFX0P5H7L)
+     1    0.000673566    0.026717940    0.085922271    1.387822866 ^ core_memory_unit_lsu__062882_/Y (MUX4X1P4H7L)
+     1    0.000877849    0.028615601    0.045348171    1.433171034 ^ core_memory_unit_lsu__062884_/Y (MUX2X0P5H7L)
+     6    0.004682822    0.073912986    0.051710192    1.484881282 v core_memory_unit_lsu__062886_/Y (OAI22X1H7L)
+     8    0.006157363    0.216857433    0.145254031    1.630135298 ^ core_memory_unit_lsu__085212_/Y (OAI21X0P5H7L)
+     2    0.001700828    0.041667845    0.111154981    1.741290331 ^ core_memory_unit_lsu__085214_/Y (MUX4X1H7L)
+     1    0.000951237    0.057948343    0.035509374    1.776799679 v core_memory_unit_lsu__085220_/Y (OAI22X0P5H7L)
+     6    0.004888100    0.136998013    0.086057611    1.862857223 ^ core_memory_unit_lsu__085230_/Y (OAI22X1P4H7L)
+     2    0.001828447    0.057185397    0.048471894    1.911329150 v core_memory_unit_lsu__085231_/Y (NAND2X0P5H7L)
+     3    0.002555863    0.077001810    0.061787467    1.973116636 ^ core_memory_unit_lsu__085232_/Y (AOI31X1P4H7L)
+     6    0.004715680    0.045262061    0.037951197    2.011067867 v core_memory_unit_lsu__085233_/Y (INVX1P4H7L)
+     8    0.006017174    0.043079998    0.060231376    2.071299076 v core_memory_unit_lsu_event_select__084_/Y (BUFX1P4H7L)
+     3    0.003157876    0.129829645    0.087701403    2.159000635 ^ core_memory_unit_lsu_event_select__111_/Y (AOI22X0P5H7L)
+     1    0.000806043    0.028413450    0.049500626    2.208501339 ^ core_memory_unit_lsu_event_select__165_/Y (XNOR2X0P5H7L)
+     1    0.000964895    0.049514819    0.032053918    2.240555048 v core_memory_unit_lsu_event_select__171_/Y (AOI211X0P5H7L)
+     6    0.005077955    0.028812783    0.059287909    2.299843073 v core_memory_unit_lsu_event_select__172_/Y (BUFX3H7L)
+     8    0.007406170    0.076429933    0.070051521    2.369894505 v core_memory_unit_lsu__084950_/Y (BUFX0P5H7L)
+     8    0.006065878    0.064301595    0.074675381    2.444570065 v core_memory_unit_lsu__087885_/Y (BUFX0P5H7L)
+     1    0.000733439    0.100723118    0.099772640    2.544342518 ^ core_memory_unit_lsu__090151_/Y (AOI222X0P5H7L)
+     1    0.000964895    0.038047217    0.032976288    2.577318907 v core_memory_unit_lsu__090152_/Y (OAI2BB1X0P5H7L)
+     2    0.001349784    0.017728532    0.045664586    2.622983456 v core_memory_unit_lsu__090153_/Y (BUFX3H7L)
+     1    0.001181460    0.026381930    0.055661034    2.678644419 v core_memory_unit_lsu_completion__2561_/Y (MUX2X0P5H7L)
+     2    0.001595744    0.014562267    0.036491923    2.715136528 v core_memory_unit_lsu_completion__2562_/Y (BUFX5H7L)
+     1    0.001181460    0.028970070    0.056883834    2.772020340 v core_memory_unit_lsu_completion__2563_/Y (MUX2X0P5H7L)
+     1    0.000816887    0.013204576    0.035778712    2.807798862 v core_memory_unit_lsu_completion__2564_/Y (BUFX5H7L)
+                         0.013204576    0.000000000    2.807798862 v core_memory_unit_lsu_completion__3122_/D (DFFQX1H7L)
+                                                       2.807798862   data arrival time
+
+                         0.000000000    1.000000000    1.000000000   clock core_clock (rise edge)
+                                        0.000000000    1.000000000   clock network delay (ideal)
+                                       -0.049999997    0.949999988   clock uncertainty
+                                        0.000000000    0.949999988   clock reconvergence pessimism
+                                                       0.949999988 ^ core_memory_unit_lsu_completion__3122_/CK (DFFQX1H7L)
+                                       -0.034351528    0.915648460   library setup time
+                                                       0.915648460   data required time
+---------------------------------------------------------------------------------------------------------
+                                                       0.915648460   data required time
+                                                      -2.807798862   data arrival time
+---------------------------------------------------------------------------------------------------------
+                                                      -1.892150521   slack (VIOLATED)
+
+
+
+[Only the first complete path is included; the full local report remains available.]
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/raw_control-register-max.rpt =====
+Startpoint: core_commit__2629_
+            (rising edge-triggered flip-flop clocked by core_clock)
+Endpoint: core_memory_unit_lsu_response_queue__2836_
+          (rising edge-triggered flip-flop clocked by core_clock)
+Path Group: core_clock
+Path Type: max
+
+Fanout            Cap           Slew          Delay           Time   Description
+---------------------------------------------------------------------------------------------------------
+                         0.000000000    0.000000000    0.000000000   clock core_clock (rise edge)
+                                        0.000000000    0.000000000   clock network delay (ideal)
+                         0.000000000    0.000000000    0.000000000 ^ core_commit__2629_/CK (DFFQX1H7L)
+     5    0.004559785    0.045494422    0.081645697    0.081645697 v core_commit__2629_/Q (DFFQX1H7L)
+     8    0.008540741    0.057865620    0.069066204    0.150711909 v core_commit__1188_/Y (BUFX1P4H7L)
+     8    0.014431531    0.093818180    0.092276700    0.242988601 v core_commit__1189_/Y (BUFX1P4H7L)
+     1    0.000962446    0.057088528    0.059156377    0.302144974 ^ core_commit__1190_/Y (AOI21X0P5H7L)
+    87    0.074117251    0.794148684    0.446767569    0.748912573 ^ core_commit__1191_/Y (BUFX1P4H7L)
+     3    0.002993842    0.153412819    0.035081938    0.783994496 v core_backend_rob__070495_/Y (INVX1P4H7L)
+     8    0.006633617    0.034121249    0.077369504    0.861364007 v core_backend_rob__070496_/Y (BUFX3P5H7L)
+     8    0.006189374    0.043983493    0.057387874    0.918751895 v core_backend_rob__070578_/Y (BUFX1P4H7L)
+     7    0.005508355    0.079580903    0.082155287    1.000907183 v core_backend_rob__070690_/Y (OAI2BB1X1H7L)
+    42    0.032688033    0.352371842    0.213534310    1.214441419 ^ core_backend_rob__070691_/Y (INVX1P4H7L)
+     8    0.005279719    0.096039444    0.087459154    1.301900625 ^ core_memory_unit_lsu__052408_/Y (BUFX0P5H7L)
+     1    0.000673566    0.026717940    0.085922271    1.387822866 ^ core_memory_unit_lsu__062882_/Y (MUX4X1P4H7L)
+     1    0.000877849    0.028615601    0.045348171    1.433171034 ^ core_memory_unit_lsu__062884_/Y (MUX2X0P5H7L)
+     6    0.004682822    0.073912986    0.051710192    1.484881282 v core_memory_unit_lsu__062886_/Y (OAI22X1H7L)
+     8    0.006157363    0.216857433    0.145254031    1.630135298 ^ core_memory_unit_lsu__085212_/Y (OAI21X0P5H7L)
+     2    0.001700828    0.041667845    0.111154981    1.741290331 ^ core_memory_unit_lsu__085214_/Y (MUX4X1H7L)
+     1    0.000951237    0.057948343    0.035509374    1.776799679 v core_memory_unit_lsu__085220_/Y (OAI22X0P5H7L)
+     6    0.004888100    0.136998013    0.086057611    1.862857223 ^ core_memory_unit_lsu__085230_/Y (OAI22X1P4H7L)
+     2    0.001828447    0.057185397    0.048471894    1.911329150 v core_memory_unit_lsu__085231_/Y (NAND2X0P5H7L)
+     3    0.002555863    0.077001810    0.061787467    1.973116636 ^ core_memory_unit_lsu__085232_/Y (AOI31X1P4H7L)
+     6    0.004715680    0.045262061    0.037951197    2.011067867 v core_memory_unit_lsu__085233_/Y (INVX1P4H7L)
+     8    0.006017174    0.043079998    0.060231376    2.071299076 v core_memory_unit_lsu_event_select__084_/Y (BUFX1P4H7L)
+     3    0.003157876    0.129829645    0.087701403    2.159000635 ^ core_memory_unit_lsu_event_select__111_/Y (AOI22X0P5H7L)
+     1    0.000826807    0.026799178    0.065346844    2.224347353 v core_memory_unit_lsu_event_select__165_/Y (XNOR2X0P5H7L)
+     1    0.000965796    0.091222964    0.070931487    2.295279026 ^ core_memory_unit_lsu_event_select__171_/Y (AOI211X0P5H7L)
+     6    0.005077899    0.039729316    0.061729290    2.357008219 ^ core_memory_unit_lsu_event_select__172_/Y (BUFX3H7L)
+     1    0.000965796    0.028043011    0.049739547    2.406747818 ^ core_memory_unit_lsu__085093_/Y (AO22X0P7H7L)
+     7    0.005699337    0.041164670    0.050938811    2.457686663 ^ core_memory_unit_lsu__085094_/Y (BUFX3H7L)
+     1    0.000961721    0.054416750    0.035278227    2.492964745 v core_memory_unit_lsu__091097_/Y (AOI211X0P5H7L)
+     2    0.001589030    0.018728759    0.046201266    2.539165974 v core_memory_unit_lsu__091098_/Y (BUFX1P4H7L)
+     1    0.000843792    0.067942813    0.050387472    2.589553595 ^ core_memory_unit_lsu_response_queue__1994_/Y (AOAI211X0P5H7L)
+     1    0.000964895    0.056253117    0.022912340    2.612465858 v core_memory_unit_lsu_response_queue__1995_/Y (AOI21X0P5H7L)
+     1    0.000816887    0.016984232    0.049421359    2.661887169 v core_memory_unit_lsu_response_queue__1996_/Y (BUFX3H7L)
+                         0.016984232    0.000000000    2.661887169 v core_memory_unit_lsu_response_queue__2836_/D (DFFQX1H7L)
+                                                       2.661887169   data arrival time
+
+                         0.000000000    1.000000000    1.000000000   clock core_clock (rise edge)
+                                        0.000000000    1.000000000   clock network delay (ideal)
+                                       -0.049999997    0.949999988   clock uncertainty
+                                        0.000000000    0.949999988   clock reconvergence pessimism
+                                                       0.949999988 ^ core_memory_unit_lsu_response_queue__2836_/CK (DFFQX1H7L)
+                                       -0.037642814    0.912357152   library setup time
+                                                       0.912357152   data required time
+---------------------------------------------------------------------------------------------------------
+                                                       0.912357152   data required time
+                                                      -2.661887169   data arrival time
+---------------------------------------------------------------------------------------------------------
+                                                      -1.749530077   slack (VIOLATED)
+
+
+
+[Only the first complete path is included; the full local report remains available.]
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/results/ai-architecture-20261008/sta-diagnostics/candidate-recovered/raw_payload-register-max.rpt =====
+Startpoint: core_memory_unit_split__4252_
+            (rising edge-triggered flip-flop clocked by core_clock)
+Endpoint: core_memory_unit_lsu_response_queue__2113_
+          (rising edge-triggered flip-flop clocked by core_clock)
+Path Group: core_clock
+Path Type: max
+
+Fanout            Cap           Slew          Delay           Time   Description
+---------------------------------------------------------------------------------------------------------
+                         0.000000000    0.000000000    0.000000000   clock core_clock (rise edge)
+                                        0.000000000    0.000000000   clock network delay (ideal)
+                         0.000000000    0.000000000    0.000000000 ^ core_memory_unit_split__4252_/CK (DFFQX1H7L)
+     8    0.007195183    0.079738304    0.119313963    0.119313963 ^ core_memory_unit_split__4252_/Q (DFFQX1H7L)
+     8    0.007638818    0.115342610    0.089618742    0.208932713 ^ core_memory_unit_split__1815_/Y (BUFX0P7H7L)
+     8    0.009981850    0.112561978    0.094732225    0.303664923 ^ core_memory_unit_split__1816_/Y (BUFX1P4H7L)
+     2    0.001466878    0.037411686    0.048777901    0.352442831 ^ core_memory_unit_split__2115_/Y (NAND2BX0P5H7L)
+     1    0.000961721    0.027927289    0.025601411    0.378044248 v core_memory_unit_split__2116_/Y (OAI2BB1X0P5H7L)
+     2    0.001837122    0.019015949    0.039493214    0.417537451 v core_memory_unit_split__2117_/Y (BUFX1P4H7L)
+     8    0.006755348    0.033486120    0.053432260    0.470969707 v core_memory_unit_lsu__053578_/Y (BUFX3H7L)
+     3    0.002617550    0.148687735    0.101420708    0.572390437 ^ core_memory_unit_lsu__053600_/Y (NOR3BX0P5H7L)
+     3    0.002520713    0.069329031    0.058941022    0.631331444 v core_memory_unit_lsu__053610_/Y (NAND2X0P5H7L)
+    10    0.009150457    0.103595786    0.079101503    0.710432947 ^ core_memory_unit_lsu__053611_/Y (INVX1P4H7L)
+     8    0.007525887    0.086607851    0.080199629    0.790632606 ^ core_memory_unit_lsu_gen_response_capture_0__metadata__2641_/Y (BUFX1P4H7L)
+     8    0.005705263    0.100237072    0.081348650    0.871981263 ^ core_memory_unit_lsu_gen_response_capture_0__metadata__2945_/Y (BUFX0P5H7L)
+     1    0.000823570    0.048269141    0.042631734    0.914612949 v core_memory_unit_lsu_gen_response_capture_0__metadata__4296_/Y (AOI22X0P5H7L)
+     1    0.000715507    0.020359039    0.050607186    0.965220153 v core_memory_unit_lsu_gen_response_capture_0__metadata__4297_/Y (AND4X0P5H7L)
+     1    0.000962446    0.039021764    0.028890558    0.994110703 ^ core_memory_unit_lsu_gen_response_capture_0__metadata__4301_/Y (NAND4X0P5H7L)
+     1    0.000962446    0.017932029    0.033866577    1.027977347 ^ core_memory_unit_lsu_gen_response_capture_0__metadata__4302_/Y (BUFX1P4H7L)
+     8    0.015600559    0.171644628    0.112013072    1.139990330 ^ core_memory_unit_lsu__079174_/Y (BUFX1P4H7L)
+     1    0.000964895    0.027087655    0.074819483    1.214809895 v core_memory_unit_lsu__079237_/Y (MUX2X0P5H7L)
+     4    0.003187675    0.023077231    0.047521543    1.262331367 v core_memory_unit_lsu__079238_/Y (BUFX3H7L)
+                         0.023077231    0.000000000    1.262331367 v core_memory_unit_lsu_response_queue__2113_/D (DFFQX1H7L)
+                                                       1.262331367   data arrival time
+
+                         0.000000000    1.000000000    1.000000000   clock core_clock (rise edge)
+                                        0.000000000    1.000000000   clock network delay (ideal)
+                                       -0.049999997    0.949999988   clock uncertainty
+                                        0.000000000    0.949999988   clock reconvergence pessimism
+                                                       0.949999988 ^ core_memory_unit_lsu_response_queue__2113_/CK (DFFQX1H7L)
+                                       -0.042948529    0.907051444   library setup time
+                                                       0.907051444   data required time
+---------------------------------------------------------------------------------------------------------
+                                                       0.907051444   data required time
+                                                      -1.262331367   data arrival time
+---------------------------------------------------------------------------------------------------------
+                                                      -0.355279922   slack (VIOLATED)
+
+
+
+[Only the first complete path is included; the full local report remains available.]
+
+===== END SOURCE =====
+
+
+===== SOURCE EXCERPT: npc/rv64/vsrc/control/R64Commit.v:90-105 =====
+90:       ({5{retire_fire_o[1]}} & rob_fflags_i[9:5]);
+91:   assign fp_dirty_o = (retire_fire_o[0] &&
+92:                        (kind0 == `R64_K_FP || (rob_rd_write_i[0] && rob_rd_fp_i[0]))) ||
+93:       (retire_fire_o[1] && (kind1 == `R64_K_FP || (rob_rd_write_i[1] && rob_rd_fp_i[1])));
+94:   wire capture_exception = active && head_exception && !irrevocable;
+95:   wire capture_interrupt = active && irq_pending_i && rob_empty_i && !irrevocable;
+96:   assign trap_prepare_o = !rst_i && event_valid_q && event_trap_q && !event_prepared_q;
+97:   assign full_flush_o = !rst_i && event_valid_q && (!event_trap_q || event_prepared_q);
+98:   assign redirect_o = full_flush_o;
+99:   assign redirect_target_o = event_trap_q ? trap_target_i : event_pc_q;
+100:   assign trap_o = full_flush_o && event_trap_q;
+101:   assign trap_interrupt_o = event_interrupt_q;
+102:   assign trap_cause_o = event_cause_q;
+103:   assign trap_pc_o = event_pc_q;
+104:   assign trap_tval_o = event_tval_q;
+105:   // IRQ requests prevent new births but must leave existing ROB-head effects
+===== END EXCERPT =====
+
+
+===== SOURCE EXCERPT: npc/rv64/vsrc/control/R64Commit.v:130-175 =====
+130:   wire scratch_read_w = SCRATCH_READ_RESUME != 0 && kind0 == `R64_K_CSR && rob_meta_i[192+:4] ==
+131:       4 && serial_inst_w[6:0] == 7'h73 && serial_inst_w[13] && serial_inst_w[19:15] == 0 &&
+132:       (serial_inst_w[31:20] == 12'h340 || serial_inst_w[31:20] == 12'h140);
+133:   always @(posedge clk_i) begin
+134:     if (rst_i) begin
+135:       retired_npc_q <= RESET_PC;
+136:       event_valid_q <= 0;
+137:       event_prepared_q <= 0;
+138:       event_trap_q <= 0;
+139:       event_interrupt_q <= 0;
+140:       event_pc_q <= 0;
+141:       event_tval_q <= 0;
+142:       event_cause_q <= 0;
+143:     end else begin
+144:       if (full_flush_o) event_valid_q <= 0;
+145:       if (trap_prepare_o) event_prepared_q <= 1;
+146:       if (retire_fire_o[1]) retired_npc_q <= npc1;
+147:       else if (retire_fire_o[0]) retired_npc_q <= npc0;
+148:       if (trap_o) retired_npc_q <= trap_target_i;
+149:       if (capture_exception) begin
+150:         event_valid_q <= 1;
+151:         event_prepared_q <= 0;
+152:         event_trap_q <= 1;
+153:         event_interrupt_q <= 0;
+154:         event_pc_q <= rob_meta_i[63:0];
+155:         event_cause_q <= rob_cause_i[5:0];
+156:         event_tval_q <= rob_cause_i[5:0] == 2 ? original_instruction : rob_tval_i[63:0];
+157:       end else if (capture_interrupt) begin
+158:         event_valid_q <= 1;
+159:         event_prepared_q <= 0;
+160:         event_trap_q <= 1;
+161:         event_interrupt_q <= 1;
+162:         event_pc_q <= retired_npc_q;
+163:         event_cause_q <= irq_cause_i;
+164:         event_tval_q <= 0;
+165:       end else if (serial_commit_o && !scratch_read_w) begin
+166:         // Non-whitelisted serials retain the original restart policy.
+167:         // Scratch reads retire without creating this event.
+168:         event_valid_q <= 1;
+169:         event_trap_q <= 0;
+170:         event_interrupt_q <= 0;
+171:         event_pc_q <= npc0;
+172:         event_cause_q <= 0;
+173:         event_tval_q <= 0;
+174:       end
+175:     end
+===== END EXCERPT =====
+
+
+===== SOURCE EXCERPT: npc/rv64/vsrc/lsu/R64LsuCompletion.v:1-116 =====
+1: `include "R64Uop.vh"
+2: // Two independently held completion lanes, each with one skid entry. An LSU
+3: // slot can be released when this queue captures its full ROB-tagged result.
+4: // Backpressured heads never migrate between lanes; explicit kill removes only
+5: // its own tagged completion. Ready depends on registered occupancy alone.
+6: module R64LsuCompletion #(
+7:   parameter TAG_W = 9,
+8:   parameter ROB_W = 5
+9: ) (
+10:   input                            clk_i,
+11:   input                            rst_i,
+12:   input                            flush_i,
+13:   input      [     (1<<ROB_W)-1:0] kill_mask_i,
+14:   input      [                1:0] in_fire_i,
+15:   output     [                1:0] in_ready_o,
+16:   input      [        2*TAG_W-1:0] in_tag_i,
+17:   input      [2*`R64_RESULT_W-1:0] in_result_i,
+18:   output     [                1:0] out_valid_o,
+19:   output     [                1:0] out_request_o,
+20:   input      [                1:0] out_ready_i,
+21:   output     [        2*TAG_W-1:0] out_tag_o,
+22:   output     [2*`R64_RESULT_W-1:0] out_result_o,
+23:   output reg [     (1<<ROB_W)-1:0] reuse_block_o,
+24:   output                           idle_o
+25: );
+26:   localparam R = `R64_RESULT_W;
+27:   reg [1:0] front_q, back_q;
+28:   reg [TAG_W-1:0] front_tag_q[0:1], back_tag_q[0:1];
+29:   reg [R-1:0] front_result_q[0:1], back_result_q[0:1];
+30:   reg turn_q;
+31:   wire [1:0] free_w = ~back_q;
+32:   wire first_w = free_w[turn_q] ? turn_q : !turn_q;
+33:   assign in_ready_o = {(&free_w), (|free_w)} & {2{!rst_i && !flush_i}};
+34:   assign idle_o = (front_q | back_q) == 0;
+35:   genvar g;
+36:   generate
+37:     for (g = 0; g < 2; g = g + 1) begin : gen_out
+38:       assign out_valid_o[g] = front_q[g] && !flush_i && !kill_mask_i[front_tag_q[g][ROB_W-1:0]] &&
+39:           !rst_i;
+40:       assign out_tag_o[g*TAG_W+:TAG_W] = front_tag_q[g];
+41:       assign out_result_o[g*R+:R] = front_result_q[g];
+42:     end
+43:   endgenerate
+44:   integer l;
+45:   always @* begin
+46:     reuse_block_o = 0;
+47:     for (l = 0; l < 2; l = l + 1) begin
+48:       if (front_q[l]) reuse_block_o[front_tag_q[l][ROB_W-1:0]] = 1;
+49:       if (back_q[l]) reuse_block_o[back_tag_q[l][ROB_W-1:0]] = 1;
+50:     end
+51:   end
+52:   generate
+53:     for (g = 0; g < 2; g = g + 1) begin : gen_write
+54:       wire front_remove = front_q[g] &&
+55:           (out_ready_i[g] || flush_i || kill_mask_i[front_tag_q[g][ROB_W-1:0]]);
+56:       wire back_cancel = flush_i || kill_mask_i[back_tag_q[g][ROB_W-1:0]];
+57:       wire first_take = in_fire_i[0] && (first_w == g[0]);
+58:       wire second_take = in_fire_i[1] && (first_w != g[0]);
+59:       wire take = first_take || second_take;
+60:       // Port demand may precede the result's registered VALID by one edge.
+61:       // It is a hint only: a canceled/empty forecast can reserve a WB port but
+62:       // cannot transfer a tag or value. Keep all result/cancel storage unchanged.
+63:       assign out_request_o[g] = front_q[g] || back_q[g] || take;
+64:       wire front_input = take && (!front_q[g] || front_remove);
+65:       wire back_input = take && front_q[g] && !front_remove;
+66:       wire front_shift = front_remove && back_q[g];
+67:       // The physical lane assignment is a Q-state fact. Payload preparation
+68:       // must not traverse the final event grant a second time.
+69:       wire input_lane = first_w != g[0];
+70:       wire [TAG_W-1:0] input_tag = input_lane ? in_tag_i[TAG_W+:TAG_W] : in_tag_i[0+:TAG_W];
+71:       wire [R-1:0] input_result = input_lane ? in_result_i[R+:R] : in_result_i[0+:R];
+72:       // Empty payload storage has no owner. Prepare its next value while free;
+73:       // only the unchanged fire/valid equations below create a completion.
+74:       wire front_payload_write = !front_q[g] || front_remove;
+75:       wire back_payload_write = !back_q[g] && front_q[g] && !front_remove;
+76:       always @(posedge clk_i) begin
+77:         if (rst_i) begin
+78:           front_q[g] <= 0;
+79:           back_q[g]  <= 0;
+80:         end else begin
+81:           front_q[g] <= (front_q[g] && !front_remove) ||
+82:               (front_remove && back_q[g] && !back_cancel) || front_input;
+83:           back_q[g] <= (back_q[g] && !front_remove && !back_cancel) || back_input;
+84:           // A populated skid excludes input credit for this physical lane.
+85:           // Thus a removed front takes its skid; otherwise a free front can
+86:           // prepare the incoming payload independently of whether it fires.
+87:           if (front_payload_write) begin
+88:             front_tag_q[g] <= back_q[g] ? back_tag_q[g] : input_tag;
+89:             front_result_q[g] <= back_q[g] ? back_result_q[g] : input_result;
+90:           end
+91:           if (back_payload_write) begin
+92:             back_tag_q[g] <= input_tag;
+93:             back_result_q[g] <= input_result;
+94:           end
+95:         end
+96:       end
+97: `ifdef R64_ASSERT
+98:       always @(posedge clk_i)
+99:         if (!rst_i && front_input && front_shift)
+100:           $fatal(1, "R64LsuCompletion incompatible writes");
+101: `endif
+102:     end
+103:   endgenerate
+104:   always @(posedge clk_i) begin
+105:     if (rst_i) turn_q <= 0;
+106:     else if (in_fire_i[0]) turn_q <= !first_w;
+107:   end
+108: `ifdef R64_ASSERT
+109:   always @(posedge clk_i)
+110:     if (!rst_i) begin
+111:       if ((in_fire_i & ~in_ready_o) != 0 || in_fire_i == 2)
+112:         $fatal(1, "R64LsuCompletion credit/prefix violation");
+113:       if ((back_q & ~front_q) != 0) $fatal(1, "R64LsuCompletion hole");
+114:     end
+115: `endif
+116: endmodule
+===== END EXCERPT =====
+
+
+===== SOURCE EXCERPT: npc/rv64/vsrc/lsu/R64Lsu.v:1617-1685 =====
+1617:   // Cyclic priority advances only after an actual completion capture.
+1618:   // This thermometer marks sources before the next priority position.
+1619:   reg [5:0] event_before_q;
+1620:   wire [5:0] event_last_grant_w = completion_credit_w[1] && (|event_second_w) ?
+1621:       event_second_w : (event_first_w & {6{completion_credit_w[0]}});
+1622:   reg [5:0] event_before_next_w;
+1623:   integer rr_source;
+1624:   always @* begin
+1625:     event_before_next_w = 0;
+1626:     for (rr_source = 0; rr_source < 5; rr_source = rr_source + 1)
+1627:     event_before_next_w = event_before_next_w |
+1628:         ({6{event_last_grant_w[rr_source]}} & ((6'b1 << (rr_source + 1)) - 1'b1));
+1629:   end
+1630:   always @(posedge clk_i) begin
+1631:     if (rst_i) event_before_q <= 0;
+1632:     else if (|event_grant_w) event_before_q <= event_before_next_w;
+1633:   end
+1634:   generate
+1635:     for (e = 0; e < 6; e = e + 1) begin : gen_event_order
+1636:       for (z = 0; z < 6; z = z + 1) begin : gen_precedence
+1637:         assign event_order_w[e*6+z] = (event_before_q[e] && !event_before_q[z]) ||
+1638:             ((event_before_q[e] == event_before_q[z]) && (z < e));
+1639:       end
+1640:     end
+1641:   endgenerate
+1642:   R64LsuOrderSelect #(
+1643:     .N(6),
+1644:     .SLOT_W(3)
+1645:   ) event_select (
+1646:     .valid_i(event_valid_w),
+1647:     .older_i(event_order_w),
+1648:     .first_mask_o(event_first_w),
+1649:     .second_mask_o(event_second_w),
+1650:     .first_valid_o(unused_event_first_valid_w),
+1651:     .second_valid_o(unused_event_second_valid_w),
+1652:     .first_slot_o(unused_event_first_slot_w),
+1653:     .second_slot_o(unused_event_second_slot_w)
+1654:   );
+1655:   // The cyclic order is a total order for every event_before_q bitmap.
+1656:   // Therefore the number of winners depends only on live source count.
+1657:   // Count in parallel with owner arbitration; CQ/WB demand need not wait for
+1658:   // winner selection, while payload and source pop retain canonical winners.
+1659:   wire [2:0] event_pair_any_w = {|event_valid_w[5:4], |event_valid_w[3:2], |event_valid_w[1:0]};
+1660:   wire event_two_w = (|{&event_valid_w[5:4], &event_valid_w[3:2], &event_valid_w[1:0]}) ||
+1661:       (event_pair_any_w[0] && event_pair_any_w[1]) ||
+1662:       (event_pair_any_w[0] && event_pair_any_w[2]) || (event_pair_any_w[1] && event_pair_any_w[2]);
+1663:   integer ev;
+1664:   always @* begin
+1665:     completion_fire_w = {event_two_w, |event_valid_w} & completion_credit_w;
+1666:     completion_tag_w = 0;
+1667:     completion_result_w = 0;
+1668:     event_grant_w = (event_first_w & {6{completion_credit_w[0]}}) |
+1669:         (event_second_w & {6{completion_credit_w[1]}});
+1670:     for (ev = 0; ev < 6; ev = ev + 1) begin
+1671:       completion_tag_w[0+:TAG_W] = completion_tag_w[0+:TAG_W] |
+1672:           ({TAG_W{event_first_w[ev]}} & event_tag_w[ev]);
+1673:       completion_tag_w[TAG_W+:TAG_W] = completion_tag_w[TAG_W+:TAG_W] |
+1674:           ({TAG_W{event_second_w[ev]}} & event_tag_w[ev]);
+1675:       completion_result_w[0+:R] = completion_result_w[0+:R] |
+1676:           ({R{event_first_w[ev]}} & event_result_w[ev]);
+1677:       completion_result_w[R+:R] = completion_result_w[R+:R] |
+1678:           ({R{event_second_w[ev]}} & event_result_w[ev]);
+1679:     end
+1680:   end
+1681:   R64LsuCompletion #(
+1682:     .TAG_W(TAG_W),
+1683:     .ROB_W(ROB_W)
+1684:   ) completion (
+1685:     .clk_i(clk_i),
+===== END EXCERPT =====
+
+
+===== SOURCE EXCERPT: npc/rv64/syn/chengyue64.sdc:1-26 =====
+1: # prepare_sdc.py supplies every scalar data input from the mapped top module.
+2: # This avoids unsupported collection subtraction/globbing in the bundled iEDA.
+3: if {![info exists r64_data_input_names]} {
+4:   error "Run prepare_sdc.py to enumerate the actual mapped data inputs."
+5: }
+6: set clock_period 1.0
+7: if {[info exists env(CLK_FREQ_MHZ)]} {
+8:   set clock_period [expr 1000.0 / $::env(CLK_FREQ_MHZ)]
+9: }
+10: create_clock -name core_clock -period $clock_period [get_ports $r64_clock_port]
+11: # This iEDA version disables both default polarities and both default check
+12: # types. Spell out all four combinations so the intended 50 ps is effective.
+13: set_clock_uncertainty -setup -rise 0.05 [get_clocks core_clock]
+14: set_clock_uncertainty -setup -fall 0.05 [get_clocks core_clock]
+15: set_clock_uncertainty -hold -rise 0.05 [get_clocks core_clock]
+16: set_clock_uncertainty -hold -fall 0.05 [get_clocks core_clock]
+17: foreach port $r64_data_input_names {
+18:   set_input_delay -max 0.4 -clock core_clock [get_ports $port]
+19:   set_input_delay -min 0.0 -clock core_clock [get_ports $port]
+20:   set_input_transition 0.05 [get_ports $port]
+21: }
+22: foreach port $r64_data_output_names {
+23:   set_output_delay -max 0.4 -clock core_clock [get_ports $port]
+24:   set_output_delay -min 0.0 -clock core_clock [get_ports $port]
+25:   set_load 0.02 [get_ports $port]
+26: }
+===== END EXCERPT =====

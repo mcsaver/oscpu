@@ -176,6 +176,8 @@ module AxiPlic #(
   // For the three-bit PLIC priorities, resolve each priority class in
   // parallel, then select the highest nonempty class. Equal-priority sources
   // keep the lowest ID; priority zero and source zero remain ineligible.
+  // Members bit 0 is cleared by the caller: ID 0 is reserved and also
+  // the empty result. The prefix below selects the lowest eligible ID.
   function automatic [4:0] first_source(input [31:0] request);
     reg [4:0] id;
     integer source_index;
@@ -279,6 +281,8 @@ module AxiPlic #(
   assign m_claim_id_r = claim_id_w_by_context[0];
   assign s_claim_id_r = claim_id_w_by_context[1];
 
+  // Native words are little-endian: low occupies bits [31:0]. Assignment
+  // width deliberately keeps both words for DATA_W=64, only low for 32.
   function [DATA_W-1:0] pack_u32_pair;
     input [31:0] low;
     input [31:0] high;

@@ -59,18 +59,10 @@ module R64Issue #(
   output [2*(3*PREG_W+8)-1:0] issue_fp_plan_o,
   output [          SLOT_W:0] count_o
 );
-  // Select this registered owner's candidate bit before applying the late
-  // redirect enable. The ordinary mask remains the default module contract.
-  function cancel_selected;
-    input [ROB_W-1:0] slot;
-    input [(1<<ROB_W)-1:0] candidates, mask;
-    input active;
-    begin
-      cancel_selected = PREPARED_CANCEL ? (active && candidates[slot]) : mask[slot];
-    end
-  endfunction
-
   localparam C_ALU = 0, C_BRANCH = 1, C_MDU = 2, C_FP = 3, C_MEM = 4, C_SERIAL = 5;
+  // IQ conflict codes keep the six class values; native DIV/CLMUL use 6/7.
+  // These are resource identities, not Execute long-unit array indices.
+  localparam [2:0] RESOURCE_MUL = 3'd2, RESOURCE_DIV = 3'd6, RESOURCE_CLMUL = 3'd7;
   reg [N-1:0] valid_q;
   // Admission order is immutable until slot reuse. Selecting by this relation
   // avoids a ROB-head subtract and cascaded age-comparator trees on every issue.
@@ -83,21 +75,16 @@ module R64Issue #(
   reg [PAYLOAD_W-1:0] payload_q[0:N-1];
   reg [2:0] class_q[0:N-1], resource_q[0:N-1];
   wire [5:0] enq_resource_w;
-  function [2:0] resource_class;
-    input [2:0] cls;
-    input [1:0] subunit;
-    begin
-      resource_class = MDU_RESOURCE_PAIR && cls == C_MDU ?
-          (subunit[1] ? 3'd7 : subunit[0] ? 3'd6 : 3'd2) : cls;
-    end
-  endfunction
   genvar resource_lane;
   generate
     for (resource_lane = 0; resource_lane < 2; resource_lane = resource_lane + 1) begin : g_resource
       if (PAYLOAD_W >= 200) begin : g_native
-        assign enq_resource_w[resource_lane*3+:3] = resource_class(
-            enq_class_i[resource_lane*3+:3], enq_payload_i[resource_lane*PAYLOAD_W+198+:2]
-        );
+        wire [2:0] class_w = enq_class_i[resource_lane*3+:3];
+        wire [1:0] subunit_w = enq_payload_i[resource_lane*PAYLOAD_W+198+:2];
+        // Birth records distinct MUL/DIV/CLMUL resources only in native pairing
+        // mode. The class and subunit priority remain explicit at this boundary.
+        assign enq_resource_w[resource_lane*3+:3] = MDU_RESOURCE_PAIR && class_w == C_MDU ?
+            (subunit_w[1] ? RESOURCE_CLMUL : subunit_w[0] ? RESOURCE_DIV : RESOURCE_MUL) : class_w;
       end else begin : g_generic
         assign enq_resource_w[resource_lane*3+:3] = enq_class_i[resource_lane*3+:3];
       end
@@ -118,15 +105,31 @@ module R64Issue #(
   // ownership before reuse; later serial births never enter resident masks.
   reg [(1<<ROB_W)-1:0] serial_dependency_q[0:N-1];
   wire [N-1:0] common_w, eligible0_w, fallback1_w;
-  function compatible;
-    input [2:0] ca, cb, fa, fb, ua, ub;
-    reg [2:0] na, nb;
-    begin
-      na = {2'b0, (fa[0] & ua[0])} + {2'b0, (fa[1] & ua[1])} + {2'b0, (fa[2] & ua[2])};
-      nb = {2'b0, (fb[0] & ub[0])} + {2'b0, (fb[1] & ub[1])} + {2'b0, (fb[2] & ub[2])};
-      compatible = (ca != cb || ca == C_ALU || ca == C_MEM) && na + nb <= 3;
+  wire [2:0] enq_fp_count_w[0:1];
+  wire [N-1:0] enq_to_resident_w[0:1], resident_to_enq_w[0:1];
+  genvar pair_lane, pair_row;
+  generate
+    for (pair_lane = 0; pair_lane < 2; pair_lane = pair_lane + 1) begin : gen_birth_pair
+      wire [2:0] cls_w = enq_resource_w[pair_lane*3+:3];
+      wire [2:0] request_w = enq_src_fp_i[pair_lane*3+:3] & enq_src_used_i[pair_lane*3+:3];
+      assign enq_fp_count_w[pair_lane] = {2'b0, request_w[0]} +
+          {2'b0, request_w[1]} + {2'b0, request_w[2]};
+      for (pair_row = 0; pair_row < N; pair_row = pair_row + 1) begin : gen_resident
+        // Only ALU and MEM may share one resource class. All pairs also share
+        // the three FPR read ports; record the decision on the original birth edge.
+        wire fp_budget_w = enq_fp_count_w[pair_lane] + fp_count_w[pair_row] <= 3;
+        assign enq_to_resident_w[pair_lane][pair_row] =
+            (cls_w != resource_q[pair_row] || cls_w == C_ALU || cls_w == C_MEM) && fp_budget_w;
+        assign resident_to_enq_w[pair_lane][pair_row] =
+            (resource_q[pair_row] != cls_w || resource_q[pair_row] == C_ALU ||
+             resource_q[pair_row] == C_MEM) && fp_budget_w;
+      end
     end
-  endfunction
+  endgenerate
+  wire birth_pair_compatible_w =
+      (enq_resource_w[0+:3] != enq_resource_w[3+:3] ||
+       enq_resource_w[0+:3] == C_ALU || enq_resource_w[0+:3] == C_MEM) &&
+      enq_fp_count_w[0] + enq_fp_count_w[1] <= 3;
   wire sel0_valid_w, sel1_valid_w;
   wire [SLOT_W-1:0] sel0_slot_w, sel1_slot_w;
   assign free_w = ~valid_q;
@@ -177,9 +180,11 @@ module R64Issue #(
   genvar s;
   generate
     for (s = 0; s < N; s = s + 1) begin : gen_eligibility
-      assign live_w[s] = valid_q[s] && !cancel_selected(
-          tag_q[s][ROB_W-1:0], cancel_candidates_i, kill_mask_i, cancel_active_i
-      ) && !flush_i && !rst;
+      // 先查询该行 owner，再应用本拍取消许可；默认接口仍直接查询 kill mask。
+      wire cancelled_w = PREPARED_CANCEL ?
+          (cancel_active_i && cancel_candidates_i[tag_q[s][ROB_W-1:0]]) :
+          kill_mask_i[tag_q[s][ROB_W-1:0]];
+      assign live_w[s] = valid_q[s] && !cancelled_w && !flush_i && !rst;
       assign age_w[s] = tag_q[s][ROB_W-1:0] - rob_head_i;
       assign fp_count_w[s] = {2'b0, (used_q[s][0] & fp_q[s][0])} +
           {2'b0, (used_q[s][1] & fp_q[s][1])} + {2'b0, (used_q[s][2] & fp_q[s][2])};
@@ -339,51 +344,16 @@ module R64Issue #(
           if (rst || flush_i) compatible_q[cr][cc] <= 0;
           else begin
             if (enq_fire_w[0] && pick0_w[cr])
-              compatible_q[cr][cc] <= compatible(
-                  enq_resource_w[0+:3],
-                  resource_q[cc],
-                  enq_src_fp_i[0+:3],
-                  fp_q[cc],
-                  enq_src_used_i[0+:3],
-                  used_q[cc]
-              );
+              compatible_q[cr][cc] <= enq_to_resident_w[0][cc];
             if (enq_fire_w[0] && pick0_w[cc])
-              compatible_q[cr][cc] <= compatible(
-                  resource_q[cr],
-                  enq_resource_w[0+:3],
-                  fp_q[cr],
-                  enq_src_fp_i[0+:3],
-                  used_q[cr],
-                  enq_src_used_i[0+:3]
-              );
+              compatible_q[cr][cc] <= resident_to_enq_w[0][cr];
             if (enq_fire_w[1] && pick1_w[cr])
-              compatible_q[cr][cc] <= compatible(
-                  enq_resource_w[3+:3],
-                  resource_q[cc],
-                  enq_src_fp_i[3+:3],
-                  fp_q[cc],
-                  enq_src_used_i[3+:3],
-                  used_q[cc]
-              );
+              compatible_q[cr][cc] <= enq_to_resident_w[1][cc];
             if (enq_fire_w[1] && pick1_w[cc])
-              compatible_q[cr][cc] <= compatible(
-                  resource_q[cr],
-                  enq_resource_w[3+:3],
-                  fp_q[cr],
-                  enq_src_fp_i[3+:3],
-                  used_q[cr],
-                  enq_src_used_i[3+:3]
-              );
+              compatible_q[cr][cc] <= resident_to_enq_w[1][cr];
             if (enq_fire_w == 2'b11 &&
                 ((pick0_w[cr] && pick1_w[cc]) || (pick1_w[cr] && pick0_w[cc])))
-              compatible_q[cr][cc] <= compatible(
-                  enq_resource_w[0+:3],
-                  enq_resource_w[3+:3],
-                  enq_src_fp_i[0+:3],
-                  enq_src_fp_i[3+:3],
-                  enq_src_used_i[0+:3],
-                  enq_src_used_i[3+:3]
-              );
+              compatible_q[cr][cc] <= birth_pair_compatible_w;
             if (cr == cc) compatible_q[cr][cc] <= 0;
           end
         end
@@ -481,7 +451,8 @@ module R64Issue #(
   generate
     for (genvar rr = 0; rr < N; rr = rr + 1) begin : g_resource_contract
       if (PAYLOAD_W >= 200) begin : g_native
-        assign reference_resource_w[rr*3+:3] = resource_class(class_q[rr], payload_q[rr][198+:2]);
+        assign reference_resource_w[rr*3+:3] = MDU_RESOURCE_PAIR && class_q[rr] == C_MDU ?
+            (payload_q[rr][199] ? 3'd7 : payload_q[rr][198] ? 3'd6 : 3'd2) : class_q[rr];
       end else begin : g_generic
         assign reference_resource_w[rr*3+:3] = class_q[rr];
       end
@@ -511,13 +482,10 @@ module R64Issue #(
       if (enq_valid_i[1] && !enq_valid_i[0]) $fatal(1, "R64 issue enqueue not dense");
       for (integer a = 0; a < N; a = a + 1)
       for (integer b = 0; b < N; b = b + 1)
-      if (live_w[a] && live_w[b] && a != b && compatible_q[a][b] != compatible(
-              reference_resource_w[a*3+:3],
-              reference_resource_w[b*3+:3],
-              fp_q[a],
-              fp_q[b],
-              used_q[a],
-              used_q[b]
+      if (live_w[a] && live_w[b] && a != b && compatible_q[a][b] != (
+              (reference_resource_w[a*3+:3] != reference_resource_w[b*3+:3] ||
+               reference_resource_w[a*3+:3] == C_ALU || reference_resource_w[a*3+:3] == C_MEM) &&
+              fp_count_w[a] + fp_count_w[b] <= 3
           ))
         $fatal(1, "R64 issue registered resource pair mismatch");
       else if (live_w[a] && live_w[b] && older_q[a][b] != (age_w[b] < age_w[a]))

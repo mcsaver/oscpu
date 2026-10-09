@@ -1,0 +1,1659 @@
+RV64 CURRENT TOPOLOGY — 2026-10-08 handoff
+This is a source-derived snapshot, not a new PPA result. Chinese text and Mermaid source follow.
+Current RTL retains round1 load-response bypass; round2 fixed-slot CQ was rejected/restored.
+Files below label historical September measurements separately. Current source wins over old history.
+Local source links are references for Codex to retrieve; the web model cannot open the local workspace.
+All eight topology documents are included in full; do not infer latency just from arrows or queue depth.
+The design-unit IDs are coordinates for proposals, not fixed architectural restrictions.
+
+
+===== SOURCE: npc/rv64/ARCHITECTURE.md =====
+# 承岳64架构入口
+
+当前主线为 **ChengYue64（承岳64）v1.0.0**，版本真源是
+[core-version.mk](core-version.mk)。主线 RTL 直接列在 [vsrc/filelist.mk](vsrc/filelist.mk)，
+按功能保存在 `vsrc/` 的各子目录；模块连接和参数以源码为准。
+
+## 系统边界
+
+| 层次 | 实现 | 职责 |
+| --- | --- | --- |
+| CPU | [R64CoreTop](vsrc/core/R64CoreTop.v) | 取指、双发射乱序后端、整数/浮点执行、提交/CSR、LSU/MMU/Cache、AXI |
+| 系统 | [R64SystemTop](vsrc/platform/R64SystemTop.v) | CPU、AXI fabric、CLINT、PLIC、UART、RTC 和 syscon |
+| 可选协处理器系统 | [R64TensorSystemTop](vsrc/platform/R64TensorSystemTop.v) | 真实 Tensor/NPU 接口、DMA 和缓存一致性配合 |
+| 仿真宿主与观察 | [sim/](sim/README.md) | RTL 仿真封装输出观察状态；C++ 宿主驱动时钟、镜像和设备，不参与硬件综合 |
+| 架构状态差分 | [difftest/](difftest/README.md) | NEMU 接口、退休/trap 对齐、PC/GPR/FPR 和选定 CSR 比较 |
+| 定向测试与回归 | [testbench/chengyue64](testbench/chengyue64/README.md) | 模块激励、程序、oracle、测试生成器和回归调度 |
+
+主线能力包括 RV64IMAFDC、Zicsr/Zifencei、Zba/Zbb/Zbc/Zbs、M/S/U、Sv39、
+16 项 PMP、原子操作与 Sdtrig 地址触发器。扩展能力及系统接入取舍见
+[系统替换记录](design/arch/rv64-replacement.md)；具体行为由 RTL、参考配置和定向测试共同约束。
+
+## 详细设计
+
+- [全核拓扑](vsrc/TOPOLOGY.md)：请求、完成、信用、恢复和不可取消事务的连接。
+- [模块清单](vsrc/MODULES.md)：源码中声明的模块与文件位置；它不是实例化证明。
+- [前端](vsrc/frontend/TOPOLOGY.md)、[后端](vsrc/backend/TOPOLOGY.md)、
+  [浮点](vsrc/fp/TOPOLOGY.md)、[提交控制](vsrc/control/TOPOLOGY.md)、
+  [翻译与保护](vsrc/memory/TOPOLOGY.md)、[LSU/Cache](vsrc/lsu/TOPOLOGY.md)、
+  [总线与平台](vsrc/bus/TOPOLOGY.md)：各模块域的详细连接与设计取舍。
+- [设计资料分类](design/README.md)：主线说明、共享 IP 规范、文献和旧核资料的适用范围。
+
+源码旁的拓扑文档也包含标有日期的优化测量；这些测量只描述对应版本。
+最新正式版本的 CPI/STA 和验证范围在[发布说明](releases/chengyue64-v1.0.0/README.md)中维护。
+
+## 验证和实现证据
+
+[DiffTest 文档](difftest/README.md)说明逐条提交的 PC/GPR/FPR 检查，
+以及当拍提交和 trap 处理后的 CSR 比较；[系统仿真](sim/README.md)
+说明 Linux、设备与 NPU 的运行边界。[综合与 STA](syn/README.md)说明真实网表、约束和时序判定。
+理想吞吐目标为 CPI 0.5，当前 1 ns / 1 GHz 时序尚未闭合；局部测试、短程序和布局前报告
+不能代替完整系统验证或物理签核。
+
+## 历史资料
+
+冻结 timing28–33、早期 CPU-only 暂停范围及旧 Ooo* 核的架构快照已归入
+[历史文档](design/history/README.md)。其任务状态和测量不描述当前主线。
+旧核完整源码、配置与文档见[封存包](../pack/rv64core-legacy-20260916/README.md)。
+旧 Ooo* 主核不在 `vsrc/` 中；个别测试复用的旧实现位于测试 oracle 目录，保持其验证用途。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/ai/topology-contract.md =====
+# 网页架构设计的拓扑与量化约定
+
+本约定服务用户选择的分工：网页 Pro 主导目标解释、根因假设、设计空间比较和微架构变换；
+Codex 提供当前结构、源码和实验事实，完成实现与验证。它不建立新的批准 gate，也不保证某种模型必然得到更优方案。
+
+## 什么是一颗可量化的设计单元
+
+设计单元是一个有清晰状态归属、接收边沿、可见输出和取消/副作用合同的结构。组合子过程可作为该单元的子边标出。
+一个文件可包含多个设计单元，一个单元也可以跨多个文件。ID 用于在图、源码与实验之间定位，允许方案把单元合并或拆开。
+
+| 维度 | 必要事实 / 表达方式 |
+|---|---|
+| 位置与状态 | 稳定 ID、模块实例/源码、权威 Q 状态；副本是缓存、投影还是 owner |
+| 数据边界 | 输入/输出 payload 和 tag 宽度；在哪个 valid && ready / grant 边沿建立所有权 |
+| 容量 | 项数、端口/通道数、可并发 owner；区分集成参数、默认参数及可选支路 |
+| 时序 | 同拍组合依赖、寄存边界、最早延迟与背压条件；不把队列深度当固定 latency |
+| 吞吐 | 每拍最大真实接收/发出数、是否共享资源、initiation interval；未测填 UNKNOWN |
+| 恢复 | reset、full flush、选择性 kill、undo、token/tag 复用、不可取消请求的 drain |
+| 成本 | 逻辑状态位/选择宽度；mapped area / fanout / slew / slack 必须带测量范围，不由框图猜数 |
+| 动态证据 | 有效窗口内的占用、阻塞条件、接收/完成数、latency 分布；重叠计数不得当互斥停顿相加 |
+| 未知项 | 标出 UNKNOWN，并给最便宜的区分性观察方法；不是要求补齐全部数据才允许设计 |
+
+全核保留四类图或边：数据、资格与信用、取消与恢复、不可撤销副作用。每条关键边说明源/目标 ID、
+信号/owner、组合或寄存、真实接收条件与反压方向。只画 IF/ID/EX/MEM/WB 或模块方框不足以描述乱序事务生命周期。
+
+## Codex 发给网页端的材料
+
+1. 简短任务：用户目标、当前基线、硬约束、可观察验收和当前开放问题。不给本地首选架构。
+2. 全核与各域的当前拓扑、单元表和源码定位。旧实验必须标日期和当前是否采用。
+3. 实测事实：最差路径及邻近端点族、内部 Q 起点路径、对应时钟/库/输入延迟；动态周期、已知延迟和 UNKNOWN。
+4. 足够核查合同的源码附件；网页不能访问的本地路径不能作为唯一证据。缺少的源码可以按网页请求补发。
+5. 已失败实验用简短事实呈现，包含联合改动范围和实测结果；不把失败解释强加为最终根因。
+
+优先上传可检索文本（含 Mermaid 原码、表格、来源和编号源码片段），图像可补充阅读但不作为唯一合同。
+附件是当前快照；源码改变后重新导出，并明确旧测量是否仍适用。不要上传全量 build、标准单元库或无关私密文件。
+
+## 网页端应交付的设计变更
+
+网页负责提出并比较少量完整候选，而非仅审查 Codex 提出的候选。每个候选可用下表表达，必要时附修改后的图或伪 RTL。
+
+| 项目 | 输出 |
+|---|---|
+| 结构变换 | 涉及的单元 ID、要切断/新增的依赖边、状态迁移和新寄存边界 |
+| 周期合同 | latency / initiation interval / capacity / credit 在改动前后的值或可证伪假设 |
+| 正确性 | 同拍 kill+response、背压、tag 复用、精确异常、store 与不可撤销外部事务如何处理 |
+| 收益解释 | 预期改善什么可观察指标；数值是测量、估计还是上界；为什么不只是移动瓶颈 |
+| 代价与边界 | 下游 mux、fanout、恢复周期、面积/时序、额外状态和代表负载的风险 |
+| 最小完整实验 | 哪些变更必须一起做，哪些可以独立消融；最有判别力的用例与保留/淘汰条件 |
+
+以上是帮助直接实施的表达方式，不要求为每次小修填表。源码前提错误由 Codex 用证据纠正；
+若纠正改变架构取舍，返还网页端决策。Codex 不盲目照抄，也不在执行时暗中替换已选择的主要架构。
+
+## 结果回传
+
+回传相同设计点的功能、周期、关键机制和输入/输出/相邻路径测量；区分已有结果、新测、失败与未运行。
+网页根据结果调整结构；本地按已约定条件直接保留或回滚。不把新增观察工具、文件数或成功上传称为性能提升。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/TOPOLOGY.md =====
+# 承岳64全核拓扑与可量化设计边界
+
+范围为实际 R64CoreTop 与包含 Fabric/设备的 R64SystemTop。结构以当前 RTL 的实例化和参数为准；下面标有 2026-09 的实验说明保留历史含义，不是当前优化计划。不能把文件列表等同于实际实例：通用参考 helper 和可选 Tensor 数据通路需与生产 elaboration 区分。
+
+
+## 2026-10-08 当前工作版本与读图规则
+
+当前工作版本保留第一轮普通 RAM load response bypass；第二轮取消前仲裁 + 固定物理 CQ 的联合候选已淘汰并恢复。
+当前生产 CQ 仍是 front/skid 两 lane、总四条，不是归档的固定槽候选。当前存在未提交源码/观察改动，
+不能只凭版本号或分支名把旧测量视为当前测量。证据入口为
+[第二轮结果](../ai/tests/2026-10-08-round2-architecture/RESULT.md) 和
+[输入/输出及 Q 起点 STA](../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)。
+
+| 当前同源测量事实 | 数值 / 限定 |
+|---|---|
+| CoreMark 10 完整执行 | 8,968,518 cycles / 3,218,537 retired；CPI 2.786520087 |
+| Dhrystone 10000 完整执行 | 14,267,505 / 4,260,670；CPI 3.348652911 |
+| 布局前完整 SystemTop STA | icsprout55 TT/1.2V/25C；1 ns；uncertainty 0.05 ns；setup WNS −2.119304419 ns；hold WNS −0.036660694 ns；FAIL |
+| 最差输入路径 | rst_i → Commit full_flush → ROB kill_mask[18] → LSU event_select → event_before_q[0] |
+| 已有内部 Q 起点违例 | Commit event_trap_q → CQ payload：−1.892150521 ns；→ raw response control：−1.749530077 ns |
+| 相邻限制 | effect_q[1] slack −2.109362364 ns；CQ payload 最差 −2.111715555 ns；不能只追一个端点 |
+| 正常合资格 load 的已测完成延迟 | load_chain 的真实 response → CQ 捕获 0 拍，response → WB 接受 2 拍；不是完整 load-to-use 延迟 |
+
+表中数据来自既有冻结 RTL 测量，本次拓扑更新没有运行新基准或 STA。旧结果与当前结构说明分开阅读。
+
+全核优化的设计单元以“状态由谁持有、在哪个边沿接收、接收前后允许做什么”为边界，不以一个 Verilog 文件为单位。
+各域当前表使用 FE / BE / FP / CTL / MEM / LSU / BUS 稳定 ID。它们是定位和测量的坐标，允许网页设计者
+提出合并、拆分、重定时、预测或信用变更；不是限制架构搜索只能在单模块内进行。
+[设计单元与输出约定](../ai/topology-contract.md) 定义需要记录的可量化属性及 UNKNOWN 表达。
+
+- **数据网络**：值和完整 tag/owner 从哪里来，何时可被使用。
+- **资格/信用网络**：valid/ready/grant/credit 是旧 Q 态、本拍组合还是已登记预约；图中一条箭头不自动等于一拍。
+- **取消/恢复网络**：reset、全清、选择性 kill、undo 与 owner 复用是不同条件。
+- **副作用网络**：store/CSR/AXI 在哪个真实接收边沿不可撤销；晚到响应由哪个状态排空。
+
+reset 是同步状态清除，并用于组合接口静默。运行时 full_flush 为
+`!rst_i && event_valid_q && (!event_trap_q || event_prepared_q)`；普通分支另走选择性恢复。
+reset 出现在 STA 起点不证明所有路径是假路径，也不证明复位初值要经过仲裁才能产生。
+CQ 宽 payload 已无清零 reset，仍可能通过保持/写使能依赖 reset、flush、kill 与 ready。
+
+```mermaid
+flowchart TB
+  F["Frontend：Fetch/Align/Predict/4条指令FIFO"] --> DE["DecodeStage：4条"]
+  DE --> B["原子 birth：ROB + Rename + IQ + LSQ"]
+  B --> IQ["IQ：ready/age/resource top2"]
+  IQ --> RR["RegRead：2个ingress / 每lane2个terminal；4GPR+3FPR"]
+  RR --> EX["Execute：ALU x2 / MUL / DIV / CLMUL"]
+  RR --> FP["FP dispatch：FMA / FAST / LONG"]
+  RR --> LS["LSU：20项owner / 翻译 / 转发 / 完成"]
+  RR --> SE["Serial：CSR/FENCE/系统指令"]
+  EX --> WB["Writeback：9源选2 / owner certificate"]
+  FP --> WB
+  LS -->|"load / exception completion"| WB
+  LS -->|"store_done：独立terminal"| ROB
+  SE --> WB
+  WB --> ROB["ROB32：generation/完成/异常/回滚"]
+  ROB --> CM["Commit：双退休前缀 / 精确副作用"]
+  CM --> AR["架构 Rename / CSR"]
+  AR --> B
+  WB --> IQ
+  WB --> RR
+  EX -. "ALU early wake / data bypass" .-> IQ
+  EX -. "ALU data bypass" .-> RR
+  EX -. "branch preview / resolve" .-> ROB
+  ROB -. "kill / undo / reuse barrier" .-> IQ
+  ROB -. "kill / owner drain" .-> LS
+  ROB -. "redirect" .-> F
+  CM -. "trap / xRET / fence / CSR context" .-> F
+  F --> IT["I translation / ICache"]
+  LS --> DT["D translation x2 / Protection x2"]
+  DT --> MS["Split / MemoryService / DCache"]
+  IT --> PP["I PTW / PtePort"]
+  DT --> PP
+  PP --> MS
+  IT --> AX["AXI read adapter"]
+  MS --> AX
+  MS --> AW["AXI write adapter"]
+  AX --> FA["Fabric：4read/2write owner；memory+MMIO read groups"]
+  AW --> FA
+  FA --> DEV["PSRAM/SDRAM/外部MMIO；CLINT/PLIC/UART/RTC/syscon"]
+  DEV -. "time / IRQ / control event" .-> AR
+```
+
+请求、返回、信用与取消是四张相互约束的网络。图中实线为主要请求/结果，虚线为提前唤醒、恢复、上下文与事件。ROB tag、LSQ slot/token、Fabric事务槽和 AXI ID 属于不同命名空间；只在明确接收边沿建立对应关系。
+
+## 2026-09 全拓扑迭代历史记录
+
+下表与紧随其后的基线数字属于 2026-09 迭代；保留可复核出处，不作为本轮首选方案。
+
+| 模块域 | 详细拓扑 | 当时处理与判据 |
+|---|---|---|
+| 前端 | [Frontend](frontend/TOPOLOGY.md) | 空槽准备、部分消费指针、RAS并行转发；先要求相同 CPI/恢复计数。 |
+| 后端 | [Backend](backend/TOPOLOGY.md) | 双空项前缀、IQ空行数据准备、静态年龄矩阵；IQ32 单独试验。 |
+| 整数/浮点执行 | [Arithmetic/FP](fp/TOPOLOGY.md) | 保持拍数的公共 carry finish；FP四源选择与数据捕获。 |
+| 提交控制 | [Control](control/TOPOLOGY.md) | 保留精确事件边界和现有 CSR 快路径；基准未显示扩大串行快路径的收益依据。 |
+| 翻译/保护/缓存 | [Memory](memory/TOPOLOGY.md) | TLB空项、PTE空闲数据、ICache查询准备；最终按STA优化DCache物理写口。 |
+| LSU | [LSU](lsu/TOPOLOGY.md) | 保留 pin/排空契约；STA反馈轮将宽转发数据提前至驻留query阶段准备，并移除物理发出时的重复 MEMORY 状态写入。 |
+| BUS/平台 | [BUS](bus/TOPOLOGY.md) | 保留四批结构；与Core一同综合，确认全核路径而非只测孤立Fabric。 |
+
+2026-09 基线事实：CoreMark 9,573,233 cycles / 3,218,524 retired，CPI 2.974417155；Dhrystone 15,259,347 / 4,260,670，CPI 3.581443059。26项观察计数有重叠，不能直接求和为总停顿。
+
+完整 SystemTop 基线在1ns/0.05ns uncertainty、icsprout55 TT1.2V25C下，setup=-2.803282499ns，hold=-0.036660694ns，真实状态为 FAIL。最差链已定位至 DCache bank 写数据；不是所有模块频率都由这一个数代表。后续所有结论以同源测量为准，不能把数据路径优化直接换算为已实现的硅后Fmax。
+
+对应结果：[全拓扑迭代目录](../../../tmp/rv64-whole-topology-20260908/PLAN.md)。每阶段保存源码差异、配置、功能/CPI结果、STA路径与RTL对应，再清除综合网表及可再生构建产物。
+
+## 分配、执行与完成信用的完整连接
+
+下图是主数据流之外的资源网络。箭头表示资格或可用空间的传递，不代表组合穿透，也不能把队列深度相加作为独立指令容量。
+
+```mermaid
+flowchart LR
+  RF["ROB空槽 + 旧owner复用保护"] --> B["按程序顺序形成birth前缀"]
+  PF["GPR/FPR free位图<br/>仅实际目的写需要"] --> B
+  IF["IQ空行Q态信用"] --> B
+  LF["LSQ free Q态信用<br/>仅MEM需要"] --> B
+  B --> OWN["同一边沿建立ROB / Rename / IQ / LSQ绑定"]
+  OWN --> IQ["IQ：已唤醒候选 / 年龄 / 资源配对"]
+  RP["RR ingress/terminal信用<br/>4GPR + 3FPR读口预算"] --> IQ
+  IQ --> RR["RR保持完整owner与读取计划"]
+  FU["各FU预约/terminal信用"] --> RR
+  RR --> EXEC["实际FU或LSU bind接受"]
+  EXEC --> T["局部terminal：ALU/MDU/FP/LSU/Serial"]
+  WC["WB寄存grant与结果槽"] --> T
+  T --> WB["WB捕获 / ROB owner认证"]
+  WB --> IQ
+  RET --> RF
+  RET["双退休前缀 / 旧preg回收 / LSQ commit"] --> PF
+  RET -->|"store commit / pin条件"| LREL["LSU：load完成捕获 / dead排空 / 无引用store释放"]
+  LREL --> LF
+  WB --> RET
+```
+
+birth受阻的IQ、ROB、PRF、LSQ观察计数可能同时为真；它们不能相加成为总停顿。IQ变大可能只让指令更早进入ROB，从而把信用压力移到ROB。完成也有两层选择：FP/LSU先在本地形成结果，再参与全核9选2。局部结果已算完，不等于已唤醒消费者或可退休。
+
+## 恢复和不可取消事务的连接
+
+```mermaid
+flowchart LR
+  BR["分支preview / resolve"] --> RP["ROB恢复计划 / 年轻后缀"]
+  RP --> K["kill / prepared cancel"]
+  RP --> UN["每拍最多2项逆序undo"] --> RN["Rename恢复"]
+  CM["Commit已寄存trap / xRET / serial事件"] --> FL["full flush / redirect"]
+  FL --> RN
+  K --> LOCAL["IQ / RR / FU / WB的可取消owner"]
+  FL --> LOCAL
+  K --> LS["LSU：取消未发请求；已接受请求登记dead"]
+  FL --> LS
+  LS --> DR["翻译与物理响应继续drain"]
+  DR --> RE["逐份引用释放 / reuse_block"] --> RA["ROB槽复用资格 / 分配"]
+  BR --> FE["Frontend训练 / redirect"]
+  FL --> FE
+  FE --> FD["旧取指事务按owner排空"]
+  AX["已接受AR / AW / W<br/>BUS没有ROB kill输入"] --> DR
+```
+
+ROB tag、LSQ slot、Service source/token、AXI ID与Fabric事务槽属于不同标识空间。取消指令可以撤销其结果发布资格，但不能把已经接受的外部事务当作未发生，也不能在旧引用释放前复用其身份。
+
+整合版DCache的pending write属于已接受的缓存更新，不是新发出的一条CPU指令或新的外部store。满足驻留命中且未poison/invalidate条件的成功B，以及可分配refill的真实R，产生缓存逻辑写事件；待写状态按byte向lookup转发，下一拍落阵列。它不受ROB分支kill撤销；invalidate清除tag valid，迟到的阵列写不能重新安装valid。LSU源store在无引用后释放时，后续物理查询仍能观察到一致的缓存数据。
+
+整机综合反馈按 DCache 高扇出写数据 → LSU query_take 控制宽转发快照 / 冗余状态更新推进。各轮测量保留在结果目录；对外请求发布、pin释放、已发owner及完成资格维持原拍数，详细边界见 LSU 图。
+
+## 2026-09 迭代末次 STA 暴露的跨模块路径
+
+DCache和LSU宽数据优化后，完整SystemTop最差setup=-2.261837959ns，端点为LSU forward_mask_q[19][6]。这条路径实际经过query取消资格、MemorySplit和MemoryService，再返回LSU。它是有效性与接收信用的组合往返，图中的末端寄存器承接路径，不代表组合环。
+
+```mermaid
+flowchart LR
+  C["reset / Commit flush / ROB cancel"] --> Q["query tag选择取消资格"]
+  Q --> V["query valid → LSU mem_valid"]
+  V --> SP["MemorySplit：对齐与双lane路由"]
+  SP --> SV["MemoryService：CPU/aux配对"]
+  SV --> R["cpu_ready → mem_ready → query_take"]
+  R --> M["Q：forward_mask发布"]
+```
+
+当时报告据此提出检查 mask/descriptor 的准备与可见性、以及 Split/Service 的寄存信用；这是历史建议，当前方案由新的完整事实和实测决定。不能为缩短路径撤销真实取消检查，或让尚未接收的请求提前成为已发owner。本轮完整结果、IQ16/32取舍及后续验证问题见[最终评估](../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/frontend/TOPOLOGY.md =====
+# 前端拓扑与优化记录
+
+原优化记录以 BUS 第四批为基线；其时序/CPI 实测与清理记录位于 tmp/rv64-whole-topology-20260908，属于历史记录。2026-10-08 当前结构核对见末节；通用模块的可选分支不等于生产流水。
+
+```mermaid
+flowchart LR
+  FS["FetchStream：4 个请求/packet 信用"] --> TR["FetchTranslation：lookup / walk / 2 个返回 owner"]
+  TR --> IC["ICache：overflow + lookup + response"]
+  IC --> PK["packet FIFO"]
+  PK --> W["Align work：2 个 packet owner"]
+  W --> AL["Parse / Align：3 个 parse owner；组合边界选择"]
+  AL --> B["Bundle：2 个物理 pair"]
+  B --> T["Token：2 个 pair；RVC / PC arithmetic / prediction snapshot"]
+  T --> R["Result：2 个 pair；RAS journal"]
+  R --> O["指令 FIFO：4 条"]
+  O --> D["DecodeStage：4 条"]
+  BP["Predictor：BHT256 / 间接目标64 / RAS8"] --> T
+  R --> BP
+  EX["分支 resolve / redirect"] --> BP
+  EX --> FS
+```
+
+| 文件 | 状态、关键边及本轮处理 |
+|---|---|
+| R64FetchStream.v | 取指请求和 packet 信用先预约；redirect 后旧响应仍按 owner 排空。32 项 early target 保留。 |
+| R64PacketParse.v | 半字边界预解析、长度/异常映射与跨 packet 缺失信息；先计算固定候选，后选择 cursor。保留现有三候选结构。 |
+| R64Align.v | 消费前缀、跨包拼接、异常字节及 successor 修复；窄选择信息与宽指令数据保持同一 owner。保留。 |
+| R64Rvc.v | 编码合法性与 RVC 展开为纯组合；不能通过省略保留编码/异常来缩短路径。保留。 |
+| R64Predictor.v | BHT/BTB/RAS 更新来自既定训练边沿。六个待提交 RAS 记录先计算最年轻命中 one-hot，再并行合并 payload，替代宽串行覆盖链。 |
+| R64Frontend.v | Bundle/Token/Result 空闲物理槽预写 payload；valid、异常与指针按真实 admission 更新。Result 部分消费用每 pair 的 half 位选择第二物理 lane，不再搬移 410 bit。 |
+
+信用返回和恢复：准备 payload 不创建有效指令；满槽冻结。部分消费只释放已被消费者接受的前缀。RAS 的 speculative journal 与前端已确认接收前缀必须按同一恢复边界选择；这里的 confirmed 不是 ROB 退休提交栈。ICache/翻译已接受事务不能由 CPU redirect 直接释放。
+
+上述历史前端版本 CoreMark 曾与当时基线 cycles、retired 及全部 26 项观察计数一致；该记录不等于本次重新测量。
+
+
+## 2026-10-08 当前设计单元
+
+本节以当前 `R64CoreTop.frontend` 和源代码核对，不选择候选架构。ID 标识状态和接口责任，可跨文件讨论；
+`Q` 是现有时钟寄存边界，箭头之间的组合选择不自行计为一级。容量、数值流水级数和实际端到端等待分别描述。
+生产参数是 `PREPARED_PROTECTION=1`、`FETCH_PTR_W=2`、`EARLY_PREDICT=1`、`ICACHE_SET_W=6`；后两项沿用 Frontend 默认值。
+翻译与 ICache 内部状态另见 [存储与翻译拓扑](../memory/TOPOLOGY.md)，不能从本表推断其 miss 延迟。
+
+| ID / 状态 owner 与源码 | 当前寄存容量 / 数据宽度 | 同拍依赖、接受与跨拍关系 | 恢复 / 晚响应责任 |
+| --- | --- | --- | --- |
+| FE-01 取指流信用；`u_stream`，[R64FetchStream.v](R64FetchStream.v) | 请求 holder 1 个；owner FIFO 4 项；packet FIFO 4 项；三者共用 **4 份预约信用**，不能相加成 9 份并发容量。packet 每项 PC64、数据128、plan68、fault1、cause5、access mask8 | `reserved=owner_count_q+packet_count_q+req_valid_q`；`credit=reserved<4` 不借本拍 packet pop。请求实际 handshake 才入 owner；按 owner 次序接收响应，非 stale 响应入 packet Q | redirect 清 packet 有效占用，把尚未返回 owner 标 stale；已承诺请求仍保持并排空。`rsp_ready` 由 owner 非空决定，stale 响应不新建 packet |
+| FE-02 翻译前保持；Frontend `if_req_*`，[R64Frontend.v](R64Frontend.v) | 1 个 holder，payload136（VA64、priv2、satp64、status5、PBMT1），另 valid/poison | 空槽时 payload 组合直通翻译；`fetch_ready=!rst&&!if_req_valid_q`。仅翻译受阻才把 Stream 已接受请求保存在 Q；不是每次请求固定增加一拍 | stream redirect / TLB invalidate 置 poison；占用 holder 等翻译接受后释放，不能直接丢掉 Stream 的响应 owner |
+| FE-03 字节 / 边界 owner；`u_align`，[R64Align.v](R64Align.v) / [R64PacketParse.v](R64PacketParse.v) | work 2 槽，每槽273 bit+header17；parse 3 槽，每槽 data256、map288、header17、mask8、cause5+next_cause5、plan68、target63 等；cursor PC64 | packet→work Q：`work_count<2`；work→parse Q：`work_count!=0&&count<3`。PacketHeader、initial/completion parse、cursor 对应边界选择是组合逻辑；接收 successor 可补齐前槽跨包信息。每拍最多输出/消费2条指令 | redirect 丢弃本地缓存字节和解析 owner；异常字节、长度、PC、计划跳转点必须跟随同一 packet/指令身份 |
+| FE-04 Bundle；Frontend `bundle_*` | 2 个 pair，每 pair 2×202 bit 指令原始记录，另 valid/plan/bad、target64/source64 | Align 组合结果→Bundle Q；capture 取决于 `run`、当前 pair 空位、align/fault barrier。空槽预写 payload 不创建 valid；不能借下游同拍 pop 信用 | `stream_redirect` 清 owner；错误 early plan 可以建立 barrier，等待修复，不允许错误边界指令入后端 |
+| FE-05 Token；Frontend `token_*` + RVC / PredictionPrepare | 2 个 pair，每 pair 2×472 bit，含 canonical33、预计算/预测快照、原始记录 | Bundle Q→RVC展开/PC准备/预测表查询→Token Q；`token_capture` 用 Bundle 非空、Token Q空位及 pending/fault 状态。后续预测训练不会改变该 owner 的已捕获快照 | `stream_redirect` 清 owner；Token 接收自身不等于指令 FIFO 接收，也不等于 ROB birth |
+| FE-06 Result 与预测结果 journal；Frontend `result_*` | 2 个 pair，每 pair 2×410 bit；每 pair half 位，最多4个 RAS journal 记录 | Token Q→预测/RAS组合查询→Result Q；Q空位决定接收。向指令FIFO部分消费时通过 half 位选择余下物理lane，不搬移宽 payload；RAS speculative consume 和前端 confirm 是不同边沿 | `stream_redirect` 清本地 owner；预测修复可以只接收合法前缀。journal 只作用于预测，不拥有架构状态 |
+| FE-07 指令输出 FIFO；Frontend `instruction_q` | 4×398 bit，head/tail/count；每拍最多2条送 DecodeStage | Result Q→检查计划/预测目标/异常→指令 FIFO Q；`room=4-count_q`，不借本拍 Backend 消费信用。输出 payload 由 Q head 选出，`consume_i` 更新计数 | 外部 `redirect_i` 清此 FIFO；本地预测跳转仍保留当拍实际接收的正确前缀。fault barrier 阻止错误路径继续出生 |
+| FE-08 预测状态；[R64Predictor.v](R64Predictor.v) + FetchStream early target | direction 256×2 bit+valid；间接 target64项×(tag16+target63)+valid；RAS8×63 bit+pointer/count；2个待写 RAS 记录+FE-06 的4个 journal；early target32项×(tag16+offset3+word1+target63)+valid | 表查询为组合，表训练在时钟边沿。Result 接收推进推测 RAS，指令FIFO接收前缀更新 confirmed；pending记录下一拍写 backing array，查询合并记录。early target 学习/修复单独保持 Q | `recover` 清 RAS 逻辑状态，局部 prediction rollback 回 confirmed 前缀。confirmed 不是退休栈；方向/目标只是预测，正确性由真实执行恢复 |
+
+证据锚点：`R64CoreTop.v:203`；`R64FetchStream.v:93/111/175/201`；`R64Align.v:43/70/84`；
+`R64Frontend.v:179/296/316/617/630/769/810`；`R64Predictor.v:65/78/96/125`。
+宽度列是指定 payload/state 的声明宽度，不是综合面积或所有控制 bit 的总和。
+
+| 观测对象 | 已有可用事实 / 观测定义 | 当前 UNKNOWN |
+| --- | --- | --- |
+| FE-07 空/满，FE-08 redirect | `sim/vsrc/R64CpiProfile.svh` 的 `frontend_empty` / `frontend_full` / `prediction_redirect` / `branch_redirect`；分别数输出 lane0 无效、FIFO count=4、pending prediction redirect、Backend redirect 的周期 | FE-01…06 各级满/空占比、首次断流来源、每次误预测实际恢复损失；上述事件可能重叠，不能直接求和归因 |
+| FE-01…03 返回与缓存 | 有 `icache_fill` 状态周期计数；owner/stale/pop/fire 均有实际 RTL 信号可取 | TLB miss / ICache miss / 下游拥塞 / stale drain 各自导致的 fetch 缺口，尚无本轮逐事务分解 |
+| FE-08 预测质量 | 有分支 redirect 总事件；方向/目标表容量及训练路径已核对 | 按 conditional/indirect/return 分类的准确率、MPKI、别名冲突率、wrong-path 字节/指令量 |
+| 所有 FE 单元 | 结构边界可定位到上述 Q 和信号；历史报告保留原身份 | 本次没有重新运行仿真或 STA；不能从图中填每单元 ns 延迟、实际吞吐或 PPA 改善值 |
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/backend/TOPOLOGY.md =====
+# 当前 Backend 高级网络拓扑
+
+原主体依据 2026-09-16 工作区生产 RTL 整理，入口为 R64CoreTop.backend；2026-10-08 当前设计单元核对见末节。本文描述实际实例、数据流、寄存边界、信用与指令身份，不将模块数或队列容量解释成固定流水延迟。已更新到本轮 Backend 网络优化实现；对应变更与验证见 [优化分析及实施记录](OPTIMIZATION.md)。
+
+Backend 围绕 ROB 保存的指令身份与顺序，连接五个网络：统一分配、依赖调度与操作数、执行分流、结果回流、提交与恢复。
+
+## 1. 实际边界与配置
+
+R64Backend 内部包含 DecodeStage、Rename、ROB、Issue、RegRead、Execute、Writeback。
+R64Memory/LSU、R64FpExecute、R64Serial、R64Commit、R64Csr 是 R64CoreTop 下的同级实例；它们参与完整后端网络，但不在 backend 实例内部。
+
+| 项目 | 当前核心配置 / 含义 |
+| --- | --- |
+| 前端输入、分配、发射、常规写回、普通退休 | 每拍最多 2 条；各边界有自己的接受条件 |
+| DecodeStage | 4 个指令槽，尚未分配 ROB / 物理目的寄存器 |
+| ROB | 32 项；tag=4-bit generation + 5-bit slot，共9 bit |
+| Rename | GPR/FPR 各32项推测映射与提交映射；独立 free/busy 状态 |
+| 物理寄存器 | GPR、FPR 各64×64 bit；GPR p0为零寄存器；初始各32个物理寄存器处于已映射集合 |
+| IQ | 共享16项固定槽，2条选择输出；保存 older、compatible、serial_dependency 关系 |
+| RegRead | 每lane 1个 ingress + 2个 terminal，共6个指令保持位置 |
+| PRF读端口 | 4个GPR、3个FPR；每条指令最多3个逻辑源 |
+| PRF写入 | 两条统一授权写回 lane，分别按GPR/FPR目的类型路由；不是各自额外两条完成通道 |
+| ALU/Branch | 两个 R64AluLane，每lane 4份owner信用及4个结果槽；信用覆盖在途操作的预留 |
+| 长整数执行 | Multiply、Divide、Clmul 各一个独立实例，各自保持结果 |
+| 外部结果入口 | LSU0、LSU1、FP、Serial，共4路 |
+| Backend 写回 | 本地5路 + 外部4路 = 9源，汇聚为2条寄存完成lane |
+| LSU资源 | 当前20项；MEM在统一分配时先占LSQ，后续只绑定操作数 |
+| FP入口 | 当前启用2槽 Q信用入口；内部算术与fault来源归并为1个Backend结果来源 |
+| Serial | 1个ROB-head owner，结果交付与真正退休副作用分开 |
+| 数据格式 | UOP218 bit、退休META204 bit、RESULT140 bit；完整tag另带 |
+
+CoreTop 启用 PREDECODED=1、PREPARED_NPC=1、PRECONTROLLED=1、DIRECT_MEM_BIND=1。
+Backend 启用 EARLY_ALU_WAKE=1、WB_DEFER_REQUEST=0、WB_REQUEST_HINTS=1、RR_ALU_BYPASS=1；IQ 启用 DEFER_READY/MDU_RESOURCE_PAIR，RegRead 启用 Q_ONLY_TERMINAL/COMPACT_FP/RAW_FP_ALLOCATION，ROB/Writeback 启用 OWNER_CERTIFICATE。CoreTop 的 Commit 启用 SCRATCH_READ_RESUME=1。
+这些生产参数决定图中实际存在的路径；模块默认模式不能代替当前核心配置。
+
+来源：[CoreTop](../core/R64CoreTop.v)、[Backend](R64Backend.v)、[字段定义](R64Uop.vh)。
+
+## 2. 高级数据网络
+
+[Q] 表示寄存状态；圆角判断节点表示组合选择/接受逻辑。实线表示指令或数据传递，虚线表示信用、授权、唤醒或源引用关系。
+
+```mermaid
+flowchart TB
+  FE["Frontend<br/>双指令 + PC / 预测 / 异常"]
+  subgraph BE["R64Backend"]
+    DQ["[Q] DecodeStage<br/>4槽，尚未分配"]
+    BIRTH("统一分配 birth<br/>每拍0/1/2条有序前缀")
+    RN["[Q] Rename<br/>推测/提交映射 + free/busy"]
+    ROB["[Q] ROB ×32<br/>身份、顺序、done、异常、恢复历史"]
+    IQ["[Q] Issue ×16<br/>年龄 / 就绪 / 配对 / serial依赖"]
+    RR["[Q] RegRead<br/>2 lane × 3 owner位置"]
+    PRF["[Q] GPR / FPR 各64×64<br/>4G + 3F读口"]
+    EX("Execute<br/>分类、共享资源仲裁、实际接受")
+    ALU["[Q] ALU/Branch ×2<br/>流水与结果保持"]
+    LONG["[Q] Multiply / Divide / Clmul<br/>独立在途状态与结果"]
+    WB["[Q] Writeback<br/>9源轮转端口授权 → 2条结果lane"]
+    ACCEPT("ROB完成校验<br/>owner证书 + 当前取消/重复检查")
+  end
+  LSU["[Q] R64Memory / LSU<br/>20项LSQ；双绑定、双宽结果"]
+  FP["[Q] R64FpExecute<br/>1个外部结果来源"]
+  SER["[Q] R64Serial<br/>1个head owner"]
+  CMT["R64Commit<br/>顺序退休 / 精确异常 / 事件Q"]
+  CSR["[Q] CSR / 特权 / 架构状态"]
+
+  FE --> DQ --> BIRTH
+  RN -.->|"寄存器信用、源映射"| BIRTH
+  ROB -.->|"ROB信用、完整tag"| BIRTH
+  IQ -.->|"空槽信用"| BIRTH
+  LSU -.->|"MEM专属LSQ信用"| BIRTH
+  BIRTH -->|"分配映射"| RN
+  BIRTH -->|"元数据、pnew/pold"| ROB
+  BIRTH -->|"UOP、tag、源preg"| IQ
+  BIRTH -->|"MEM reserve"| LSU
+  IQ -->|"issue_fire"| RR
+  PRF -->|"读值与转发快照"| RR
+  RR -->|"已保持操作数"| EX
+  EX --> ALU
+  EX --> LONG
+  EX -->|"绑定原LSQ slot/tag"| LSU
+  EX --> FP
+  EX --> SER
+  ALU -->|"2源"| WB
+  LONG -->|"3源"| WB
+  LSU -->|"2源"| WB
+  LSU -.->|"2位端口需求提示：CQ驻留或本拍接受"| WB
+  FP -->|"1源"| WB
+  SER -->|"1源"| WB
+  WB --> ACCEPT
+  ROB -.->|"目的寄存器/身份信息"| WB
+  ACCEPT -->|"完成记录"| ROB
+  WB -->|"写回数据"| PRF
+  ACCEPT -.->|"写使能 / 目的preg授权"| PRF
+  ACCEPT -.->|"清busy"| RN
+  ACCEPT -.->|"常规唤醒"| IQ
+  ROB -->|"head/head+1"| CMT
+  CMT -->|"提交映射、释放旧preg"| RN
+  CMT -->|"retire_fire / effect_allow"| LSU
+  CMT -->|"serial_commit"| SER
+  CMT -->|"fflags / trap"| CSR
+  SER -->|"退休后的CSR等效果"| CSR
+```
+
+图中的 ACCEPT 是 ROB 内部逻辑，不是新增模块或队列。ROB→Writeback 的窄 owner 查询与证书，在结果捕获边界保存身份/目的寄存器信息；结果实际被接收时仍服从当前取消规则。PRF的数据直接来自WB结果总线，ROB提供写权限与目的preg；图中接受逻辑不额外增加一级宽数据寄存。
+
+普通对齐 store 还有一条独立窄通道：**Dcache真实B完成 → LSU store_done → ROB head完成**。它不经过上述9源宽结果选择。分支 resolve/redirect 也有独立控制通道，不等待宽写回退休。
+
+## 3. 实际实例层级
+
+```text
+R64CoreTop
+├─ frontend : R64Frontend
+├─ backend : R64Backend
+│  ├─ decode_stage : R64DecodeStage
+│  │  └─ R64Decode ×2（当前已预解码输入）
+│  ├─ rename : R64Rename
+│  ├─ rob : R64Rob
+│  ├─ issue : R64Issue
+│  │  ├─ select0 / fallback_select : R64LsuOrderSelect
+│  │  ├─ gen_pair_select[0..15].second_select : R64LsuOrderSelect
+│  │  └─ R64FpReadCompact ×16
+│  ├─ registers : R64RegRead
+│  │  ├─ GPR/FPR 阵列（模块内寄存状态）
+│  │  ├─ ingress ×2、terminal ×4
+│  │  ├─ R64FpReadJoin
+│  │  └─ R64AluControl ×2（预计算ALU控制）
+│  ├─ execute : R64Execute
+│  │  ├─ gen_alu[0..1].lane : R64AluLane
+│  │  │  └─ ALU datapath、分支/顺序NPC、结果保持
+│  │  ├─ multiply : R64Multiply
+│  │  ├─ divide : R64Divide
+│  │  └─ clmul : R64Clmul
+│  └─ writeback : R64Writeback
+├─ memory : R64Memory
+│  └─ unit : R64LoadStore → LSU / Split / Service / Dcache
+├─ fp : R64FpExecute → FMA / Long / Fast / 本地fault
+├─ serial : R64Serial
+├─ commit : R64Commit
+└─ csr : R64Csr
+```
+
+这里的 R64LsuOrderSelect 是可复用的选择器，实例化在 IQ 内不代表 IQ 通过 LSU 调度。
+R64AgeSelect 虽定义在 R64Issue.v 中，当前 IQ 路径采用上面的 older 矩阵与 R64LsuOrderSelect，不应按文件内模块定义误画实例。
+层级图省略算术子树、CSR 子块和前端/总线外围，不省略主要共享资源。
+
+## 4. 分配与调度网络
+
+**统一分配是资源一致性边界。**
+
+DecodeStage持有已解码但尚未分配的指令。第0条需同时满足 ROB、Rename、IQ 信用；若为MEM，还需LSQ信用。第1条还要求第0条本拍实际分配，并满足第二份资源信用。ROB tag、物理目的寄存器、IQ槽与MEM的LSQ槽由同一个 birth 事件创建。
+
+双分配内部处理同拍 RAW/WAW：第二条依赖第一条目的寄存器时使用第一条新preg；同一架构目的的旧映射也遵循两条指令的顺序。
+
+**IQ既选择就绪指令，也选择能够配对的指令。**
+
+每项保存源preg、源类型、ready，以及入队时确定的 older、compatible 和更老Serial依赖。生产 DEFER_READY 在分配后查询 busy/旁路状态初始化就绪，常规写回与ALU提前事件继续唤醒已有项。
+
+选择第0条最老合法候选，同时为每种第0条候选并行求兼容的第二条，再用第0条选择结果合并。RegRead lane0无信用、lane1有信用时还有fallback选择，发射不要求双lane有序前缀。
+
+当前同一新发射组合的约束为：
+
+- ALU+ALU、MEM+MEM允许；MUL、DIV、CLMUL 在 birth 时登记不同资源类型，异种 MDU 可以成对，同种 MDU 仍冲突。BRANCH、FP、SERIAL 同类不能成对。
+- 不同类仍需满足两条指令的有效FPR源需求总和不超过3。
+- Serial需自身位于ROB head并获得serial_allow；更老Serial依赖尚未释放的指令不能越过。
+- MEM的地址/数据就绪后可以乱序绑定，访存年龄与未知属性约束由已预留所有owner的LSU负责。
+- IQ当前不直接使用每个FU的实时ready：fu_allow为全1，输入资源限制首先来自RegRead的Q信用。不同时间进入RR的请求会在Execute再次竞争共享执行入口。
+
+来源：[DecodeStage](R64DecodeStage.v)、[Rename](R64Rename.v)、[Issue](R64Issue.v)。
+
+## 5. 操作数与提前唤醒网络
+
+```mermaid
+flowchart LR
+  IQ["[Q] IQ ready / source preg"] -->|"issue_fire"| IN["[Q] RegRead ingress<br/>地址与owner"]
+  G["[Q] GPR"] --> READ["物理读口 + 转发命中"]
+  F["[Q] FPR"] --> READ
+  IN --> READ
+  READ --> SNAP["[Q] 数据/命中/rank快照<br/>terminal；受阻时留在ingress"]
+  SNAP --> EX["执行入口"]
+  EX --> ALU["[Q] ALU结果head"]
+  ALU --> SHORT["ROB short-owner校验"]
+  EX -.->|"空 ALU 接受时的结果保证"| SHORT
+  SHORT -.->|"early preg 唤醒"| IQ
+  SHORT -->|"有效bypass数据"| READ
+  WB["ROB授权的常规WB"] -->|"写PRF"| G
+  WB -->|"写PRF"| F
+  WB -.->|"wake / busy清除"| IQ
+  WB -->|"同拍数据转发"| READ
+```
+
+ALU early 事件与数据旁路不同：结果没有更老预留、且接受的是非分支、非异常、非零目的 preg 的短 ALU 时，可在接受边沿提前唤醒。这个受限条件保证结果在被唤醒消费者的 RR 读边沿前成为旁路 head，即使 WB 受阻也会保持。其它情况继续使用原有成为 head 的唤醒；完成时的唤醒脉冲也保留，覆盖恰在接受脉冲同拍 birth、下一拍才初始化 ready 的消费者。
+
+接受时的 early tag/preg 从原始驻留 ALU 候选与空结果预留状态产生，不经过最终 fire/kill 选择；最终 ROB short-owner 校验才授权有效唤醒。其 live-qualified 事件用逐拍断言与真实接受比较，防止把没有被接受的有效 owner 错误唤醒。
+
+实际数据仍由保持的 ALU 结果 head 提供。early 和 bypass 均经过 ROB short-owner 身份校验；提前唤醒不把 ROB 标成完成、不写 PRF，也不构成退休。
+
+常规写回完成资格由ROB确认；授权事件更新PRF、Rename busy以及IQ唤醒。不存在另一个独立维护架构寄存器数据的Rename阵列，数据本体位于RegRead的物理寄存器阵列。
+
+RegRead在地址接受后的下一个读边界采样数据。输出受阻时，读结果可保存在ingress，随后不再占用读口。每lane的两个terminal采用Q信用；Execute ready不直接穿透成“本拍释放即可借用”的terminal信用。所有槽深都描述容量，不表示每条指令必须经过同样的等待拍数。
+
+生产模式下，每个 terminal lane 有两个独立驻留槽：正常优先选择原 head；当 head 为无入口信用的 MDU/FP、另一槽为可接受 ALU 时，允许后者先被 Execute 接受。Execute 返回六个与 RR 候选无关的容量位（ALU0/1、MUL、DIV、CLMUL、FP）。非 head 释放后保留老 head，并将被释放位置设为下一写槽。
+
+此模式的 RR→Execute 输出是可重新选择的候选，尚未 fire 的候选不构成下游 owner。Execute 仅在 fire 时向 FU、LSU、FP、Serial 发布；数据、tag、操作数快照、rank、预译码和 LSQ slot 始终来自同一驻留槽。不能把这个接口当成要求 blocked payload 不变的 held valid/ready；模块默认 ALU_TERMINAL_BYPASS=0 的通用模式仍保持原 FIFO 契约。MEM、Serial、分支 head 不参与绕行。
+
+来源：[RegRead](R64RegRead.v)、[Backend中的short-owner连接](R64Backend.v)、[AluLane](R64Execute.v)。
+
+## 6. 执行和结果回流网络
+
+| Writeback来源编号 | 实际来源 | 本地/外部 |
+| --- | --- | --- |
+| 0、1 | ALU/Branch lane0、lane1 | Execute内部 |
+| 2 | Multiply | Execute内部 |
+| 3 | Divide | Execute内部 |
+| 4 | Clmul | Execute内部 |
+| 5、6 | LSU result0、result1 | R64Memory |
+| 7 | FP结果 | R64FpExecute |
+| 8 | Serial结果 | R64Serial |
+
+Execute对RR保持的两个owner进行分类与年龄仲裁。ALU与Branch使用两个AluLane；branch控制发布限制单个胜出者。Multiply/Divide/Clmul各自有内部状态，不是一个共享数值执行器。FP只有一个外部发出接口，Serial也只有一个。生产DIRECT_MEM_BIND直接保持RR物理lane至LSU lane的slot/tag/payload映射，实际fire独立验证存活与ready。
+
+FP内部的FMA、Long、Fast和本地fault先竞争一个结果出口，再作为Backend的一个来源参与9选2。LSU同样先进行自身的多源完成选择，再提供两条外部宽结果。这是嵌套的完成仲裁，不是所有算术结果直接各占一条全核写回口。
+
+生产 Writeback 使用当前来源 VALID 和 LSU 的提前端口需求提示形成下一拍寄存 grant，省去 request_q 的重复需求采样；DEFER_REQUEST=1 的通用配置保留原路径。CoreTop 显式启用 Backend.WB_REQUEST_HINTS=1，仅外部来源5/6连接 LSU 提示，FP/Serial 和本地来源提示为0。通用 Backend/Writeback 默认禁用提示，维持原接入行为。grant 和两条宽结果 lane 都仍为寄存边界。来源 VALID 可能包含局部控制资格，因此它到 grant 的路径仍须真实 STA 验证，不能视为已经全部改成原始 Q 摘要。
+
+LSU 提示在 CQ 接受结果的边沿就能申请端口，使冷启动结果进入 CQ 后第一拍可被捕获。它也允许驻留/已取消来源产生空授权，空授权不能生成完成。所有结果、tag、owner certificate 和最终 VALID 接受边沿保持原路径；这项改动缩短的是端口等待，不是绕过 CQ 或 ROB 校验。 LSU 的需求数量与具体来源选择并行计算，避免先等本地 winner 选择再进行全核端口调度。实现与同约束 A/B 见 [2026-09-16报告](../../../../tmp/rv64-cpi-timing-20260916/REPORT.md)。
+
+grant 属于来源端口，不是某条指令的 owner；真实当前 VALID/READY 及取消条件才决定捕获。来源 ready 只由 grant Q 产生；宽数据仍按 grant Q 选择，公平轮转保留。持续来源保持每拍服务，新来源少一个需求采样边沿；不能把整个写回画成无状态的组合 9 选 2。
+
+被取消或过期结果不能凭“进入WB”更新架构状态。ROB的owner证书和当前接受规则确认完成；目的preg、写权限、异常等共同决定PRF写入。两条WB lane独立接受，可以只有lane1有效，且不要求ROB年龄有序。
+
+窄store_done仅服务有真实完成依据的head store，并与ROB完成接受协调；常规load、FP/整数结果仍走宽完成网络。
+
+来源：[Execute](R64Execute.v)、[Writeback](R64Writeback.v)、[ROB](R64Rob.v)、[FP入口](../fp/R64FpExecute.v)、[LSU拓扑](../lsu/TOPOLOGY.md)。
+
+## 7. 提交、分支恢复与外部排空
+
+```mermaid
+flowchart TB
+  BR["ALU/Branch<br/>preview / resolve / redirect"]
+  ROB["[Q] ROB<br/>保留边界、生成年轻集合、undo历史"]
+  FE["Frontend / DecodeStage"]
+  LOCAL["IQ / RR / Execute / WB<br/>取消年轻owner"]
+  EXT["LSU / FP / Serial<br/>取消或继续排空"]
+  RN["[Q] Rename"]
+  CMT["[Q] Commit事件<br/>异常 / IRQ / Serial重启"]
+  BIRTH["Decode / 统一分配入口"]
+  CSR["CSR / 特权控制"]
+
+  BR -->|"resolve NPC、预测更新"| FE
+  BR -->|"preview与误预测边界"| ROB
+  BR -->|"误预测redirect"| FE
+  ROB -.->|"kill_mask / prepared cancel"| LOCAL
+  ROB -.->|"kill_mask / prepared cancel"| EXT
+  ROB -->|"每拍最多2项逆序undo"| RN
+  EXT -.->|"LSU / Serial reuse_block"| ROB
+  ROB -->|"有序head完成状态"| CMT
+  CMT -->|"已寄存full_flush / redirect"| FE
+  CMT -->|"full_flush"| ROB
+  CMT -->|"恢复提交映射"| RN
+  CMT -->|"full_flush"| LOCAL
+  CMT -->|"full_flush；外部owner遵守排空"| EXT
+  CMT -->|"trap / fflags / 提交效果"| CSR
+  CMT -.->|"stop_birth"| BIRTH
+  CMT -.->|"serial_allow：IQ的Serial选择"| LOCAL
+  CMT -.->|"effect_allow：LSU head副作用授权"| EXT
+```
+
+分支预测更新实际由CoreTop把resolve信息接到Frontend；DecodeStage只接清除与新输入，不消费预测训练信息。
+
+**分支误预测：**保留边界指令及更老指令，取消年轻后缀；ROB每拍最多输出两项逆序undo给Rename。恢复期间暂停分配和退休，合法更老完成仍可接受。另一个更老redirect可以扩展恢复范围。已接受外部事务按各owner协议继续排空。
+
+ROB 发布取消集合时，用 raw redirect_pending 与已验证 plan 组成局部 partial-kill 谓词，再合并 full_flush；实际恢复状态转换仍使用 canonical redirect。这样移除了 full_flush 先进入分支 valid 再绕回 kill 的串联。逐拍断言与原 canonical 表达式比较完整取消集合，并未延迟取消生效。
+
+**完整flush：**由Commit已经保存的异常、中断或Serial退休事件产生。Rename恢复提交映射，ROB及可取消执行状态清除。CoreTop合并前端redirect时，control_redirect优先于backend_redirect。当前只有明确白名单的 scratch 只读操作可以退休后继续执行：mscratch/sscratch 的 CSRRS/CSRRC 或立即数形式，且 rs1/zimm=0。它们仍在 ROB head 执行、独占退休并验证权限/异常；完成后释放 Serial 依赖，不生成 restart。其它 CSR、FENCE/FENCE.I/SFENCE、WFI、xRET 等保持原重启策略。
+
+**顺序退休：**ROB仅从head/head+1提供已完成指令，第1条受第0条接受、异常及commit1_allow约束。Serial单独退休。Commit才授权提交映射、旧preg回收、LSU退休通知、Serial的CSR/TLB/cache等效果和fflags更新。
+
+**跨模块owner：**MEM从birth起携带LSQ slot和完整tag，进入物理系统后仍需真实响应。LSU及Serial的reuse_block返回ROB，防止仍在排空的事务碰到复用槽。LSU 的共享 R64LsuRequestQueue 每个持有位置同时保存 ROB slot one-hot；reuse 输出只把有效槽的位图相或，不再从 tag 现场译码。实际覆盖 request_queue、translation_queue、forward_query、response_queue、forwarding_results、faults 六个实例。完整 tag 仍用于 owner 比较；LSQ、physical_hold、store_done 等其它持有域仍分别贡献保护，同槽多引用不会因一次 pop 提前释放。FP及本地FU则使用各自可取消状态和完整tag；不能把所有模块的kill都画成瞬间释放外部请求。
+
+来源：[ROB](R64Rob.v)、[Rename](R64Rename.v)、[Commit](../control/R64Commit.v)、[Serial](../control/R64Serial.v)、[CoreTop](../core/R64CoreTop.v)。
+
+## 8. 从拓扑可确定的共享点
+
+| 共享点 | 可能表现出的等待 | 后续应测量的量 |
+| --- | --- | --- |
+| birth资源交集 | IQ/PRF/ROB/LSQ任一不足使分配前缀停止 | 分配受阻的逐资源原因 |
+| IQ年龄与配对 | 有ready项但无法利用第二lane | ready候选数、类别/FPR预算/serial依赖限制 |
+| RR独立lane保持 | 某lane的FU背压挡住其后其它类别 | 每lane入口/terminal占用及队头类别 |
+| 4G+3F读口 | 双发射配对受实际源需求限制 | 读口预算导致的单发射次数 |
+| 嵌套完成仲裁 | LSU/FP局部结果已就绪，仍等待本地出口或全核WB | 分层结果等待，而非只看全核WB占用 |
+| 九源两写回 | 多个FU并行完成时排队 | 每来源等待、授权利用率、空授权周期 |
+| ALU early与旁路head | 后排ALU结果已计算，但尚不可供依赖读取 | 结果就绪到成为bypass head的时间 |
+| ROB head与恢复 | 完成不等于可退休；恢复期间停分配/退休 | head等待原因、undo长度、外部drain持有 |
+| 全局取消/复位/发布 | 窄控制可能扇出至多个宽数据边界 | 当前网表端点分组与实际STA |
+
+这些是由连接确定的分析入口，并非已确认的性能瓶颈。实现收益需要由相同程序、配置与约束下的性能和映射结果判断；具体测量见 [优化分析及实施记录](OPTIMIZATION.md)。
+
+
+## 2026-09-08 全拓扑迭代补充
+
+本轮在上述生产连接上进一步处理以下三项；实测状态见全拓扑结果目录，不能把实验配置当作已接受结论。
+
+- Rename 的 GPR/FPR 空项与 IQ 空行共用 R64FreeSelect：并行前缀同时给出第一/第二 free one-hot 和0/1/2信用，避免串行两次优先级选择。
+- IQ 的空行预写不可变 payload/metadata，真实 birth 仍原子分配 ROB、Rename、IQ 和 LSQ；ready、serial 依赖与年龄关系仍由真实出生更新。
+- IQ 年龄矩阵改为静态行：重用列先清除，新 lane0 行取当前 live，lane1 再包括本拍 lane0。与原赋值优先级一致，支持 ISSUE_SLOTS 配置。
+
+基线 CoreMark 的 decode_iq_block=3,985,961；Dhrystone 的主要信用压力为 ROB，decode_rob_block=9,445,748。因此建立 IQ16→32 的独立实验。后端与CoreTop最终默认保持16，CoreTop暴露ISSUE_SLOTS以保留容量对照。已测IQ32的CoreMark/Dhrystone CPI分别改善0.090241%/0.310911%，但本轮IQ16反馈版的SystemTop setup更好，因此采用该IQ16配置。面积未作为取舍门槛。窗口增大不会增加每拍发射、FPR物理端口或 WB 端口；serial、MEM 和 MDU 的资源限制不变。
+
+ROB、RegRead、Writeback 已有 owner certificate、预解析 FP read plan、Q-only terminal、ALU bypass 和9选2捕获层。本轮先保留这些事务边界；依实际关键路径再决定是否切分，而不继续扩散 ready/kill 跨模块组合链。
+
+
+## 2026-10-08 当前设计单元
+
+本节核对当前保留的生产源码：2-wide、ROB32、IQ16、LSQ20、GPR/FPR各64；上一轮完成队列候选已撤回，
+保留的 load-response bypass 位于 LSU，不能据候选快照推断当前 Backend。以下 ID 按状态 owner 和可修改接口划分，
+不是新增模块，也不表示每条指令固定经历同样拍数。所有状态宽度是 RTL 声明，不是面积估算。
+
+| ID / 状态 owner、源码 | 当前寄存边界 / 容量 / 宽度 | 组合与跨拍数据、valid/ready/credit 关系 | 取消 / 完成责任 |
+| --- | --- | --- | --- |
+| BE-01 DecodeStage，[R64DecodeStage.v](R64DecodeStage.v) | 4 槽 Q，每槽 `UOP218+META204+33=455 bit`，另 count/head/tail、2-bit room Q；尚无 ROB/preg owner | FE指令→组合格式化→payload Q；输入 ready 来自 room Q 加 reset/clear/stop。Q occupancy 提供未过滤资源查询；真正 out_valid 仍受 clear/reset 抑制 | redirect/full flush 清未出生指令；不能凭 raw query 创建 ROB/LSQ owner |
+| BE-02 原子分配；[R64Backend.v](R64Backend.v) 的 `birth_w` + [R64Rename.v](R64Rename.v) | birth 本身是组合事件；它在同一边沿更新 Rename、ROB、IQ，MEM另占 LSQ。Rename为G/F各32×6 bit speculative/committed map，G/F各64-bit free/busy | lane0 同时需要 ROB/Rename/IQ 与条件性 LSQ信用；lane1还需真实lane0 birth。映射/空项选择/同拍RAW/WAW旁路均组合，最终共同 birth 建立各处 Q 状态 | stop/recover/redirect/fullflush 禁止出生；partial恢复使用pnew/pold undo，fullflush恢复 committed map；WB经ROB授权才清busy |
+| BE-03 ROB身份、完成、退休窗口；[R64Rob.v](R64Rob.v) | 32 槽；tag=slot5+generation4；每槽META204、value64、tval64、cause6、fflags5、pnew/pold各6、rd_arch5、各状态bit；head/tail/count Q | 分配进入槽Q；2路WB完成校验通过后设置done/异常；head/head+1 Q组合产生可退休候选，真正退休由Commit授权。窄 store_done 是额外head完成通道，不占9源宽WB | full tag/存活/当前kill/重复完成检查决定结果接收；head优先且异常精确。LSU/Serial reuse_block 约束槽复用，不能因取消立即复用仍有外部响应的身份 |
+| BE-04 IQ就绪与选择；[R64Issue.v](R64Issue.v) | 16固定槽Q；每槽UOP218、tag9、LSQslot5、3×preg6、3-bit source used/fp/ready；older/compatible各16×16 bit；serial_dependency各槽32 bit | birth后DEFER_READY查询初始化ready；2常规WB+2 ALU early事件唤醒。年龄/兼容/FPR预算组合选择，`issue_fire`按RR信用真实接受；入口最多2、出口最多2。`fu_allow=all1`，FU实时ready不直接过滤IQ | prepared cancel/fullflush清年轻owner；Serial head授权及更老Serial依赖限制可发射集合；取消不能形成有效issue |
+| BE-05 PRF读与RR保持；[R64RegRead.v](R64RegRead.v) | GPR/FPR各64×64 bit；4G+3F物理读口；2 lane各1 ingress+2 terminal=6 owner；terminal每槽UOP218+tag9+operand snapshot320，另rank、forward hit/data、预控制/LSQslot等 | IQ接受时锁存源地址/owner；下一读边界采样PRF和WB/ALU转发，阻塞读可存ingress。terminal信用由Q占用产生，不借本拍Execute释放。RR候选operand输出3×64 bit；head不可接收MDU/FP时，可重新选同lane另一ALU | 槽有dead/owner状态；RR→EX的未fire候选可重选，不是承诺payload保持不变的下游owner。最终EX再次检查存活；flush不得写出错误PRF结果 |
+| BE-06 分流与短ALU；[R64Execute.v](R64Execute.v) | Execute仲裁是组合；2个AluLane各有实际token/算术Q与4槽结果Q、4份预约信用；结果每槽140 bit+tag9+preg6及控制 | RR→分类/共享FU竞争→真实FU接受；DIRECT_MEM_BIND保留物理lane→LSQslot绑定。ALU结果head经ROB short-owner校验后供RR旁路；受限early接受唤醒不等于数据已写PRF或ROB done | 分支resolve/redirect有独立Q与预告/发布链；非分支、非异常、有效非零目的preg及空预约等条件约束提前唤醒。当前取消仍由最终接收者检查 |
+| BE-07 长整数执行；[R64Multiply.v](R64Multiply.v)、[R64Divide.v](R64Divide.v)、[R64Clmul.v](R64Clmul.v) | MUL固定6个数值阶段、8份预约/terminal容量；DIV、CLMUL各独立迭代owner及保持结果；每条返回value64+tag9，包装RESULT140 | 每种FU各1入口，可与其它不同FU并行；接受条件来自各自Q信用/状态，不是一个共享MDU。MUL信用覆盖在途和已完成等待；迭代拍数不能从源文件数推断 | 固定数值流水partial kill携带dead状态；消费者拒绝同拍kill。各自fullflush/状态清理规则以源码为准；不承担AXI等不可取消外部owner |
+| BE-08 WB调度与捕获；[R64Writeback.v](R64Writeback.v) | 9源→2 lane；2×9-bit grant Q；2×149-bit(tag9+RESULT140)结果Q；每lane9源×4 ROB bank的accepted Q；各bank owner证书9 bit | 当前`DEFER_REQUEST=0`：source VALID和LSU提示→组合双轮转→下一拍grant Q；source READY只由grant Q。grant Q→宽数据选择→结果Q；本拍真实VALID/kill资格创建accepted Q，owner证书随捕获保存；不新增PRF数据寄存级 | grant不是事务owner，空/取消grant不能制造完成；flush清accepted/grant；最终ROB确认后才写PRF/清busy/唤醒。WB两lane独立可接受，不要求年龄或lane0前缀 |
+| BE-09 恢复与取消发布；[R64Rob.v](R64Rob.v) 联接 Rename / IQ / RR / EX / LSU / FP | ROB有plan_valid、plan_younger[31:0]、plan_tag9、plan_keep6以及undo pointer/count Q；每拍最多2项逆序undo | 已验证branch plan与pending控制组合生成取消资格，fullflush并入；recover期间暂停birth和退休，更老合法结果继续完成。Commit事件是另一个已有Q边界，详见[控制拓扑](../control/TOPOLOGY.md) | 保留分支及更老指令，取消年轻后缀；更老redirect可扩大范围。外部事务由LSU/Serial排空，不能把kill_mask描述成全核瞬间资源释放 |
+
+关键源码锚点：`R64Backend.v:108/163/395/447/595`；`R64DecodeStage.v:35/45`；
+`R64Rename.v:44`；`R64Rob.v:110/139/147/329/388`；`R64Issue.v:74/106/116/263`；
+`R64RegRead.v:76/84/108/229/339/358`；`R64Execute.v:597/622/660`；`R64Writeback.v:39/59/79/157/188`。
+
+| 单元 / 量化问题 | 已有观测及其边界 | 当前 UNKNOWN |
+| --- | --- | --- |
+| BE-01/02 分配空转 | `CPI_PROFILE`有decode_empty、birth_zero/two、decode_rob/iq/prf/lsq_block；直接观测资源不足谓词 | 多个谓词可同拍为真；互斥根因、释放信用到再次birth的等待分布未测 |
+| BE-04/05 发射与操作数等待 | 有issue_zero/two；真实issue tag/class/src及RR owner/credit信号可定位 | ready候选数量、配对/FPR预算/Serial阻塞、每FU导致RR等待、生产者完成→消费者实际issue的逐tag分解 |
+| BE-03/09 head与恢复 | 有recover、branch_redirect、head_serial、rob_nonempty_notdone；另有LOAD_PROFILE的head_notdone_unfrozen | head_notdone不能直接归因为load；head PC/指令类/等待状态、undo长度与外部drain贡献尚无完整互斥计数 |
+| BE-08 完成网络 | 有wb_backpressure，统计本地或外部任一有效来源未ready的周期；LOAD_PROFILE有部分正常load响应→CQ→ROB接收的延迟直方图 | 9个来源各自等待、空grant占比、各源到PRF/消费者的尾延迟；总backpressure不等于退休损失 |
+| 各单元时序 | 已有SystemTop映射STA能定位具体起点/端点；2026-10-08报告与候选标签保留于results/ai-cq-timing-20261008 | 单元自身面积/关键路径并非自动从全局WNS可得；本次不新增综合、STA或仿真结论 |
+
+观察实现见 [R64CpiProfile.svh](../../sim/vsrc/R64CpiProfile.svh) 与
+[R64LoadCompletionProfile.svh](../../sim/vsrc/R64LoadCompletionProfile.svh)。此前数值仍按对应日期/配置阅读，
+本表的 UNKNOWN 不表示没有RTL信号，而表示没有足以填写该定量结论的当前测量。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/fp/TOPOLOGY.md =====
+# 整数公共算术与浮点网络
+
+```mermaid
+flowchart LR
+  RR["RR 两个物理 lane"] --> EX["Execute：按资源选择 owner"]
+  EX --> A["ALU x2：计算2阶段 / terminal4"]
+  EX --> M["MUL：6阶段 / terminal8"]
+  EX --> D["DIV：独占迭代 owner"]
+  EX --> C["CLMUL：每拍4 bit / terminal"]
+  EX --> F["FP：入口2槽 + 分类"]
+  F --> FMA["FMA：19阶段 / terminal22"]
+  F --> FAST["FAST：直接2 / 转换10数值阶段；owner14"]
+  F --> LONG["LONG：div/sqrt 迭代"]
+  F --> BAD["非法指令返回"]
+  FMA --> SEL["4源轮转 one-hot / output holder"]
+  FAST --> SEL
+  LONG --> SEL
+  BAD --> SEL
+  SEL --> WB["Backend WB：9选2"]
+  A --> WB
+  M --> WB
+  D --> WB
+  C --> WB
+```
+
+| 文件组 | 数据计算与本轮决策 |
+|---|---|
+| backend/R64CarryStages.v、R64WideAdd.v | Prepare 生成块 base/propagate/generate，Finish 做全局前缀。末端 base 加 carry 改为 bit XOR 与块内全1前缀，保持所有拍数。服务 ALU、乘除、FP、预测地址。 |
+| backend/R64Alu.v、R64Execute.v | ALU 控制在 RR 前解码，比较分 byte，分支 resolve 有预告与真实生效两层。已有独立 terminal 和 ALU 旁路，保留拍数和唤醒契约。 |
+| backend/R64Multiply.v、R64ProductTree.v | Booth/CSA 归约后共享 CarryFinish；取消不提前释放已预约 terminal。保留6阶段，公共进位优化自动覆盖。 |
+| backend/R64Divide.v、R64Clmul.v | DIV radix4 分 prepare/finish；CLMUL 迭代4 bit。缩拍会把宽算术重新组合，缺少关键路径证据时保留。 |
+| R64FpOperand.v、R64FpUnpack.v | format/classification 与规格化；NaN boxing、subnormal 与特殊数语义保留。 |
+| R64FpProductPipe.v | 53x53 tiled product，5 个数值阶段，owner 由 FMA 统一提供。 |
+| R64FpFma.v | decomposition→normalize→product5→scale/order/align3→carry2→normalize2→round5。ADD/MUL 复用，单次 rounding。 |
+| R64FpFast.v | 直接类结果从 token[1] 完成，转换类从 token[9] 完成；共用14槽完成 owner，队内按接收顺序输出。不能将两类都写成固定10阶段端到端延迟。 |
+| R64FpLong.v | div/sqrt 独立单 owner；最终5阶段 rounding。 |
+| R64FpRoundStages.v、R64FpRound.v | range/shift/GRS/局部与全局进位/pack，所有 rounding mode、fflags、特殊数保留。公共 CarryFinish 优化覆盖。 |
+| R64FpCompletion.v、backend/R64NumericOwner.v | 固定数值流水的予約、token、terminal、前端缓存和 sticky cancellation。READY 不穿过数值流水。 |
+| R64FpExecute.v | 四源轮转由逐项动态索引改为每源并行环形年龄判断、one-hot 合并。输出空闲时预写数据；入口空槽预写 payload；valid、kill、flush 和每源 ready 仍按原 owner 条件。 |
+
+同拍取消仍由实际接收者检验；固定/变长数值流水的局部 tombstone 负责 partial-kill 排空，完整 flush 同时清除对应生产 token 与本地 owner。原始 Q-valid 不等于允许写 PRF。S/D 向量、非法 rounding、反压和取消回归必须一起通过，不能只看整数基准 CPI。
+
+
+## 2026-10-08 当前设计单元
+
+本节是当前源码事实；上表中“本轮决策”属于已有优化记录，不是本次新增方案或实测。
+当前 `R64CoreTop.fp` 显式启用 `Q_CREDIT_INGRESS=1`、`RAW_FAST_DISPATCH=1`、`RAW_FMA_DISPATCH=1`，
+完整 ROB tag9、slot5；每次执行有3×64 bit源值，FP子路径返回value64+fflags5。
+整数入口/ALU/MDU见 [BE-06/BE-07](../backend/TOPOLOGY.md)，FP寄存器数据唯一真源在 Backend PRF，
+fflags架构更新属于顺序Commit。以下槽容量不与数值级数相加为独立在途容量。
+
+| ID / 状态 owner、源码 | 当前Q边界 / 容量 / 宽度 | 同拍组合、接受与跨拍依赖 | flush / partial kill / 迟到结果 |
+| --- | --- | --- | --- |
+| FP-01 FP入口与分类；[R64FpExecute.v](R64FpExecute.v) `g_ingress_queue` | 2固定槽Q，每槽239 bit=`tag9+command32+source_double1+operand192+rounding3+path2`，另valid/head | `in_ready=!(valid_q[0]&&valid_q[1])`只看Q空位；不借本拍dispatch/kill释放。空槽预写payload，真实in_fire创建owner并捕获动态rounding/FP合法性。head Q→path_ready选择→dispatch，每拍最多1条进入FP子路径 | fullflush清两槽owner；partial kill按tag槽号去除。RAW FMA/Fast可把取消边沿的原始驻留head作为数值offer，实际子路径owner必须记录birth取消，不能把offer误当合法完成 |
+| FP-02 FMA数值流水与预约；[R64FpFma.v](R64FpFma.v)、[R64FpProductPipe.v](R64FpProductPipe.v)、[R64NumericOwner.v](../backend/R64NumericOwner.v) | 19个固定推进数值阶段；22份总预约/terminal容量；terminal每项tag9+结果69+owner32+dead组状态，另2个front缓存是副本不是额外事务容量。53×53乘积部分5阶段 | 每拍至多接收1个有credit的offer；接受先预约容量，token前移，算术各阶段依stage_live使能。范围/对齐/进位/规格化/rounding跨实际Q边界；最终value/flags进入terminal与front Q，再等待FP-05。出口反压不贯穿数值流水 | partial kill用sticky dead随token/terminal保持，取消不让仍在推进的token失去预约；同拍kill由接收者复核。fullflush一起清token和预约owner，因此无未取消的旧生产token再次写新owner |
+| FP-03 Fast两种完成时点；[R64FpFast.v](R64FpFast.v)、[R64FpCompletion.v](R64FpCompletion.v) | token/slot流水10位置；completion14槽，每槽data69+tag9+owner32+dead4，以及allocated/done；2个front缓存是槽投影 | 直接操作完成输入由`token_q[1]&&short1`产生；转换由`token_q[9]&&convert9`产生，可以同拍两个不同槽完成。accept先分配slot；结果按slot写回，再按接收顺序从head每拍至多输出1条。2/10是数值生产位置，含front/仲裁的端到端延迟另测 | partial kill只标dead；head必须done后才可丢弃，不能提前复用尚有生产token的slot。fullflush同时清Fast token和completion owner。birth_killed Q覆盖RAW取消边沿offer |
+| FP-04 Long div/sqrt；[R64FpLong.v](R64FpLong.v) | 独占1 owner；15-bit phase Q、tag9、owner32、birth_killed4、余数60、digits56、divisor53、radicand112等；response phase保持结果69 | `in_ready=IDLE`；接收→normalize/init→div或sqrt digit循环→finish→range/shift/local/global/pack→response。不同特殊数/格式经过的迭代次数不能用统一固定延迟代替；response待下游ready | 本地无不可取消外部事务。非IDLE遇kill或fullflush回IDLE；数值payload时钟使能依Q phase，owner控制取消。其raw out_valid是RESPONSE Q，FP-05仍拒绝同拍kill |
+| FP-05 四源归并与输出holder；[R64FpExecute.v](R64FpExecute.v) `fault_*` / `output_*` / `next_q` | FMA/Long/Fast/fault共4源；fault holder为tag9+command32+valid；1个output holder为tag9+RESULT140+valid；轮转指针2 bit | path_valid→环形年龄组合选择/one-hot宽合并→output Q。`output_credit=!output_live||out_ready`，可借同拍下游接受；该ready链与FP-01的Q-only信用不同。selected source ready还受reset/flush限制。output Q作为Backend9源中的1源，最多1条/拍 | `output_live`含当前kill；创建output_valid时再次按所选tag检查kill；fullflush清fault/output owner。空槽payload预写不创建有效返回，fflags只有最终ROB/Commit授权才生效 |
+| FP-06 公共组合算术与局部数值Q；[R64FpOperand.v](R64FpOperand.v)、[R64FpUnpack.v](R64FpUnpack.v)、[R64FpRoundStages.v](R64FpRoundStages.v)、[R64CarryStages.v](../backend/R64CarryStages.v) | 这些文件含被不同owner复用的分解、进位、rounding计算；实例周围Q属于FP-02/03/04或整数FU，不新建ROB事务owner | 每个数值Q的format、rounding、special/NaN/flags必须与对应数值和tag/token同拍。组合子模块数不等于stage数，也不能因共享源文件就假设共享一个运行时执行端口 | 不自行授权写PRF/提交；有效性来自外围owner。修改计算位置必须保持token和特殊数/异常flag对齐，数据宽度不能只按正常有限数路径裁剪 |
+
+证据锚点：`R64CoreTop.v:367`；`R64FpExecute.v:29/55/63/146/154/195/207/220/275`；
+`R64FpFma.v:72/80`；`R64FpFast.v:26/87/95/110/121`；`R64FpCompletion.v:27/45/59/114`；
+`R64NumericOwner.v:24/43/66`；`R64FpLong.v:28/35/210/222`。
+
+| 单元 / 观测目标 | 已有证据或可观测信号 | 当前 UNKNOWN |
+| --- | --- | --- |
+| FP-01入口压力 | valid_q/head、in_fire/in_ready、path_q/dispatch直接可观测；生产参数和2槽容量已核对 | 按path分类的占用/阻塞周期、等待head造成的其它子路径闲置，无当前工作负载统计 |
+| FP-02/03/04服务时间 | 数值token/slot/phase、credit、done/head、out_valid/out_ready可定位；固定阶段或双完成入口为源码事实 | 按FP指令类/格式/特殊数的接受→数值完成→FP输出→ROB接收分布；理论数值阶段不能填成已测退休延迟 |
+| FP-05仲裁 | Backend CPI_PROFILE的wb_backpressure只计任一源等待，不能单独归因FP；当前本地4源轮转和1输出holder已核对 | 每源等待、4源同时就绪频度、嵌套仲裁损失、output吞吐和FP造成的ROB head阻塞 |
+| 功能与物理边界 | 已有S/D、rounding、反压/取消等回归入口；本节只读源码更新文档 | 本次未运行FP回归、数值基准、综合或STA；整数CoreMark/Dhrystone CPI不能证明FP的性能变化或替代FP correctness验证 |
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/control/TOPOLOGY.md =====
+# 提交、串行与 CSR 网络
+
+```mermaid
+flowchart LR
+  ROB["ROB head / 双提交元组"] --> CM["Commit：精确退休 / event Q"]
+  CM --> CS["CSR：架构状态"]
+  CS --> CM
+  IRQ["CLINT / PLIC / RTC"] --> IQ["采样 IRQ level"]
+  IQ --> CS
+  RR["RR 串行 owner"] --> S["Serial：IDLE→EVALUATE→CSR_WAIT/等待终端→RESULT→RETIRE"]
+  S --> Q["CSR decode / 8个查询 bank Q / 合并"]
+  Q --> S
+  S --> WB["WB / ROB done"]
+  CM --> S
+  CM --> R["flush / return / trap vector / frontend redirect"]
+  CS --> P["privilege / SATP / PMP / trigger / FRM"]
+  P --> FE["前端与 Memory 翻译保护"]
+```
+
+| 模块 | 关键契约与本轮决策 |
+|---|---|
+| R64Commit | 退休是一致的 dense prefix；head 异常/串行决定后续出生和副作用。保留现有事件寄存阶段和 scratch 只读 resume 白名单。 |
+| R64Serial | CSR query 先快照，真正写入仍在同 tag 提交；FENCE 等内存排空；Tensor 已发布命令必须等真实终端。保留。 |
+| R64CsrDecode | 地址独立 one-hot 预解码随串行 owner 寄存。保留。 |
+| R64Csr | 8 个查询 bank、write snapshot、CSR/Trap/xRET 精确优先级；硬件中断源先采样，资格使用当前架构状态。保留。 |
+| R64TrapVector | 高位预加、低位短加；Stage 版本在已有 prepare 边界寄存。保留。 |
+| R64Counter、R64CounterNear | 字节局部增量与提前缓存的近回绕条件；支持软件写入与0–3增量，无新增架构拍。保留。 |
+| R64Trigger | privilege/中断使能/委托共同决定触发资格，比较地址归属于原虚拟访问。保留。 |
+
+基准 head_serial 仅30拍，缺少在本轮扩大 CSR 快速通道的 CPI 依据。Satp/PMP/FS/trigger 类状态更改不能沿用 scratch 的保留前端规则。全核时序若定位到控制广播，将优先减少无效 payload 的控制负载，不能延后取消或放松提交资格。
+
+## 2026-10-08 当前设计单元索引
+
+本表描述当前生产控制语义，不预选架构改法。既有段落中的“基准 head_serial 仅30拍”属于原优化记录，
+不是对所有当前 workload 的统计；未取得同一当前运行的细分统计时记为 UNKNOWN。
+
+| ID / 源码 | 状态 owner、容量与字段 | 同拍控制与跨拍事件 | 可量化事实与 UNKNOWN |
+| --- | --- | --- | --- |
+| CTL-01 退休授权与事件发布；`R64Commit.v` | 最多2条dense-prefix退休；单 event owner：valid/trap/interrupt/prepared各1位、PC64、tval64、cause6；retired_npc64。 | `rob_valid && rob_ready` 定义退休。head异常/空ROB中断/非白名单串行退休捕获event Q；trap先prepare一拍再发布。`full_flush = !rst_i && event_valid_q && (!event_trap_q || event_prepared_q)`，reset是抑制条件，runtime event才是flush来源。 | 单事件容量与最多双退已知；全局1ns模型中存在event Q→LSU内部违例，见下文。异常/中断/串行flush频度及各自损失周期 UNKNOWN。 |
+| CTL-02 head串行 owner；`R64Serial.v` | 1个owner，state3，tag9、command/operand各64、CSR select64、ASID16、kind8、result140、retire_effect5。IDLE→EVALUATE→CSR_WAIT或外部SEND/WAIT_TERMINAL→RESULT→RETIRE。 | WB接受结果只将owner转为RETIRE；同full-tag commit才真正写CSR/执行退休副作用。kill可取消尚可撤销owner；已经发布外部命令则标dead并等待真实terminal drain。FENCE的排空判断不能由完成队列空代替全系统idle。 | 单owner与各寄存边界已知；CSR/FENCE/Tensor分别占用和阻塞周期 UNKNOWN。当前scratch只读resume白名单已启用，不能当作新优化。 |
+| CTL-03 CSR查询与架构状态；`R64Csr.v`、`R64CsrDecode.v`、`R64PmpDecode.v` | CSR架构状态由单元持有；query按8×64bit bank Q快照，随后合并到read/write snapshot；select64和写mask64；PMP16×config8/address54。 | query不是退休写入。Serial保持请求与快照直到同tag commit；trap/xRET/CSR-write使用原精确优先级。权限、SATP、PMP、FS、trigger等上下文更改需原序列化/失效合同，不能套用scratch只读规则。 | 8bank和16PMP结构已知；query/commit时延分布、每类CSR次数、控制广播扇出实际全表 UNKNOWN。 |
+| CTL-04 IRQ、trap target与计数；`R64Csr.v`、`R64TrapVector.v`、`R64Counter*.v`、`R64Trigger.v` | IRQ level采样4位Q；trap/return准备保存目标事实，计数器局部增量使用寄存近回绕条件；架构计数器仍为64bit。 | IRQ采样后以当前架构使能/委托/privilege确定资格；IRQ stop_birth仍保留在飞事务drain。trap target预计算在已有prepare边界，不能另加未计入恢复的隐藏拍。 | IRQ一级采样和已有prepare边界可核对；IRQ延迟分布、trigger/计数链局部PPA UNKNOWN。 |
+
+CTL-01 与 Backend ROB 的 partial recovery 是不同 owner。`effect_allow_o = !rst_i && !event_valid_q && !head_exception`，
+不因局部分支undo单独撤回head已经持有的不可逆请求许可；`stop_birth`会在recover/IRQ/event时阻止新出生，
+但不因此冻结所有执行、响应drain和退休。异常/IRQ捕获检查 `lsu_irrevocable || serial_irrevocable`，
+禁止在不可逆事务未完成时flush掉其身份。更改广播/添加局部寄存必须保持这些同拍授权条件。
+
+当前 Commit、Serial 和 LSU 的这些状态是同步复位；Commit event payload有显式reset赋值，
+LSU completion payload无reset清零但仍受控制更新使能影响。两者不能用一句“全核payload只清valid”概括。
+真实SDC把reset作为普通输入设置0.4ns最大输入延迟；该假设是否符合芯片外部复位交付要求仍为 UNKNOWN，
+不能仅凭它出现在最差路径就自行加false path。
+
+已有 [当前基线 B 的 Q起点诊断](../../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)
+记录 CQ payload最差slack −1.892150521ns（1ns目标、真实库映射、布局前模型），相关起点为运行时 `event_trap_q`；
+[配对端点](../../results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md) 又记录reset起点全局−2.119304419ns。
+这是两种不同路径集合；忽略外部reset路径不会自动消除运行时事件路径。两者都不能直接当作最终Fmax或整程序CPI归因。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/memory/TOPOLOGY.md =====
+# 翻译、保护、Cache 与 LSU 服务网络
+
+```mermaid
+flowchart LR
+  IF["取指"] --> FT["FetchTranslation：ITLB + walk descriptor"]
+  FT --> IC["ICache：2 way；64B line / 128b sector"]
+  IQ["LSU translation queue x2"] --> DT["DataTranslation x2：lookup / outcome / reserved terminal"]
+  DT --> DP["DataProtection x2：range facts Q / priority"]
+  DP --> L["LSU canonical row"]
+  DT --> PTW["PageWalk x2"]
+  FT --> IP["PageWalk x1"]
+  IP --> PP["PtePort x3：PMP/PMA / compare-and-OR"]
+  PTW --> PP
+  L --> LS["MemorySplit：对齐旁路 / 未对齐单owner逐byte"]
+  LS --> MS["MemoryService：CPU与3个PTW服务，共享bank调度"]
+  PP --> MS
+  MS --> DC["DCache：2 bank x 2 way"]
+  DC --> AX["AXI read / write adapters"]
+  CSR["PMP decode / SATP / privilege / PBMT"] --> FT
+  CSR --> DT
+  CSR --> DP
+  CSR --> PP
+```
+
+| 文件 | 物理状态/组合边与本轮选择 |
+|---|---|
+| R64Memory.v | 两路 D translation/protection 与三个 PTE port；LSU 在实际翻译 fire 时预约响应，因此保护末级有既定信用。保持绑定。 |
+| R64Tlb.v | 16 项，VPN/ASID/global/page-size 匹配后 one-hot 合并 PA/flags。空项选择改为并行前缀；全满仍按原 next 替换；overlap/SFENCE 优先级不变。 |
+| R64PageWalk.v | IDLE→READ→CHECK→UPDATE/UPDATED→RESULT；A/D 比较失败从根重读。保留当前结构，不放宽权限、失配重启或投机 store 的 A/D 授权。 |
+| R64Translation.v | 生产数据支路选择 R64DataTranslation；通用兼容支路仍有独立测试。 |
+| R64DataTranslation.v | lookup/outcome/terminal 分离，walk 期间 owner 保持，invalidate poison 排空，成功结果再形成 PA/last/PMA。保持。 |
+| R64FetchTranslation.v | 一个 lookup、一个待启动/在途 walk、两个响应 owner，walk descriptor 在空闲时提前准备。保持。 |
+| R64PmpDecode.v | CSR 的16组配置形成共享 range/permission；TOR/NAPOT 边界和 locked 规则保持。 |
+| R64PmpCheck.v | 所有范围并行比对，最低重叠项决定；部分重叠仍报错。保持。 |
+| R64Pma.v、R64PmaRange.v | 对完整地址范围检查实际平台窗口与 MMIO 大小限制；保持。 |
+| R64FetchProtection.v | sector 内四个 word 的事实预计算→owner Q→短优先级；R64FetchPma16 为固定16B访问消除动态长加法。保持。 |
+| R64DataProtection.v | PA/last 对范围形成事实Q→最低匹配；保留现有空闲槽 payload 预写与独立 valid。 |
+| R64PtePort.v | 在 IDLE 预写地址、expected、OR mask 和属性；状态转移单独授权请求；SEND/WAIT/FAULT 冻结。 |
+| R64ICache.v | lookup 可离开时提前读两 way 的 tag/data，取消宽输入对最终 dispatch fire 的依赖。公开 response 在复位/无效周期的原值保持；不能用修改测试掩盖变化。 |
+
+LSU 的20项 canonical owner、转发 query、pin、完成/取消网络见 [LSU 拓扑](../lsu/TOPOLOGY.md)。MemorySplit 负责未对齐片段与序列，MemoryService 汇合三个 coherent PTE 请求和 CPU 物理请求；特殊操作仍受原排空与独占条件约束。
+
+整机 STA 的写 bank 瓶颈对应 R64Dcache.bank10_q[255][56]，基线 D 输入由 data_write_value_w[1][56] 驱动，扇出512。当前实现已有每 bank 一拍 pending write；查询按 index/way/mask 转发 pending data，保持原命中和安装时机。每32行保存独立写数据副本，降低局部扇出。原 R/B 冲突握手不变；不采用“B 未完成就锁住 refill bank”的方案，该方案破坏独立 load 进度，已由原测试否决。
+
+## 2026-10-08 当前设计单元索引
+
+ID 对应实际状态 owner 与寄存边界，不假定每个文件都是一级流水。宽度列出关键字段；
+结构容量与最小组合/寄存距离是 RTL 事实，程序中的延迟分布、吞吐利用率和独立 PPA 若未测量则标为 UNKNOWN。
+LSU、Split、Service、Dcache 的实际单元在 [LSU-01～12](../lsu/TOPOLOGY.md) 中定义，避免同一状态被重复计算。
+
+| ID / 源码 | 状态与容量 | 同拍/跨拍、信用与取消边界 | 已知量与 UNKNOWN |
+| --- | --- | --- | --- |
+| MEM-01 数据翻译；`R64Memory.v`、`R64Translation.v`、`R64DataTranslation.v` | 实际2套 DataTranslation，每套1个 lookup owner+1个 outcome owner（FACTS/WAIT_WALK/RETURN）；VA64、root44、ASID16、PA64、last65 等；outcome 保存 walk 身份。 | lookup Q→TLB/权限事实组合→outcome Q→保护。集成明确 `DATA_PROTECTION=1, RESERVED_TERMINAL=1`；通用模块的147位 overflow holder在此被常量关闭。LSU发翻译时预留终端信用，不能额外计一个 overflow 容量。invalidate poison后排空已有 walk，LSU按原 owner接收返回。 | 2套通道与边界已知；裸地址/TLB命中/miss各延迟和等待分布 UNKNOWN。xfifo深4并不提供4个独立 walker。 |
+| MEM-02 TLB；`R64Tlb.v` | 当前 ITLB及两套DTLB各16项；每项VPN27/PPN44/ASID16/level2/PBMT2/flags8及valid/global/NAPOT；next替换指针4位。 | lookup 是从已保存上下文到并行匹配/one-hot合并的组合网络；fill与SFENCE在时钟边沿更新。重叠项和ASID/global约束继续生效，不能用多个命中OR当作多级页表投机。 | 项数、比较字段已知；工作集命中率、冲突率、fill/SFENCE频度、TLB局部关键弧 UNKNOWN。 |
+| MEM-03 PageWalk；`R64PageWalk.v` | 取指1套+数据2套，每套1个 state3 owner；VA39、PTE64、root44、PTE地址/PA各56、level2等。IDLE→READ→CHECK→UPDATE/UPDATED→RESULT。 | 物理PTE请求经 MEM-06/LSU-11/12；在途请求先真实返回再推进。A/D更新用expected64+ORmask64比较更新，失败重读；数据store A/D授权不能在投机准备时提前取得。 | 3套单owner walker 已知；页表级数分布、A/D重试和CPU/PTW互相阻塞周期 UNKNOWN。 |
+| MEM-04 数据保护；`R64DataProtection.v`、`R64PmpDecode.v`、`R64PmpCheck.v`、`R64Pma*.v` | 2套，每套1个valid holder；PA64、class2、cause5、protection4、overlap16/deny16及资格位；共享16组PMP range/permission来自CSR。 | PA/last范围事实组合→事实Q→最低匹配优先级组合。核心选 `PMA_PREPARED=1`，后端 `rsp_ready=1` 来源于LSU预留 owner信用。权限/完整范围/跨窗错误与数据在同一 owner上，不能脱离上下文单独提前valid。 | 16项PMP范围与一组事实Q已知；保护命中分布、PMP/PMA各自关键路径、独立面积 UNKNOWN。 |
+| MEM-05 取指翻译与保护；`R64FetchTranslation.v`、`R64FetchProtection.v` | 1个 lookup、1个待启动/在途 walk descriptor，2×75bit响应记录与reserved/count；16B sector保护准备4个word事实。 | 接受前预约响应位置，walk与lookup可有不同owner；redirect/poison处理沿原owner，真实PTE请求需drain。上下文变化不能复用旧权限结果；不把两响应槽解释为两路并行walk。 | owner/响应容量已知；redirect丢弃比例、ITLB miss前端停顿、翻译与取指重叠程度 UNKNOWN。 |
+| MEM-06 coherent PTE port；`R64PtePort.v` | 3套各1个owner；state2（IDLE/SEND/WAIT/FAULT）、address56、expected64、mask64、compare/cache位。 | IDLE可预写payload；真实req fire后冻结，PMP/PMA/对齐错误进入FAULT；否则经Service/Cached CAS后原请求者实际接受才释放。无branch kill端口，不能对已接受物理访问直接清owner。 | 3个端口、每端口1个live事务；各路等待、错误及compare失败计数 UNKNOWN。 |
+| MEM-07 ICache；`R64ICache.v` | 8KiB/2way/64Bline，64set；每way256×128数据+64×52tag；lookup Q、response Q、单 refill FSM与128bit fill result，另overflow/保护事实寄存槽。 | 16B sector lookup提前同步读tag/data；SEND→FILL真R接受更新，8×64bit line refill；uncached取指2×64bit。invalidate/poison与响应owner关联，不能取消已发AXI。寄存槽为同一owner的不同阶段/缓冲，不能简单相加为独立miss容量。 | 容量与单 refill owner已知；hit latency分布、供给空泡、预取有效率（当前无对应测量）、独立STA/PPA UNKNOWN。 |
+
+以上状态使用时钟上升沿同步更新；复位有效抑制新请求、清有效状态。不能把同步 D 路径自动归为异步 reset-pin
+recovery/removal 检查，也不能用正常模式排除 reset 来屏蔽 runtime invalidate、flush 或权限变化。
+当前已有事实Q、空闲payload预写、terminal信用预约、cache pending write；架构提案须引用对应 ID 的现有边界，
+明确改变的 owner/信用/容量/拍数，不能将这些已有结构列为新增收益。
+
+本页没有新运行仿真/综合。历史“本轮”“整合实验”段落是原实验说明；当前结构以本表与所链接生产 RTL 为准。
+整核周期和布局前STA见 [第二轮基线 B 对照](../../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md)，
+它们没有拆出 MEM-01～07 的独立周期损失或面积，不能按模块图估算为测量值。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/lsu/TOPOLOGY.md =====
+# 当前 LSU 拓扑网络
+
+依据 2026-09-16 的生产 RTL 整理，2026-10-08 补充普通 load 响应空 raw 旁路；入口为
+R64CoreTop.memory → R64Memory.unit → R64LoadStore。
+本文描述模块连接、寄存边界及事务所有权，不把队列深度视为固定访问延迟。
+
+核心配置由 [R64CoreTop.v](../core/R64CoreTop.v) 与 [R64Memory.v](../memory/R64Memory.v) 决定：
+ENTRIES=20、INDEX_W=5、TAG_W=9、ROB_W=5、HEAD_AUTHORIZED_QUERY=1、
+PREPARED_CANCEL=1、EARLY_STORE=1、CACHE_SET_W=6、AUX=3、SRC_W=2。
+其中 EARLY_STORE、CACHE_SET_W 等未在核心覆盖的参数沿用模块默认值。
+R64Lsu 的 RESPONSE_BYPASS 默认1，控制下述普通成功 RAM load 的空 raw 响应旁路。
+
+本轮 Backend 网络优化同时更新了共享 [R64LsuRequestQueue](R64LsuRequestQueue.v)：每个持有位置在原数据写入边沿登记 ROB slot one-hot，reuse 输出对有效位置的位图相或。实际覆盖 request_queue、translation_queue、forward_query、response_queue、forwarding_results、faults 六个实例；完整 tag 继续用于 owner 认证。其它持有域、真实 acquire/release 边沿及本拓扑中的访存顺序不变，同一 ROB slot 的多份引用分别受保护。
+
+**阅读图例。** [Q] 表示真实寄存状态；“组合”表示本级不保存事务；实线表示请求或数据流，
+虚线表示控制、信用或引用保护；双向边表示请求及其响应。模块层次与数据流分别绘制，
+避免将旁路误认成固定流水级。
+
+**1. 核心外围连接与物理访存拓扑**
+
+```mermaid
+flowchart TB
+  BE["Backend / ROB<br/>reserve、bind、双结果接收"]
+  CTRL["退休与恢复控制<br/>head / effect_allow / commit / kill / flush"]
+  FPTW["Frontend 页表访问"]
+
+  subgraph MEM["R64Memory"]
+    TR["R64Translation ×2"]
+    PROT["R64DataProtection ×2"]
+    PTE["R64PtePort ×3<br/>独立物理权限检查"]
+    subgraph LS["R64LoadStore"]
+      LSU["R64Lsu<br/>20项 LSQ、选择、转发、完成"]
+      SPLIT["R64MemorySplit<br/>对齐旁路 / 单个非对齐 owner"]
+      SERVICE["R64MemoryService<br/>CPU + 3路辅助仲裁 / bank配对<br/>2 lane × 2 请求槽"]
+      DC["R64Dcache<br/>8 KiB / 2-way / 2 bank"]
+    end
+  end
+
+  BE -->|"reserve / bind"| LSU
+  LSU -->|"out ×2 / store_done ×1"| BE
+  CTRL -.-> LSU
+  LSU -->|"tr request ×2"| TR
+  TR -->|"PA / fault / 属性准备"| PROT
+  PROT -->|"protected response ×2"| LSU
+  TR <-->|"两路 data walker"| PTE
+  FPTW <-->|"第三路 PTE client"| PTE
+  LSU <-->|"双 lane 物理请求与响应"| SPLIT
+  SPLIT <-->|"CPU token = LSQ slot"| SERVICE
+  SPLIT -.->|"request 预选；实际 owner 仍由 VALID/READY 接受"| SERVICE
+  PTE <-->|"aux request / response"| SERVICE
+  SERVICE <-->|"source + slot token"| DC
+  DC -->|"普通对齐 store 的真实 B 完成"| LSU
+
+  RD["R64AxiRead<br/>与 Icache 共享读总线"]
+  WR["R64AxiWrite"]
+  AXI["外部 AXI / 内存与设备"]
+  DC <-->|"read / beat"| RD
+  DC <-->|"write / data / B"| WR
+  RD <--> AXI
+  WR <--> AXI
+```
+
+当前 aux0 是 Frontend 页表访问，aux1/aux2 是两个数据翻译通道的页表访问。
+R64LoadStore 的通用默认 AUX=4 不代表当前核心接入4个辅助客户端；当前核心没有在该入口接入 Tensor。
+PTE 辅助请求经各自 R64PtePort 检查后直接进入 Service，不占 CPU LSQ，也不经过 CPU 的 MemorySplit。
+
+Service选中辅助读时，入口可以在CPU0/CPU1之间选择读配对：CPU0缺席，或CPU0与辅助读同bank、
+CPU1位于异bank且两条CPU请求和辅助请求均为普通cached读时，选择CPU1；
+否则保留CPU0路径。CPU0的特殊/NC请求与辅助CAS/写不因此被越过。
+该选择位于请求槽捕获前；已有效的请求槽及下游保持的offer保持原token和payload。
+
+LoadStore 显式启用 Service.CPU_REQUEST_HINTS=1，Split 另提供 request 预选信号，
+让配对和空槽数据准备不必等待 pending-split 对实际 VALID 的门控。
+只要任一 CPU lane 的实际 VALID 为1，两位 request 必须与两位 VALID 完全相同；
+pending split 时实际两位 VALID 均为0，Split 的输入 ready 只接受慢路径 acquire，
+因此预选 ready 不能创建 CPU owner。真实 enqueue、aux 选择、轮转更新和已占用槽的 owner 仍由原条件决定。
+Service 通用参数默认0。这里的严格 live 输入契约不同于 WB 的端口需求提示：
+WB 可以安全消耗空 grant，Service 的实际有效输入必须对应准确的 lane 配对。
+RTL 断言逐拍对照原 CPU 接受式和实际捕获的 payload，正向及错误提示测试已加入默认回归。
+
+翻译是 LSU 的外部服务，Dcache 是物理地址缓存。LSU 对每个已接受翻译保留顺序 owner；
+页表读取/compare-and-OR 则通过同一物理 Dcache，形成带寄存状态的请求/响应依赖网络。
+
+来源：[R64Memory.v](../memory/R64Memory.v)、[R64LoadStore.v](R64LoadStore.v)、
+[R64MemoryService.v](R64MemoryService.v)。
+
+**2. 实际实例层级**
+
+```text
+R64CoreTop
+└─ memory : R64Memory
+   ├─ g_translation[0..1]
+   │  ├─ translation : R64Translation
+   │  └─ protection  : R64DataProtection
+   ├─ g_pte[0..2].port : R64PtePort
+   └─ unit : R64LoadStore
+      ├─ lsu : R64Lsu
+      │  ├─ translation_queue : R64LsuRequestQueue
+      │  ├─ request_queue     : R64LsuRequestQueue   ← descriptor
+      │  ├─ forward_query     : R64LsuRequestQueue   ← 最终物理请求 / winner
+      │  ├─ forwarding_results : R64LsuRequestQueue ← full-forward terminal
+      │  ├─ response_queue    : R64LsuRequestQueue   ← raw response
+      │  ├─ faults            : R64LsuRequestQueue
+      │  ├─ completion        : R64LsuCompletion
+      │  ├─ R64LsuOrderSelect ×6
+      │  │  └─ allocation / translation / load / fault / prepare / event
+      │  ├─ R64LsuForwardByte ×16                  ← 2 lane × 8 byte
+      │  ├─ R64LsuMetaRead：多处 one-hot 元数据与字节读取
+      │  └─ R64WideAdd ×2                          ← backend 目录的地址加法器
+      ├─ split   : R64MemorySplit
+      ├─ service : R64MemoryService
+      └─ cache   : R64Dcache
+         └─ arithmetic_parts : R64DcacheAmoParts
+```
+
+LSQ entry 阵列、older_q、mholder、prepared holder、translation owner FIFO、
+physical_hold 与 store_done 是 R64Lsu 内部寄存逻辑；full-forward 结果现在由 forwarding_results 双槽队列保存。
+
+目录里的 R64LsuSelect.v 和 R64LsuYoungestByte.v 仍列在主线 filelist，
+但当前 R64Lsu 没有实例化它们。当前选择网络使用 R64LsuOrderSelect，
+逐字节 youngest 判定使用 R64LsuForwardByte；不能由“文件在目录/filelist 中”
+推断它是当前实例拓扑的一部分。
+
+**3. R64Lsu 内部请求和返回数据流**
+
+```mermaid
+flowchart TB
+  RES["reserve：分配槽与完整 tag"]
+  BIND["bind：地址加法、store旋转、mask、检查"]
+  LSQ["[Q] LSQ ×20<br/>state / tag / VA / PA / data / age"]
+  XSEL("组合：NEW top-2 + head A/D replay")
+  XQ["[Q] translation_queue<br/>2 lane × 2 槽"]
+  XF["[Q] xfifo：已接受翻译的 owner<br/>每 lane 深4"]
+  TR["外部 Translation + Protection"]
+  RX("翻译响应按 FIFO head 定位 LSQ")
+
+  LSEL("组合：READY load top-2")
+  MH["[Q] mholder ×2<br/>slot + tag + valid"]
+  DREAD("组合：共享 one-hot 读取<br/>payload / age，tag直连")
+  DQ["[Q] request_queue<br/>93-bit load descriptor：2 lane × 2 槽"]
+  MATCH("组合：PA word匹配<br/>每 byte youngest winner")
+  PRE["[Q] prepared holder ×1<br/>提前准备 / head授权"]
+  QQ["[Q] forward_query<br/>descriptor + winners + full + pin<br/>2 lane × 2 槽"]
+  READBYTE("组合：按已寄存 winner 读 store byte")
+  FT["[Q] forwarding_results<br/>2 lane × 2 槽"]
+  HOLD["[Q] physical_hold<br/>每lane1项，空时旁路"]
+  PHYS["MemorySplit → Service → Dcache"]
+  MERGE("组合：按 response token 取元数据<br/>物理数据与已捕获 forward byte 合并")
+  RAW["[Q] response_queue<br/>2 lane × 2 槽"]
+  FQ["[Q] faults<br/>2 lane × 2 槽"]
+  EVT("组合：格式化 / 六源轮转取二")
+  CQ["[Q] completion<br/>2 lane × front+skid"]
+  WB["Backend 双结果端口"]
+
+  RES --> LSQ
+  BIND --> LSQ
+  LSQ --> XSEL --> XQ
+  XQ -->|"tr_valid / ready"| TR
+  XQ -->|"实际 xfire 时记录 owner"| XF
+  TR --> RX
+  XF -.->|"response_slot"| RX
+  RX -->|"PA / class / fault / needs_ad"| LSQ
+  RX -->|"满足普通 load 直入条件"| QQ
+  LSQ --> LSEL --> MH --> DREAD --> DQ --> MATCH --> QQ
+  LSQ --> PRE
+  PRE -->|"head + effect_allow；lane0 优先"| QQ
+  QQ --> READBYTE
+  QQ -->|"非 full：请求与 token"| HOLD --> PHYS
+  READBYTE -->|"full：捕获完整数据"| FT
+  READBYTE -->|"部分转发：驻留query准备数据；出队发布mask"| LSQ
+  PHYS --> MERGE
+  PHYS -->|"已登记取消的普通对齐RAM load"| DRAIN["丢弃数据并释放owner"]
+  LSQ -->|"canonical 元数据 / forward_q"| MERGE
+  MERGE -->|"未满足旁路或未获CQ实际捕获"| RAW
+  MERGE -->|"成功对齐RAM load且raw Q为空：旁路候选"| EVT
+  LSQ -->|"DONE → fault_select"| FQ
+  RAW --> EVT
+  FQ --> EVT
+  FT --> EVT
+  EVT --> CQ --> WB
+  CQ -.->|"out_request：驻留或本拍已接受结果，提前申请下一拍写回端口"| WB
+```
+
+这张图的四个关键分流点：
+
+- 翻译响应直入：成功普通对齐 load、非 IO、无需 A/D 重走，并且对当前 owner
+  没有更老 barrier/ordering owner；还需对应 lane 的 query Q 信用及入口优先级允许。
+  较老普通load的属性未知时仍为barrier，同拍成功RAM响应可解除这一未知属性屏障。
+  不满足直入条件的正常响应保存在 LSQ，后续进入 READY 调度。
+- prepared 入口：普通 store 可以在到 head 前准备完整 payload；head 特殊请求也使用
+  prepared holder。选择 owner 的同一个边沿捕获 slot、tag 和完整 payload，省去原来的后续 payload 读取拍。
+  payload 由原始 one-hot 并行读取；取消只决定是否接受这次准备，被取消的替换候选不能覆盖仍有效的旧描述符。
+  只有 head/effect_allow 授权后才占 query lane0，优先于普通 descriptor。
+  未成为 head 的 prepared 内容可以被新就绪的更老 head 特殊请求替换；这仍只是准备。
+- query 出口：full-forward 的数据进入每lane两槽的 forwarding_results。
+  其他请求在 query head 驻留期间把受 pin 保护的转发字节准备到原 LSQ row；在 physical_hold 有空间时出队并发布有效 mask。物理入口可接受且
+  hold为空时直接发出，否则 hold 保存完整descriptor/tag。后续只在实际握手时置 mem_issued，
+  不重读已释放的source store，也不清除快照。某一出口容量用完后仍可能把背压传回query。
+
+- 物理响应入口：RESPONSE_BYPASS=1 时，成功、对齐、非 store/atomic/side-effect 且 class<2 的
+  普通 RAM load，在该 lane 的 raw Q 真正为空时可作为原 raw 来源参与六源轮转。
+  只有 CQ 本拍实际捕获该事件，才抑制这次 raw enqueue；未获 grant 或 CQ 无信用仍进原 raw Q。
+  使用不含 kill 的 out_occupied_o 判断是否空，不能让被杀旧 head 与新响应交换 payload。
+  外部 ready、raw 的寄存信用、mem_end 与上游 owner 释放边沿不变；完整 tag 在接受边沿
+  从 LSQ 转交 raw 或 CQ，reuse 投影保持覆盖。错误、IO、atomic 和非对齐请求保留原路径。
+
+正常匹配路径的寄存边界是 mholder → load descriptor Q → query Q → forwarding_results 或可旁路的 physical_hold → 物理服务。
+翻译直入与 prepared 直入省去前面的普通 load 调度/匹配路径。箭头不是固定“一拍”承诺；
+背压、队列前方 owner、translation/cache 延迟都会改变等待时间。
+
+completion 另输出两位写回端口需求提示。每位由该物理 lane 的 front/skid 占用或本拍 CQ 接受事件产生，
+在新结果变成寄存 VALID 前申请下一拍 Backend grant。提示不传递 owner/data、不完成指令；
+实际取走结果仍要求 out_valid/out_ready，受原有 kill/flush 与 ROB owner 校验约束。
+CQ 输入信用来自占用 Q，不由写回 ready 反推，保持 ready 组合路径隔离。
+
+六路来源的“至少一条/至少两条有效”直接并行计算，用于 CQ 接受数量与提前端口需求。
+具体 owner、payload 与来源 pop 仍由原循环优先级选择器决定；计数不再等待 winner one-hot 的归约。
+该优先级构成全序，因此两种计数等价；断言比较新计数与原 winner 数量，独立测试穷举16,384组。
+
+
+本轮 descriptor 去门控的位置就是图中的 DREAD：mslot_q 仅控制 one-hot 数据/age 读取，
+mtag_q 直接送 tag；最终 descriptor_s_take_w 仅控制有效发布，未再门控宽输入。
+具体见 [R64Lsu.v](R64Lsu.v) 的 gen_descriptor_payload。
+
+**4. 转发网络与 source pin 的反馈连接**
+
+```mermaid
+flowchart LR
+  D["[Q] descriptor head<br/>PA / mask / older位图"]
+  S["[Q] LSQ store rows ×20<br/>PA / mask / state / alive"]
+  REL["[Q] older_q 20×20<br/>转置得到 younger relation"]
+  M("每 lane ×20 个 PA word比较<br/>匹配资格供8个 byte共享")
+  Y("2×8 个 ForwardByte<br/>每byte选择最近的 older store")
+  USED("访问 mask 去掉无用 winner<br/>8组 winner 求并集")
+  Q["[Q] query 两lane四槽<br/>160-bit winners / 20-bit pin"]
+  DAT["[Q] store_q ×20 ×64bit"]
+  BR("2×8 个 MetaRead<br/>每byte按 winner 读取")
+  CAP["数据捕获<br/>full→terminal / partial→forward_q"]
+  P("held pins OR<br/>加 descriptor head 的保守保护")
+  ST["LSQ store 生命周期<br/>commit后仍被引用 → PINNED"]
+
+  D --> M
+  S --> M
+  M --> Y
+  REL --> Y
+  Y --> USED
+  D -->|"实际访问byte"| USED
+  USED --> Q
+  Q --> BR
+  DAT --> BR --> CAP
+  Q -.->|"包括 front 与第二槽"| P
+  D -.->|"捕获前保守保护"| P
+  P -.-> ST
+  ST -.->|"阻止源slot过早复用"| DAT
+```
+
+每个 query lane 保存 8×20=160 bit 的 winner one-hot；每个实际访问 byte 最多选择一个源。
+多个 byte 可以来自不同 store。pin 是这些有效 byte winner 的20位并集，
+整个 query 队列四个有效槽的 pin 再求并集。
+
+descriptor 阶段尚未保存 winner，当前 source_pin_w 还对两个有效 descriptor head
+所见的合格 older store 进行保守保护。第二个 descriptor 槽不是这个显式保护式的输入。
+对已经 commit、尚未被任何 query 捕获为源的 store，后续可以依赖已更新的 coherent cache；
+一旦保存了 winner，源数据必须保持到 query 真正捕获它。
+
+commit 后仍被引用的 store 清 alive/effect，但进入 PINNED，保持 slot/data；
+最后一个引用释放后回到 FREE。query 的 AGE_W 旁带在此实例中装的是 pin，
+其 age_clear_i 恒为0；descriptor 的 AGE_W 装的是年龄关系，
+由 source_birth_w 清除新分配 slot 对应的旧关系。这两个旁带同宽，但含义不同。
+
+**5. 主要存储、容量与字段**
+
+下表均按当前核心20项配置；同一指令会同时拥有 LSQ row 和下游 holder/队列记录，
+这些容量不能相加当作“可容纳的不同指令数”。
+
+| 存储 / 实例 | 容量 | 主要内容 | 何时释放或转移 |
+| --- | --- | --- | --- |
+| LSQ entry 阵列 | 20项 | slot关联的tag、VA、PA、store data、mask、状态、forward数据 | 随翻译/完成/commit/pin等生命周期事件 |
+| older_q | 20×20关系位 | 每个row有哪些更老owner | reserve更新；复用slot清旧列 |
+| translation_queue | 2 lane ×2槽 | 10bit请求元数据：slot5+protection4+AD1；另tag9 | 翻译请求实际接受或取消 |
+| xfifo_q | 每lane4深，共8项 | 已接受翻译slot5及protection4 | 对应lane翻译响应实际接受，即使已kill |
+| mholder | 每lane1项，共2项 | slot5、tag9、valid | descriptor捕获或取消；允许重新选择补入 |
+| request_queue / descriptor | 2 lane ×2槽 | data93 + tag9 + older20 | query捕获或取消 |
+| prepared holder | 1个候选 | slot/tag身份及完整data157 | 授权进入query、kill，或准备阶段被head候选替换 |
+| forward_query | 2 lane ×2槽 | data318 + tag9 + pin20 | full结果队列接受，或物理holder/接口接受并捕获快照，或取消 |
+| forwarding_results | 每lane2项，共4项 | data77 + tag9 | 六源仲裁接收或取消 |
+| physical_hold | 每lane1项，共2项，空时旁路 | data157 + tag9 | 实际物理握手或取消 |
+| response_queue | 2 lane ×2槽 | raw152 + tag9 | 六源仲裁接收或取消 |
+| faults | 2 lane ×2槽 | VA64 + cause6 + tag9 | 六源仲裁接收或取消 |
+| completion | 2 lane，每lane front+skid，共4项 | RESULT140 + tag9 | Backend接收或取消 |
+| store_done terminal | 1项 | tag9、error、tval64、valid | Backend专用端口接收；错误owner可随trap清除 |
+| MemorySplit | 1个原始慢路径owner | token、地址、store/gather数据、字节序号 | 完整聚合响应被LSU接受 |
+| MemoryService请求槽 | 2 lane ×2槽 | 加source的请求payload | Dcache请求接受 |
+| MemoryService辅助返回 | 每aux1项，当前3项 | data/error/compare + valid；busy覆盖完整请求 | 对应aux客户端接收 |
+| Dcache lookup / response | 每bank1个lookup和1个response，共2+2 | 物理token、请求与返回数据 | bank命中完成或唯一慢owner排空 |
+| Dcache主慢事务owner | 全局1个 | miss/refill/write/atomic状态 | 完整响应；普通cached store交出AW/W后可转交独立B owner |
+| Dcache普通store B owner | 1个 | bank、way、hit、poison、store数据；bank stage保持token和mask | 真实B且对应完成信用允许 |
+| Dcache待写状态 | 每bank1项，共2项 | way、word index、mask、全字数据；分组payload Q | 下一拍落阵列，期间同址查询逐byte转发 |
+
+普通load descriptor的93bit字段：slot5 + PA64 + func8 + mask8 + AMO5 + class2 + misaligned1；不保存store data。
+prepared/query/physical_hold使用通用157bit格式，在上述字段之外保留store data64；普通descriptor展开时该字段补0。
+query 的318bit字段：通用descriptor157 + 8×20 winner160 + full-forward1。
+query 所保存的 descriptor 中也有 store data字段；load 的转发数据仍在 query 之后按 winner 读取。
+
+**6. Dcache 的银行与慢路径**
+
+```mermaid
+flowchart TB
+  IN["Service 双请求入口"]
+  ROUTE("按 PA bit3 路由<br/>同bank冲突保留未接受请求")
+  B0["[Q] bank0 lookup<br/>way0 / way1同步读"]
+  B1["[Q] bank1 lookup<br/>way0 / way1同步读"]
+  H0("tag命中判定")
+  H1("tag命中判定")
+  O0["[Q] bank0 response"]
+  O1["[Q] bank1 response"]
+  SLOW["[Q] 主慢事务owner<br/>miss / NC / write / LR / SC / CAS / AMO"]
+  RD["READ → REFILL<br/>line fill或单次读取"]
+  MOD["MODIFY<br/>LR reservation / CAS compare"]
+  AMO["AMO_EXEC → AMO_FINISH<br/>R64DcacheAmoParts"]
+  WR["WRITE → BRESP<br/>AW与W分别握手 / 等待B"]
+  DEL["DELIVER"]
+  FAST["fast store B → LSU store_done"]
+  SB["[Q] 普通cached store独立B owner"]
+  WP["每bank R/B真实写事件仲裁"]
+  PEND["[Q] 1拍待写 + 每32行payload分组"]
+  ARRAY["四份原bank/way数据阵列"]
+
+  IN --> ROUTE
+  ROUTE --> B0 --> H0 -->|"普通load命中"| O0
+  ROUTE --> B1 --> H1 -->|"普通load命中"| O1
+  H0 -->|"miss / 特殊请求"| SLOW
+  H1 -->|"miss / 特殊请求"| SLOW
+  SLOW --> RD
+  SLOW -->|"普通store / SC成功"| WR
+  SLOW -->|"原子cache hit"| MOD
+  SLOW -->|"SC失败"| DEL
+  RD -->|"普通读完成 / 读错误"| DEL
+  RD -->|"成功原子读取"| MOD
+  MOD -->|"LR / CAS不匹配"| DEL
+  MOD -->|"CAS匹配"| WR
+  MOD -->|"算术AMO"| AMO --> WR
+  WR -->|"普通返回"| DEL
+  WR -->|"普通cached store交出AW/W"| SB
+  SB -->|"真实B / fast-store"| FAST
+  SB -->|"普通宽返回"| DEL
+  RD -->|"真实R"| WP
+  SB -->|"成功B更新resident字节"| WP
+  WR -->|"其它成功B"| WP
+  WP --> PEND --> ARRAY
+  PEND -. "同址byte转发" .-> B0
+  PEND -. "同址byte转发" .-> B1
+  DEL --> O0
+  DEL --> O1
+```
+
+存储组织由 SET_W=6 得出：
+
+| 项目 | 当前配置 |
+| --- | --- |
+| 容量 / 相联度 / line | 8 KiB / 2-way / 64 B |
+| set | 64 |
+| 每line的64bit word | 8 |
+| bank选择 | PA[3] |
+| set索引 / tag | PA[11:6] / PA[63:12] |
+| 每个bank/way的word索引 | {PA[11:6], PA[5:4]}，8bit |
+| data阵列 | bank00、bank01、bank10、bank11，各256×64bit |
+| tag阵列 | 2个way，各64×52bit，另valid与LRU |
+| 端口结构 | 每bank/way单同步读、单byte-enable写；tag每way双读单写 |
+| 对齐load命中能力 | 两个不同bank的load可每拍接受；同bank有冲突 |
+| miss/write并发 | 主read/refill owner + 普通cached store B owner；受限异bank、异set普通cached读可重叠；额外miss在bank stage等候 |
+| 写策略 | write-through，普通store miss不分配；成功B后更新已驻留word |
+
+请求 lane 与 bank 编号不是同一概念：任一入口 load lane 可进入bank0或bank1，
+Dcache返回按bank输出，Service据token中的source解复用，LSU再据slot取对应元数据。
+
+READ/REFILL期间的独立hit可以返回；同bank、同set、poison/invalidate禁止该重叠。
+DELIVER仍重读另一bank的保留lookup，使它观察新refill/失效后的tag与数据。
+入口ready与候选payload使用相同的overlap资格；lane0不合格而lane1可接受时，所有字段选择lane1。
+LR reservation、SC最终检查、CAS/AMO排他性均在这个物理owner内维护。
+普通对齐 RAM store 满足 fast_store 条件时，真实外部 B 通过独立窄端口直接反馈 LSU，
+绕过 Service/Split 的宽返回队列。非对齐 store、IO、LR/SC/AMO仍走普通返回链。
+所有写的真实外部结果仍由 B 决定。
+
+整合版把逻辑写入与大阵列落盘分开：原来的真实R/B仲裁事件先进入每bank的一拍待写状态，
+下一拍再按word/way/byte写原数据阵列。每组32行保存独立的64bit payload历史，
+每个数据位最多驱动32行×2way；同址lookup用全局pending数据按byte覆盖阵列旧值。
+因此成功B、refill install、load返回的原有边沿保持，物理阵列写延后一拍由转发补齐。
+连续写使用上一拍payload落阵列，同时捕获下一拍payload；失败B不会产生待写事件。
+
+同bank的R/B真实写事件仍以B为先，只在发生实际冲突的那一拍阻塞R；不会在等待B期间预约整个bank写口。
+invalidate清valid并poison在途owner，待写数据不能重新建立valid；reset清pending valid。
+这次重组针对真实STA定位到的DCache写数据512扇出路径；最终时序与CPI结论见
+[全核迭代结果](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+
+
+**7. 控制、信用与所有权网络**
+
+| 网络 | 起点与终点 | 当前RTL的意义 |
+| --- | --- | --- |
+| reservation信用 | FREE Q → allocation_select → Backend reserve_ready | dispatch时分配LSQ及年龄；不借用当拍释放 |
+| bind | Backend slot/tag/uop/operand → 原已保留LSQ row | in_ready_o恒为2'b11；真正写入仍检查存活、slot、完整tag、NEW和未bound；VA/store/mask/misaligned直接使用该行的接受位写入，保持lane1优先级 |
+| 翻译信用 | translation_queue占用Q → translation_select；xfifo count → tr_valid | 请求队列容量与已接受翻译owner容量分开 |
+| 普通load调度信用 | descriptor占用Q → mholder可用性 → load_select | 不从cache ready穿透回新load选择 |
+| descriptor出队 | query信用 + probe_allowed + prepared优先级 → descriptor_pop | 只有query实际捕获才转移descriptor |
+| query出队 | full时forwarding_results信用；否则physical_hold为空或旧holder实际发出 | 宽数据由驻留query预写，mask在query出队时发布；可早于物理接受 |
+| 物理返回信用 | raw队列Q信用，或匹配已登记dead普通load | bypass仅限issued、对齐、非atomic/非store、RAM；当前kill不组合进入ready |
+| 窄store返回信用 | store_done_q为空 → mem_store_rsp_ready → Dcache B ready | 不借Backend同拍消费信用 |
+| 宽完成信用 | completion的back占用Q → 六源event grant | Backend ready不直接生成该级输入容量 |
+| source pin | query全部有效槽pin OR descriptor head保守保护 → store PINNED | 控制源数据与LSQ槽何时可复用 |
+| source_birth | 新reserve slot → older_q清列与descriptor age_clear | 防止旧年龄关系误指向复用后的年轻owner |
+| 取消 | kill_mask / flush，或等价的prepared cancel → LSQ与可撤销队列 | 已接受外部请求继续排空；不能丢失owner |
+| ROB复用保护 | LSQ + 各tagged队列/terminal的reuse OR → Backend | LSQ释放后仍在排队的完整结果也阻止旧ROB槽复用 |
+| 副作用授权 | head_tag + effect_allow → prepared offer / special / A/D replay | 生产HEAD_AUTHORIZED_QUERY允许已授权query保留授权 |
+| idle / drain_idle | LSQ与terminal汇总，再与Split/Service/Cache/PtePort汇总 | idle含未bind reservation；drain_idle关注已bind实际工作 |
+
+R64LsuRequestQueue 的通用结构是两个固定存储槽/每lane，输入信用取Q态未满；
+payload/tag可预写Q态空槽，in_fire才置valid。已占用槽不会被新payload覆盖。
+PREPARED_CANCEL=1用预选候选与最终active得到取消，断言保持它与canonical kill_mask一致。
+
+完成仲裁的六源编号为raw0、raw1、fault0、fault1、forward0、forward1。
+实际优先级在最后一个被completion捕获的来源之后轮转；没有信用时不推进。
+event_select使用循环来源关系，不使用ROB年龄。每拍最多捕获两个，最终异常顺序仍由ROB提交控制。
+completion入口可以分配到空闲物理lane，已保持的输出在背压期间不迁移lane。
+
+bind_mask 的每行已包含原有身份与接受资格。宽元数据写入直接消费本行 one-hot，
+省去先汇总 bind_take 再动态译码 bind_slot 的回路。写入边沿与 reserve/bind/lane 顺序保持，
+R64_ASSERT 逐拍对照原动态索引过程的全部行，包含 FS=Off 的非法 FP 访存地址处理。
+
+LSQ状态语义：
+FREE → NEW（先reserve，之后bind）→ TRANSLATING → READY；
+普通load选入mholder、翻译直入query、或prepared授权进入query后均可进入MEMORY，
+因此 MEMORY 不等价于“已到cache”，还须看mem_issued_q。
+DONE是本地/翻译异常待捕获；普通load在有效物理响应转存raw/CQ，或full-forward terminal捕获时释放原LSQ。
+成功副作用保留RETIRE到commit；需要源保护的已提交store再转PINNED，直到无引用。
+已接受翻译/物理请求的dead owner必须等其响应，不能仅凭kill提前复用。
+
+**8. 当前连接的边界与阅读入口**
+
+- 20项是共享LSQ，load与store共用row；没有另一个独立深度的store buffer。
+- 双lane是多个局部接口与缓存异bank命中的并行能力，store、原子和非对齐慢路径各有串行约束。
+- 功能意义上的反馈环由队列或LSQ寄存器承接；拓扑图本身不证明组合环消除或STA闭合。
+- barrier覆盖未bind与普通load NEW/TRANSLATING属性未知窗口；延迟IO、同拍IO反例中，
+  年轻query发布与物理接受均已由1次降为0。同拍成功RAM响应仍允许双load直入。
+- 本文已随query出口缓冲、转发快照、dead排空、轮转仲裁及受限hit-under-miss更新。
+  本轮同源功能、CoreMark/CPI、综合和STA见
+  [综合评估](../../../../tmp/rv64-lsu-network-complete-20260907/REPORT.md)。
+
+| 后续逐模块阅读对象 | 源码入口 | 关注连接 |
+| --- | --- | --- |
+| reservation与entry控制 | [R64Lsu.v](R64Lsu.v) | reserve/bind、older_q、gen_owner_state |
+| 选择与元数据读取 | [R64LsuOrderSelect.v](R64LsuOrderSelect.v)、[R64LsuMetaRead.v](R64LsuMetaRead.v) | candidate、one-hot、credit、元数据宽度 |
+| 通用请求队列 | [R64LsuRequestQueue.v](R64LsuRequestQueue.v) | Q信用、预写、valid发布、cancel、age/pin |
+| 转发 | [R64LsuForwardByte.v](R64LsuForwardByte.v)、[R64Lsu.v](R64Lsu.v) | PA match、winner Q、源读取、pin |
+| 完成 | [R64LsuCompletion.v](R64LsuCompletion.v) | 六源输入、物理lane分配、front/skid、背压 |
+| 非对齐拆分 | [R64MemorySplit.v](R64MemorySplit.v) | physical_idle、单owner、逐byte请求、错误offset |
+| 多源物理服务 | [R64MemoryService.v](R64MemoryService.v) | round-robin、CPU/aux配对、source token、响应路由 |
+| 缓存与原子 | [R64Dcache.v](R64Dcache.v)、[R64DcacheAmoParts.v](R64DcacheAmoParts.v) | bank、慢owner、B、LR/SC/CAS/AMO |
+
+## 全核 STA 反馈后的转发与状态更新
+
+完整 SystemTop 的 DCache 写数据瓶颈消除后，IQ32 最差端点转到 forward_q，IQ16 最差端点转到 state_q。本轮最终实现同时处理两条路径；完整测量与选择见[本轮结果](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+
+```mermaid
+flowchart LR
+  QQ["query head Q：occupied / slot / winners"] --> P["逐row准备 forward_q 宽数据"]
+  STORE["受pin保护的store bytes"] --> P
+  QQ --> V["valid：reset / flush / cancel资格"]
+  V --> T["query_take：full出口或physical holder信用"]
+  T --> MASK["发布 forward_mask / query出队 / 释放pin"]
+  P --> MERGE["issued响应按mask合并"]
+  MASK --> MERGE
+  T --> HOLD["空holder旁路或捕获descriptor"]
+  HOLD --> FIRE["真实物理fire"]
+  FIRE --> ISS["mem_issued / effect记录"]
+```
+
+out_occupied_o 导出 head 的原始 valid Q，不含 reset/flush/kill 条件。query 使用它准备数据；
+2026-10-08 起 response_queue 也使用它判断 raw lane 是否真正为空，决定能否提供直接进入 CQ 的候选。
+其它四个请求队列不使用这个输出。对外 out_valid_o、接受条件、pop 和取消处理保持原语义。每个 LSQ row 使用静态 slot 匹配写 forward_q；query 离开后不再重读源 store。原 query_take 边沿仍发布 forward_mask，因此待准备或失效的数据不产生架构可见效果。
+
+对应断言检查：同一 row 不被两个 query head 同时声明；physical holder 或 mem_issued 已拥有该 row 后禁止预写；已发请求的有效转发 byte 必须与原 query_take 边沿捕获的参考快照一致。定向测试另外验证 cancel/flush 在组合上压低 out_valid 时，raw occupancy 仍保持原 Q，直到时钟处理取消。
+
+LSQ 在普通 load 被选择、成功翻译直入、或 prepared 授权时已经进入 MEMORY。物理 fire 只新增“已发出”事实；再次写 MEMORY 是冗余的。当前 state_events 去除该项，mem_issued、effect、取消排空与真实握手均保持。原全部事件的互斥断言保留，并增加“每次物理 fire 前 state 必须已是 MEMORY”的检查。这个优化没有把 MEMORY 当成已接受外部事务。
+
+
+## 2026-09-16：准备与完成等待优化
+
+prepared owner 与完整描述符同拍捕获；CQ 接受新结果时提前申请下一拍 WB 端口。
+完成数量与 owner 选择并行，bind 宽元数据改为按行接受位写入。真实副作用授权、
+kill/flush、来源 pin 与 AXI B 完成契约保持。完整 A/B、CPI 和同约束 STA 见
+[本轮报告](../../../../tmp/rv64-cpi-timing-20260916/REPORT.md)。
+
+
+## physical holder 的 query ready 化简
+
+query 出口对满字节转发仍使用 forwarding-results 信用。
+对物理请求，holder 为空时 query ready 原本已成立；holder 占用时，
+仅其保存的 descriptor/tag、当前 kill、head/effect 授权和下游 ready 决定能否替换。
+当前表达式显式使用 holder 自身信息，减少待进入 query 经 mem_valid 绕回自身 ready 的组合依赖。
+寄存边沿、容量、实际物理 VALID 与接受条件保持；R64_ASSERT 逐拍比较原
+!physical_hold_valid || mfire 公式。
+
+
+
+## 2026-10-08：普通 load 响应空 raw 旁路
+
+本轮保留 raw 缓冲容量与 CQ/WB/ROB 接受边界，只对合格成功响应在空 raw 时省去一次寄存交接。
+空 CQ 的定向依赖链观测中 response→CQ 由1拍变0拍，response→WB由3拍变2拍。
+完整 CoreMark10 / Dhrystone10000 的总周期分别减少2.958743% / 2.063613%。
+该结果以真实 NEMU、断言、同镜像和同约束物理比较为依据；CQ 局部组合路径变长的代价也必须一起看。
+具体代码绑定、定向反例、完整程序与真实库 STA 见
+[本轮实验报告](../../ai/tests/2026-10-08-load-response-bypass/RESULT.md)。
+
+## 2026-10-08 当前设计单元索引
+
+以下 ID 标记可独立讨论的状态与组合网络，不等同于 Verilog 文件、可独立改动的权限或固定流水级。
+同一模块可以包含多个单元；表中宽度是所列字段宽度，不是综合后的总触发器位数。
+当前生产版本保留上节普通 load 响应旁路；第二轮固定槽 CQ/无取消候选仲裁实验已回退，
+不能把其归档拓扑当成当前结构。下文“未知（UNKNOWN）”表示没有当前版本的对应测量，不表示数值为零。
+
+| ID / 对应源码 | 状态 owner、容量与真实寄存边界 | 同拍网络、握手与取消语义 | 可量化事实与待测量项 |
+| --- | --- | --- | --- |
+| LSU-01 canonical LSQ；`R64Lsu.v` 的 `gen_owner_state`、`older_q` | 20 row；每 row 完整 tag9，VA/PA/store/forward 各64，state3、mask8、forward_mask8 等；年龄20×20。reserve 边沿获得 slot；bind 在同 slot/full-tag 条件下登记 operand。 | FREE Q 产生分配信用；最多双 reserve/bind。kill 清存活不代表所有 owner 立即释放：已发翻译、物理访问或 pin 仍须完成原生命周期。`effect_q`/`mem_issued_q` 是实际握手后的事实。 | 20 row 与双入口为静态能力；逐状态占用分布、满表阻塞、由哪类 head 导致无法退休的周期分解 UNKNOWN。 |
+| LSU-02 翻译请求与返回 owner；`R64Lsu.v`、`R64LsuRequestQueue.v` | translation_queue 为2 lane×2槽，data10+tag9；xfifo 每 lane 深4，slot5+protection4。发给 MEM-01 的真实 `tr_valid && tr_ready` 登记 xfifo owner。 | 选择、queue 信用、xfifo 余量是不同边界。返回按原 lane FIFO head 找 canonical row；已 kill 也接收并 drain 翻译返回，不能提前复用被引用的 slot。 | outstanding 上限8个 xfifo记录不等于8个 walker；翻译命中/缺失/阻塞占比及往返延迟 UNKNOWN。 |
+| LSU-03 普通 load descriptor；`R64Lsu.v` 的 `mholder`、`gen_descriptor_payload` | 两个 slot5/tag9 holder → request_queue 2×2槽，data93+tag9+age20。组合读取 row 形成 descriptor，实际入队边沿转移 owner。 | 信用由队列 Q 占用产生；宽 payload one-hot 准备与 valid 接受分开已经存在。kill/flush 抑制有效发布。descriptor 的年龄与 query pin 同为20位但语义不同。 | 每拍至多2个 descriptor；选择等待、descriptor→query 等待、被 older unknown store 阻塞比例 UNKNOWN。 |
+| LSU-04 store/特殊访问准备；`R64Lsu.v` 的 `prepared_*` | 单个 prepared owner，slot5+tag9+data157 与独立 valid。普通 store 可提前准备；head 特殊请求可替换尚未发布的准备项。 | payload 捕获不等于副作用授权；须 head+`effect_allow` 后进入 query lane0。取消的替换不能覆盖有效旧 payload；副作用已发出后按真实终端保持 owner。 | 提前准备已开启 `EARLY_STORE=1`、`HEAD_AUTHORIZED_QUERY=1`；store 地址与数据可用时差、准备命中率、head 等待 B 的归因周期 UNKNOWN。 |
+| LSU-05 转发资格、winner/pin；`R64Lsu.v`、`R64LsuForwardByte.v`、`R64LsuMetaRead.v` | query 为2×2槽，每项 data318（desc157+winner160+full1）+tag9+pin20。每 lane 8 byte×20候选 one-hot winner 在 query 边沿保存。 | word match、youngest 选择是组合；query 后按已保存 winner 读源 store。query pin 与 descriptor head 保守 pin 阻止源 slot/data 过早释放；已 commit 但被 pin 的 store 保持 PINNED。 | 2×8×20是结构宽度，不能等同实际门级延迟；全/部分/零转发比例、pin 寿命、CAM/fanout/PPA 分摊 UNKNOWN。 |
+| LSU-06 full-forward、物理 offer 与 raw；`R64Lsu.v` 的 `forwarding_results`、`physical_hold_*`、`response_queue` | full-forward 2×2槽：data77+tag9；physical_hold 每 lane1项：data157+tag9，空时旁路；raw 2×2槽：data152+tag9。 | physical VALID/READY 接受才登记 `mem_issued`；hold 对背压保存 owner/payload。部分转发先捕获快照再发物理请求。已 kill 的普通 RAM 返回 drain；未获完成旁路捕获的有效响应进入 raw。 | RESPONSE_BYPASS=1 已存在，空 raw 判断使用未受 kill 遮蔽的 Q 占用；raw 满、hold 等待、response→消费者 issue 分布 UNKNOWN。 |
+| LSU-07 故障与六源完成选择；`R64Lsu.v` 的 `faults`、`event_select` | fault队列2×2槽：VA64+cause6+tag9；raw×2、fault×2、full-forward×2共6源取2；`event_before_q[5:0]` 保存轮转历史，bit5按现有更新式恒0。 | 格式化/资格/仲裁/宽结果 mux 是同拍组合；只有 CQ 实际捕获才弹出来源与前移轮转。`event_before_q` 已直接同步 reset；当前 CQ 输入要求 dense prefix，不接受仅第二项的 `2'b10`。 | 六取二与 R=140 已知；每源等待、取消命中频度及仲裁饥饿界实际分布 UNKNOWN。最差 reset→event_before 路径与 Q 起点证据见下文，不能由静态路径推断动态丢失周期。 |
+| LSU-08 完成持有与写回需求；`R64LsuCompletion.v` | 当前为2条物理 lane，每 lane front+skid，总4项，每项 result140+tag9；front/back有效各2位、turn1位。front 被消费/取消时 skid 搬到 front。 | 信用取 `~back_q` 加 reset/flush 门控，不借用当拍 out_ready；输出 valid 当拍检查 kill/flush。`out_request` 可提前申请 WB 端口，但实际 `out_valid && out_ready` 才交付。背压 head 不跨 lane 迁移。 | payload/tag 已无 reset 清零；同步 reset 分支、front_remove（ready/flush/kill）仍进入 payload 更新/保持选择。局部输入改善不能当作 CQ→WB 不退化的证据。占用/等待分布 UNKNOWN。 |
+| LSU-09 普通 store 完成；`R64Lsu.v` 的 `store_done_*` | 独立1项 terminal：tag9+error1+tval64+valid1，接收 DC 真正 B 结果后送 ROB 专用 store_done 端口；不走 LSU-07/08。 | 成功不可逆 owner 保留到退休；错误保留精确异常。完整 tag 认证；commit/flush 与外部 effect 的互斥仍由真实控制合同保证。不能把 enqueue/AW/W 当作成功 B。 | 单终端容量已知；store_done→ROB/retire 延迟与占用瓶颈 UNKNOWN。 |
+| LSU-10 非对齐序列；`R64MemorySplit.v` | 1个慢 owner：state2、token5、address/store/gather 各64、step/last各3等；IDLE→SEND→WAIT→DONE。对齐路径不在这里强加寄存拍。 | 对齐请求可双 lane 旁路；未对齐按 byte 顺序发出并聚合响应。输入预选 request 仅准备 Service 选择；真实 VALID/READY 才建立 owner，pending split 不得借提示创建新 CPU owner。 | 1慢 owner；与错误终止相关的分片数及额外周期 UNKNOWN。 |
+| LSU-11 CPU/PTW 物理服务；`R64MemoryService.v` | 请求2 lane×2槽，payload219=212+token5+source2；aux3路各1个 busy owner/返回 holder，返回data64+error+compare。 | CPU/aux 组合配对与bank判定→请求槽Q→Dcache；token的source负责回包分流。真实 enqueue 才更新 owner/轮转，空槽可预写。没有通过 ROB kill 撤销已接受 PTE/CPU物理请求的端口。 | 最大双 request 接受不等于所有组合都双发；CPU/PTW仲裁等待、same-bank冲突、返回队头阻塞 UNKNOWN。 |
+| LSU-12 Dcache lookup/慢事务/写阵列；`R64Dcache.v` | 见第6节：8KiB、2way、2bank，各 bank 1 lookup+1 response；主慢 owner1+普通cached store B owner1；每bank1项pending write。对 Service token 为7位（slot5+source2）。 | 命中、慢 owner、store B、R/B 写口与 pending 数据转发是不同边界。成功 B 后更新驻留字节，失败不写；invalidate poison不能撤销 AXI。pending write 是已有一拍结构，不是新候选。 | 原始阵列位数/容量已知；实际每类hit/miss延迟、miss并发受限损失、分bank冲突、宏/SRAM替换后的PPA UNKNOWN。 |
+
+当前共享队列 `R64LsuRequestQueue` 已使用 Q 空槽 payload 预写、独立 valid 发布以及 ROB slot one-hot 引用保护，
+不能把它与已回退的固定槽 **Completion** 实验混为一谈。取消网络仍必须覆盖 full-tag 存续与 ROB slot 复用；
+单纯增加全局 epoch 并未自动替代 partial kill、pin 或已接受事务的 drain。
+
+当前版本的动态证据来自 [round1 结果](../../ai/tests/2026-10-08-load-response-bypass/RESULT.md)：
+定向空 CQ load链 response→CQ=0拍、response→WB=2拍；这不是通用 load-to-use 延迟，也未观测消费者 issue。
+当前版本在第二轮对照中作为 B，CoreMark10 为8,968,518 cycles/3,218,537 commits，
+Dhrystone10000 为14,267,505 cycles/4,260,670 commits。
+[第二轮物理对照](../../results/ai-cq-timing-20261008/PHYSICAL-COMPARISON.md) 中 B 的
+CQ payload Q起点最差 slack 为−1.892150521 ns、raw控制为−1.749530077 ns，均是同一1ns布局前模型的路径集结果。
+[端点对照](../../results/ai-cq-timing-20261008/paired-path-diagnostic/RESULT.md) 保存 reset→flush→kill→完成/接受状态的映射。
+这些测量不能折算为每个单元的独立面积、可达频率或程序周期贡献；尚缺的分项均保持 UNKNOWN。
+
+===== END SOURCE =====
+
+
+===== SOURCE: npc/rv64/vsrc/bus/TOPOLOGY.md =====
+# Rebuild BUS 拓扑与事务生命周期
+
+日期：2026-09-08。范围：生产连接 `R64CoreTop → R64SystemTop → R64AxiPlatform`。本文已按四批优化后的 RTL 更新；逐批 CPI、综合/STA、验证和产物清理记录见 [本轮结果](../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。优化前的分析保留在 [OPTIMIZATION.md](OPTIMIZATION.md)。
+
+## 1. 高级网络
+
+```mermaid
+flowchart TD
+  FE["Frontend / I-cache"] -->|"client 0 / RID 0"| RD["R64AxiRead：2 个实际 client"]
+  IP["取指 PTW"] --> P0["R64PtePort 0"]
+  DP["数据 PTW lane 0/1"] --> P12["R64PtePort 1/2"]
+  LSU["LSU 两路物理服务"] --> SP["R64MemorySplit"] --> MS["R64MemoryService"]
+  P0 --> MS
+  P12 --> MS
+  MS --> DC["R64Dcache：双 bank"]
+  DC --> RO["一个 read/refill owner"]
+  DC --> SO["一个普通 cached store B owner"]
+  RO -->|"client 1 / RID 1"| RD
+  SO -->|"client 0 / BID 0"| WR["R64AxiWrite：B 合法性检查 + 空队列直通"]
+  RD <--> F["Fabric：4 读 / 2 写事务槽"]
+  WR <--> F
+  F <--> MG["内存读服务：独立 plan / launch / return"]
+  F <--> IG["MMIO 读服务：独立 plan / launch / return"]
+  MG <--> MEM["PSRAM port 11 / SDRAM port 13"]
+  IG <--> IO["CLINT / PLIC / UART / RTC / syscon / 外部 MMIO / 错误端点"]
+  MG --> RM["寄存 merge grant + 共享 2 项 R FIFO"]
+  IG --> RM
+  RM --> RD
+```
+
+写通道继续使用共同的 AW/W 顺序与 B owner 网络，图中的服务分组针对物理读服务。MMIO 副作用和外部四组单拍接口没有改变。端口号、AXI ID、ROB/LSU token 是不同的标识。
+
+关键源码：[R64CoreTop.v](../core/R64CoreTop.v)、[R64Memory.v](../memory/R64Memory.v)、[R64LoadStore.v](../lsu/R64LoadStore.v)、[R64AxiFabric.v](../platform/R64AxiFabric.v)、[R64AxiReadService.v](../platform/R64AxiReadService.v)。
+
+## 2. 实际容量与占用释放
+
+| 边界 | 生产能力 | 释放占用的事件 |
+|---|---|---|
+| R64AxiRead | I-cache / D-cache 各一个 live ID；共享 2 项 R FIFO | 对应缓存消费最后一拍 R |
+| R64AxiWrite | 2 项 AW、2 项 W owner、2 项 B FIFO；实际只启用 client 0，AWLEN=0 | 客户端真正消费 B，包含合法直通 |
+| Fabric 读 owner | 4 槽；当前核最多两个读 ID | 最后 R 被上游适配器接受 |
+| Fabric 写 owner | 2 槽；当前核只有一个写 ID | B 被上游适配器接受 |
+| 每个读服务组 | 2 项 plan、1 个 launch、1 个 return selector | plan→launch、真实 AR、真实 R 各自推进 |
+| 每个目标 | 最多一个真实在途 Lite 读拍；读写 busy 独立 | 读 R 被收下；续拍可保留同一目标预约 |
+| D-cache | 1 个 read/refill owner + 1 个普通 cached store B owner | 读独立交付；store 在真实 B/完成信用允许时交付 |
+
+四个读事务槽由两个服务组共享；分组没有增加事务槽数。D-cache 分离的是普通 cached store 的等待 B 阶段。其 bank stage 保留地址、token、字节掩码；way、resident hit、数据和 invalidate poison 单独保存，不能被新 refill owner 覆盖。
+
+新的 cached load 首先限定为**另一个 bank、不同 set**。AMO、LR/SC、PTE A/D CAS、非缓存和未对齐序列仍采用原先的独占/排空约束；没有增加第二个外部 store，没有把 store 的架构完成提前到 B 之前。满足条件时，I-cache 读、D-cache 读和一个 D-cache store 可以重叠，不能据此宣称当前核具备通用 6-owner 并发。
+
+I-cache 补行 8×8 B，uncached fetch 2×8 B；D-cache 可分配 load miss 为 8×8 B，其他读单拍；当前写均为 write-through 单拍。通用适配器的 burst 测试能力不等于当前核会发出多拍 writeback。
+
+## 3. 读网络与续拍
+
+```mermaid
+flowchart LR
+  C["I/D-cache cmd"] --> A["读适配器 AR holder"]
+  A --> I["Fabric AR 入口"]
+  I --> D["共用 decode / ID / 空槽检查"]
+  D --> O["4 项 canonical read owner"]
+  O --> M["内存组 plan → launch → endpoint"]
+  O --> P["MMIO 组 plan → launch → endpoint"]
+  M --> MR["内存组 return selector"]
+  P --> PR["MMIO 组 return selector"]
+  MR --> X["注册 merge grant"]
+  PR --> X
+  X --> Q["Fabric R FIFO 2 项"]
+  Q --> B["适配器 RID/LAST 检查 + R FIFO 2 项"]
+  B --> C
+  MR -. "真实非末 R 收下后，受控续拍" .-> M
+  PR -. "真实非末 R 收下后，受控续拍" .-> P
+```
+
+共用 owner 表保存 ID、地址、剩余拍、目标、SIZE、PROT、bad/fixed、waiting/terminal。每组只保存物理服务所需的预约和选择状态。目标 mask 是常量分区，RDATA/RRESP 在组内先选择，再进入两个组的最终合并。
+
+续拍在上一拍真实 R 被接受后生效。下一地址和计数在等待期间准备；无更早的已发布 plan/launch、无同目标竞争者且响应容量足够时，下一拍直接装入寄存 launch。否则回到原轮询路径。没有提前发第二个 Lite 拍；4 KiB、FIXED、LAST 和逐拍错误检查继续有效。
+
+实际 AR 握手可在没有更老返回候选时直接登记 return owner/mask。RREADY 仍由寄存选择和寄存 FIFO 容量产生。两组最多同拍发出两个目标 AR，但最终 R FIFO 只有一个写入口，寄存 merge grant 每拍只允许一组消费 R；另一组保留在端点/return holder。选择中的端点不提供 RVALID 时，可以把服务让给另一组。
+
+资源释放分三层：目标 R 被收下后释放或续约目标预约；末拍入 Fabric FIFO 后标记 terminal，末拍出 FIFO 后释放 Fabric owner；缓存消费末拍后才释放适配器 client ID。
+
+`READ_MEMORY_MASK=0` 保留单组行为；生产平台使用 `16'h2800`，只包括 PSRAM 与 SDRAM。不能用 `MEMORY=16'h6a80` 替代真实服务分组，因为 MROM/flash/chiplink memory 当前仍是错误端点。
+
+## 4. 写完成与缓存物理端口
+
+AW 描述符和 W owner 按命令同时登记，W 数据按接受顺序发送；AW/W 独立反压。最后一拍装入适配器 W 寄存器时可释放 W 队列项，但 `wstage_client_q` 继续持有真实 WLAST 握手的 owner。Fabric 通过 AW 顺序队列为无 ID 的 W 归属，所有子 B 错误最终汇总为一个 B。
+
+生产 `R64AxiWrite.B_BYPASS=1`：B FIFO 非空时总是交付旧头；为空时，当前 B 通过 BID/live/AW/final-W/重复响应检查后可直接送给内部客户端。客户端不接收时写入原 FIFO，payload 与 ID 保持。物理 BREADY 只依赖寄存 FIFO 容量，不能依赖客户端 ready、kill 或旁路结果。通用默认参数仍为 0。
+
+普通 store 的 AW/W 命令与数据交付后，D-cache 可保留独立 B owner，让 read/refill 状态机处理独立 miss。成功 B 更新 resident cache bytes；失败 B 保留原缓存字节并精确返回错误。fast-store 完成仍经过 LSU 的 `store_done_q` 与 ROB 的 owner/tag 检查。
+
+缓存仍然每个 bank/way 一份数据数组、每个物理 bank 一个字节写端口。两个独立 bank 可以同时回填和更新 store；如果两者同 bank，store 完成使用该写口，RREADY 暂停，R beat 留在读适配器中。回填计数、错误累计、install、数据写入均只在真实 R handshake 推进。不能只压低 ready 而仍按 RVALID 写数据或递增计数。
+
+2026-09-09 全核整合版在该仲裁之后增加每bank一拍待写状态与每32行一组的payload寄存器。
+逻辑写入发生在原来的真实R/B边沿，下一拍落入原数据阵列；同址lookup按byte转发待写数据。
+B完成、R接收、refill install与请求响应拍数保持。该结构缩小了最终R/B选择信号直接驱动的大阵列范围，
+同时保留等待B时的独立load进展。全核拓扑及本轮STA反馈见
+[全核拓扑](../TOPOLOGY.md) 和 [整合评估](../../../../tmp/rv64-whole-topology-20260908/REPORT.md)。
+
+
+## 5. 当前地址分发与平台支路
+
+以下是 `define.v` 默认宏与 `R64PlatformMap.vh` 组合得到的地址窗。覆盖这些宏的其他构建需重新核对。
+
+| Fabric port | 默认地址窗（含末地址） | 实际端点 / 外部槽 |
+|---|---|---|
+| 0 | 0x02000000–0x0200FFFF | AxiClint |
+| 1 | 0x0C000000–0x0FFFFFFF | AxiPlic |
+| 2 | 0x00100000–0x00100FFF | AxiResetSyscon |
+| 3 | 0x10000000–0x10000FFF | AxiToUart → Uart |
+| 4 | 0x10001000–0x10001FFF | virtio 外部端口 ext[3] |
+| 5 | 0x10003000–0x10003FFF | R64AxiRtc → R64AxiRegisterPort；已替换旧 GPIO 槽 |
+| 6 | 0x10011000–0x10011007 | PS2 窗，AxiDefaultSlave |
+| 7 | 0x20000000–0x20000FFF | MROM 窗，AxiDefaultSlave |
+| 8 | 0x21000000–0x211FFFFF | VGA 窗，AxiDefaultSlave |
+| 9 | 0x30000000–0x3FFFFFFF | flash 窗，AxiDefaultSlave |
+| 10 | 0x40000000–0x7FFFFFFF | chiplink MMIO 窗，AxiDefaultSlave |
+| 11 | 0x80000000–0x9FFFFFFF | PSRAM 外部端口 ext[0] |
+| 12 | 0x12000000–0x13FFFFFF | legacy MMIO 外部端口 ext[2] |
+| 13 | 0xA0000000–0xBFFFFFFF | SDRAM 外部端口 ext[1] |
+| 14 | 0xC0000000–0xFFFFFFFF | chiplink memory 窗，AxiDefaultSlave |
+| 15 | MASK=0，无匹配窗口 | 保留 default 槽；未命中直接由 Fabric 生成 DECERR |
+
+窗口命中按第一个非零 MASK 的匹配项优先。属性位 `MEMORY=EXECUTABLE=16'h6a80` 标记端口 7、9、11、13、14；其中有的仍连接错误 slave，属性为 memory 不证明设备已实现。合法命中未实现窗口由 slave 返回 SLVERR；非法描述符或地址未命中由 Fabric 内部生成 DECERR。
+
+`R64SystemTop` 只导出这四组单拍外部接口。当前 `R64SystemTestTop.sv` 的系统回归由 `sim/src/r64_sim_main.cpp` 的四个 C++ Endpoint 模型响应，不是实例化旧 `AxiDpiSlave.sv`。每个模型保存一项 R、独立 AW/W 和一项 B；不能把 core-only harness 的 full-AXI 内存行为混入这条系统链。
+
+IRQ/事件有独立的旁路拓扑：CLINT → time、软件/定时器 IRQ；UART IRQ 位 1、RTC IRQ 位 4 与外部 IRQ 源汇入 PLIC，PLIC → M/S 外部 IRQ；syscon 发布系统控制事件。这些信号不经过 AXI R/B 数据返回。
+
+RTC 的统一寄存器桥只用于 RTC。CLINT、PLIC、UART、syscon 各自持有请求和响应状态；AW/W 分别捕获后才执行写入。PLIC claim 先捕获选择结果，再在本地完成边沿更新 gateway；UART 读可有 FIFO 副作用，RTC TIME_LOW 读取快照高位。syscon 的发布事件等待其本地 B 握手。优化返回延迟时必须分别核对这些副作用边沿。
+
+Tensor 扩展的 gmem 请求使用独立接口，并通过 dma_invalidate 与核心维护一致性；它不是本 Fabric 的额外 AXI master。外部 virtio 端口也不能凭名称推断为本 Fabric 的 DMA 主端。
+
+依据：[R64AxiPlatform.v](../platform/R64AxiPlatform.v) 第 50–55、110–269 行；[R64PlatformMap.vh](../platform/R64PlatformMap.vh)；[define.v](../include/define.v) 第 169–281 行；[仿真宿主](../../sim/src/r64_sim_main.cpp)。
+
+## 6. 背压、取消与时序边界
+
+缓存/LSU 暂不接收时，返回数据保留在相应 holder/FIFO。共享 FIFO 的队头阻塞仍可能存在；分组解决的是物理读 launch/return 服务之间的阻塞，并没有把所有返回队列都拆成 per-ID。
+
+Fabric AR/AW 入口仍各一项，ready 依据当前寄存占用；适配器的内部 cmd/data 信用可以依赖 ARREADY/WREADY。外部 AXI 管脚由寄存状态投影，不能把外部接口隔离等同于所有核内 ready 链都被切断。B 直通和同 bank R/B 写口仲裁都必须纳入真实 STA。
+
+BUS 没有 ROB kill/branch flush 输入。已经接受的 AR/AW/W 继续 drain，上游 LSU/Frontend 决定是否交付或丢弃。invalidate 会 poison 相应 read/store cache 状态，不能撤销外部事务；reservation_clear 清除 reservation，不能当成 BUS reset。系统 reset 使用原同步清除和外部 VALID 抑制边界。
+
+## 7. 验证范围与剩余边界
+
+四批的固定 RTL、命令、原始 PASS/FAIL、CPI/面积/时序和清理清单汇总在 [本轮结果](../../../../tmp/rv64-bus-four-batches-20260908/REPORT.md)。综合为真实单元库映射和布局前 STA；没有把已存在的 1 ns setup/hold 失败改成 PASS。
+
+直接机制覆盖包括：B 直通与 FIFO 回退；延迟/错误 B 下 hit；四种续拍/早返回配置；同目标公平性；慢 MMIO 与 RAM 的单组/双组对照；R FIFO 背压；两 bank 的 R/B 写口冲突、成功/失败字节写读回、invalidate、reservation clear；完整系统 NEMU 对照和固定软件基准。
+
+完整 AXI burst 内存端点、多外部 store、store 提前退休、per-ID 返回 FIFO 属于后续可选架构，当前实现没有加入。实际 CPI 以系统基准为准，模块测试的周期收益不直接折算成整核 CPI；面积和时序代价同样保留。
+
+## 2026-10-08 当前设计单元索引
+
+前述四批结果保留为历史证据；以下依据当前生产连接复核，用稳定 ID 指向可以量化讨论的边界。
+AXI ID、Fabric owner槽、LSU slot/tag与aux source属于不同命名空间。容量不能跨层相加当成不同访存数。
+
+| ID / 源码 | 状态 owner、真实容量与字段 | 同拍/跨拍与取消、副作用 | 已知量与 UNKNOWN |
+| --- | --- | --- | --- |
+| BUS-01 核读适配器；`R64AxiRead.v` | 生产CLIENTS=2/CLIENT_W=1/AXI ID4；每I/D client至多1 live ID；AR holder1项（addr64,len8,size/prot各3等），共享R FIFO2项（data64,resp2,last1,client1）。 | client命令真实接受登记busy；外部AR/R由owner与寄存状态管理；缓存消费最后一拍才释放client。RREADY取寄存FIFO余量；ROB flush无端口，已发布请求继续drain。 | 最多2 live读ID、每拍最多1个R beat进共享FIFO；平均/尾延迟、R队头阻塞及读请求利用率 UNKNOWN。 |
+| BUS-02 核写适配器；`R64AxiWrite.v` | 通用2client但生产只有client0使用；AW2项、W owner2项、W data stage1项(data64/strb8/last1)、B FIFO2项(resp2/client1)。 | AW/W独立握手，final-W owner不能在装入W stage时丢失。B_BYPASS=1已存在：合法B且FIFO空可同拍交给client，否则入FIFO。外部BREADY仅取Q容量；真正消费B才释放busy。 | 当前core单外部store/BID；写等待B分布、旁路命中率、AW/W独立背压损失 UNKNOWN。 |
+| BUS-03 Fabric canonical owner与返回；`platform/R64AxiFabric.v` | AR/AW入口各1项；读owner4槽，写owner2槽；共享R FIFO2项(data64/resp2/last/owner2)，写顺序与W数据各2项，B返回holder。read保存addr64/ID4/剩余8/size3/prot3/target4及状态。 | decode/ID/空槽检查后建立owner；真实末R/B被上游适配器接受才释放Fabric事务槽。每目标read/write忙状态分别管理，非法地址/属性错误仍有终端。无ROB取消端口。 | 4读/2写是Fabric容量，上游实际不足以全部占满；各owner寿命、入口与共享返回FIFO阻塞 UNKNOWN。 |
+| BUS-04 两组读服务；`platform/R64AxiReadService.v` | 2个服务组共享BUS-03 owner；每组plan2项（owner2）、launch1项（addr64,size/prot3、owner2、target mask16）、return selector1项；每target最多1真实Lite读拍。 | 组合选plan→寄存launch→真实AR→寄存return→注册merge→共享R FIFO。续拍只在先前真实R接受后发布；merge每拍最多消费1组R，另组必须保持。分组不增加canonical槽。 | memory mask为0x2800（PSRAM/SDRAM）；两个目标AR可同拍，返回合并峰值1beat/拍。组间重叠利用率、续拍成功率、公平等待尾部 UNKNOWN。 |
+| BUS-05 平台端点与中断事件；`platform/R64AxiPlatform.v`及相应slave | 16个decode端口，4个外部单拍接口；各slave独立AW/W捕获及响应状态，不能套用同一读副作用边沿；系统TB四C++ Endpoint各保存1R、AW/W、1B。 | PLIC claim、UART FIFO读、RTC低读快照高位、syscon本地B发布事件各有其不可逆边沿。IRQ从设备旁路至CSR，不经R/B FIFO。BUS reset同步清状态/抑制VALID不等于runtime事务取消。 | 地址图已列于第5节；每设备访问频度/服务延迟分布及对CPU阻塞归因 UNKNOWN。MROM/flash/chiplink memory属性不证明端点实现。 |
+
+跨层 drain 链为：目标响应被读服务收下 → Fabric terminal/FIFO → 核适配器FIFO → cache原owner →
+LSU/Frontend原owner交付或丢弃。不同层的释放边沿不能用一个“总线已空”替代。
+普通store路径中真实B错误必须返回LSU精确终端；不能通过只测AW/W或缓存hit就证明store已经架构完成。
+Dcache独立store B owner、每bank pending write及B空队列直通均已存在，见 [LSU-09/12](../lsu/TOPOLOGY.md)。
+
+本次为文档复核，没有新BUS benchmark或综合。布局前全核WNS、TNS、面积没有分离BUS-01～05的代价，
+旧模块测试的局部拍数改善也不是当前程序CPI的可加分解。需要量化某项改法时应以相同workload、配置和
+事务端到端起止事件取数，并同时观察其可能把背压传回的上游单元。
+
+===== END SOURCE =====
