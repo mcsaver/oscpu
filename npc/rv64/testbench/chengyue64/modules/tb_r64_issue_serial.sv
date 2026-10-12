@@ -14,6 +14,7 @@ module tb_r64_issue_serial;
   R64Issue #(
     .PAYLOAD_W(32)
   ) dut (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
@@ -36,7 +37,7 @@ module tb_r64_issue_serial;
     .wake_valid_i(2'b0),
     .wake_fp_i(2'b0),
     .wake_preg_i(12'b0),
-    .early_valid_i(2'b0),
+    .early_valid_i(2'b0), .load_promise_i(2'b0), .load_preg_i(12'b0),
     .early_preg_i(12'b0),
     .enq_mem_slot_i(10'b0),
     .issue_mem_slot_o(),

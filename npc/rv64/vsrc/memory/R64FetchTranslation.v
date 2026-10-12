@@ -1,6 +1,7 @@
 // IF integration: fixed lookup, reserved walk descriptor, two response owners.
 module R64FetchTranslation #(
-  parameter DATA_PROTECTION = 0
+  parameter DATA_PROTECTION = 0,
+  parameter BARE_RESPONSE_CAPTURE = 1
 ) (
   input clk_i,
   input rst_i,
@@ -69,6 +70,16 @@ module R64FetchTranslation #(
   wire input_room_w = reserved_q < 3 && (!lookup_valid_q || (!walk_busy_w && response_room_w));
   assign req_ready_o = !rst_i && !invalidate_i && input_room_w;
   wire req_fire_w = req_valid_i && req_ready_o;
+  wire [1:0] input_priv_w = req_access_i != 0 && req_priv_i == 3 &&
+      req_mstatus_i[17] ? req_mstatus_i[12:11] : req_priv_i;
+  // A known Bare outcome may take the original response tail only when no
+  // older lookup/walk owns ordering. Credit and upstream ready remain Q-only.
+  wire bare_capture_w = BARE_RESPONSE_CAPTURE != 0 && req_fire_w &&
+      !lookup_valid_q && !walk_busy_w && response_room_w &&
+      (input_priv_w == 3 || req_satp_i[63:60] == 0);
+  wire [4:0] input_cause_w = req_access_i == 0 ? 5'd12 :
+      (req_access_i == 1 ? 5'd13 : 5'd15);
+  wire [74:0] bare_response_w = {input_priv_w, req_vaddr_i, 2'b0, 1'b0, 1'b0, input_cause_w};
   assign rsp_valid_o = response_count_q != 0 && !rst_i;
   wire response_pop_w = rsp_valid_o && rsp_ready_i;
   assign {rsp_priv_o, rsp_paddr_o, rsp_pbmt_o, rsp_needs_ad_o, rsp_fault_o, rsp_cause_o} =
@@ -101,7 +112,7 @@ module R64FetchTranslation #(
   wire [4:0] page_cause_w = access_q == 0 ? 5'd12 : (access_q == 1 ? 5'd13 : 5'd15);
   wire walk_take_w = walk_state_q == W_WAIT && walk_valid_w && response_room_w;
   wire terminal_take_w = lookup_advance_w && terminal_w;
-  wire response_push_w = terminal_take_w || walk_take_w;
+  wire response_push_w = terminal_take_w || walk_take_w || bare_capture_w;
   wire [74:0] lookup_response_w = {
     priv_q,
     bare_w ? va_q : {8'b0, tlb_pa_w},
@@ -119,8 +130,10 @@ module R64FetchTranslation #(
     walk_fault_w,
     walk_cause_w
   };
-  wire response_prewrite_w = response_room_w && (lookup_advance_w || walk_state_q == W_WAIT);
-  wire [74:0] response_payload_w = walk_state_q == W_WAIT ? walk_response_w : lookup_response_w;
+  wire response_prewrite_w = bare_capture_w ||
+      (response_room_w && (lookup_advance_w || walk_state_q == W_WAIT));
+  wire [74:0] response_payload_w = bare_capture_w ? bare_response_w :
+      (walk_state_q == W_WAIT ? walk_response_w : lookup_response_w);
   R64Tlb u_tlb (
     .clk_i(clk_i),
     .rst_i(rst_i),
@@ -254,15 +267,14 @@ module R64FetchTranslation #(
       if (walk_state_q == W_START && walk_ready_w) walk_state_q <= W_WAIT;
       if (walk_take_w) walk_state_q <= W_IDLE;
       if (req_fire_w) begin
-        lookup_valid_q <= 1;
+        lookup_valid_q <= !bare_capture_w;
         lookup_poison_q <= req_poison_i;
         va_q <= req_vaddr_i;
         root_q <= req_satp_i[43:0];
         asid_q <= req_satp_i[59:44];
         mode_q <= req_satp_i[63:60];
         access_q <= req_access_i;
-        priv_q <= req_access_i != 0 && req_priv_i == 3 && req_mstatus_i[17] ? req_mstatus_i[12:11] :
-            req_priv_i;
+        priv_q <= input_priv_w;
         sum_q <= req_mstatus_i[18];
         mxr_q <= req_mstatus_i[19];
         ad_update_q <= req_ad_update_i;
@@ -296,6 +308,8 @@ module R64FetchTranslation #(
       if (req_fire_w && lookup_valid_q && !lookup_advance_w) $fatal(1, "lookup overwrite");
       if (response_push_w && !response_room_w) $fatal(1, "response owner overwrite");
       if (walk_busy_w && response_count_q == 2) $fatal(1, "walk terminal reservation lost");
+      if (bare_capture_w && (terminal_take_w || walk_take_w || lookup_valid_q || walk_busy_w))
+        $fatal(1, "Bare response bypassed an older translation owner");
       if (terminal_take_w && walk_take_w) $fatal(1, "two translation terminal owners");
       if (req_fire_w && req_access_i == 3) $fatal(1, "invalid translation access");
     end

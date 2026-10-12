@@ -51,6 +51,10 @@ module tb_r64_writeback_lanes;
   R64Rob #(
     .META_W(M)
   ) rob (
+    .serial_retire_candidate_o(),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -93,7 +97,6 @@ module tb_r64_writeback_lanes;
     .short_preg_i(shortpreg),
     .short_accept_o(shortaccept),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -118,7 +121,7 @@ module tb_r64_writeback_lanes;
     .count_o(count),
     .head_slot_o(head)
   );
-  R64Rename rename (
+  R64RenameWithScoreboard rename (
     .clk(clk),
     .rst(rst),
     .restore_i(flush),
@@ -168,7 +171,7 @@ module tb_r64_writeback_lanes;
     .rst(rst),
     .flush_i(1'b0),
     .kill_mask_i(km),
-    .source_valid_i(source_valid),
+    .source_valid_i(source_valid), .source_capture_o(),
     .source_ready_o(source_ready),
     .source_tag_i(source_tag),
     .source_result_i(source_data),
@@ -179,6 +182,10 @@ module tb_r64_writeback_lanes;
   R64RegRead #(
     .PAYLOAD_W(M)
   ) prf (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0), .resolved_value_data_i(128'b0),
+    .out_local_alu_valid_o(),
+    .alu_bypass_resident_i(2'b0),
+    .in_src_pending_i(6'b0),
     .in_mem_slot_i(10'b0),
     .out_mem_slot_o(),
     .clk(clk),

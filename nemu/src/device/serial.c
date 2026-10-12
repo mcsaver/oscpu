@@ -509,6 +509,12 @@ void serial_dump_machine_info(FILE *out) {
 /* Optional reference observation sink. UART state and guest transactions are
  * unchanged; the integration checker compares bytes instead of printing twice. */
 void (*difftest_serial_sink)(uint8_t) = NULL;
+// Count guest native transactions, not bytes/registers within a wide access.
+// This observation does not modify UART or architectural state.
+static uint64_t difftest_serial_transaction_count = 0;
+__EXPORT uint64_t difftest_serial_transactions(void) {
+  return difftest_serial_transaction_count;
+}
 // Deliver the same accepted external byte to the independent UART model.
 // This does not alter architectural registers or replay a guest MMIO access.
 __EXPORT bool difftest_serial_receive(uint8_t ch) {
@@ -865,6 +871,9 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
   if (port->uart == NULL) {
     return;
   }
+#ifdef CONFIG_TARGET_SHARE
+  difftest_serial_transaction_count++;
+#endif
 
   if (is_write) {
     uint64_t value = serial_bus_load(port, offset, len);
@@ -930,6 +939,9 @@ static void serial_open_host_inputs(SerialPort *port) {
 }
 
 void init_serial() {
+#ifdef CONFIG_TARGET_SHARE
+  difftest_serial_transaction_count = 0;
+#endif
   SerialPort *port = &serial0;
   Uart16550Ops ops = {
     .tx = serial_port_tx,

@@ -2,6 +2,8 @@
 // reserved from command acceptance through delivery of that transaction's last
 // beat. Clients keep their architectural transaction tags in their own holders.
 // AR and R each cross a register boundary; no AXI input drives an AXI output.
+// Two AR descriptors absorb downstream stalls. Command credit comes only from
+// registered capacity, so AXI ARREADY never feeds back into client CMDREADY.
 module R64AxiRead #(
   parameter integer CLIENTS = 4,
   parameter integer CLIENT_W = 2,
@@ -39,11 +41,12 @@ module R64AxiRead #(
   reg [CLIENTS-1:0] busy_q, sent_q;
   reg [8:0] beats_q[0:CLIENTS-1];
   reg [CLIENT_W-1:0] rr_q;
-  reg arvalid_q;
-  reg [CLIENT_W-1:0] arclient_q;
-  reg [63:0] araddr_q;
-  reg [7:0] arlen_q;
-  reg [2:0] arsize_q, arprot_q;
+  reg [CLIENT_W-1:0] arclient_q[0:1];
+  reg [63:0] araddr_q[0:1];
+  reg [7:0] arlen_q[0:1];
+  reg [2:0] arsize_q[0:1], arprot_q[0:1];
+  reg ar_head_q, ar_tail_q;
+  reg [1:0] ar_count_q;
 
   reg [63:0] data_q[0:1];
   reg [1:0] resp_q[0:1];
@@ -52,12 +55,12 @@ module R64AxiRead #(
   reg head_q, tail_q;
   reg [1:0] count_q;
 
-  assign arvalid_o = arvalid_q && !rst_i;
-  assign arid_o = {{(ID_W - CLIENT_W) {1'b0}}, arclient_q};
-  assign araddr_o = araddr_q;
-  assign arlen_o = arlen_q;
-  assign arsize_o = arsize_q;
-  assign arprot_o = arprot_q;
+  assign arvalid_o = ar_count_q != 0 && !rst_i;
+  assign arid_o = {{(ID_W - CLIENT_W) {1'b0}}, arclient_q[ar_head_q]};
+  assign araddr_o = araddr_q[ar_head_q];
+  assign arlen_o = arlen_q[ar_head_q];
+  assign arsize_o = arsize_q[ar_head_q];
+  assign arprot_o = arprot_q[ar_head_q];
   assign arburst_o = 2'b01;
   assign rready_o = count_q < 2 && !rst_i;
   wire ar_fire_w = arvalid_o && arready_i;
@@ -67,7 +70,7 @@ module R64AxiRead #(
   wire id_range_w = !(|(rid_i >> CLIENT_W));
   wire [CLIENT_W-1:0] rid_w = rid_i[CLIENT_W-1:0];
   wire live_response_w = id_range_w && busy_q[rid_w] &&
-      (sent_q[rid_w] || (ar_fire_w && arclient_q == rid_w)) && beats_q[rid_w] != 0;
+      (sent_q[rid_w] || (ar_fire_w && arclient_q[ar_head_q] == rid_w)) && beats_q[rid_w] != 0;
   wire push_w = r_fire_w && live_response_w;
 
   integer k;
@@ -86,7 +89,8 @@ module R64AxiRead #(
         found_r = 1;
       end
     end
-    if (!rst_i && (!arvalid_q || ar_fire_w) && found_r) cmd_ready_o[grant_r] = 1'b1;
+    // Do not borrow a full queue slot from a same-cycle external AR pop.
+    if (!rst_i && ar_count_q < 2 && found_r) cmd_ready_o[grant_r] = 1'b1;
   end
   wire cmd_fire_w = |(cmd_valid_i & cmd_ready_o);
   genvar c;
@@ -104,33 +108,36 @@ module R64AxiRead #(
       busy_q <= 0;
       sent_q <= 0;
       rr_q <= 0;
-      arvalid_q <= 0;
-      arclient_q <= 0;
-      araddr_q <= 0;
-      arlen_q <= 0;
-      arsize_q <= 0;
-      arprot_q <= 0;
+      ar_head_q <= 0;
+      ar_tail_q <= 0;
+      ar_count_q <= 0;
       head_q <= 0;
       tail_q <= 0;
       count_q <= 0;
       protocol_error_o <= 0;
     end else begin
       if (ar_fire_w) begin
-        arvalid_q <= 0;
-        sent_q[arclient_q] <= 1;
+        ar_head_q <= !ar_head_q;
+        sent_q[arclient_q[ar_head_q]] <= 1;
       end
       if (cmd_fire_w) begin
-        arvalid_q <= 1;
-        arclient_q <= grant_r;
-        araddr_q <= cmd_addr_i[grant_r*64+:64];
-        arlen_q <= cmd_len_i[grant_r*8+:8];
-        arsize_q <= cmd_size_i[grant_r*3+:3];
-        arprot_q <= cmd_prot_i[grant_r*3+:3];
+        arclient_q[ar_tail_q] <= grant_r;
+        araddr_q[ar_tail_q] <= cmd_addr_i[grant_r*64+:64];
+        arlen_q[ar_tail_q] <= cmd_len_i[grant_r*8+:8];
+        arsize_q[ar_tail_q] <= cmd_size_i[grant_r*3+:3];
+        arprot_q[ar_tail_q] <= cmd_prot_i[grant_r*3+:3];
+        ar_tail_q <= !ar_tail_q;
         busy_q[grant_r] <= 1;
         sent_q[grant_r] <= 0;
         beats_q[grant_r] <= {1'b0, cmd_len_i[grant_r*8+:8]} + 9'd1;
         rr_q <= grant_r + 1'b1;
       end
+      case ({cmd_fire_w, ar_fire_w})
+        2'b10: ar_count_q <= ar_count_q + 1'b1;
+        2'b01: ar_count_q <= ar_count_q - 1'b1;
+        default: begin
+        end
+      endcase
       if (r_fire_w) begin
         if (!live_response_w) protocol_error_o <= 1;
         else begin

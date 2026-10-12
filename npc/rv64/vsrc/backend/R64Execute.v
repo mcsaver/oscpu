@@ -12,7 +12,8 @@ module R64Execute #(
   parameter RAW_FP = 0,
   parameter RAW_MEM = 0,
   parameter DIRECT_MEM_BIND = 0,
-  parameter EARLY_ALU_WAKE = 0
+  parameter EARLY_ALU_WAKE = 0,
+  parameter SPLIT_VALUE_VALID = 0
 ) (
   input                            clk,
   input                            rst,
@@ -22,6 +23,7 @@ module R64Execute #(
   input                            cancel_active_i,
   input      [          ROB_W-1:0] rob_head_i,
   input      [                1:0] in_valid_i,
+  input      [                1:0] in_local_alu_valid_i,
   output reg [                1:0] in_ready_o,
   input      [        2*TAG_W-1:0] in_tag_i,
   input      [        2*LSQ_W-1:0] in_mem_slot_i,
@@ -41,6 +43,12 @@ module R64Execute #(
   output     [                1:0] alu_bypass_valid_o,
   output     [       2*PREG_W-1:0] alu_bypass_preg_o,
   output     [              127:0] alu_bypass_data_o,
+  // Independent numerical-token notice; old result heads stay visible.
+  // Resident identity and arithmetic partials crossed the same Execute edge.
+  output     [                1:0] alu_token_resident_o,
+  output     [        2*TAG_W-1:0] alu_token_tag_o,
+  output     [       2*PREG_W-1:0] alu_token_preg_o,
+  output     [              127:0] alu_token_data_o,
   output     [                4:0] result_valid_o,
   input      [                4:0] result_ready_i,
   output     [        5*TAG_W-1:0] result_tag_o,
@@ -78,7 +86,11 @@ module R64Execute #(
   wire [2:0] class_w[0:1];
   wire [191:0] operand_w[0:1];
   wire [ROB_W-1:0] age_w[0:1];
-  wire [1:0] live_w;
+  // RR shared validity contains registered operand readiness and optionally
+  // certified ALU values for MEM binding. Other late shared classes wait at RR;
+  // local ALU/branch certification uses the separate acceptance channel.
+  wire [1:0] live_w, local_alu_live_w;
+  wire [1:0] local_alu_valid_w = SPLIT_VALUE_VALID != 0 ? in_local_alu_valid_i : in_valid_i;
   genvar l;
   generate
     for (l = 0; l < 2; l = l + 1) begin : gen_input
@@ -92,6 +104,7 @@ module R64Execute #(
           (cancel_active_i && cancel_candidates_i[tag_w[l][ROB_W-1:0]]) :
           kill_mask_i[tag_w[l][ROB_W-1:0]];
       assign live_w[l] = in_valid_i[l] && !rst && !flush_i && !cancelled_w;
+      assign local_alu_live_w[l] = local_alu_valid_w[l] && !rst && !flush_i && !cancelled_w;
     end
   endgenerate
   wire older1_w = age_w[1] < age_w[0];
@@ -111,9 +124,9 @@ module R64Execute #(
   wire [1:0] branch_conditional_w, branch_indirect_w, branch_taken_w;
   generate
     for (l = 0; l < 2; l = l + 1) begin : gen_alu
-      assign branch_w[l] = live_w[l] && class_w[l] == `R64_C_BRANCH;
+      assign branch_w[l] = local_alu_live_w[l] && class_w[l] == `R64_C_BRANCH;
       wire competing_branch_w = branch_w[1-l] && (l == 0 ? older1_w : !older1_w);
-      assign alu_candidate_w[l] = live_w[l] &&
+      assign alu_candidate_w[l] = local_alu_live_w[l] &&
           (class_w[l] == `R64_C_ALU || (class_w[l] == `R64_C_BRANCH && !competing_branch_w));
       assign alu_fire_w[l] = alu_candidate_w[l] && alu_ready_w[l];
       R64AluLane #(
@@ -126,7 +139,7 @@ module R64Execute #(
         .rst(rst),
         .flush_i(flush_i),
         .kill_mask_i(kill_mask_i),
-        .early_candidate_i(in_valid_i[l] && class_w[l] == `R64_C_ALU),
+        .early_candidate_i(local_alu_valid_w[l] && class_w[l] == `R64_C_ALU),
         .in_fire_i(alu_fire_w[l]),
         .in_ready_o(alu_ready_w[l]),
         .in_tag_i(tag_w[l]),
@@ -145,6 +158,10 @@ module R64Execute #(
         .bypass_valid_o(alu_bypass_valid_o[l]),
         .bypass_preg_o(alu_bypass_preg_o[l*PREG_W+:PREG_W]),
         .bypass_data_o(alu_bypass_data_o[l*64+:64]),
+        .token_resident_o(alu_token_resident_o[l]),
+        .token_tag_o(alu_token_tag_o[l*TAG_W+:TAG_W]),
+        .token_preg_o(alu_token_preg_o[l*PREG_W+:PREG_W]),
+        .token_data_o(alu_token_data_o[l*64+:64]),
         .out_valid_o(result_valid_o[l]),
         .out_ready_i(result_ready_i[l]),
         .out_tag_o(result_tag_o[l*TAG_W+:TAG_W]),
@@ -545,6 +562,10 @@ module R64AluLane #(
   output                     bypass_valid_o,
   output [       PREG_W-1:0] bypass_preg_o,
   output [             63:0] bypass_data_o,
+  output                     token_resident_o,
+  output [        TAG_W-1:0] token_tag_o,
+  output [       PREG_W-1:0] token_preg_o,
+  output [             63:0] token_data_o,
   output                     out_valid_o,
   input                      out_ready_i,
   output [        TAG_W-1:0] out_tag_o,
@@ -682,6 +703,15 @@ module R64AluLane #(
   assign bypass_valid_o = out_valid_o && preg_q[head_q] != 0 && !head_result_w[`R64_R_EXCEPTION];
   assign bypass_preg_o  = preg_q[head_q];
   assign bypass_data_o  = head_data_w;
+  // This is the true result of the accepted numerical token, computed only
+  // from registered ALU partial/control/word state and registered branch PC
+  // carry state. It is never selected from an unaccepted current input.
+  // ExecutionOwners certifies full tag/preg/live before any consumer uses it.
+  assign token_resident_o = token_q && !exception_q && token_preg_q != 0;
+  assign token_tag_o = token_tag_q;
+  assign token_preg_o = token_preg_q;
+  assign token_data_o = branch_q ? seq_w : result_word_w ?
+      {{32{result_w[31]}}, result_w[31:0]} : result_w;
   // The finished operation may wake at its terminal-capture edge only if it
   // will become the bypass head. A queued result wakes when it really reaches
   // that head; no input acceptance predicts a fixed future data availability.
@@ -705,9 +735,11 @@ module R64AluLane #(
   reg [TAG_W-1:0] resolve_tag_q;
   reg [63:0] resolve_npc_q, resolve_pc_q;
   reg resolve_conditional_q, resolve_indirect_q, resolve_taken_q;
-  assign resolve_valid_o = resolve_q && !rst && !flush_i;
-  // Raw registered resolution summary for a consumer that owns its own
-  // reset/flush priority. This is not the externally visible redirect event.
+  // Publish the complete registered candidate for one cycle. Local Recovery
+  // cancels token capture below; a later event must not create a combinational
+  // path through candidate outputs back into ROB recovery and birth credit.
+  // ROB authenticates full-tag ownership before publishing resolve/redirect.
+  assign resolve_valid_o = resolve_q;
   assign redirect_pending_o = resolve_q && redirect_q;
   assign redirect_o = redirect_q;
   assign resolve_tag_o = resolve_tag_q;

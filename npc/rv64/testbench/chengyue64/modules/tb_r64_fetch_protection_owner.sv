@@ -1,6 +1,6 @@
 
 `timescale 1ns / 1ps
-module tb_r64_fetch_protection_owner;
+module tb_r64_fetch_protection_owner #(parameter HIT_FLOW=0);
   reg clk = 0;
   always #5 clk = ~clk;
   reg rst = 1, inv = 0, v = 0, rr = 1, cr = 1, bv = 0, blast = 0;
@@ -41,6 +41,10 @@ module tb_r64_fetch_protection_owner;
   wire [7:0] rm0, rm1, cl0, cl1;
   wire [63:0] ca0, ca1;
   wire [2:0] cs0, cs1;
+  // Legacy cycle oracle is preserved with empty-flow disabled.
+  // Fast mode compares prepared facts against the independent original mask
+  // protection algorithm using the same configured cache owner pipeline.
+  generate if(HIT_FLOW==0)begin: legacy
   R64ICacheReference #(
     .SET_W(6)
   ) refcache (
@@ -71,9 +75,42 @@ module tb_r64_fetch_protection_owner;
     .beat_resp_i(br),
     .beat_last_i(blast)
   );
+  end else begin: fast_protection
+  R64ICache #(
+    .SET_W(6), .PREPARED_PROTECTION(0), .HIT_RESPONSE_EMPTY_FLOW(1)
+  ) refcache (
+    .clk_i(clk),
+    .rst_i(rst),
+    .invalidate_i(inv),
+    .req_valid_i(v),
+    .req_ready_o(ready0),
+    .req_paddr_i(addr),
+    .req_uncached_i(nc),
+    .req_fault_i(tfault),
+    .req_cause_i(cause),
+    .req_access_mask_i(mask),
+    .req_protection_facts_i(130'b0),
+    .rsp_valid_o(rv0),
+    .rsp_ready_i(rr),
+    .rsp_data_o(rd0),
+    .rsp_fault_o(rf0),
+    .rsp_cause_o(rc0),
+    .rsp_access_mask_o(rm0),
+    .cmd_valid_o(cv0),
+    .cmd_ready_i(cr),
+    .cmd_addr_o(ca0),
+    .cmd_len_o(cl0),
+    .cmd_size_o(cs0),
+    .beat_valid_i(bv),
+    .beat_ready_o(bready0),
+    .beat_data_i(bd),
+    .beat_resp_i(br),
+    .beat_last_i(blast)
+  );
+  end endgenerate
   R64ICache #(
     .SET_W(6),
-    .PREPARED_PROTECTION(1)
+    .PREPARED_PROTECTION(1), .HIT_RESPONSE_EMPTY_FLOW(HIT_FLOW)
   ) dut (
     .clk_i(clk),
     .rst_i(rst),
@@ -152,7 +189,7 @@ module tb_r64_fetch_protection_owner;
       end
       if (rv0 && rr) begin
         if (returned == 0) cold_latency = cyc - accept_cycle[returned];
-        if (cyc >= 80 && cyc < 280 && cyc - accept_cycle[returned] != 2)
+        if (cyc >= 80 && cyc < 280 && cyc - accept_cycle[returned] != (HIT_FLOW ? 1 : 2))
           $fatal(1, "resident hit latency");
         returned = returned + 1;
       end
@@ -254,10 +291,12 @@ module tb_r64_fetch_protection_owner;
           invalidations,
           errors
       );
+    if(HIT_FLOW)$write("[PASS] tb_r64_fetch_protection_owner_fast");
+    else $write("[PASS] tb_r64_fetch_protection_owner");
     $display(
-        "[PASS] tb_r64_fetch_protection_owner a%0d r%0d hot%0d held%0d overflow%0d partial%0d all%0d tf%0d inv%0d err%0d hit_latency2 cold_latency%0d",
+        " a%0d r%0d hot%0d held%0d overflow%0d partial%0d all%0d tf%0d inv%0d err%0d hit_latency%0d cold_latency%0d",
         accepted, returned, hot, held, overflow, partial, fullfault, translationfault,
-        invalidations, errors, cold_latency);
+        invalidations, errors, HIT_FLOW ? 1 : 2, cold_latency);
     $finish;
   end
 endmodule

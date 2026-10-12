@@ -3,7 +3,6 @@
 module tb_r64_lsu;
   parameter DEPTH = 18;
   parameter EARLY_STORE = 0;
-  parameter RESPONSE_BYPASS = 1;
   localparam IW = $clog2(DEPTH);
   reg clk = 0;
   always #5 clk = ~clk;
@@ -22,18 +21,24 @@ module tb_r64_lsu;
   reg [17:0] in_tag = 0;
   reg [2*`R64_UOP_W-1:0] in_uop = 0;
   reg [383:0] operand = 0;
-  wire [1:0] out_valid;
+  wire [1:0] out_valid, resolved_valid;
+  wire [17:0] resolved_tag;
+  wire [127:0] resolved_data;
   reg [1:0] out_ready = 3;
   wire [17:0] out_tag;
   wire [2*`R64_RESULT_W-1:0] out_result;
   wire [31:0] reuse;
   wire irreversible, idle;
   wire [1:0] tv, tr, tad, tresp, trespready;
+  wire [2*IW-1:0] ttoken, trtoken;
+  R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr), .req_token_i(ttoken),
+    .rsp_fire_i(tresp & trespready), .rsp_token_o(trtoken)
+  );
   wire [127:0] tva, tpa;
   wire [3:0] ta, tc;
   wire [1:0] tfault, tneeds;
-  wire [9:0] tcause, townersize;
-  wire [5:0] towneraccess;
+  wire [9:0] tcause;
   wire [1:0] mv, mr, mcache, mresp, mrespready, merror;
   wire [2*IW-1:0] mtoken, mresptoken;
   wire [127:0] ma, md, mrd;
@@ -61,7 +66,6 @@ module tb_r64_lsu;
   end
   R64Lsu #(
     .EARLY_STORE(EARLY_STORE),
-    .RESPONSE_BYPASS(RESPONSE_BYPASS),
     .ENTRIES(DEPTH),
     .INDEX_W(IW)
   ) dut (
@@ -99,15 +103,19 @@ module tb_r64_lsu;
     .in_ready_o(),
     .in_tag_i(bind_tag_q),
     .in_slot_i(bind_slot_q),
-    .in_uop_i(bind_uop_q),
-    .in_operand_i(bind_operand_q),
+    .in_command_i({bind_uop_q[1*`R64_UOP_W+155+:5], bind_uop_q[1*`R64_UOP_W+196+:8], bind_operand_q[1*192+64+:64], bind_uop_q[1*`R64_UOP_W+64+:64], bind_operand_q[1*192+:64], bind_uop_q[0*`R64_UOP_W+155+:5], bind_uop_q[0*`R64_UOP_W+196+:8], bind_operand_q[0*192+64+:64], bind_uop_q[0*`R64_UOP_W+64+:64], bind_operand_q[0*192+:64]}),
     .out_valid_o(out_valid),
     .out_ready_i(out_ready),
     .out_tag_o(out_tag),
     .out_result_o(out_result),
+    .resolved_value_valid_o(resolved_valid),
+    .resolved_value_tag_o(resolved_tag),
+    .resolved_value_data_o(resolved_data),
     .reuse_block_o(reuse),
     .irrevocable_o(irreversible),
     .idle_o(idle),
+    .tr_token_o(ttoken),
+    .tr_rsp_token_i(trtoken),
     .tr_valid_o(tv),
     .tr_ready_i(tr),
     .tr_vaddr_o(tva),
@@ -120,8 +128,6 @@ module tb_r64_lsu;
     .tr_fault_i(tfault),
     .tr_needs_ad_i(tneeds),
     .tr_cause_i(tcause),
-    .tr_owner_access_o(towneraccess),
-    .tr_owner_size_o(townersize),
     .mem_valid_o(mv),
     .mem_ready_i(mr),
     .mem_token_o(mtoken),
@@ -263,6 +269,25 @@ module tb_r64_lsu;
       end
       if (out_valid == 3 && out_ready == 3) dual = dual + 1;
     end
+  integer notice_observations = 0, notice_blocked = 0, notice_dual = 0;
+  integer notice_lane, notice_slot;
+  always @(posedge clk) if (!rst) begin
+    if (resolved_valid == 3) notice_dual = notice_dual + 1;
+    if (flush && resolved_valid != 0)
+      $fatal(1, "resolved memory notice escaped flush");
+    for (notice_lane = 0; notice_lane < 2; notice_lane = notice_lane + 1)
+      if (resolved_valid[notice_lane]) begin
+        notice_slot = int'(resolved_tag[notice_lane*9+:5]);
+        if (!active[notice_slot] || killed[notice_slot] || kill[notice_slot] ||
+            expectfault[notice_slot] ||
+            resolved_data[notice_lane*64+:64] !== expected[notice_slot])
+          $fatal(1, "resolved memory notice wrong/cancelled/faulted payload tag=%0d data=%h expected=%h",
+                 resolved_tag[notice_lane*9+:9], resolved_data[notice_lane*64+:64],
+                 expected[notice_slot]);
+        notice_observations = notice_observations + 1;
+        if (out_ready == 0) notice_blocked = notice_blocked + 1;
+      end
+  end
   task enqueue;
     input [8:0] tagno;
     input [63:0] addr, data;
@@ -347,7 +372,7 @@ module tb_r64_lsu;
           dut.prepared_payload_q !== prepared_expected_payload_q)
         $fatal(1, "prepared descriptor not ready with exact owner at capture edge");
     end
-  `include "tb_r64_lsu_response_bypass.svh"
+  `include "tb_r64_lsu_response_ingress_cases.svh"
   integer n, before_mem, before_tr, issued, retired, start_cycle, stream_cycles;
   initial begin
     for (n = 0; n < 1024; n = n + 1) memory[n] = 64'h1234567880000000 + n;
@@ -361,7 +386,7 @@ module tb_r64_lsu;
     end
     repeat (4) @(negedge clk);
     rst = 0;
-    if ($test$plusargs("response-bypass")) run_response_bypass;
+    if ($test$plusargs("response-ingress")) run_response_ingress;
     // Late physical classification must not let younger ordinary descriptors
     // block the precise head request which releases their ordering barrier.
     if ($test$plusargs("late-io")) begin
@@ -402,6 +427,12 @@ module tb_r64_lsu;
     if ($test$plusargs("late-special")) begin
       if (!EARLY_STORE) $fatal(1, "late-special fixture requires EARLY_STORE=1");
       trigger_test = 1;
+      // Keep both owners in the existing checked admission path. Otherwise
+      // the aligned IO load can enter translation a cycle before the store,
+      // putting both in one lane and preventing this fixture's intended
+      // younger-result overtaking of the deliberately delayed head response.
+      trigger_enable = 3;
+      trigger_address = 64'hffffffffffffffff;  // neither owner matches
       head_tag = 0;
       mem_hold = 1;
       tr_hold = 1;

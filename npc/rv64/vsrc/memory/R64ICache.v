@@ -7,7 +7,8 @@ module R64ICache #(
   parameter integer SET_W = 6,
   parameter PREPARED_PROTECTION = 0,
   parameter integer SETS = (1 << SET_W),
-  parameter integer TAG_W = 64 - SET_W - 6
+  parameter integer TAG_W = 64 - SET_W - 6,
+  parameter HIT_RESPONSE_EMPTY_FLOW = 1
 ) (
   input          clk_i,
   input          rst_i,
@@ -146,11 +147,18 @@ module R64ICache #(
       end
     end
   end
-  assign rsp_valid_o = response_valid_q && !rst_i;
-  assign rsp_data_o = response_data_q;
-  assign rsp_fault_o = response_fault_q;
-  assign rsp_cause_o = response_cause_q;
-  assign rsp_access_mask_o = response_mask_q;
+  // A successful synchronous lookup owns both data and protection facts.
+  // Empty output flow never borrows input credit; a blocked offer is captured
+  // by the original response Q, which has priority on all later cycles.
+  wire hit_response_offer_w = HIT_RESPONSE_EMPTY_FLOW != 0 && !response_valid_q &&
+      state_q == LOOKUP && lookup_valid_q && !effective_fault_w &&
+      (hit0_w || hit1_w) && !rst_i;
+  wire hit_response_fire_w = hit_response_offer_w && rsp_ready_i;
+  assign rsp_valid_o = (response_valid_q || hit_response_offer_w) && !rst_i;
+  assign rsp_data_o = hit_response_offer_w ? (hit0_w ? d0_q : d1_q) : response_data_q;
+  assign rsp_fault_o = hit_response_offer_w ? 1'b0 : response_fault_q;
+  assign rsp_cause_o = hit_response_offer_w ? request_cause_q : response_cause_q;
+  assign rsp_access_mask_o = hit_response_offer_w ? effective_mask_w : response_mask_q;
   assign cmd_valid_o = state_q == SEND && !rst_i;
   assign cmd_addr_o = uncached_q ? {address_q, 4'b0} : {address_q[63:6], 6'b0};
   assign cmd_len_o = uncached_q ? 8'd1 : 8'd7;
@@ -208,7 +216,7 @@ module R64ICache #(
         if (lookup_valid_q) begin
           if (terminal_w) begin
             if (output_free_w) begin
-              response_valid_q <= 1;
+              response_valid_q <= !hit_response_fire_w;
               response_data_q  <= effective_fault_w ? 128'b0 : (hit0_w ? d0_q : d1_q);
               response_fault_q <= effective_fault_w;
               response_cause_q <= request_cause_q;
@@ -292,6 +300,9 @@ module R64ICache #(
       if (overflow_valid_q && req_fire_w) $fatal(1, "ICache overwrote overflow owner");
       if (dispatch_fire_w && overflow_valid_q && req_fire_w)
         $fatal(1, "ICache borrowed same-cycle overflow credit");
+      if (hit_response_fire_w && (!lookup_valid_q || state_q != LOOKUP ||
+          effective_fault_w || invalidate_i || response_valid_q))
+        $fatal(1, "ICache early hit lost lookup or protection owner");
       if (hit0_w && hit1_w && lookup_valid_q) $fatal(1, "ICache duplicate physical tag");
     end
 `endif

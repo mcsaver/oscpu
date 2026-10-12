@@ -96,6 +96,8 @@ module R64AxiPlatform (
   wire uart_irq, rtc_irq;
   wire [31:0] sources = external_irq_sources_i | {27'b0, rtc_irq, 2'b0, uart_irq, 1'b0};
   R64AxiFabric #(
+    .AW_EMPTY_ADMIT(1),
+    .WRITE_B_EMPTY_FLOW(1),
     .READ_MEMORY_MASK(`R64_PLATFORM_READ_MEMORY),
     .BASE(`R64_PLATFORM_BASE),
     .MASK(`R64_PLATFORM_MASK),

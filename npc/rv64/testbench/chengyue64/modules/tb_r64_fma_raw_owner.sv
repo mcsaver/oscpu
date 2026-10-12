@@ -6,6 +6,12 @@ module tb_r64_fma_raw_owner;
   always #5 clk = ~clk;
   reg rst = 1, flush = 0, fire = 0, ready = 0;
   reg [31:0] kill = 0;
+  reg local_flush = 0;
+  reg [31:0] local_kill = 0;
+  always @(posedge clk) begin
+    local_flush <= !rst && flush;
+    local_kill <= rst ? 32'b0 : kill;
+  end
   reg [8:0] tag = 0;
   reg [`R64_UOP_W-1:0] uop = 0;
   reg [191:0] operand = 0;
@@ -19,8 +25,7 @@ module tb_r64_fma_raw_owner;
   ) dut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(fire),
     .in_ready_o(credit[1]),
     .in_tag_i(tag),
@@ -40,8 +45,7 @@ module tb_r64_fma_raw_owner;
   ) refdut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(fire),
     .in_ready_o(credit[0]),
     .in_tag_i(tag),
@@ -113,26 +117,26 @@ module tb_r64_fma_raw_owner;
   always @(posedge clk) begin
     cycles = cycles + 1;
     for (integer m = 0; m < 2; m = m + 1) begin
-      if (rst || flush) begin
+      if (rst || local_flush) begin
         for (integer a = 0; a < 512; a = a + 1) if (pending[m][a]) canceled[m] = canceled[m] + 1;
         pending[m] = 0;
         held[m] = 0;
       end else begin
         for (integer a = 0; a < 512; a = a + 1)
-        if (pending[m][a] && kill[a%32]) begin
+        if (pending[m][a] && local_kill[a%32]) begin
           pending[m][a] = 0;
           canceled[m]   = canceled[m] + 1;
         end
         if (fire) begin
           if (!credit[m]) $fatal(1, "A/B input violated real credit");
           accepted[m] = accepted[m] + 1;
-          if (kill[tag%32]) canceled[m] = canceled[m] + 1;
+          if (local_kill[tag%32]) canceled[m] = canceled[m] + 1;
           else begin
             if (pending[m][tag]) $fatal(1, "fulltag reused while live");
             pending[m][tag] = 1;
           end
         end
-        if (held[m] && !kill[held_tag[m]%32])
+        if (held[m] && !local_kill[held_tag[m]%32])
           if (!valid[m] || result_tag[m*9+:9] !== held_tag[m] ||
               result[m*`R64_RESULT_W+:`R64_RESULT_W] !== held_data[m])
             $fatal(1, "held FMA visible payload changed");
@@ -155,11 +159,11 @@ module tb_r64_fma_raw_owner;
         end else hot_run[m] = 0;
       end
     end
-    if (!rst && !flush) begin
+    if (!rst && !local_flush) begin
       if (dut.fire[0]) dispatch_cycle[1][dut.tag_q] = cycles;
       if (refdut.fire[0]) dispatch_cycle[0][refdut.tag_q] = cycles;
       if (dut.fma_offer_w && !dut.fire[0]) begin
-        if (!kill[dut.tag_q[4:0]]) $fatal(1, "raw FMA extra offer is live");
+        if (!local_kill[dut.tag_q[4:0]]) $fatal(1, "raw FMA extra offer is live");
         extra = extra + 1;
       end
     end
@@ -186,6 +190,11 @@ module tb_r64_fma_raw_owner;
       neg();
       prepare(64 + n);
       if (!(&credit)) $fatal(1, "did not reach final capacity with real input credit");
+      // The incoming owner is already born upstream. Its source event is
+      // published now and arrives locally at the final numeric offer.
+      if (((dut.fma.owner.reserved_hot_q[20] && !dut.fma.owner.credit_return_q) ||
+           (dut.fma.owner.reserved_hot_q[21] && dut.fma.owner.credit_return_q)) &&
+          !dut.fma.owner.pop_w && dut.ingress_valid_q && dut.path_ready[0]) kill[tag%32] = 1;
       fire = 1;
       tick();
       fire = 0;
@@ -195,7 +204,8 @@ module tb_r64_fma_raw_owner;
     neg();
     kt = dut.tag_q;
     reused = kt ^ 32;
-    kill[kt%32] = 1;
+    if (!local_kill[kt%32]) $fatal(1, "cancellation was not published ahead of final offer");
+    kill = 0;
     #1;
     if (!dut.fma_offer_w || dut.fire[0]) $fatal(1, "no canceled FMA birth");
     tick();
@@ -255,6 +265,10 @@ module tb_r64_fma_raw_owner;
       if (phase == 0) flush = 1;
       else rst = 1;
       tick();
+      if (phase == 0) begin
+        flush = 0;
+        tick();
+      end
       if (dut.fma.owner.token_q != 0 || dut.fma.owner.reserved_hot_q != 1 || !dut.fma.owner.empty_q)
         $fatal(1, "reset left unowned FMA completion");
       neg();

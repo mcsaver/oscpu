@@ -5,7 +5,9 @@ module R64FetchStream #(
   parameter integer DEPTH = 4,
   parameter integer PTR_W = 2,
   parameter integer EARLY_PREDICT = 0,
-  parameter [63:0] RESET_PC = 64'h80000000
+  parameter [63:0] RESET_PC = 64'h80000000,
+  parameter integer PACKET_EMPTY_FLOW = 1,
+  parameter integer FTB_INDEX_W = 5
 ) (
   input          clk_i,
   input          rst_i,
@@ -47,36 +49,40 @@ module R64FetchStream #(
 );
   // The lookup sees next_pc_q only. A redirect first registers its target;
   // Align decode/target arithmetic never cascades through this table to req D.
-  reg [31:0] target_valid_q;
-  reg [15:0] target_tag_q[0:31];
-  reg [2:0] target_offset_q[0:31];
-  reg [31:0] target_word_q;
-  reg [62:0] target_pc_q[0:31];
-  wire [4:0] query_index_w = next_pc_q[8:4], learn_index_w = learn_pc_i[8:4];
-  wire [4:0] resolve_index_w = resolve_pc_i[8:4];
+  // Capacity changes repartition the same 21-bit block signature PC[24:4].
+  localparam integer TARGET_N = 1 << FTB_INDEX_W;
+  localparam integer TARGET_TAG_W = 21 - FTB_INDEX_W;
+  reg [TARGET_N-1:0] target_valid_q;
+  reg [TARGET_TAG_W-1:0] target_tag_q[0:TARGET_N-1];
+  reg [2:0] target_offset_q[0:TARGET_N-1];
+  reg [TARGET_N-1:0] target_word_q;
+  reg [62:0] target_pc_q[0:TARGET_N-1];
+  wire [FTB_INDEX_W-1:0] query_index_w = next_pc_q[FTB_INDEX_W+3:4],
+      learn_index_w = learn_pc_i[FTB_INDEX_W+3:4];
+  wire [FTB_INDEX_W-1:0] resolve_index_w = resolve_pc_i[FTB_INDEX_W+3:4];
   wire query_hit_w = EARLY_PREDICT != 0 && target_valid_q[query_index_w] &&
-      target_tag_q[query_index_w] == next_pc_q[24:9] &&
+      target_tag_q[query_index_w] == next_pc_q[24:FTB_INDEX_W+4] &&
       target_offset_q[query_index_w] >= next_pc_q[3:1] && !invalidate_i;
   wire [4:0] learn_end_w = {1'b0, learn_pc_i[3:0]} + {1'b0, learn_length_i};
   // Each physical table entry owns its write qualification. Resolve does
-  // not first read a 32-way selected tag/offset and then distribute permission.
+  // not first read a table-selected tag/offset and then distribute permission.
   // All comparisons use this entry's old Q, including learn/resolve collisions.
   wire learn_complete_w = learn_i && (learn_length_i == 2 || learn_length_i == 4) &&
       learn_end_w <= 16;
   genvar entry;
   generate
-    for (entry = 0; entry < 32; entry = entry + 1) begin : g_target_owner
-      localparam [4:0] ENTRY = entry[4:0];
+    for (entry = 0; entry < TARGET_N; entry = entry + 1) begin : g_target_owner
+      localparam [FTB_INDEX_W-1:0] ENTRY = entry[FTB_INDEX_W-1:0];
       wire learn_owner_w = learn_complete_w && learn_index_w == ENTRY;
       wire resolve_owner_w = resolve_i && resolve_index_w == ENTRY && target_valid_q[entry] &&
-          target_tag_q[entry] == resolve_pc_i[24:9] && target_offset_q[entry] == resolve_pc_i[3:1];
-      wire repair_owner_w = repair_i && repair_block_i[8:4] == ENTRY;
+          target_tag_q[entry] == resolve_pc_i[24:FTB_INDEX_W+4] && target_offset_q[entry] == resolve_pc_i[3:1];
+      wire repair_owner_w = repair_i && repair_block_i[FTB_INDEX_W+3:4] == ENTRY;
       always @(posedge clk_i) begin
         if (rst_i || invalidate_i) target_valid_q[entry] <= 0;
         else if (EARLY_PREDICT != 0) begin
           if (learn_owner_w) begin
             target_valid_q[entry] <= 1;
-            target_tag_q[entry] <= learn_pc_i[24:9];
+            target_tag_q[entry] <= learn_pc_i[24:FTB_INDEX_W+4];
             target_offset_q[entry] <= learn_pc_i[3:1];
             target_word_q[entry] <= learn_length_i == 4;
             target_pc_q[entry] <= learn_target_i[63:1];
@@ -110,9 +116,16 @@ module R64FetchStream #(
 
   wire req_fire_w = req_valid_o && req_ready_i;
   wire rsp_fire_w = rsp_valid_i && rsp_ready_o;
-  wire pop_w = packet_valid_o && packet_ready_i;
+  wire queued_packet_w = packet_count_q != 0;
   wire stale_w = redirect_i || owner_stale_q[owner_head_q];
-  wire push_w = rsp_fire_w && !stale_w;
+  // Cache responses already own registered data and an ordered request entry.
+  // An empty packet FIFO may present that real owner directly to Align. READY
+  // only decides whether to retain it; response admission stays Q-only.
+  wire direct_packet_w = PACKET_EMPTY_FLOW != 0 && !queued_packet_w &&
+      owner_count_q != 0 && rsp_valid_i && !stale_w && !rst_i;
+  wire direct_take_w = direct_packet_w && packet_ready_i;
+  wire pop_w = queued_packet_w && packet_ready_i && !rst_i && !redirect_i;
+  wire push_w = rsp_fire_w && !stale_w && !direct_take_w;
   wire [PTR_W+1:0] reserved_w = {1'b0, owner_count_q} + {1'b0, packet_count_q} +
       {{(PTR_W + 1) {1'b0}}, req_valid_q};
   wire stage_free_w = !req_valid_q || req_fire_w;
@@ -124,14 +137,16 @@ module R64FetchStream #(
   assign req_valid_o = req_valid_q && !rst_i;
   assign req_pc_o = {req_pc_q[63:4], 4'b0};
   assign rsp_ready_o = owner_count_q != 0 && !rst_i;
-  assign packet_valid_o = packet_count_q != 0 && !rst_i && !redirect_i;
-  assign packet_pc_o = packet_pc_q[packet_head_q];
-  assign packet_data_o = packet_data_q[packet_head_q];
-  assign packet_fault_o = packet_fault_q[packet_head_q];
-  assign packet_cause_o = packet_cause_q[packet_head_q];
-  assign packet_access_mask_o = packet_access_mask_q[packet_head_q];
+  assign packet_valid_o = (queued_packet_w || direct_packet_w) && !rst_i && !redirect_i;
+  assign packet_pc_o = direct_packet_w ? owner_pc_q[owner_head_q] : packet_pc_q[packet_head_q];
+  assign packet_data_o = direct_packet_w ? rsp_data_i : packet_data_q[packet_head_q];
+  assign packet_fault_o = direct_packet_w ? rsp_fault_i : packet_fault_q[packet_head_q];
+  assign packet_cause_o = direct_packet_w ? rsp_cause_i : packet_cause_q[packet_head_q];
+  assign packet_access_mask_o = direct_packet_w ? rsp_access_mask_i :
+      packet_access_mask_q[packet_head_q];
   assign {packet_plan_valid_o, packet_plan_offset_o, packet_plan_word_o, packet_plan_target_o} =
-      EARLY_PREDICT != 0 ? packet_plan_q[packet_head_q] : 68'b0;
+      EARLY_PREDICT != 0 ?
+          (direct_packet_w ? owner_plan_q[owner_head_q] : packet_plan_q[packet_head_q]) : 68'b0;
 
   always @(posedge clk_i) begin
     if (rst_i) begin
@@ -228,14 +243,18 @@ module R64FetchStream #(
 
   wire unused_prediction_address_w =
       |{learn_pc_i[63:25], learn_target_i[0], resolve_pc_i[63:25], resolve_pc_i[0],
-        resolve_target_i[0], repair_block_i[63:9], repair_block_i[3:0]};
+        resolve_target_i[0], repair_block_i[63:FTB_INDEX_W+4], repair_block_i[3:0]};
 `ifdef R64_ASSERT
   initial begin
+    if (FTB_INDEX_W < 5 || FTB_INDEX_W > 8)
+      $fatal(1, "R64FetchStream FTB_INDEX_W must be between 5 and 8");
     if (DEPTH != (1 << PTR_W) || DEPTH < 2)
       $fatal(1, "R64FetchStream needs power-of-two DEPTH >= 2");
   end
   always @(posedge clk_i)
     if (!rst_i) begin
+      if (direct_take_w && (!rsp_fire_w || pop_w || push_w || stale_w))
+        $fatal(1, "fetch direct packet did not consume exactly one live response");
       if (reserved_w > DEPTH[PTR_W+1:0]) $fatal(1, "fetch credit overflow");
       if (push_w && packet_count_q == DEPTH[PTR_W:0] && !pop_w) $fatal(1, "fetch packet overwrite");
     end

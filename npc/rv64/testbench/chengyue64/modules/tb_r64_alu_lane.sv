@@ -9,7 +9,7 @@ module tb_r64_alu_lane;
   reg [5:0] preg_dst = 1;
   reg [`R64_UOP_W-1:0] uop = 0;
   reg [191:0] operands = 0;
-  wire credit, valid, early, bypass, resolve, redirect, conditional, indirect, taken;
+  wire credit, valid, early, bypass, resolve, redirect, redirect_pending, conditional, indirect, taken;
   wire [8:0] result_tag, early_tag, resolve_tag;
   wire [5:0] early_preg, bypass_preg;
   wire [63:0] bypass_data, npc, rpc;
@@ -54,6 +54,7 @@ module tb_r64_alu_lane;
     .recovery_preview_tag_o(),
     .resolve_valid_o(resolve),
     .redirect_o(redirect),
+    .redirect_pending_o(redirect_pending),
     .resolve_tag_o(resolve_tag),
     .resolve_npc_o(npc),
     .resolve_pc_o(rpc),
@@ -99,16 +100,9 @@ module tb_r64_alu_lane;
       hold_valid = 0;
       check_future = 0;
     end else begin
-      for (i = 0; i < 512; i = i + 1)
-      if (pending[i] && (flush || km[i%32])) begin
-        pending[i] = 0;
-        branch_pending[i] = 0;
-        canceled = canceled + 1;
-      end
-      if (!flush) begin
-        if (hold_valid && !km[hold_tag[4:0]] &&
-            (!valid || result_tag !== hold_tag || result !== hold_result))
-          $fatal(1, "ALU held terminal changed under backpressure");
+      // A registered branch candidate is immutable through a later local
+      // cancellation. Check its original tuple before revoking local owners;
+      // architectural acceptance belongs to ROB, exercised in Backend tests.
         if (resolve) begin
           if (!branch_pending[resolve_tag] || rpc !== expected_pc[resolve_tag] ||
               npc !== expected_npc[resolve_tag] || {conditional, indirect, taken} !==
@@ -119,6 +113,16 @@ module tb_r64_alu_lane;
           branch_pending[resolve_tag] = 0;
           resolved = resolved + 1;
         end
+      for (i = 0; i < 512; i = i + 1)
+      if (pending[i] && (flush || km[i%32])) begin
+        pending[i] = 0;
+        branch_pending[i] = 0;
+        canceled = canceled + 1;
+      end
+      if (!flush) begin
+        if (hold_valid && !km[hold_tag[4:0]] &&
+            (!valid || result_tag !== hold_tag || result !== hold_result))
+          $fatal(1, "ALU held terminal changed under backpressure");
         if (early && !km[early_tag[4:0]]) begin
           if (!pending[early_tag] || km[early_tag[4:0]] || early_preg == 0 ||
               expected[early_tag][`R64_R_EXCEPTION])
@@ -356,6 +360,49 @@ module tb_r64_alu_lane;
     send_branch(215, 32'hffd080e7, 64'h1000, 64'h1010, 0, 64'h1002, 64'h100c, 2, 3'b011);
     drain();
     if (resolved != 6) $fatal(1, "ALU branch cases were not exercised");
+    // An older mispredict may arrive after this younger branch has captured
+    // its resolution. Keep the original candidate tuple through local kill;
+    // the downstream ROB has already revoked this architectural owner.
+    ready=0;
+    send_branch(216,32'h00208463,64'h2000,5,5,64'h2004,64'h2008,4,3'b101);
+    tick();
+    @(negedge clk);km=32'h01000000;#1;
+    if(!resolve || !redirect_pending || resolve_tag!=216 ||
+        rpc!=64'h2000 || npc!=64'h2008 || {conditional,indirect,taken}!=3'b101)
+      $fatal(1,"late local kill changed the registered branch candidate");
+    tick();km=0;drain();
+    // The same selective event leaves an older branch candidate intact.
+    ready=0;
+    send_branch(217,32'h00208463,64'h3000,5,5,64'h3004,64'h3008,4,3'b101);
+    tick();
+    @(negedge clk);km=32'h04000000;#1;
+    if(!resolve || !redirect_pending || resolve_tag!=217)
+      $fatal(1,"younger cancellation suppressed an older branch event");
+    tick();km=0;drain();
+    // Full flush also leaves Q publication stable until the clearing edge.
+    ready=0;
+    send_branch(218,32'h00208463,64'h4000,5,5,64'h4004,64'h4008,4,3'b101);
+    tick();
+    @(negedge clk);flush=1;#1;
+    if(!resolve || !redirect_pending || resolve_tag!=218 ||
+        rpc!=64'h4000 || npc!=64'h4008 || {conditional,indirect,taken}!=3'b101)
+      $fatal(1,"local flush changed the registered branch candidate");
+    tick();flush=0;#1;
+    if(resolve || redirect_pending)$fatal(1,"full flush failed to clear candidate Q");
+    drain();
+    // Cancellation before token capture still prevents a candidate birth.
+    ready=0;
+    send_branch(219,32'h00208463,64'h5000,5,5,64'h5004,64'h5008,4,3'b101);
+    @(negedge clk);km=32'h08000000;tick();km=0;
+    if(resolve || redirect_pending)$fatal(1,"cancelled branch token produced a candidate");
+    drain();
+    ready=0;
+    send_branch(220,32'h00208463,64'h6000,5,5,64'h6004,64'h6008,4,3'b101);
+    @(negedge clk);flush=1;tick();flush=0;
+    if(resolve || redirect_pending)$fatal(1,"flushed branch token produced a candidate");
+    drain();
+    if(resolved!=9)$fatal(1,"registered candidate/capture cancellation count");
+
     $display(
         "[PASS] tb_r64_alu_lane accepted=%0d completed=%0d canceled=%0d early=%0d resolve=%0d II1/full/hold/kill-generation/flush",
         accepted, completed, canceled, woken, resolved);

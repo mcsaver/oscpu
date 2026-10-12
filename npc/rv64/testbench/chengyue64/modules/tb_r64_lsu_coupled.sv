@@ -22,6 +22,20 @@ module tb_r64_lsu_coupled;
   wire [8:0] store_tag;
   wire [63:0] store_tval;
   integer fast_completions = 0;
+  integer prepare_activations = 0, prepared_direct = 0, direct_cache_store = 0;
+  integer head_lease_cycle = -1, head_lease_to_aw = -1;
+  always @(posedge clk) if (!rst) begin
+    if (dut.physical.service.prepare_fire_w) prepare_activations = prepare_activations + 1;
+    if (dut.lsu.prepared_direct_take_w) prepared_direct = prepared_direct + 1;
+    if (dut.physical.cache.direct_store_w) direct_cache_store = direct_cache_store + 1;
+  end
+  // Observe AW/W publication after the edge; the bus model consumes it at
+  // the following positive edge. Sample away from its blocking cycle counter.
+  always @(negedge clk) begin
+    #1;
+    if (!rst && head_lease_cycle >= 0 && head_lease_to_aw < 0 && wv && wdv)
+      head_lease_to_aw = cycles - head_lease_cycle;
+  end
   wire [1:0] out_valid;
   reg [1:0] out_ready = 3;
   wire [17:0] out_tag;
@@ -29,11 +43,15 @@ module tb_r64_lsu_coupled;
   wire [31:0] reuse;
   wire irreversible, idle;
   wire [1:0] tv, tr, tad, tresp, trespready;
+  wire [2*IW-1:0] ttoken, trtoken;
+  R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr), .req_token_i(ttoken),
+    .rsp_fire_i(tresp & trespready), .rsp_token_o(trtoken)
+  );
   wire [127:0] tva, tpa;
   wire [3:0] ta, tc;
   wire [1:0] tfault, tneeds;
-  wire [9:0] tcause, townersize;
-  wire [5:0] towneraccess;
+  wire [9:0] tcause;
   wire [1:0] mv, mr, mcache, mresp, mrespready, merror;
   wire [2*IW-1:0] mtoken, mresptoken;
   wire [127:0] ma, md, mrd;
@@ -95,8 +113,7 @@ module tb_r64_lsu_coupled;
     .in_ready_o(),
     .in_tag_i(bind_tag_q),
     .in_slot_i(bind_slot_q),
-    .in_uop_i(bind_uop_q),
-    .in_operand_i(bind_operand_q),
+    .in_command_i({bind_uop_q[1*`R64_UOP_W+155+:5], bind_uop_q[1*`R64_UOP_W+196+:8], bind_operand_q[1*192+64+:64], bind_uop_q[1*`R64_UOP_W+64+:64], bind_operand_q[1*192+:64], bind_uop_q[0*`R64_UOP_W+155+:5], bind_uop_q[0*`R64_UOP_W+196+:8], bind_operand_q[0*192+64+:64], bind_uop_q[0*`R64_UOP_W+64+:64], bind_operand_q[0*192+:64]}),
     .out_valid_o(out_valid),
     .out_ready_i(out_ready),
     .out_tag_o(out_tag),
@@ -104,6 +121,8 @@ module tb_r64_lsu_coupled;
     .reuse_block_o(reuse),
     .irrevocable_o(irreversible),
     .idle_o(idle),
+    .tr_token_o(ttoken),
+    .tr_rsp_token_i(trtoken),
     .tr_valid_o(tv),
     .tr_ready_i(tr),
     .tr_vaddr_o(tva),
@@ -116,8 +135,6 @@ module tb_r64_lsu_coupled;
     .tr_fault_i(tfault),
     .tr_needs_ad_i(tneeds),
     .tr_cause_i(tcause),
-    .tr_owner_access_o(towneraccess),
-    .tr_owner_size_o(townersize),
     .aux_valid_i(4'b0),
     .aux_ready_o(),
     .aux_addr_i(256'b0),
@@ -433,8 +450,19 @@ module tb_r64_lsu_coupled;
     enqueue(8, 0, 0, 8'h06, 0, 64'haabbccdd, 0, 0);
     wait_result(8);
     if (memcount != before_mem) $fatal(1, "forwarded load or unauthorized store touched memory");
+    head_lease_cycle = cycles;
     head_tag = 7;
     wait_result(7);
+    // The prepared cache packet offers cmd/W at the lease edge with S1;
+    // parameter 0 retains the original registered WRITE publication edge.
+    if (EARLY_STORE && (prepare_activations == 0 || prepared_direct == 0 ||
+        direct_cache_store == 0 || head_lease_to_aw !=
+        (dut.physical.cache.STORE_COMMAND_EMPTY_FLOW != 0 ? 0 : 1)))
+      $fatal(1, "store preactivation latency/coverage hint=%0d lsu=%0d cache=%0d lease_to_aw=%0d",
+          prepare_activations, prepared_direct, direct_cache_store, head_lease_to_aw);
+    $display("STORE_PREPARE_ROI hint=%0d lsu_direct=%0d cache_direct=%0d lease_to_aw=%0d command_empty_flow=%0d",
+        prepare_activations, prepared_direct, direct_cache_store, head_lease_to_aw,
+        dut.physical.cache.STORE_COMMAND_EMPTY_FLOW);
     if (!irreversible) $fatal(1, "visible store lost retirement owner before commit");
     retire(7);
     retire(8);
@@ -580,6 +608,9 @@ module tb_r64_lsu_coupled;
       end
       b_hold = 0;
       while (!store_valid) @(negedge clk);
+      // VALID may now be the real B's direct terminal before its accepting
+      // edge. Consumer is blocked, so inspect the saved terminal after B drains.
+      @(negedge clk);
       if ($test$plusargs("bad-store-flush")) begin
         flush = 1;
         @(negedge clk);
@@ -602,7 +633,10 @@ module tb_r64_lsu_coupled;
       store_ready = 0;
       enqueue(59, 64'h210, 64'h7777, 8'h23, 0, 0, 1, 7);
       while (!store_valid) @(negedge clk);
-      if (!store_error || store_tval != 64'h210 || irreversible)
+      if (!store_error || store_tval != 64'h210)
+        $fatal(1, "B error terminal identity");
+      @(negedge clk);
+      if (!store_valid || !store_error || store_tval != 64'h210 || irreversible)
         $fatal(1, "drained B error terminal contract");
       flush = 1;
       @(negedge clk);

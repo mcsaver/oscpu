@@ -1,9 +1,34 @@
 # 当前提交、串行与 CSR 结构
 
+## 2026-10-10 当前跨域边界
+
+当前公共协议为 v2：Control 增加 R64MemoryEffectLease，memory_effect_o 单独发布
+寄存完整tag及许可，租约计入Commit irrevocable，只有匹配head完成候选（含fault）能释放。
+effect_o 只携即时Serial许可，不能用一份tag代表两种授权。本域精确CSR/Serial退休边沿保持；
+外来选择性Recovery经本地Inbox后取消Serial，Control自身fullflush仍立即作用于Serial。
+
+下文中的历史测量与较早阶段同拍控制描述不覆盖本次边界重构。
+
 依据 **2026-10-09 工作区生产 RTL** 核对，入口为 [R64CoreTop](../core/R64CoreTop.v) 的
 `control : R64Control` 域及其 `commit`、`serial`、`csr` 子实例。本文整理精确退休、串行 owner、CSR 查询与架构副作用，
 与 [Backend 完成/恢复网络](../backend/TOPOLOGY.md)、[LSU 副作用和排空](../lsu/TOPOLOGY.md)配合阅读。
 本轮职责重构的验证范围汇总在[全核拓扑](../TOPOLOGY.md)；既有历史测量放在文末。
+
+## 2026-10-10 公共域接口
+
+Control现在自行生成Effect12（head tag/present/两类permit）和Retire20（接受前缀/tag），
+CoreTop只路由记录；Serial入口为原生217-bit命令。恢复候选按Recovery99消费。
+Serial/CSR的query、prepare、完成和退休效应保持域内。
+位布局、权威、取消和独立域构建见[公共协议](../PROTOCOLS.md)。
+独立tb_r64_control_domain只用native命令和mock退休窗口，无ROB/Backend/Decode实例。
+
+## 2026-10-10 退休接口解耦
+
+ROB发布由已完成head/head+1决定的候选，不读取Control的ready。
+Control集中决定实际接受前缀：第二路必须同时满足第一路valid/ready、第二路trace信用、
+无异常和两条均非Serial。原有跨Control/Backend的commit1_allow往返接口已删除。
+候选在trace背压期间继续可见，实际退休仍只有valid & ready；异常捕获、恢复冻结、
+Serial独占和真实退休副作用的边沿保持。
 
 ## 1. 实际边界、配置与文件职责
 
@@ -86,7 +111,8 @@ flowchart TB
   ARCH --> QUERY
   CNT -->|"计数读值"| QUERY
   QUERY -->|"read / write value / illegal / valid"| SER
-  SER -->|"结果；不等于退休"| WB --> ROB --> CM
+  SER -->|"结果；不等于退休"| WB --> ROB
+  ROB -->|"通用退休元组 / 驻留串行资格"| CM
   TRACE -.->|"退休接收能力"| CM
   CM -->|"同tag serial_commit"| SER
   SER -->|"retire_effect：CSR / xRET"| ARCH
@@ -126,7 +152,8 @@ Serial 的结果 valid 来自已寄存 owner；本拍 kill/full flush 的捕获�
 | Serial→CSR query | EVALUATE 的 CSR owner 发 `csr_query_o` | 查询只快照数据，不改变架构状态；query bank Q 后下一边沿合并 response，Serial 在 CSR_WAIT 接收 `csr_query_valid_i` |
 | Serial→WB | `result_valid_o && result_ready_i` | 保存5-bit retire_effect，进入 RETIRE；保留 tag 直到真正退休 |
 | ROB→Commit | `rob_valid_i & rob_ready_o & ~rob_exception_i` | lane1 与 lane0 构成前缀；`trace_ready_i` 限定实际退休；任一 Serial 禁止双退 |
-| Commit→Serial | `serial_commit_o` 和 `serial_tag_o` | 匹配 held full-tag 后消费 retire_effect；CSR查询返回不能替代这个边沿 |
+| ROB→Commit 串行资格 | `serial_retire_candidate_i`，身份为原 lane 0 tag | 由 ROB 驻留 valid/done/exception/serial 与 freeze 产生；不是新 owner，不包含窄 store 当拍完成 |
+| Commit→Serial | `serial_retire_candidate_i && active && retire_ready_i[0]` 和原 `serial_tag_o` | 与原真实 Serial 退休逐拍相同；匹配 held full-tag 后消费 retire_effect，CSR查询返回不能替代这个边沿 |
 | CSR 架构写入 | `csr_commit` + 已快照的合法 write mask/value | 查询读、CSR写意图、真实写入分离；write mask 在 commit 或 trap/return prepare 时撤销 |
 | 外部 IRQ→CSR→Commit | 先采样4位 level，再以当前 enable/delegation/privilege判资格 | pending 阻止新 birth；只在 ROB 空且无不可逆 owner 时捕获中断 |
 | Serial→Tensor | SEND 的 command valid/ready，再等 WAIT_TERMINAL 同tag terminal | 外部 owner 在 SEND/WAIT 期间保持 reuse_block；错误终端形成异常，旧tag终端被消费但不得完成新owner |

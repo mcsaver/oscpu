@@ -131,8 +131,13 @@ module R64BackendCommitReference #(parameter TAG_W=9,parameter ROB_W=5,parameter
   .external_tag_i(external_tag_i),
   .external_result_i(external_result_i));
 
+ // Preserve the legacy ROB permission independently of trace acceptance.
+ // Production no longer exports this policy back into its ROB candidate path.
+ assign second_allow_w = !rst && !commit.event_valid_q && !recover_o &&
+                         !serial_class_w[0] && !serial_class_w[1];
  R64Commit #(.HEAD_SERIAL_ISSUE(1),.HEAD_SERIAL_STOP(1),.HEAD_EXCEPTION_STOP(1),.HEAD_SERIAL_CLASS(1)) commit(
-  .clk_i(clk),.rst_i(rst),.rob_valid_i(commit_valid_o),.rob_serial_i(serial_class_w),.rob_ready_o(retire_ready_w),.commit1_allow_o(second_allow_w),
+    .serial_retire_candidate_i(commit_valid_o[0] && !commit_exception_o[0] && (commit_meta_o[196+:8] >= `R64_K_CSR && commit_meta_o[196+:8] <= `R64_K_TENSOR)),
+  .clk_i(clk),.rst_i(rst),.rob_valid_i(commit_valid_o),.rob_serial_i(serial_class_w),.rob_ready_o(retire_ready_w),
   .rob_tag_i(commit_tag_o),.rob_meta_i(commit_meta_o),.rob_data_i(commit_data_o),
   .rob_exception_i(commit_exception_o),.rob_cause_i(commit_cause_o),.rob_tval_i(commit_tval_o),
   .rob_rd_write_i(commit_rd_write_o),.rob_rd_fp_i(commit_rd_fp_o),.rob_fflags_i(commit_fflags_o),

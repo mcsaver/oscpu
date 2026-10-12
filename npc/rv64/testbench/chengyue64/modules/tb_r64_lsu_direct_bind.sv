@@ -29,11 +29,15 @@ module tb_r64_lsu_direct_bind;
   wire [31:0] reuse;
   wire irreversible, idle;
   wire [1:0] tv, tr, tad, tresp, trespready;
+  wire [2*IW-1:0] ttoken, trtoken;
+  R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr), .req_token_i(ttoken),
+    .rsp_fire_i(tresp & trespready), .rsp_token_o(trtoken)
+  );
   wire [127:0] tva, tpa;
   wire [3:0] ta, tc;
   wire [1:0] tfault, tneeds;
-  wire [9:0] tcause, townersize;
-  wire [5:0] towneraccess;
+  wire [9:0] tcause;
   wire [1:0] mv, mr, mcache, mresp, mrespready, merror;
   wire [2*IW-1:0] mtoken, mresptoken;
   wire [127:0] ma, md, mrd;
@@ -95,8 +99,7 @@ module tb_r64_lsu_direct_bind;
     .in_ready_o(),
     .in_tag_i({bind_tag_q[8:0], bind_tag_q[17:9]}),
     .in_slot_i({bind_slot_q[0+:IW], bind_slot_q[IW+:IW]}),
-    .in_uop_i({bind_uop_q[0+:`R64_UOP_W], bind_uop_q[`R64_UOP_W+:`R64_UOP_W]}),
-    .in_operand_i({bind_operand_q[191:0], bind_operand_q[383:192]}),
+    .in_command_i({bind_uop_q[0*`R64_UOP_W+155+:5], bind_uop_q[0*`R64_UOP_W+196+:8], bind_operand_q[0*192+64+:64], bind_uop_q[0*`R64_UOP_W+64+:64], bind_operand_q[0*192+:64], bind_uop_q[1*`R64_UOP_W+155+:5], bind_uop_q[1*`R64_UOP_W+196+:8], bind_operand_q[1*192+64+:64], bind_uop_q[1*`R64_UOP_W+64+:64], bind_operand_q[1*192+:64]}),
     .out_valid_o(out_valid),
     .out_ready_i(out_ready),
     .out_tag_o(out_tag),
@@ -104,6 +107,8 @@ module tb_r64_lsu_direct_bind;
     .reuse_block_o(reuse),
     .irrevocable_o(irreversible),
     .idle_o(idle),
+    .tr_token_o(ttoken),
+    .tr_rsp_token_i(trtoken),
     .tr_valid_o(tv),
     .tr_ready_i(tr),
     .tr_vaddr_o(tva),
@@ -116,8 +121,6 @@ module tb_r64_lsu_direct_bind;
     .tr_fault_i(tfault),
     .tr_needs_ad_i(tneeds),
     .tr_cause_i(tcause),
-    .tr_owner_access_o(towneraccess),
-    .tr_owner_size_o(townersize),
     .aux_valid_i(4'b0),
     .aux_ready_o(),
     .aux_addr_i(256'b0),
@@ -162,6 +165,7 @@ module tb_r64_lsu_direct_bind;
   reg  b_hold = 0;
   assign bready = bready_raw && !b_hold;
   reg reading = 0, aw = 0, ww = 0, bvalid = 0;
+  integer accepted_b = 0, error_b_before = 0;
   reg [1:0] bresp = 0;
   integer ri = 0, left = 0, wi = 0, read_due = 0, read_txns = 0;
   reg [63:0] wdata;
@@ -204,6 +208,7 @@ module tb_r64_lsu_direct_bind;
           if (wstrb[byte_n]) memory[wi][8*byte_n+:8] = wdata[8*byte_n+:8];
       end
       if (bvalid && bready) begin
+        accepted_b = accepted_b + 1;
         aw = 0;
         ww = 0;
         bvalid <= 0;
@@ -600,7 +605,16 @@ module tb_r64_lsu_direct_bind;
       head_tag = 59;
       error_write = 1;
       store_ready = 0;
+      error_b_before = accepted_b;
       enqueue(59, 64'h210, 64'h7777, 8'h23, 0, 0, 1, 7);
+      // Elastic terminal VALID may appear before the actual B edge. This
+      // assertion describes the drained state, so observe that handshake first.
+      while (accepted_b == error_b_before) begin
+        if (store_valid && (!store_error || store_tag != 59 || store_tval != 64'h210 || !irreversible))
+          $fatal(1, "error terminal before real B lost live effect owner");
+        @(negedge clk);
+      end
+      if (accepted_b != error_b_before + 1) $fatal(1, "error B was not accepted exactly once");
       while (!store_valid) @(negedge clk);
       if (!store_error || store_tval != 64'h210 || irreversible)
         $fatal(1, "drained B error terminal contract");

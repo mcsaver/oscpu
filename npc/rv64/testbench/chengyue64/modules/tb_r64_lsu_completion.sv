@@ -100,7 +100,55 @@ module tb_r64_lsu_completion;
     consume = 2;
     repeat (2) @(negedge clk);
     if (!idle || returns != 4) $fatal(1, "asymmetric completion progress");
-    $display("[PASS] tb_r64_lsu_completion held/kill/flush/independent-lane completion checks");
+    // Both old heads cancel while two new results enter the Q-free slots.
+    // Incoming publication must survive removal without using the old payload.
+    consume = 0;
+    pair(10);
+    @(negedge clk);
+    kill = (32'b1 << 10) | (32'b1 << 11);
+    killed = killed | kill;
+    fire = 3;
+    tags = {9'd13, 9'd12};
+    packets[0+:64] = 64'h100c;
+    packets[140+:64] = 64'h100d;
+    consume = 3;
+    #1;
+    if (ready != 3 || valid != 0) $fatal(1, "cancel/capture Q credit or visibility");
+    @(negedge clk);
+    fire = 0;
+    kill = 0;
+    #1;
+    if (valid != 3) $fatal(1, "cancel/capture lost incoming owners");
+    repeat (2) @(negedge clk);
+    if (!idle || returns != 6) $fatal(1, "cancel/capture drain failed");
+    // Consumption and capture in the same lane edge rotate storage ownership.
+    consume = 0;
+    pair(14);
+    @(negedge clk);
+    fire = 3;
+    tags = {9'd17, 9'd16};
+    packets[0+:64] = 64'h1010;
+    packets[140+:64] = 64'h1011;
+    consume = 3;
+    @(negedge clk);
+    fire = 0;
+    if (valid != 3) $fatal(1, "consume/capture inserted a bubble");
+    repeat (2) @(negedge clk);
+    if (!idle || returns != 10) $fatal(1, "consume/capture drain failed");
+    // A dead first winner leaves port0 empty; the live second must retain
+    // its own payload/lane while WB is blocked, then depart exactly once.
+    consume=0;
+    @(negedge clk);
+    fire=2'b10; tags={9'd19,9'd18};
+    packets[0+:64]=64'h1012; packets[140+:64]=64'h1013;
+    @(negedge clk); fire=0;
+    repeat(4) @(negedge clk);
+    if((valid!=1 && valid!=2) || !reuse[19] || reuse[18])
+      $fatal(1,"sparse second completion created wrong owner");
+    consume=3;
+    repeat(3) @(negedge clk);
+    if(!idle || returns!=11) $fatal(1,"sparse second completion lost/duplicated");
+    $display("[PASS] tb_r64_lsu_completion held/kill/flush/independent-lane/cancel-capture/consume-capture checks");
     $finish;
   end
   initial begin

@@ -21,15 +21,42 @@ module tb_r64_mem_admission;
   wire [63:0] target, rpc, rnpc;
   wire [T-1:0] rtag, htag;
   wire [31:0] km;
+  // Model Memory's independently registered recovery delivery. Architectural
+  // WB/admission is revoked now; an already-issued speculative bind may reach
+  // the local LSQ on publication and is cancelled on the following edge.
+  reg [31:0] memory_kill_q=0;
+  reg memory_flush_q=0;
+  always @(posedge clk) begin
+    if(rst)begin memory_kill_q<=0;memory_flush_q<=0;end
+    else begin memory_kill_q<=km;memory_flush_q<=flush;end
+  end
+  integer bind_at_revoke=0;
+  reg [511:0] revoked_full_tag_q=0;
+  always @(posedge clk) begin
+    if(rst)revoked_full_tag_q<=0;
+    else for(integer rt=0;rt<32;rt=rt+1)
+      if(owners[rt]&&(km[rt]||flush))revoked_full_tag_q[tags[rt]]<=1;
+  end
+  reg [31:0] revoke_bind_q=0;
+  always @(posedge clk) begin
+    if(rst)revoke_bind_q<=0;
+    else begin
+      // At the edge after local cancellation, no revoked LSQ binding remains.
+      if((owners & revoke_bind_q)!=0)$fatal(1,"revoked speculative bind retained LSQ owner");
+      revoke_bind_q<=memory_kill_q;
+      for(integer bl=0;bl<2;bl=bl+1)
+        if(lf[bl]&&km[lt[bl*T+:5]])bind_at_revoke=bind_at_revoke+1;
+    end
+  end
   wire [5:0] rob_count;
   wire [1:0] lf;
   wire [2*T-1:0] lt;
-  wire [2*U-1:0] lu;
-  wire [383:0] lop;
+  wire [2*`R64_MEM_CMD_W-1:0] lu;
   wire ff, sf;
   wire [T-1:0] ft, st;
-  wire [U-1:0] fu, su;
-  wire [191:0] fop, sop;
+  wire [`R64_FP_CMD_W-1:0] fu;
+  wire [`R64_SERIAL_CMD_W-1:0] su;
+  wire [191:0] fop;
   reg [3:0] ev = 0;
   wire [3:0] er;
   reg [4*T-1:0] et = 0;
@@ -41,13 +68,14 @@ module tb_r64_mem_admission;
   reg  [ 9:0] rslot;
   wire [17:0] reserve_tag;
   wire [15:0] rfunc;
-  wire [9:0] ramo, bslot;
+  wire [9:0] ramo, bslot, selected_slots;
+  wire [1:0] lane_credit={rwant[0]?rready[1]:rready[0],rready[0]};
   reg [N-1:0] free_slots;
   integer free0, free1, rr_owned, bindings = 0;
   always @(*)
-    rr_owned = integer'(backend.registers.ingress_valid_q[0]) + integer
-        '(backend.registers.ingress_valid_q[1]) + integer'(backend.registers.terminal_count_q[0]) +
-        integer'(backend.registers.terminal_count_q[1]);
+    rr_owned = integer'(backend.execution.registers.ingress_valid_q[0]) + integer
+        '(backend.execution.registers.ingress_valid_q[1]) + integer'(backend.execution.registers.terminal_count_q[0]) +
+        integer'(backend.execution.registers.terminal_count_q[1]);
   reg [T-1:0] tags[0:31];
   reg [31:0] program_mem[0:255];
   integer cycle = 0, sent = 0, retired = 0, total = 26, mode = 0, free_count, occupied;
@@ -65,7 +93,19 @@ module tb_r64_mem_admission;
   reg [2*R-1:0] held_data = 0;
   integer held_cycles = 0, wrap_choices = 0, peak_reserved = 0;
   reg [63:0] pc;
+  always @(posedge clk)
+    if(!rst)
+      for(integer rank_lane=0;rank_lane<2;rank_lane=rank_lane+1)
+        if(rfire[rank_lane] &&
+            selected_slots[rank_lane*5+:5] !=
+              5'((rank_lane==1 && rwant[0]) ? free1 : free0))
+          $fatal(1,"Backend selected a slot outside its ranked FREE-Q offer");
+
   R64Backend backend (
+    .serial_retire_candidate_o(),
+    .direction_invalidate_i(1'b0),.direction_train_valid_o(),.direction_train_pc_o(),.direction_train_taken_o(),
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
+    .resolved_value_valid_i(2'b0), .resolved_value_tag_i(18'b0), .resolved_value_data_i(128'b0),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -75,7 +115,7 @@ module tb_r64_mem_admission;
     .rst(rst),
     .flush_i(flush),
     .stop_i(stop),
-    .serial_allow_i(1'b1),
+    .effect_i({1'b1, 1'b0, 1'b1, htag}),
     .reuse_block_i(32'b0),
     .fetch_valid_i(fv),
     .fetch_ready_o(fr),
@@ -87,7 +127,6 @@ module tb_r64_mem_admission;
     .fetch_cause_i(12'b0),
     .fetch_tval_i(128'b0),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -117,6 +156,7 @@ module tb_r64_mem_admission;
     .lsu_reserve_fire_o(rfire),
     .lsu_reserve_ready_i(rready),
     .lsu_reserve_slot_i(rslot),
+    .lsu_reserve_slot_o(selected_slots),
     .lsu_reserve_tag_o(reserve_tag),
     .lsu_reserve_func_o(rfunc),
     .lsu_reserve_amo_o(ramo),
@@ -124,18 +164,16 @@ module tb_r64_mem_admission;
     .lsu_ready_i(lready),
     .lsu_fire_o(lf),
     .lsu_tag_o(lt),
-    .lsu_uop_o(lu),
-    .lsu_operand_o(lop),
+    .lsu_command_o(lu),
     .fp_ready_i(!ev[2]),
     .fp_fire_o(ff),
     .fp_tag_o(ft),
-    .fp_uop_o(fu),
+    .fp_command_o(fu),
     .fp_operand_o(fop),
     .serial_ready_i(!ev[3]),
     .serial_fire_o(sf),
     .serial_tag_o(st),
-    .serial_uop_o(su),
-    .serial_operand_o(sop),
+    .serial_command_o(su),
     .external_valid_i(ev),
     .external_ready_o(er),
     .external_tag_i(et),
@@ -159,16 +197,8 @@ module tb_r64_mem_admission;
       if (free0 < 0) free0 = q;
       else if (free1 < 0) free1 = q;
     end
-    rready = 3;
-    rslot  = 0;
-    if (rwant[0]) begin
-      rready[0]   = credit >= 1;
-      rslot[0+:5] = 5'(free0);
-    end
-    if (rwant[1]) begin
-      rready[1]   = rwant[0] ? credit >= 2 : credit >= 1;
-      rslot[5+:5] = rwant[0] ? 5'(free1) : 5'(free0);
-    end
+    rready={credit>=2,credit>=1};
+    rslot={5'(free1),5'(free0)};
     lready = 3;
     ev = 0;
     et = 0;
@@ -227,14 +257,14 @@ module tb_r64_mem_admission;
     end
   end
   always @(posedge clk) begin
-    if (rst || flush) begin
-      if (flush) for (integer q = 0; q < 32; q = q + 1) if (owners[q]) canceled = canceled + 1;
+    if (rst || memory_flush_q) begin
+      if (memory_flush_q) for (integer q = 0; q < 32; q = q + 1) if (owners[q]) canceled = canceled + 1;
       owners <= 0;
       stores <= 0;
       bound  <= 0;
     end else begin
       for (integer q = 0; q < 32; q = q + 1)
-      if (owners[q] && km[q]) begin
+      if (owners[q] && memory_kill_q[q]) begin
         owners[q] <= 0;
         bound[q]  <= 0;
         canceled = canceled + 1;
@@ -243,13 +273,15 @@ module tb_r64_mem_admission;
         if (ev[l] && er[l]) begin
           slot = et[l*T+:5];
           if (!owners[slot] || tags[slot] != et[l*T+:T]) $fatal(1, "terminal has no owner");
+          if(revoked_full_tag_q[et[l*T+:T]] || km[slot] || flush)
+            $fatal(1,"revoked full-tag completed or effected after publication");
           owners[slot] <= 0;
           bound[slot]  <= 0;
           completions = completions + 1;
         end
         if (lf[l]) begin
           slot = lt[l*T+:5];
-          if (!owners[slot] || bound[slot] || km[slot] || tags[slot] != lt[l*T+:T] ||
+          if (!owners[slot] || bound[slot] || memory_kill_q[slot] || tags[slot] != lt[l*T+:T] ||
               owner_lsq_slot[slot] != bslot[l*5+:5])
             $fatal(1, "bind without unique live reserved fulltag/LSQslot");
           bound[slot] <= 1;
@@ -257,13 +289,13 @@ module tb_r64_mem_admission;
         end
         if (rfire[l]) begin
           slot = reserve_tag[l*T+:5];
-          if (owners[slot] || km[slot] || !rready[l] || integer'(rslot[l*5+:5]) >= N ||
-              !free_slots[rslot[l*5+:5]])
+          if (owners[slot] || km[slot] || !lane_credit[l] || integer'(selected_slots[l*5+:5]) >= N ||
+              !free_slots[selected_slots[l*5+:5]])
             $fatal(1, "LSQ duplicate/dead/overbooked reserve");
           owners[slot] <= 1;
           bound[slot] <= 0;
           tags[slot] <= reserve_tag[l*T+:T];
-          owner_lsq_slot[slot] <= rslot[l*5+:5];
+          owner_lsq_slot[slot] <= selected_slots[l*5+:5];
           stores[slot] <= rfunc[l*8+5];
           commands = commands + 1;
         end
@@ -358,8 +390,8 @@ module tb_r64_mem_admission;
           retired,
           htag,
           occupied,
-          backend.read_valid_w,
-          backend.read_class_w
+          backend.execution.read_valid_w,
+          backend.execution.read_class_w
       );
     if (mode != 2 && (first_resolve < 80 || first_resolve > 95 || max_occupied < 17))
       $fatal(1, "fixture did not exercise delayed branch / saturated LSQ");
@@ -369,6 +401,7 @@ module tb_r64_mem_admission;
       $fatal(1, "dual MEM steady throughput lost: %0d/140", window_mem);
     if (mode == 2 && (wrap_choices == 0 || held_cycles == 0 || peak_reserved != 4))
       $fatal(1, "dual MEM fixture missed wrap, terminal hold or both RR stages");
+    $display("RECOVERY_DELIVERY speculative_bind_at_publication=%0d",bind_at_revoke);
     if (commands != completions + canceled)
       $fatal(1, "owner conservation %0d != %0d+%0d", commands, completions, canceled);
     $display("[LSQ-MODEL] credit-cap=%0d max-real-RR=%0d held=%0d wrapped-age-selections=%0d",

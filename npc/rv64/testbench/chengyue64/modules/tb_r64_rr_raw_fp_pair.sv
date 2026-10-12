@@ -34,9 +34,10 @@ module tb_r64_rr_raw_fp_pair;
   R64Issue #(
     .PAYLOAD_W(M)
   ) issue (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0),
     .enq_gpr_dst_i(12'b0),
     .issue_gpr_dst_o(),
-    .early_valid_i(2'b0),
+    .early_valid_i(2'b0), .load_promise_i(2'b0), .load_preg_i(12'b0),
     .early_preg_i(12'b0),
     .clk(clk),
     .rst(rst),
@@ -81,6 +82,10 @@ module tb_r64_rr_raw_fp_pair;
     .PREQUALIFIED_ISSUE(1),
     .PAYLOAD_W(M)
   ) rr (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0), .resolved_value_data_i(128'b0),
+    .out_local_alu_valid_o(),
+    .alu_bypass_resident_i(2'b0),
+    .in_src_pending_i(6'b0),
     .in_mem_slot_i(issue_slots),
     .out_mem_slot_o(out_slots),
     .in_gpr_dst_i(12'b0),

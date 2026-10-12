@@ -25,7 +25,7 @@ module tb_r64_writeback_demand;
     .rst(rst),
     .flush_i(flush),
     .kill_mask_i(km),
-    .source_valid_i(sv),
+    .source_valid_i(sv), .source_capture_o(),
     .source_ready_o(sr),
     .source_tag_i(st),
     .source_result_i(sd),

@@ -10,10 +10,14 @@ module R64Issue #(
   parameter TAG_W = 9,
   parameter PREG_W = 6,
   parameter DEFER_READY = 0,
+  parameter ALU_ISSUE_PROMISE = 0,
+  parameter LOAD_COMPLETION_PROMISE = 0,
+  parameter LOAD_RESOLVED_VALUE = 0,
   parameter MDU_RESOURCE_PAIR = 0,
   parameter PAYLOAD_W = 128,
   parameter MEM_WIDTH = 2,
-  parameter LSQ_W = 5
+  parameter LSQ_W = 5,
+  parameter INIT_CURRENT_READY = 0
 ) (
   input                       clk,
   input                       rst,
@@ -44,6 +48,10 @@ module R64Issue #(
   input  [      2*PREG_W-1:0] wake_preg_i,
   input  [               1:0] early_valid_i,
   input  [      2*PREG_W-1:0] early_preg_i,
+  input  [               1:0] resolved_value_valid_i,
+  input  [      2*PREG_W-1:0] resolved_value_preg_i,
+  input  [               1:0] load_promise_i,
+  input  [      2*PREG_W-1:0] load_preg_i,
   input  [               5:0] fu_allow_i,
   input                       serial_allow_i,
   input  [               1:0] issue_ready_i,
@@ -56,6 +64,7 @@ module R64Issue #(
   output [      6*PREG_W-1:0] issue_src_preg_o,
   output [               5:0] issue_src_fp_o,
   output [               5:0] issue_src_used_o,
+  output [               5:0] issue_src_pending_o,
   output [2*(3*PREG_W+8)-1:0] issue_fp_plan_o,
   output [          SLOT_W:0] count_o
 );
@@ -93,6 +102,26 @@ module R64Issue #(
   reg [PREG_W-1:0] gpr_dst_q[0:N-1];
   reg [3*PREG_W-1:0] src_q[0:N-1];
   reg [2:0] fp_q[0:N-1], used_q[0:N-1], ready_q[0:N-1];
+  // Scheduling promises never update the canonical physical scoreboard. A
+  // consumer carries unresolved integer sources to RR, which waits for real data.
+  reg [2:0] promised_q[0:N-1];
+  wire [1:0] promise_valid_w;
+  wire [5:0] all_promise_valid_w={resolved_value_valid_i & {2{LOAD_RESOLVED_VALUE != 0}},
+      load_promise_i & {2{LOAD_COMPLETION_PROMISE != 0}}, promise_valid_w};
+  wire [6*PREG_W-1:0] all_promise_preg_w={resolved_value_preg_i,load_preg_i,issue_gpr_dst_o};
+  wire [2:0] current_value_hit_w[0:N-1];
+  genvar promise_lane;
+  generate
+    for (promise_lane=0; promise_lane<2; promise_lane=promise_lane+1) begin : g_promise
+      wire exception_w;
+      if (PAYLOAD_W >= 209)
+        assign exception_w = issue_payload_o[promise_lane*PAYLOAD_W+208];
+      else assign exception_w = 1'b0;
+      assign promise_valid_w[promise_lane] = ALU_ISSUE_PROMISE != 0 &&
+          issue_fire_o[promise_lane] && issue_class_o[promise_lane*3+:3] == C_ALU &&
+          !exception_w && issue_gpr_dst_o[promise_lane*PREG_W+:PREG_W] != 0;
+    end
+  endgenerate
   wire [N-1:0] live_w, free_w, pick0_w, pick1_w;
   wire [ROB_W-1:0] barrier_age_w = barrier_slot_i - rob_head_i;
   wire [ROB_W-1:0] age_w[0:N-1];
@@ -149,6 +178,7 @@ module R64Issue #(
   wire [1:0] enq_fire_w = enq_valid_i & enq_ready_o;
   // Birth owns the fixed IQ row and canonical preg before this stage.
   wire [N-1:0] init0_w, init1_w;
+  wire [2:0] effective_ready_w[0:N-1];
   generate
     if (DEFER_READY != 0) begin : g_ready_stage
       reg [6*PREG_W-1:0] preg_q;
@@ -190,10 +220,27 @@ module R64Issue #(
           {2'b0, (used_q[s][1] & fp_q[s][1])} + {2'b0, (used_q[s][2] & fp_q[s][2])};
       assign gp_count_w[s] = {2'b0, (used_q[s][0] & ~fp_q[s][0])} +
           {2'b0, (used_q[s][1] & ~fp_q[s][1])} + {2'b0, (used_q[s][2] & ~fp_q[s][2])};
-      wire operands_w = &(ready_q[s] | ~used_q[s]);
-      // Selection uses resident Q-state. Cancellation is checked once on the
-      // final admission mask, instead of traversing both selector rounds.
-      assign common_w[s] = valid_q[s] && !init0_w[s] && !init1_w[s] && operands_w &&
+      for(genvar source=0;source<2;source=source+1) begin : g_current_value
+        wire [PREG_W-1:0] preg_w=src_q[s][source*PREG_W+:PREG_W];
+        assign current_value_hit_w[s][source]=LOAD_RESOLVED_VALUE != 0 &&
+            used_q[s][source] && !fp_q[s][source] && preg_w!=0 &&
+            ((resolved_value_valid_i[0] && resolved_value_preg_i[0+:PREG_W]==preg_w) ||
+             (resolved_value_valid_i[1] && resolved_value_preg_i[PREG_W+:PREG_W]==preg_w));
+      end
+      assign current_value_hit_w[s][2]=1'b0;
+      // A held final result can qualify this edge's selection; pending still
+      // accompanies the owner so RR captures the same value, never old PRF.
+      // Query addresses and this row's birth identity were captured together.
+      // The scoreboard query observes registered readiness; no WB-to-query
+      // bypass or new query port is introduced by this empty initialization cut.
+      assign effective_ready_w[s] = INIT_CURRENT_READY != 0 && init0_w[s] ?
+          ready_query_ready_i[0+:3] : INIT_CURRENT_READY != 0 && init1_w[s] ?
+          ready_query_ready_i[3+:3] : ready_q[s];
+      wire operands_w = &(effective_ready_w[s] | promised_q[s] | current_value_hit_w[s] | ~used_q[s]);
+      // Selection combines resident instruction state with certified held
+      // final-value events. Cancellation is checked once on the final
+      // admission mask, instead of traversing both selector rounds.
+      assign common_w[s] = valid_q[s] && (INIT_CURRENT_READY != 0 || !(init0_w[s] || init1_w[s])) && operands_w &&
           fu_allow_i[class_q[s]] && !(|(serial_dependency_q[s] & serial_active_i)) &&
           (class_q[s] != C_SERIAL || (serial_allow_i && tag_q[s][ROB_W-1:0] == rob_head_i));
       // The LSQ owner and memory age were established at actual birth.
@@ -300,7 +347,7 @@ module R64Issue #(
       );
     end
   endgenerate
-  localparam PACK_W = TAG_W + PAYLOAD_W + 3 + 4 * PREG_W + 6 + LSQ_W + FP_PLAN_W;
+  localparam PACK_W = TAG_W + PAYLOAD_W + 3 + 4 * PREG_W + 9 + LSQ_W + FP_PLAN_W;
   genvar l, t;
   generate
     for (l = 0; l < 2; l = l + 1) begin : gen_output
@@ -310,7 +357,8 @@ module R64Issue #(
         if (t >= N) begin : leaf
           assign data_w = {PACK_W{grant_w[t-N]}} &
               {row_fp_plan_w[t-N], mem_slot_q[t-N], tag_q[t-N], payload_q[t-N], class_q[t-N],
-               gpr_dst_q[t-N], src_q[t-N], fp_q[t-N], used_q[t-N]};
+               gpr_dst_q[t-N], src_q[t-N], fp_q[t-N], used_q[t-N],
+               ((promised_q[t-N] | current_value_hit_w[t-N]) & ~effective_ready_w[t-N] & used_q[t-N])};
         end else begin : merge
           assign data_w = tree[2*t].data_w | tree[2*t+1].data_w;
         end
@@ -318,7 +366,7 @@ module R64Issue #(
       assign {issue_fp_plan_o[l*FP_PLAN_W+:FP_PLAN_W], issue_mem_slot_o[l*LSQ_W+:LSQ_W],
               issue_tag_o[l*TAG_W+:TAG_W], issue_payload_o[l*PAYLOAD_W+:PAYLOAD_W], issue_class_o[
               l*3+:3], issue_gpr_dst_o[l*PREG_W+:PREG_W], issue_src_preg_o[l*3*PREG_W+:3*PREG_W],
-              issue_src_fp_o[l*3+:3], issue_src_used_o[l*3+:3]} = tree[1].data_w;
+              issue_src_fp_o[l*3+:3], issue_src_used_o[l*3+:3], issue_src_pending_o[l*3+:3]} = tree[1].data_w;
     end
   endgenerate
   // A static row owns each age vector. Births clear reused columns; a new
@@ -399,9 +447,16 @@ module R64Issue #(
         if (rst || flush_i) begin
           valid_q[s] <= 0;
           serial_dependency_q[s] <= 0;
+          promised_q[s] <= 0;
         end else begin
           serial_dependency_q[s] <= serial_dependency_q[s] & ~serial_release_i;
           if (valid_q[s]) begin
+            for (j=0; j<2; j=j+1)
+            for (w=0; w<6; w=w+1)
+              if (all_promise_valid_w[w] && !fp_q[s][j] && used_q[s][j] &&
+                  src_q[s][j*PREG_W+:PREG_W] != 0 &&
+                  src_q[s][j*PREG_W+:PREG_W] == all_promise_preg_w[w*PREG_W+:PREG_W])
+                promised_q[s][j] <= 1'b1;
             if (!live_w[s] || select0_mask_w[s] || select1_mask_w[s]) valid_q[s] <= 0;
             if (DEFER_READY != 0) begin
               if (init0_w[s]) ready_q[s] <= ready_query_ready_i[0+:3] | ~used_q[s];
@@ -423,6 +478,16 @@ module R64Issue #(
           for (lane = 0; lane < 2; lane = lane + 1)
           if (enq_fire_w[lane] && (lane == 0 ? pick0_w[s] : pick1_w[s])) begin
             valid_q[s] <= 1;
+            promised_q[s] <= 0;
+            // Preserve same-edge ALU promises and completed load captures.
+            // Deferred ready initialization never clears promised state.
+            for (j=0; j<2; j=j+1)
+            for (w=0; w<6; w=w+1)
+              if (all_promise_valid_w[w] && !enq_src_fp_i[lane*3+j] &&
+                  enq_src_used_i[lane*3+j] &&
+                  enq_src_preg_i[(lane*3+j)*PREG_W+:PREG_W] != 0 &&
+                  enq_src_preg_i[(lane*3+j)*PREG_W+:PREG_W] == all_promise_preg_w[w*PREG_W+:PREG_W])
+                promised_q[s][j] <= 1'b1;
             serial_dependency_q[s] <= serial_active_i & ~serial_release_i;
             if (lane == 1 && enq_fire_w[0] && enq_class_i[0+:3] == C_SERIAL)
               serial_dependency_q[s][enq_tag_i[0+:ROB_W]] <= 1;
@@ -447,6 +512,19 @@ module R64Issue #(
     end
   endgenerate
 `ifdef R64_ASSERT
+  // Independent previous-birth ledger: compare the initialization owner
+  // against the actual accepted input, not another copy of row decode.
+  reg [1:0] reference_birth_q;
+  reg [2*TAG_W-1:0] reference_birth_tag_q;
+  reg [6*PREG_W-1:0] reference_birth_src_q;
+  reg [5:0] reference_birth_fp_q, reference_birth_used_q;
+  always @(posedge clk) begin
+    reference_birth_q <= rst || flush_i ? 2'b0 : enq_fire_w;
+    reference_birth_tag_q <= enq_tag_i;
+    reference_birth_src_q <= enq_src_preg_i;
+    reference_birth_fp_q <= enq_src_fp_i;
+    reference_birth_used_q <= enq_src_used_i;
+  end
   wire [N*3-1:0] reference_resource_w;
   generate
     for (genvar rr = 0; rr < N; rr = rr + 1) begin : g_resource_contract
@@ -468,9 +546,29 @@ module R64Issue #(
         if ((init0_w & init1_w) != 0) $fatal(1, "R64 ready stage owns one IQ row twice");
         if (((init0_w | init1_w) & ~valid_q) != 0)
           $fatal(1, "R64 ready initialization lost its reserved IQ row");
-        if (((init0_w | init1_w) & (select0_mask_w | select1_mask_w)) != 0)
+        if (INIT_CURRENT_READY == 0 &&
+            ((init0_w | init1_w) & (select0_mask_w | select1_mask_w)) != 0)
           $fatal(1, "R64 IQ issued before its readiness initialization");
+        if (((init0_w & (init0_w - 1'b1)) != 0) ||
+            ((init1_w & (init1_w - 1'b1)) != 0) ||
+            (|init0_w) != reference_birth_q[0] || (|init1_w) != reference_birth_q[1])
+          $fatal(1, "R64 ready initialization not one row per accepted birth");
         for (integer row = 0; row < N; row = row + 1) begin
+          for (integer birth_lane = 0; birth_lane < 2; birth_lane = birth_lane + 1)
+            if (birth_lane == 0 ? init0_w[row] : init1_w[row]) begin
+              if ({tag_q[row],src_q[row],fp_q[row],used_q[row]} !==
+                  {reference_birth_tag_q[birth_lane*TAG_W+:TAG_W],
+                   reference_birth_src_q[birth_lane*3*PREG_W+:3*PREG_W],
+                   reference_birth_fp_q[birth_lane*3+:3],
+                   reference_birth_used_q[birth_lane*3+:3]})
+                $fatal(1, "R64 ready initialization disagrees with accepted birth ledger");
+              if (select0_mask_w[row] || select1_mask_w[row])
+                for (integer operand = 0; operand < 3; operand = operand + 1)
+                  if (used_q[row][operand] &&
+                      !(ready_query_ready_i[birth_lane*3+operand] ||
+                        promised_q[row][operand] || current_value_hit_w[row][operand]))
+                    $fatal(1, "R64 IQ init issue lacks canonical ready or certified value evidence");
+            end
           if (init0_w[row] &&
               {src_q[row], fp_q[row]} !== {ready_query_preg_o[0+:3*PREG_W], ready_query_fp_o[0+:3]})
             $fatal(1, "R64 ready lane0 changed its physical owner");

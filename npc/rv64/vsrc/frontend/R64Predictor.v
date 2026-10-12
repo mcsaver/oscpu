@@ -1,10 +1,13 @@
 // Two instruction-local prediction lookups. Direct targets use fixed immediate
-// wiring; a 256-entry bimodal table predicts conditional direction, and a
+// wiring; a parameterized bimodal table predicts conditional direction, and a
 // 64-entry tagged table supplies other indirect targets. An eight-entry RAS
 // predicts x1/x5 returns and is cleared on recovery. All prediction state may
 // be inaccurate without affecting architectural ownership or correctness.
 module R64Predictor #(
-  parameter RAS_PTR_W = 3
+  parameter RAS_PTR_W = 3,
+  parameter DIRECTION_COMMIT_TRAIN = 0,
+  parameter DIRECTION_INDEX_W = 8,
+  parameter DIRECTION_COLD_STRONG = 0
 ) (
   // consume_i accepts the actual B prediction-result token. C confirms
   // a (possibly smaller) prefix later; only that prefix writes backing RAS.
@@ -57,7 +60,10 @@ module R64Predictor #(
   input                        update_conditional_i,
   input                        update_indirect_i,
   input                        update_taken_i,
-  input  [               63:0] update_target_i
+  input  [               63:0] update_target_i,
+  input  [                1:0] direction_train_valid_i,
+  input  [              127:0] direction_train_pc_i,
+  input  [                1:0] direction_train_taken_i
 );
   // Prediction-only return stack. Advance exactly on FIFO admission, never
   // merely on a repeated lookup under backpressure. Recovery clears validity;
@@ -126,21 +132,18 @@ module R64Predictor #(
       if (ras_pending_valid_q[1]) ras_q[ras_pending_index_q[1]] <= ras_pending_data_q[1];
     end
   end
-  reg [255:0] direction_valid_q;
-  reg [1:0] direction_q[0:255];
+  localparam DIRECTION_ROWS = 1 << DIRECTION_INDEX_W;
+  reg [DIRECTION_ROWS-1:0] direction_valid_q;
+  reg [1:0] direction_q[0:DIRECTION_ROWS-1];
   reg [63:0] target_valid_q;
   reg [15:0] target_tag_q[0:63];
   reg [62:0] target_q[0:63];
-  wire [7:0] direction_index_w = update_pc_i[8:1];
+  wire [DIRECTION_INDEX_W-1:0] direction_index_w = update_pc_i[DIRECTION_INDEX_W:1];
   wire [5:0] target_index_w = update_pc_i[6:1];
   always @(posedge clk_i) begin
     if (rst_i || invalidate_i) begin
-      direction_valid_q <= 0;
       target_valid_q <= 0;
     end else if (update_i) begin
-      if (update_conditional_i) begin
-        direction_valid_q[direction_index_w] <= 1;
-      end
       if (update_indirect_i) begin
         target_valid_q[target_index_w] <= 1;
         target_tag_q[target_index_w] <= update_pc_i[22:7];
@@ -148,27 +151,44 @@ module R64Predictor #(
       end
     end
   end
-  // One decoded training row; the selected row updates its own old Q.
-  // No table-wide counter read feeds a write or clock enable. Lookup ports
-  // remain combinational old-Q views, including a same-edge training capture.
-  wire [255:0] direction_write_w;
+  // Each row folds zero/one/two accepted observations in program order.
+  // The indirect target path above remains on the original scalar resolve.
+  // Both lookup ports still see old Q at the training edge.
+  function [1:0] direction_step;
+    input valid;
+    input [1:0] counter;
+    input taken;
+    begin
+      if(!valid)direction_step=(DIRECTION_COLD_STRONG != 0)?
+          (taken?2'b11:2'b00):(taken?2'b10:2'b01);
+      else if(taken&&counter!=3)direction_step=counter+1'b1;
+      else if(!taken&&counter!=0)direction_step=counter-1'b1;
+      else direction_step=counter;
+    end
+  endfunction
+  wire [DIRECTION_ROWS-1:0] direction_write_w;
   genvar direction_row;
   generate
-    for (
-        direction_row = 0; direction_row < 256; direction_row = direction_row + 1
-    ) begin : g_direction_update
-      localparam [7:0] ROW_INDEX = direction_row;
-      assign direction_write_w[direction_row] = update_i && update_conditional_i &&
-          direction_index_w == ROW_INDEX;
-      always @(posedge clk_i) begin
-        if (!rst_i && !invalidate_i && direction_write_w[direction_row]) begin
-          if (!direction_valid_q[direction_row])
-            direction_q[direction_row] <= update_taken_i ? 2'b10 : 2'b01;
-          else if (update_taken_i && direction_q[direction_row] != 3)
-            direction_q[direction_row] <= direction_q[direction_row] + 1'b1;
-          else if (!update_taken_i && direction_q[direction_row] != 0)
-            direction_q[direction_row] <= direction_q[direction_row] - 1'b1;
-        end
+    for(direction_row=0;direction_row<DIRECTION_ROWS;direction_row=direction_row+1)begin : g_direction_update
+      localparam [DIRECTION_INDEX_W-1:0] ROW_INDEX=DIRECTION_INDEX_W'(direction_row);
+      wire first_w=(DIRECTION_COMMIT_TRAIN != 0)?
+          (direction_train_valid_i[0]&&direction_train_pc_i[1+:DIRECTION_INDEX_W]==ROW_INDEX):
+          (update_i&&update_conditional_i&&direction_index_w==ROW_INDEX);
+      wire second_w=(DIRECTION_COMMIT_TRAIN != 0)&&direction_train_valid_i[1]&&
+          direction_train_pc_i[65+:DIRECTION_INDEX_W]==ROW_INDEX;
+      wire first_taken_w=(DIRECTION_COMMIT_TRAIN != 0)?direction_train_taken_i[0]:update_taken_i;
+      wire [1:0] first_counter_w=first_w?
+          direction_step(direction_valid_q[direction_row],direction_q[direction_row],first_taken_w):
+          direction_q[direction_row];
+      wire [1:0] final_counter_w=second_w?
+          direction_step(direction_valid_q[direction_row]||first_w,first_counter_w,direction_train_taken_i[1]):
+          first_counter_w;
+      assign direction_write_w[direction_row]=first_w||second_w;
+      always @(posedge clk_i)begin
+        if(rst_i||invalidate_i)direction_valid_q[direction_row]<=0;
+        else if(direction_write_w[direction_row])direction_valid_q[direction_row]<=1;
+        if(!rst_i&&!invalidate_i&&direction_write_w[direction_row])
+          direction_q[direction_row]<=final_counter_w;
       end
     end
   endgenerate
@@ -270,7 +290,7 @@ module R64Predictor #(
       // the stack without an additional 64-bit address adder on the lookup cone.
       wire ras_hit_w = pop_w && ras_offset_zero_w;
       wire [63:0] query_pc_w = lookup_pc_i[lane*64+:64];
-      wire [7:0] di_w = query_pc_w[8:1];
+      wire [DIRECTION_INDEX_W-1:0] di_w = query_pc_w[DIRECTION_INDEX_W:1];
       wire [5:0] ti_w = query_pc_w[6:1];
       wire [1:0] counter_w = direction_q[di_w];
       assign lookup_target_o[lane*63+:63] = target_q[ti_w];

@@ -6,6 +6,7 @@
 |---|---|
 | [backend/R64Alu.v](backend/R64Alu.v) | R64Alu, R64AluControl, R64AluPipe, R64AluDatapath |
 | [backend/R64Backend.v](backend/R64Backend.v) | R64Backend |
+| [backend/R64ExecutionDomain.v](backend/R64ExecutionDomain.v) | R64ExecutionDomain |
 | [backend/R64CarryStages.v](backend/R64CarryStages.v) | R64CarryPrepare, R64CarryFinish |
 | [backend/R64Clmul.v](backend/R64Clmul.v) | R64Clmul |
 | [backend/R64Decode.v](backend/R64Decode.v) | R64Decode |
@@ -21,6 +22,7 @@
 | [backend/R64ProductTree.v](backend/R64ProductTree.v) | R64ProductTree, R64CsaReduce |
 | [backend/R64RegRead.v](backend/R64RegRead.v) | R64RegRead |
 | [backend/R64Rename.v](backend/R64Rename.v) | R64Rename |
+| [backend/R64Scoreboard.v](backend/R64Scoreboard.v) | R64Scoreboard |
 | [backend/R64Rob.v](backend/R64Rob.v) | R64Rob |
 | [backend/R64WideAdd.v](backend/R64WideAdd.v) | R64WideAdd |
 | [backend/R64Writeback.v](backend/R64Writeback.v) | R64Writeback |
@@ -62,6 +64,7 @@
 | [lsu/R64Dcache.v](lsu/R64Dcache.v) | R64Dcache |
 | [lsu/R64DcacheAmoParts.v](lsu/R64DcacheAmoParts.v) | R64DcacheAmoParts |
 | [lsu/R64LoadStore.v](lsu/R64LoadStore.v) | R64LoadStore |
+| [lsu/R64PhysicalMemory.v](lsu/R64PhysicalMemory.v) | R64PhysicalMemory |
 | [lsu/R64Lsu.v](lsu/R64Lsu.v) | R64Lsu |
 | [lsu/R64LsuCompletion.v](lsu/R64LsuCompletion.v) | R64LsuCompletion |
 | [lsu/R64LsuForwardByte.v](lsu/R64LsuForwardByte.v) | R64LsuForwardByte |
@@ -69,7 +72,6 @@
 | [lsu/R64LsuOrderSelect.v](lsu/R64LsuOrderSelect.v) | R64LsuOrderSelect |
 | [lsu/R64LsuRequestQueue.v](lsu/R64LsuRequestQueue.v) | R64LsuRequestQueue |
 | [lsu/R64LsuSelect.v](lsu/R64LsuSelect.v) | R64LsuSelect |
-| [lsu/R64LsuTranslationOwners.v](lsu/R64LsuTranslationOwners.v) | R64LsuTranslationOwners |
 | [lsu/R64LsuYoungestByte.v](lsu/R64LsuYoungestByte.v) | R64LsuYoungestByte |
 | [lsu/R64MemoryService.v](lsu/R64MemoryService.v) | R64MemoryService |
 | [lsu/R64MemorySplit.v](lsu/R64MemorySplit.v) | R64MemorySplit |
@@ -79,6 +81,7 @@
 | [memory/R64FetchTranslation.v](memory/R64FetchTranslation.v) | R64FetchTranslation |
 | [memory/R64ICache.v](memory/R64ICache.v) | R64ICache |
 | [memory/R64Memory.v](memory/R64Memory.v) | R64Memory |
+| [memory/R64DataTranslationService.v](memory/R64DataTranslationService.v) | R64DataTranslationService |
 | [memory/R64PageWalk.v](memory/R64PageWalk.v) | R64PageWalk |
 | [memory/R64Pma.v](memory/R64Pma.v) | R64Pma |
 | [memory/R64PmaRange.v](memory/R64PmaRange.v) | R64PmaRange |
@@ -96,3 +99,8 @@
 | [platform/R64TensorLink.v](platform/R64TensorLink.v) | R64TensorLink |
 | [platform/R64TensorMemory.v](platform/R64TensorMemory.v) | R64TensorMemory |
 | [platform/R64TensorSystemTop.v](platform/R64TensorSystemTop.v) | R64TensorSystemTop |
+| [common/R64RecoveryInbox.v](common/R64RecoveryInbox.v) | R64RecoveryInbox |
+| [control/R64MemoryEffectLease.v](control/R64MemoryEffectLease.v) | R64MemoryEffectLease |
+| [backend/R64ExecutionOwners.v](backend/R64ExecutionOwners.v) | R64ExecutionOwners |
+| [lsu/R64LsuResponseIngress.v](lsu/R64LsuResponseIngress.v) | R64LsuResponseIngress |
+| [lsu/R64LsuCompletionArbiter.v](lsu/R64LsuCompletionArbiter.v) | R64LsuCompletionArbiter |

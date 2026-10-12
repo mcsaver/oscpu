@@ -1,4 +1,4 @@
-`include "R64Uop.vh"
+`include "R64Protocol.vh"
 // One ROB-head serial owner. Query/complete and architectural commit are
 // distinct events: CSR read and RMW write values are captured together, while
 // privilege/TLB/cache effects wait for the tagged ROB commit. Tensor commands
@@ -12,8 +12,7 @@ module R64Serial (
   output                     ready_o,
   input  [              8:0] tag_i,
   input  [              8:0] head_tag_i,
-  input  [   `R64_UOP_W-1:0] uop_i,
-  input  [            191:0] operand_i,
+  input  [`R64_SERIAL_CMD_W-1:0] command_i,
   input                      memory_idle_i,
   input                      wfi_wake_i,
   output                     result_valid_o,
@@ -65,7 +64,7 @@ module R64Serial (
   reg [8:0] tag_q;
   reg [63:0] command_q, operand_q;
   reg  [63:0] csr_select_q;
-  wire [63:0] incoming_command_w = uop_i[`R64_U_CMD];
+  wire [63:0] incoming_command_w = command_i[`R64_SERIAL_INST];
   wire [63:0] incoming_select_w;
   R64CsrDecode decode_csr (
     .address_i(incoming_command_w[31:20]),
@@ -108,8 +107,8 @@ module R64Serial (
   assign csr_commit_o = commit_owner_w && retire_effect_q[0];
   // The target lookup uses the same admission edge as this serial owner.
   assign return_prepare_o = fire_i &&
-      (uop_i[`R64_U_FUNC] == `R64_K_MRET || uop_i[`R64_U_FUNC] == `R64_K_SRET);
-  assign return_supervisor_o = uop_i[`R64_U_FUNC] == `R64_K_SRET;
+      (command_i[`R64_SERIAL_KIND] == `R64_K_MRET || command_i[`R64_SERIAL_KIND] == `R64_K_SRET);
+  assign return_supervisor_o = command_i[`R64_SERIAL_KIND] == `R64_K_SRET;
   assign return_commit_o = {2{commit_owner_w}} & retire_effect_q[2:1];
   assign icache_invalidate_o = commit_owner_w && retire_effect_q[3];
   assign tlb_invalidate_o = commit_owner_w && retire_effect_q[4];
@@ -175,15 +174,15 @@ module R64Serial (
         state_q <= EVALUATE;
         retire_effect_q <= 0;
         tag_q <= tag_i;
-        command_q <= uop_i[`R64_U_CMD];
+        command_q <= command_i[`R64_SERIAL_INST];
         csr_select_q <= incoming_select_w;
-        operand_q <= operand_i[63:0];
-        asid_q <= operand_i[79:64];
-        kind_q <= uop_i[`R64_U_FUNC];
-        pair_q <= uop_i[`R64_U_LEN] == 8;
+        operand_q <= command_i[`R64_SERIAL_OPERAND];
+        asid_q <= command_i[`R64_SERIAL_ASID];
+        kind_q <= command_i[`R64_SERIAL_KIND];
+        pair_q <= command_i[`R64_SERIAL_PAIR];
         dead_q <= 0;
         result_q <= 0;
-        result_q[`R64_R_TVAL] <= uop_i[`R64_U_PC];
+        result_q[`R64_R_TVAL] <= command_i[`R64_SERIAL_PC];
       end
       if (evaluate_w) begin
         if (tensor_w) state_q <= SEND;
@@ -227,8 +226,6 @@ module R64Serial (
       end
     end
   end
-  wire unused_uop_w = |{uop_i[217:204], uop_i[127:64]};
-  wire unused_operands_w = |operand_i[191:80];
   wire unused_mstatus_w = |{mstatus_i[63:23], mstatus_i[19:0]};
 `ifdef R64_ASSERT
   always @(posedge clk_i)

@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "R64Uop.vh"
-// Real native ROB is wired back to commit READY, lane-1 permission and FLUSH.
+// Real native ROB publishes candidates; Commit returns prefix READY and FLUSH.
 // This catches VALID->FLUSH combinational loops rather than mocking them away.
 module tb_r64_commit;
   localparam M = `R64_META_W;
@@ -27,7 +27,7 @@ module tb_r64_commit;
   wire [127:0] cd, ctval;
   wire [11:0] cc;
   wire [ 9:0] cflags;
-  wire allow1, recover;
+  wire recover;
   wire [5:0] count;
   reg  [1:0] trace_ready = 3;
   reg irq = 0, lsu_irrevocable = 0, serial_irrevocable = 0, force_recover = 0;
@@ -48,7 +48,12 @@ module tb_r64_commit;
   reg [63:0] last_trap_pc, last_trap_tval;
   reg [5:0] last_cause;
   reg last_interrupt;
+  wire resident_serial_candidate_rob;
   R64Rob rob (
+    .serial_retire_candidate_o(resident_serial_candidate_rob),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -84,7 +89,6 @@ module tb_r64_commit;
     .wb_fflags_i(real_lsu ? lflags : wf),
     .wb_accept_o(wa),
     .commit_ready_i(cr),
-    .commit1_allow_i(allow1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -100,12 +104,12 @@ module tb_r64_commit;
     .kill_mask_o(rob_kill)
   );
   R64Commit dut (
+    .serial_retire_candidate_i(resident_serial_candidate_rob),
     .trap_prepare_o(trap_prepare),
     .clk_i(clk),
     .rst_i(rst),
     .rob_valid_i(cv),
     .rob_ready_o(cr),
-    .commit1_allow_o(allow1),
     .rob_tag_i(ct),
     .rob_meta_i(cm),
     .rob_data_i(cd),
@@ -193,6 +197,21 @@ module tb_r64_commit;
       bind_slot_q <= reserve_slot_w;
     end
   end
+  wire [2*`R64_MEM_CMD_W-1:0] bind_command;
+  wire [9:0] translation_token, translation_rsp_token;
+  genvar cmd_lane;
+  generate for (cmd_lane=0; cmd_lane<2; cmd_lane=cmd_lane+1) begin : native_command
+    assign bind_command[cmd_lane*`R64_MEM_CMD_W+:`R64_MEM_CMD_W] = {
+      bind_uop_q[cmd_lane*`R64_UOP_W+155+:5],
+      bind_uop_q[cmd_lane*`R64_UOP_W+196+:8],
+      bind_operand_q[cmd_lane*192+64+:64],
+      bind_uop_q[cmd_lane*`R64_UOP_W+64+:64],
+      bind_operand_q[cmd_lane*192+:64]};
+  end endgenerate
+  R64TranslationTokenEcho #(.TOKEN_W(5)) translation_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr),
+    .req_token_i(translation_token), .rsp_fire_i(trv & trr),
+    .rsp_token_o(translation_rsp_token));
   R64Lsu #(
     .EARLY_STORE(0)
   ) lsu (
@@ -230,8 +249,7 @@ module tb_r64_commit;
     .in_ready_o(),
     .in_tag_i(bind_tag_q),
     .in_slot_i(bind_slot_q),
-    .in_uop_i(bind_uop_q),
-    .in_operand_i(bind_operand_q),
+    .in_command_i(bind_command),
     .out_valid_o(lv),
     .out_ready_i({2{real_lsu}}),
     .out_tag_o(lt),
@@ -251,8 +269,9 @@ module tb_r64_commit;
     .tr_fault_i(2'b0),
     .tr_needs_ad_i(2'b0),
     .tr_cause_i(10'b0),
-    .tr_owner_access_o(),
-    .tr_owner_size_o(),
+    .tr_token_o(translation_token),
+    .tr_rsp_token_i(translation_rsp_token),
+    .tr_request_protection_o(),
     .mem_valid_o(mv),
     .mem_ready_i(mr),
     .mem_token_o(mtoken),
@@ -410,12 +429,13 @@ module tb_r64_commit;
     complete(3);
     repeat (3) begin
       #1;
-      check(fire == 0 && !flush && count == 2, "retirement changed while backpressured");
+      check(cv == 3 && fire == 0 && !flush && count == 2,
+            "completed candidates changed under backpressure");
       tick();
     end
     trace_ready = 2;
     #1;
-    check(fire == 0, "lane1 retired without lane0 acceptance");
+    check(cv == 3 && fire == 0, "lane1 retired without lane0 acceptance");
     tick();
     trace_ready = 1;
     #1;

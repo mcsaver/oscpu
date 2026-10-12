@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 module tb_r64_fetch_translation;
+  parameter BARE_FAST=1;
   reg clk = 0;
   always #5 clk = ~clk;
   reg rst = 1, qv = 0, rr = 0, inv = 0;
@@ -25,7 +26,7 @@ module tb_r64_fetch_translation;
   always @(posedge clk)
     if ({unused_protection, unused_last} !== 69'b0)
       $fatal(1, "default unused metadata not zero");
-  R64FetchTranslation dut (
+  R64FetchTranslation #(.BARE_RESPONSE_CAPTURE(BARE_FAST)) dut (
     .req_protection_i(4'b0),
     .rsp_protection_o(unused_protection),
     .rsp_last_o(unused_last),
@@ -192,7 +193,7 @@ module tb_r64_fetch_translation;
       while (returned < put) @(negedge clk);
       rr = 0;
       if (accepted - start_accept != 128 || returned - start_return != 128 ||
-          cycles - start_cycles != 130)
+          cycles - start_cycles != (translated || !BARE_FAST ? 130 : 129))
         $fatal(
             1,
             "hot path latency/throughput %0d/%0d cycles=%0d",

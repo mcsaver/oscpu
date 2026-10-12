@@ -48,6 +48,11 @@ module tb_r64_direct_bind_trigger;
       wire [2*U-1:0] in_uop = g == 0 ? buop : {buop[0+:U], buop[U+:U]};
       wire [383:0] in_operand = g == 0 ? operand : {operand[191:0], operand[383:192]};
       wire [1:0] trdy = (~tqv[g]) | trspready[g], mrdy = (~mqv[g]) | mrspready[g];
+      wire [2*IW-1:0] ttoken, trtoken;
+      R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+        .clk_i(clk), .rst_i(rst), .req_fire_i(tv[g] & trdy), .req_token_i(ttoken),
+        .rsp_fire_i(tqv[g] & trspready[g]), .rsp_token_o(trtoken)
+      );
       R64Lsu #(
         .ENTRIES(N),
         .INDEX_W(IW),
@@ -90,8 +95,7 @@ module tb_r64_direct_bind_trigger;
         .in_ready_o(bready[g]),
         .in_slot_i(in_slot),
         .in_tag_i(in_tag),
-        .in_uop_i(in_uop),
-        .in_operand_i(in_operand),
+        .in_command_i({in_uop[1*`R64_UOP_W+155+:5], in_uop[1*`R64_UOP_W+196+:8], in_operand[1*192+64+:64], in_uop[1*`R64_UOP_W+64+:64], in_operand[1*192+:64], in_uop[0*`R64_UOP_W+155+:5], in_uop[0*`R64_UOP_W+196+:8], in_operand[0*192+64+:64], in_uop[0*`R64_UOP_W+64+:64], in_operand[0*192+:64]}),
         .out_valid_o(ovalid[g]),
         .out_ready_i(out_ready),
         .out_tag_o(otag[g]),
@@ -100,6 +104,8 @@ module tb_r64_direct_bind_trigger;
         .irrevocable_o(irrevocable[g]),
         .idle_o(idle[g]),
         .drain_idle_o(drained[g]),
+        .tr_token_o(ttoken),
+        .tr_rsp_token_i(trtoken),
         .tr_valid_o(tv[g]),
         .tr_ready_i(trdy),
         .tr_vaddr_o(tva[g]),
@@ -113,8 +119,6 @@ module tb_r64_direct_bind_trigger;
         .tr_needs_ad_i(2'b0),
         .tr_cause_i(10'b0),
         .tr_request_protection_o(),
-        .tr_owner_access_o(),
-        .tr_owner_size_o(),
         .mem_valid_o(mv[g]),
         .mem_ready_i(mrdy),
         .mem_token_o(mtoken[g]),

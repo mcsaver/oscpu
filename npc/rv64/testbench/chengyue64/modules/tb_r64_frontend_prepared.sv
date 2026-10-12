@@ -4,6 +4,9 @@ module tb_r64_frontend_prepared;
   parameter FETCH_PTR_W = 2;
   reg clk = 0;
   always #5 clk = ~clk;
+  // Model the lifecycle fence independently of the Frontend inbox.
+  reg local_redirect = 0;
+  always @(posedge clk) local_redirect <= !rst && redirect;
   reg rst = 1, run = 1, redirect = 0, icinv = 0, tlinv = 0;
   reg [63:0] target = 64'h80000000, status = 0, satp = 0;
   reg [1:0] priv = 3, consume = 0;
@@ -52,11 +55,11 @@ module tb_r64_frontend_prepared;
     .FETCH_PTR_W(FETCH_PTR_W),
     .PREPARED_PROTECTION(PREPARED)
   ) dut (
+    .direction_train_valid_i(2'b0),.direction_train_pc_i(128'b0),.direction_train_taken_i(2'b0),
     .clk_i(clk),
     .rst_i(rst),
     .run_i(run),
-    .redirect_i(redirect),
-    .redirect_pc_i(target),
+    .recovery_i({redirect, target, 34'b0}),
     .priv_i(priv),
     .mstatus_i(status),
     .satp_i(satp),
@@ -272,7 +275,7 @@ module tb_r64_frontend_prepared;
         if (rl) busy[rid] = 0;
         else bus_beat[rid] = bus_beat[rid] + 1;
       end
-      if (!redirect) begin
+      if (!redirect && !local_redirect) begin
         if (consume == 2) dual = dual + 1;
         if (consume >= 1) check_instruction(0);
         if (consume == 2) check_instruction(1);
@@ -300,7 +303,7 @@ module tb_r64_frontend_prepared;
       end
     end
     consume = 0;
-    if (accept_enable && !fault_seen && !redirect) begin
+    if (accept_enable && !fault_seen && !redirect && !local_redirect) begin
       if (valid[0]) consume = 1;
       if (valid[1]) consume = 2;
       if (random_stalls && random_q[8]) consume = 0;
@@ -308,13 +311,22 @@ module tb_r64_frontend_prepared;
     end
   end
   task recovery(input [63:0] address);
+    reg [1:0] before_valid;
+    reg [127:0] before_pc;
     begin
       @(negedge clk);
+      consume = 0;
+      #1;
+      before_valid = valid;
+      before_pc = pc;
       redirect = 1;
       target = address;
       consume = 0;
       expected_pc = address;
       redirects = redirects + 1;
+      #1;
+      if (valid !== before_valid || pc !== before_pc)
+        $fatal(1, "Recovery source changed Frontend output before inbox capture");
       @(negedge clk);
       redirect = 0;
     end

@@ -96,8 +96,10 @@ DiffTest::DiffTest(const char *path, const ReferenceConfig &config) : config_(co
   check(block, "reference lacks block platform API");
   block(config_.disk);
   serial_receive = (decltype(serial_receive))dlsym(handle, "difftest_serial_receive");
+  serial_transactions = (decltype(serial_transactions))dlsym(handle, "difftest_serial_transactions");
   read_syscon = (decltype(read_syscon))dlsym(handle, "difftest_syscon_value");
-  check(!config_.require_uart_input || serial_receive, "reference lacks UART input API");
+  check(!config_.require_uart_input || (serial_receive && serial_transactions),
+        "reference lacks ordered UART input/transaction observation API");
   check(!config_.require_syscon || read_syscon, "reference lacks syscon observation API");
 #endif
   auto mmu_profile = (void (*)(uint16_t, uint64_t))dlsym(handle, "difftest_configure_mmu");
@@ -161,7 +163,40 @@ void DiffTest::extension(const ArchitecturalState &dut, uint64_t at, uint64_t ne
   compare(dut, at, next);
 }
 #endif
+#ifdef R64_SYSTEM
+void DiffTest::receive_serial(uint8_t byte, uint64_t after_transactions) {
+  check(serial_receive && serial_transactions,
+        "reference lacks ordered UART input/transaction observation API");
+  check(after_transactions >= serial_last_enqueued, "UART input transaction order regressed");
+  serial_last_enqueued = after_transactions;
+  serial_pending.push_back({after_transactions, byte});
+  sync_serial_input();
+}
+void DiffTest::sync_serial_input() {
+  if (serial_pending.empty())
+    return;
+  const uint64_t completed = serial_transactions();
+  while (!serial_pending.empty()) {
+    const auto &input = serial_pending.front();
+    if (completed > input.after_transactions) {
+      char s[160];
+      std::snprintf(s, sizeof s, "reference passed UART input boundary: transactions=%llu expected=%llu",
+                    (unsigned long long)completed, (unsigned long long)input.after_transactions);
+      fail(s);
+    }
+    if (completed != input.after_transactions)
+      return;
+    // Apply only the external byte at its native-transaction boundary. The
+    // reference still executes every guest MMIO instruction and all comparisons.
+    check(serial_receive(input.byte), "reference UART rejected ordered accepted input");
+    serial_pending.pop_front();
+  }
+}
+#endif
 void DiffTest::step(const ArchitecturalState &dut, uint64_t at, uint64_t next, uint64_t raw) {
+#ifdef R64_SYSTEM
+  sync_serial_input();
+#endif
   uint32_t instruction = raw;
   Context before;
   regs(&before, false);
@@ -178,6 +213,9 @@ void DiffTest::step(const ArchitecturalState &dut, uint64_t at, uint64_t next, u
   }
 #endif
   exec(1);
+#ifdef R64_SYSTEM
+  sync_serial_input();
+#endif
   Context c;
   regs(&c, false);
   unsigned csr = instruction >> 20, rd = (instruction >> 7) & 31;
@@ -239,6 +277,9 @@ void DiffTest::compare(const ArchitecturalState &dut, uint64_t at, uint64_t next
 }
 void DiffTest::trap(const ArchitecturalState &dut, uint64_t at, uint64_t next, unsigned cause,
                     bool interrupt, uint64_t tval, uint64_t raw) {
+#ifdef R64_SYSTEM
+  sync_serial_input();
+#endif
   Context before;
   regs(&before, false);
   check(before.pc == at, "reference not at trapped instruction");

@@ -1,3 +1,4 @@
+`include "R64Protocol.vh"
 // Native two-wide reorder buffer. Metadata is retire-only, not an execution uop.
 // Tags are {generation, physical slot}; wb_accept is the sole authority for
 // completion, PRF writes and wakeup. All completion inputs are drainable.
@@ -23,7 +24,9 @@ module R64Rob #(
   parameter HEAD_SERIAL_CACHE = 0,
   parameter LOCAL_KILL_FREEZE = 0,
   parameter OWNER_BANK_BITS = (INDEX_W > 2) ? 2 : 0,
-  parameter OWNER_BANKS = (1 << OWNER_BANK_BITS)
+  parameter OWNER_BANKS = (1 << OWNER_BANK_BITS),
+  parameter DUAL_RETIRE_STORE_LEASE = 0,
+  parameter BATCH_SUFFIX_ROLLBACK = 0
 ) (
   input                                 clk,
   input                                 rst,
@@ -37,6 +40,10 @@ module R64Rob #(
   input                                 resolve_valid_i,
   input  [                   TAG_W-1:0] resolve_tag_i,
   input  [                        63:0] resolve_npc_i,
+  // Execution publishes candidates. Only this lifecycle owner may publish
+  // an architectural resolve/redirect after current full-tag authorization.
+  output                                resolve_accept_o,
+  output                                redirect_accept_o,
   input  [                         1:0] alloc_valid_i,
   output [                         1:0] alloc_ready_o,
   output [                 2*TAG_W-1:0] alloc_tag_o,
@@ -74,8 +81,9 @@ module R64Rob #(
   input  [                 4*TAG_W-1:0] short_tag_i,
   input  [                4*PREG_W-1:0] short_preg_i,
   output [                         3:0] short_accept_o,
+  // Consumer accepts an ordered prefix: lane 1 take requires lane 0 take.
+  // Candidate VALID does not depend on READY; cancellation may revoke it.
   input  [                         1:0] commit_ready_i,
-  input                                 commit1_allow_i,
   output [                         1:0] commit_valid_o,
   output [                         1:0] commit_serial_o,
   output [                 2*TAG_W-1:0] commit_tag_o,
@@ -105,7 +113,18 @@ module R64Rob #(
   output [                 INDEX_W-1:0] serial_slot_o,
   output [                       N-1:0] serial_active_o, serial_release_o,
   output [                   INDEX_W:0] count_o,
-  output [                 INDEX_W-1:0] head_slot_o
+  output [                 INDEX_W-1:0] head_slot_o,
+  // Non-owning certificate for the resident third owner after a dual retire.
+  output                                pair_store_candidate_valid_o,
+  output [                   TAG_W-1:0] pair_store_candidate_tag_o,
+  // Captured suffix membership owns these immutable rename rows until apply.
+  // Each row is {pold,pnew,arch[4:0],fp,write}; identity never uses current kill.
+  output batch_apply_o,
+  output [N-1:0] batch_mask_o,
+  output [INDEX_W-1:0] batch_head_o,
+  output [N*(7+2*PREG_W)-1:0] batch_desc_o,
+  // Retained completed Serial head; paired with commit_tag_o lane 0.
+  output serial_retire_candidate_o
 );
   reg [N-1:0] valid_q, done_q, exception_q, rd_write_q, rd_fp_q, serial_q;
   reg [GEN_W-1:0] generation_q[0:N-1];
@@ -140,17 +159,17 @@ module R64Rob #(
   reg [N-1:0] plan_younger_q;
   reg [INDEX_W:0] plan_keep_q;
   reg [TAG_W-1:0] plan_tag_q;
-  wire kill_w = kill_valid_i && plan_valid_q;
+  wire kill_w = !rst && !flush_i && canonical_kill_w && plan_valid_q &&
+      plan_tag_q == kill_tag_i;
+  assign redirect_accept_o=kill_w;
   wire [INDEX_W-1:0] kill_age_w = kill_slot_w - head_q;
   wire [INDEX_W:0] reference_keep_w = {1'b0, kill_age_w} + 1'b1;
   wire [INDEX_W:0] keep_count_w = plan_keep_q;
   assign recover_o = undo_count_q != 0;
-  // Native ALU resolution registers already own a pending redirect. Apply
-  // reset/flush here once; routing their qualified result through Execute and
-  // back into this same freeze OR creates a redundant long control path.
-  // This summary only freezes birth/retirement. Real kill/undo still use the
-  // canonical generation-matched redirect and the original recovery plan.
-  wire freeze_kill_w = LOCAL_KILL_FREEZE ? kill_pending_i : kill_w;
+  // A delayed domain may drain a stale branch candidate. Raw pending is a
+  // source observation, never authority to freeze or redirect the machine.
+  // Freeze, victim publication and undo all consume this one accepted event.
+  wire freeze_kill_w = kill_w;
   wire freeze_w = rst || flush_i || freeze_kill_w || recover_o;
   assign count_o = count_q;
   // Resident completion fact, independent of current retirement cancellation.
@@ -236,14 +255,12 @@ module R64Rob #(
     end
   endgenerate
   wire [INDEX_W-1:0] resolve_slot_w = resolve_tag_i[INDEX_W-1:0];
-  wire resolve_accept_w = resolve_valid_i && valid_q[resolve_slot_w] && generation_q[
-      resolve_slot_w] == resolve_tag_i[TAG_W-1:INDEX_W] && !kill_mask_o[resolve_slot_w];
-  // The native pending bit is the registered redirect fact before Execute's
-  // reset/flush guard. Full flush absorbs that guard in the victim union:
-  // F | (!F & pending & plan) == F | (pending & plan).
-  // Keep reset local and retain the canonical kill for recovery state changes.
-  // No cancellation edge is delayed and no owner qualification is removed.
-  wire publication_kill_w = LOCAL_KILL_FREEZE ? (!rst && kill_pending_i && plan_valid_q) : kill_w;
+  wire resolve_owner_w = valid_q[resolve_slot_w] &&
+      generation_q[resolve_slot_w] == resolve_tag_i[TAG_W-1:INDEX_W];
+  wire resolve_accept_w = !rst && !flush_i && resolve_valid_i && resolve_owner_w &&
+      !kill_mask_o[resolve_slot_w] && (!kill_valid_i || kill_w);
+  assign resolve_accept_o=resolve_accept_w;
+  wire publication_kill_w = kill_w;
   assign cancel_active_o = flush_i || publication_kill_w;
   genvar k;
   generate
@@ -253,10 +270,31 @@ module R64Rob #(
       assign kill_mask_o[k] = valid_q[k] && (flush_i || (publication_kill_w && plan_younger_q[k]));
     end
   endgenerate
-  wire commit_valid0_w = !freeze_w && count_q != 0 && valid_q[head_q] && done_q[head_q];
-  wire commit_valid1_w = commit_valid0_w && commit_ready_i[0] && commit1_allow_i &&
-      !exception_q[head_q] && count_q > 1 && valid_q[head1_w] && done_q[head1_w];
+  // A fully authorized narrow store terminal completes the resident head
+  // before its array write edge. Publish that same owner to Commit immediately;
+  // the array write remains necessary when recovery or trace stalls retirement.
+  // This projection never changes the resident head_exception certificate.
+  wire head_done_eff_w = done_q[head_q] || store_done_fire_w;
+  wire head_exception_eff_w = store_done_fire_w ? store_done_error_i : exception_q[head_q];
+  // Commit alone owns prefix acceptance, trace backpressure and serial policy.
+  wire commit_valid0_w = !freeze_w && count_q != 0 && valid_q[head_q] && head_done_eff_w;
+  wire commit_valid1_w = commit_valid0_w &&
+      !head_exception_eff_w && count_q > 1 && valid_q[head1_w] && done_q[head1_w];
   assign commit_valid_o = {commit_valid1_w, commit_valid0_w};
+  // Narrow store completion is forbidden for a Serial owner. Its retirement
+  // certificate therefore depends only on resident Q state and the old freeze
+  // boundary, not the common store_done completion/exception projection.
+  assign serial_retire_candidate_o = !freeze_w && count_q != 0 &&
+      valid_q[head_q] && done_q[head_q] && !exception_q[head_q] && serial_q[head_q];
+`ifdef R64_ASSERT
+  always @(posedge clk) if (!rst) begin
+    if (serial_retire_candidate_o !==
+        (commit_valid_o[0] && !commit_exception_o[0] && commit_serial_o[0]))
+      $fatal(1, "ROB resident Serial candidate changed retirement eligibility");
+    if (store_done_fire_w && serial_q[head_q])
+      $fatal(1, "narrow store completion targeted a Serial owner");
+  end
+`endif
   wire [1:0] commit_fire_w = commit_valid_o & commit_ready_i;
   genvar release_slot;
   generate
@@ -271,7 +309,69 @@ module R64Rob #(
     end
   endgenerate
 
-  wire undo_valid0_w = recover_o && !rst && !flush_i && !kill_w;
+  generate
+    if(BATCH_SUFFIX_ROLLBACK != 0)begin : g_batch
+      reg [N-1:0] mask_q;
+      reg [INDEX_W-1:0] origin_q;
+      reg [TAG_W-1:0] boundary_q;
+      assign batch_mask_o=mask_q;
+      assign batch_head_o=origin_q;
+      assign batch_apply_o=recover_o&&!rst&&!flush_i&&!kill_w;
+      for(genvar row=0;row<N;row=row+1)begin : g_row
+        assign batch_desc_o[row*(7+2*PREG_W)+:(7+2*PREG_W)]=
+            {pold_q[row],pnew_q[row],rd_arch_q[row],rd_fp_q[row],rd_write_q[row]};
+      end
+      always @(posedge clk)begin
+        if(rst||flush_i)begin mask_q<=0;origin_q<=0;boundary_q<=0;end
+        else if(kill_w)begin
+          mask_q<=mask_q|kill_mask_o;
+          if(!recover_o)origin_q<=head_q;
+          boundary_q<=kill_tag_i;
+        end else if(batch_apply_o)mask_q<=0;
+      end
+`ifdef R64_ASSERT
+      reg [TAG_W-1:0] saved_tag_q[0:N-1];
+      reg [6+2*PREG_W:0] saved_desc_q[0:N-1];
+      for(genvar checkrow=0;checkrow<N;checkrow=checkrow+1)begin : g_audit
+        always @(posedge clk)if(!rst&&!flush_i)begin
+          if(mask_q[checkrow])begin
+            if(valid_q[checkrow]||
+               saved_tag_q[checkrow]!={generation_q[checkrow],INDEX_W'(checkrow)}||
+               saved_desc_q[checkrow]!==batch_desc_o[checkrow*(7+2*PREG_W)+:(7+2*PREG_W)])
+              $fatal(1,"batch rollback victim rename identity changed");
+          end
+          if(kill_mask_o[checkrow])begin
+            saved_tag_q[checkrow]<={generation_q[checkrow],INDEX_W'(checkrow)};
+            saved_desc_q[checkrow]<=batch_desc_o[checkrow*(7+2*PREG_W)+:(7+2*PREG_W)];
+          end
+          if(batch_apply_o&&mask_q[checkrow]&&rd_write_q[checkrow]&&
+             (rd_fp_q[checkrow]||rd_arch_q[checkrow]!=0))
+            for(integer survivor=0;survivor<N;survivor=survivor+1)
+              if(valid_q[survivor]&&rd_write_q[survivor]&&
+                 (rd_fp_q[survivor]||rd_arch_q[survivor]!=0)&&
+                 rd_fp_q[survivor]==rd_fp_q[checkrow]&&pnew_q[survivor]==pnew_q[checkrow])
+                $fatal(1,"batch rollback reclaims surviving physical destination");
+        end
+      end
+      always @(posedge clk)if(!rst&&!flush_i)begin
+        if($countones(mask_q)!=int'(undo_count_q))
+          $fatal(1,"batch pending certificate differs from exact suffix count");
+        if(recover_o&&(origin_q!=head_q||!valid_q[boundary_q[INDEX_W-1:0]]||
+           generation_q[boundary_q[INDEX_W-1:0]]!=boundary_q[TAG_W-1:INDEX_W]))
+          $fatal(1,"batch origin or boundary certificate changed");
+        if(batch_apply_o&&((|alloc_fire_w)||(|commit_fire_w)||(|undo_valid_o)))
+          $fatal(1,"batch apply overlapped namespace birth/retire/serial undo");
+      end
+`endif
+    end else begin : g_walk
+      assign batch_apply_o=0;
+      assign batch_mask_o=0;
+      assign batch_head_o=0;
+      assign batch_desc_o=0;
+    end
+  endgenerate
+
+  wire undo_valid0_w = (BATCH_SUFFIX_ROLLBACK == 0) && recover_o && !rst && !flush_i && !kill_w;
   wire undo_valid1_w = undo_valid0_w && undo_count_q > 1;
   assign undo_valid_o = {undo_valid1_w, undo_valid0_w};
   wire [INDEX_W:0]
@@ -337,6 +437,31 @@ module R64Rob #(
   // from the next certificate before it is sampled. Retirement cannot free an
   // unfinished owner; flush/kill are still checked at actual WB acceptance.
   wire [N-1:0] completing_w;
+  wire [INDEX_W-1:0] pair_store_slot_w = head_q + INDEX_W'(2);
+  // Identity is always the resident Q row. Current completion/cancellation
+  // changes eligibility only; same-edge allocation cannot create a candidate.
+  assign pair_store_candidate_tag_o = {generation_q[pair_store_slot_w], pair_store_slot_w};
+  generate
+    if (DUAL_RETIRE_STORE_LEASE != 0 && META_W >= 204) begin : gen_pair_store_candidate
+      assign pair_store_candidate_valid_o = count_q >= 3 && !freeze_w &&
+          valid_q[pair_store_slot_w] && !done_q[pair_store_slot_w] &&
+          !exception_q[pair_store_slot_w] && !rd_write_q[pair_store_slot_w] &&
+          !serial_q[pair_store_slot_w] && meta_q[pair_store_slot_w][196+:8] == `R64_K_STORE &&
+          !kill_mask_o[pair_store_slot_w] && !completing_w[pair_store_slot_w];
+`ifdef R64_ASSERT
+      always @(posedge clk) if (!rst && pair_store_candidate_valid_o) begin
+        if (count_q < 3 || !valid_q[pair_store_slot_w] || done_q[pair_store_slot_w] ||
+            exception_q[pair_store_slot_w] || rd_write_q[pair_store_slot_w] ||
+            serial_q[pair_store_slot_w] || meta_q[pair_store_slot_w][196+:8] != `R64_K_STORE ||
+            freeze_w || kill_mask_o[pair_store_slot_w] || completing_w[pair_store_slot_w] ||
+            pair_store_candidate_tag_o != {generation_q[pair_store_slot_w], pair_store_slot_w})
+          $fatal(1, "R64 ROB dual-retire candidate lacks resident unfinished store owner");
+      end
+`endif
+    end else begin : gen_no_pair_store_candidate
+      assign pair_store_candidate_valid_o = 1'b0;
+    end
+  endgenerate
   genvar owner_row, owner_lane, owner_bank;
   generate
     for (owner_row = 0; owner_row < N; owner_row = owner_row + 1) begin : g_completing
@@ -420,11 +545,20 @@ module R64Rob #(
       end
       assign commit_tag_o[lane*TAG_W+:TAG_W] = {generation_q[ci_w], ci_w};
       assign commit_meta_o[lane*META_W+:META_W] = meta_q[ci_w];
-      assign commit_data_o[lane*64+:64] = data_q[ci_w];
-      assign commit_exception_o[lane] = exception_q[ci_w];
-      assign commit_cause_o[lane*6+:6] = cause_q[ci_w];
-      assign commit_tval_o[lane*64+:64] = tval_q[ci_w];
-      assign commit_fflags_o[lane*5+:5] = fflags_q[ci_w];
+      if (lane == 0) begin : g_head_terminal
+        assign commit_data_o[lane*64+:64] = store_done_fire_w ? 64'b0 : data_q[ci_w];
+        assign commit_exception_o[lane] = head_exception_eff_w;
+        assign commit_cause_o[lane*6+:6] = store_done_fire_w ?
+            (store_done_error_i ? 6'd7 : 6'd0) : cause_q[ci_w];
+        assign commit_tval_o[lane*64+:64] = store_done_fire_w ? store_done_tval_i : tval_q[ci_w];
+        assign commit_fflags_o[lane*5+:5] = store_done_fire_w ? 5'b0 : fflags_q[ci_w];
+      end else begin : g_resident_terminal
+        assign commit_data_o[lane*64+:64] = data_q[ci_w];
+        assign commit_exception_o[lane] = exception_q[ci_w];
+        assign commit_cause_o[lane*6+:6] = cause_q[ci_w];
+        assign commit_tval_o[lane*64+:64] = tval_q[ci_w];
+        assign commit_fflags_o[lane*5+:5] = fflags_q[ci_w];
+      end
       assign commit_rd_write_o[lane] = rd_write_q[ci_w] && !exception_q[ci_w];
       assign commit_rd_fp_o[lane] = rd_fp_q[ci_w];
       assign commit_rd_arch_o[lane*5+:5] = rd_arch_q[ci_w];
@@ -507,7 +641,7 @@ module R64Rob #(
         undo_count_q <= undo_count_q + count_q - keep_count_w;
         if (!recover_o) undo_q <= tail_q - 1'b1;
       end else if (recover_o) begin
-        undo_count_q <= undo_count_q - undo_step_w;
+        undo_count_q <= (BATCH_SUFFIX_ROLLBACK != 0) ? 0 : undo_count_q - undo_step_w;
         undo_q <= undo_q - undo_step_w[INDEX_W-1:0];
       end else begin
         count_q <= count_q + alloc_count_w - commit_count_w;
@@ -553,8 +687,13 @@ module R64Rob #(
     end
   always @(posedge clk)
     if (!rst && !flush_i) begin
-      if (LOCAL_KILL_FREEZE && kill_pending_i != kill_w)
-        $fatal(1, "ROB local redirect freeze differs from canonical kill");
+      // Independently prove that every live candidate retains its prepared
+      // full-tag boundary. Invalid/stale-generation candidates may drain.
+      if (kill_valid_i && canonical_kill_w &&
+          (!plan_valid_q || plan_tag_q != kill_tag_i))
+        $fatal(1, "ROB live redirect lacks matching full-tag recovery plan");
+      if (freeze_kill_w != canonical_kill_w)
+        $fatal(1, "ROB accepted redirect freeze differs from canonical owner");
       if (recovery_preview_valid_i && valid_q[preview_slot_w] &&
           generation_q[preview_slot_w] == recovery_preview_tag_i[TAG_W-1:INDEX_W] &&
           !kill_mask_o[preview_slot_w] && done_q[preview_slot_w])

@@ -377,7 +377,24 @@ module tb_r64_dcache;
     command(1024, 0, 1, 0, 0, memory[128], 255, 0, 3, 0, 0);
     if (readcmds != before_reads + 1) $fatal(1, "invalidated refill resurrected line");
     command(1032, 0, 0, 0, 0, memory[129], 255, 0, 3, 0, 0);
-    if (live != 0 || accepts != returns || writecmds != 45)
+    // Direct WRITE bypasses start_w, so way_q can belong to a prior read.
+    // Force a resident way1 store while the unrelated slow-owner way_q is 0.
+    @(negedge clk); invalidate = 1;
+    @(negedge clk); invalidate = 0;
+    command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
+    command(256, 0, 1, 0, 0, memory[32], 255, 0, 3, 0, 0);
+    command(64, 0, 1, 0, 0, memory[8], 255, 0, 3, 0, 0);
+    if (!dut.valid1_q[0] || dut.tag1_q[0] != 1 || dut.way_q != 0)
+      $fatal(1, "way1 store fixture did not leave a different old slow-owner way");
+    command(256, 1, 1, 64'h1234deadbeef5678, 0, 0, 255, 0, 3, 0, 0);
+    command(256, 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
+    command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
+    force_write_error = 1;
+    command(256, 1, 1, 64'hbad, 0, 0, 255, 0, 3, 1, 0);
+    force_write_error = 0;
+    command(256, 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
+    command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
+    if (live != 0 || accepts != returns || writecmds != 47)
       $fatal(1, "transaction accounting %0d/%0d writes%0d", accepts, returns, writecmds);
     $display(
         "[PASS] tb_r64_dcache accepted=%0d responses=%0d dual=%0d read_txn=%0d write_txn=%0d stalls=%0d warm_cycles=400",

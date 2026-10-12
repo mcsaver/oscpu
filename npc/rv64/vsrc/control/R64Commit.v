@@ -1,4 +1,4 @@
-`include "R64Uop.vh"
+`include "R64Protocol.vh"
 // Precise architectural boundary. The normal path retires two instructions;
 // exceptional/serial recovery is a registered event, never a combinational
 // function from ROB VALID back to its FLUSH input. Only last-retired NPC and
@@ -16,7 +16,6 @@ module R64Commit #(
   input  [              1:0] rob_serial_i,
   input  [              1:0] rob_valid_i,
   output [              1:0] rob_ready_o,
-  output                     commit1_allow_o,
   input  [             17:0] rob_tag_i,
   input  [2*`R64_META_W-1:0] rob_meta_i,
   input  [            127:0] rob_data_i,
@@ -52,7 +51,9 @@ module R64Commit #(
   output [             63:0] redirect_target_o,
   output                     effect_allow_o,
   output                     serial_allow_o,
-  output                     trap_prepare_o
+  output                     trap_prepare_o,
+  // Producer certifies a completed, nonexceptional Serial head at rob_tag_i[8:0].
+  input                      serial_retire_candidate_i
 );
   localparam M = `R64_META_W;
   wire [7:0] kind0 = rob_meta_i[203:196], kind1 = rob_meta_i[M+196+:8];
@@ -76,15 +77,17 @@ module R64Commit #(
   wire active = !rst_i && !event_valid_q && !recover_i;
   wire head_exception = rob_valid_i[0] && rob_exception_i[0];
   wire irrevocable = lsu_irrevocable_i || serial_irrevocable_i;
-  assign rob_ready_o[0] = active && retire_ready_i[0] && !rob_exception_i[0];
-  // commit1_allow must not depend on rob_valid_i[1]: ROB uses this permission
-  // to generate that signal. Serial instructions always retire alone at head.
-  assign commit1_allow_o = active && !serial0 && !serial1;
-  assign rob_ready_o[1] = active && retire_ready_i[0] && retire_ready_i[1] && !rob_exception_i[1] &&
-      !serial0 && !serial1;
+  wire ready0_w = active && retire_ready_i[0] && !rob_exception_i[0];
+  // ROB publishes candidates independently of READY. Accept only an ordered
+  // prefix; an exception or serial boundary can never let lane 1 retire alone.
+  wire ready1_w = rob_valid_i[0] && ready0_w && retire_ready_i[1] &&
+      !rob_exception_i[1] && !serial0 && !serial1;
+  assign rob_ready_o = {ready1_w, ready0_w};
   assign retire_fire_o = rob_valid_i & rob_ready_o & ~rob_exception_i;
   assign retired_count_o = {1'b0, retire_fire_o[0]} + {1'b0, retire_fire_o[1]};
-  assign serial_commit_o = retire_fire_o[0] && serial0;
+  // The resident certificate excludes current ordinary-store completion.
+  // Commit adds only its original event/recovery and Trace acceptance gates.
+  assign serial_commit_o = serial_retire_candidate_i && active && retire_ready_i[0];
   assign serial_tag_o = rob_tag_i[8:0];
   assign fp_flags_o = ({5{retire_fire_o[0]}} & rob_fflags_i[4:0]) |
       ({5{retire_fire_o[1]}} & rob_fflags_i[9:5]);
@@ -179,6 +182,8 @@ module R64Commit #(
     if (!rst_i) begin
       if (HEAD_SERIAL_CLASS && rob_serial_i != {metadata_serial1, metadata_serial0})
         $fatal(1, "ROB Serial class disagrees with retained metadata");
+      if (serial_commit_o !== (retire_fire_o[0] && serial0))
+        $fatal(1, "resident Serial certificate changed actual serial retirement");
       if (retire_fire_o[1] && !retire_fire_o[0]) $fatal(1, "commit retired a non-prefix pair");
       if (full_flush_o && (|retire_fire_o)) $fatal(1, "commit flush overlapped retirement");
       if (full_flush_o && irrevocable) $fatal(1, "commit flushed an irrevocable external owner");

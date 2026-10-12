@@ -124,7 +124,7 @@ final $display("CPI_PROFILE icache_fill=%0d", profile_icache_fill_q);
 reg [63:0] profile_store_b_owner_q;
 always @(posedge clk_i) begin
   if (rst_i) profile_store_b_owner_q <= 0;
-  else if (run_i && (`R64_SYSTEM_HIER.core.memory.unit.cache.store_active_q))
+  else if (run_i && (`R64_SYSTEM_HIER.core.memory.unit.physical.cache.store_active_q))
     profile_store_b_owner_q <= profile_store_b_owner_q + 64'd1;
 end
 final $display("CPI_PROFILE store_b_owner=%0d", profile_store_b_owner_q);
@@ -145,14 +145,14 @@ final $display("CPI_PROFILE head_serial=%0d", profile_head_serial_q);
 reg [63:0] profile_issue_zero_q;
 always @(posedge clk_i) begin
   if (rst_i) profile_issue_zero_q <= 0;
-  else if (run_i && (`R64_SYSTEM_HIER.core.backend.issue_fire_w == 0))
+  else if (run_i && (`R64_SYSTEM_HIER.core.backend.execution.issue_fire_w == 0))
     profile_issue_zero_q <= profile_issue_zero_q + 64'd1;
 end
 final $display("CPI_PROFILE issue_zero=%0d", profile_issue_zero_q);
 reg [63:0] profile_issue_two_q;
 always @(posedge clk_i) begin
   if (rst_i) profile_issue_two_q <= 0;
-  else if (run_i && (`R64_SYSTEM_HIER.core.backend.issue_fire_w == 3))
+  else if (run_i && (`R64_SYSTEM_HIER.core.backend.execution.issue_fire_w == 3))
     profile_issue_two_q <= profile_issue_two_q + 64'd1;
 end
 final $display("CPI_PROFILE issue_two=%0d", profile_issue_two_q);
@@ -189,4 +189,8 @@ final $display("CPI_PROFILE wb_backpressure=%0d", profile_wb_backpressure_q);
 
 `ifdef R64_LOAD_COMPLETION_PROFILE
 `include "R64LoadCompletionProfile.svh"
+`endif
+
+`ifdef R64_THROUGHPUT_PROFILE
+`include "R64ThroughputProfile.svh"
 `endif

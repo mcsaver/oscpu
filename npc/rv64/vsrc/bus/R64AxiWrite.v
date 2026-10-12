@@ -6,7 +6,9 @@ module R64AxiWrite #(
   parameter integer CLIENTS = 2,
   parameter integer CLIENT_W = 1,
   parameter integer ID_W = 4,
-  parameter integer B_BYPASS = 0
+  parameter integer B_BYPASS = 0,
+  parameter integer FIRST_W_CAPTURE = 1,
+  parameter integer CMD_EMPTY_FLOW = 0
 ) (
   input                       clk_i,
   input                       rst_i,
@@ -60,29 +62,48 @@ module R64AxiWrite #(
   reg bhead_q, btail_q;
   reg [1:0] bcount_q;
 
-  assign awvalid_o = awcount_q != 0 && !rst_i;
-  assign awid_o = {{(ID_W - CLIENT_W) {1'b0}}, awclient_q[awhead_q]};
-  assign awaddr_o = awaddr_q[awhead_q];
-  assign awlen_o = awlen_q[awhead_q];
-  assign awsize_o = awsize_q[awhead_q];
-  assign awprot_o = awprot_q[awhead_q];
+  // Only an actually accepted command may flow through an empty channel.
+  // Existing AW descriptors and the existing W output register always win.
+  wire aw_direct_w = CMD_EMPTY_FLOW != 0 && awcount_q == 0 && cmd_fire_w;
+  wire w_direct_w = CMD_EMPTY_FLOW != 0 && FIRST_W_CAPTURE != 0 &&
+      wcount_q == 0 && !wvalid_q && cmd_fire_w && data_valid_i[grant_r];
+  // Disabled mode preserves the original registered payload even when invalid.
+  wire aw_from_q_w = CMD_EMPTY_FLOW == 0 || awcount_q != 0;
+  wire w_from_q_w = CMD_EMPTY_FLOW == 0 || wvalid_q;
+  wire [CLIENT_W-1:0] aw_output_client_w =
+      aw_from_q_w ? awclient_q[awhead_q] : grant_r;
+  wire [CLIENT_W-1:0] w_output_client_w = w_from_q_w ? wstage_client_q : grant_r;
+  assign awvalid_o = (awcount_q != 0 || aw_direct_w) && !rst_i;
+  assign awid_o = {{(ID_W - CLIENT_W) {1'b0}}, aw_output_client_w};
+  assign awaddr_o = aw_from_q_w ? awaddr_q[awhead_q] : cmd_addr_i[grant_r*64+:64];
+  assign awlen_o = aw_from_q_w ? awlen_q[awhead_q] : cmd_len_i[grant_r*8+:8];
+  assign awsize_o = aw_from_q_w ? awsize_q[awhead_q] : cmd_size_i[grant_r*3+:3];
+  assign awprot_o = aw_from_q_w ? awprot_q[awhead_q] : cmd_prot_i[grant_r*3+:3];
   assign awburst_o = 2'b01;
-  assign wvalid_o = wvalid_q && !rst_i;
-  assign wdata_o = wdata_q;
-  assign wstrb_o = wstrb_q;
-  assign wlast_o = wlast_q;
+  assign wvalid_o = (wvalid_q || w_direct_w) && !rst_i;
+  assign wdata_o = w_from_q_w ? wdata_q : data_i[grant_r*64+:64];
+  assign wstrb_o = w_from_q_w ? wstrb_q : strb_i[grant_r*8+:8];
+  assign wlast_o = w_from_q_w ? wlast_q : direct_last_w;
   assign bready_o = bcount_q < 2 && !rst_i;
   wire aw_fire_w = awvalid_o && awready_i;
   wire w_fire_w = wvalid_o && wready_i;
   wire b_fire_w = bvalid_i && bready_o;
+  wire aw_push_w = cmd_fire_w && !(aw_direct_w && aw_fire_w);
+  wire aw_pop_w = awcount_q != 0 && aw_fire_w;
+  wire w_direct_fire_w = w_direct_w && w_fire_w;
   wire data_take_w = wcount_q != 0 && (!wvalid_q || w_fire_w) && data_valid_i[wclient_q[whead_q]] &&
       !rst_i;
   wire wowner_pop_w = data_take_w && remaining_q[whead_q] == 1;
   wire bpop_w = bcount_q != 0 && rsp_ready_i[bclient_q[bhead_q]];
   wire [CLIENT_W-1:0] bid_w = bid_i[CLIENT_W-1:0];
+  // B can only finish an owner already busy in Q. A newly admitted command
+  // uses a free client, so empty-channel command flow cannot complete this B.
+  // Preserve resident AW and registered last-W handshakes on this same edge.
+  wire resident_aw_fire_w = awcount_q != 0 && awready_i && !rst_i;
+  wire resident_w_last_fire_w = wvalid_q && wlast_q && wready_i && !rst_i;
   wire bid_valid_w = !(|(bid_i >> CLIENT_W)) && busy_q[bid_w] && !b_seen_q[bid_w] &&
-      (aw_sent_q[bid_w] || (aw_fire_w && awclient_q[awhead_q] == bid_w)) &&
-      (w_sent_q[bid_w] || (w_fire_w && wlast_q && wstage_client_q == bid_w));
+      (aw_sent_q[bid_w] || (resident_aw_fire_w && awclient_q[awhead_q] == bid_w)) &&
+      (w_sent_q[bid_w] || (resident_w_last_fire_w && wstage_client_q == bid_w));
   // Empty-queue fall-through is only on the internal response side. Physical
   // BREADY still depends exclusively on registered FIFO capacity.
   wire bdirect_w = B_BYPASS != 0 && bcount_q == 0 && b_fire_w && bid_valid_w;
@@ -107,11 +128,20 @@ module R64AxiWrite #(
     if (!rst_i && found_r && awcount_q < 2 && wcount_q < 2) cmd_ready_o[grant_r] = 1'b1;
   end
   wire cmd_fire_w = |(cmd_valid_i & cmd_ready_o);
+  // Empty internal W owner queue may capture the accepted command's first
+  // beat immediately. An empty physical W channel may also consume that beat;
+  // otherwise the original stage captures it independently of AWREADY.
+  wire direct_data_credit_w = FIRST_W_CAPTURE != 0 && wcount_q == 0 &&
+      cmd_fire_w && (!wvalid_q || w_fire_w);
+  wire direct_data_take_w = direct_data_credit_w && data_valid_i[grant_r];
+  wire direct_last_w = cmd_len_i[grant_r*8+:8] == 0;
+  wire wowner_push_w = cmd_fire_w && !(direct_data_take_w && direct_last_w);
   genvar c;
   generate
     for (c = 0; c < CLIENTS; c = c + 1) begin : gen_client
-      assign data_ready_o[c] = wcount_q != 0 && wclient_q[whead_q] == c &&
-          (!wvalid_q || w_fire_w) && !rst_i;
+      assign data_ready_o[c] = !rst_i &&
+          ((wcount_q != 0 && wclient_q[whead_q] == c && (!wvalid_q || w_fire_w)) ||
+           (direct_data_credit_w && grant_r == c));
       assign rsp_valid_o[c] = ((bcount_q != 0 && bclient_q[bhead_q] == c) ||
                                (bdirect_w && bid_w == c)) && !rst_i;
       assign rsp_resp_o[c*2+:2] = bcount_q != 0 ? bresp_q[bhead_q] : bresp_i;
@@ -147,23 +177,27 @@ module R64AxiWrite #(
         w_sent_q[grant_r] <= 0;
         b_seen_q[grant_r] <= 0;
         rr_q <= grant_r + 1'b1;
+        if (wowner_push_w) begin
+          wclient_q[wtail_q] <= grant_r;
+          remaining_q[wtail_q] <= {1'b0, cmd_len_i[grant_r*8+:8]} +
+              (direct_data_take_w ? 9'd0 : 9'd1);
+          wtail_q <= !wtail_q;
+        end
+      end
+      if (aw_push_w) begin
         awaddr_q[awtail_q] <= cmd_addr_i[grant_r*64+:64];
         awlen_q[awtail_q] <= cmd_len_i[grant_r*8+:8];
         awsize_q[awtail_q] <= cmd_size_i[grant_r*3+:3];
         awprot_q[awtail_q] <= cmd_prot_i[grant_r*3+:3];
         awclient_q[awtail_q] <= grant_r;
         awtail_q <= !awtail_q;
-        wclient_q[wtail_q] <= grant_r;
-        remaining_q[wtail_q] <= {1'b0, cmd_len_i[grant_r*8+:8]} + 9'd1;
-        wtail_q <= !wtail_q;
       end
-      if (aw_fire_w) begin
-        awhead_q <= !awhead_q;
-        aw_sent_q[awclient_q[awhead_q]] <= 1;
-      end
+      if (aw_pop_w) awhead_q <= !awhead_q;
+      // These sets must follow the new-command clears when a channel flows.
+      if (aw_fire_w) aw_sent_q[aw_output_client_w] <= 1;
       if (w_fire_w) begin
         wvalid_q <= 0;
-        if (wlast_q) w_sent_q[wstage_client_q] <= 1;
+        if (wlast_o) w_sent_q[w_output_client_w] <= 1;
       end
       if (data_take_w) begin
         wvalid_q <= 1;
@@ -172,6 +206,13 @@ module R64AxiWrite #(
         wstrb_q <= strb_i[wclient_q[whead_q]*8+:8];
         wlast_q <= remaining_q[whead_q] == 1;
         remaining_q[whead_q] <= remaining_q[whead_q] - 1'b1;
+      end
+      if (direct_data_take_w) begin
+        wvalid_q <= !w_direct_fire_w;
+        wstage_client_q <= grant_r;
+        wdata_q <= data_i[grant_r*64+:64];
+        wstrb_q <= strb_i[grant_r*8+:8];
+        wlast_q <= direct_last_w;
       end
       if (wowner_pop_w) whead_q <= !whead_q;
       if (b_fire_w && !bid_valid_w) protocol_error_o <= 1;
@@ -190,7 +231,7 @@ module R64AxiWrite #(
         busy_q[bclient_q[bhead_q]] <= 0;
       end
       case ({
-        cmd_fire_w, aw_fire_w
+        aw_push_w, aw_pop_w
       })
         2'b10: awcount_q <= awcount_q + 1'b1;
         2'b01: awcount_q <= awcount_q - 1'b1;
@@ -198,7 +239,7 @@ module R64AxiWrite #(
         end
       endcase
       case ({
-        cmd_fire_w, wowner_pop_w
+        wowner_push_w, wowner_pop_w
       })
         2'b10: wcount_q <= wcount_q + 1'b1;
         2'b01: wcount_q <= wcount_q - 1'b1;

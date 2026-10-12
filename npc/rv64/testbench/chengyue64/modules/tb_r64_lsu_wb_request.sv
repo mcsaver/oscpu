@@ -66,7 +66,7 @@ module tb_r64_lsu_wb_request;
     .rst(rst),
     .flush_i(flush),
     .kill_mask_i(kill),
-    .source_valid_i(sv),
+    .source_valid_i(sv), .source_capture_o(),
     .source_request_i({2'b0, ch, 5'b0} | false_hint),
     .source_ready_o(sr),
     .source_tag_i(st),

@@ -1,9 +1,27 @@
 # 当前翻译、保护与取指 Cache 拓扑
 
-依据 **2026-10-09 工作区生产 RTL** 核对。本文负责 `memory/` 目录的实际使用方、
+## 2026-10-10 当前跨域边界
+
+当前公共协议为 v2：Memory 的 Recovery 和 Retire 分别经过入口寄存，下一拍由
+本地LSU消费；副作用许可来自 Control 独立的寄存完整tag租约。Memory 无条件发布 ranked
+FREE-Q offers，接收明确的 reservation slot/tag，不再接收Backend decode want。
+reuse_block 使用寄存公告，下一状态为本地owner并集 OR 同边沿acquire slots；flush不能清掉
+未排空外部事务的身份。物理响应寄存捕获和完成仲裁详见最新LSU拓扑。
+
+下文中的历史测量与较早阶段同拍控制描述不覆盖本次边界重构。
+
+依据 **2026-10-10 工作区生产 RTL** 核对。本文负责 `memory/` 目录的实际使用方、
 翻译与保护 owner、页表物理服务及 ICache；[LSU 拓扑](../lsu/TOPOLOGY.md)负责
 LSQ、转发、Split、Service 和 DCache，[前端拓扑](../frontend/TOPOLOGY.md)负责取指调度与返回归属，
 [全核拓扑](../TOPOLOGY.md)负责系统连接。本轮职责重构验证见[全核拓扑](../TOPOLOGY.md)，既有 PPA 数字仍只描述原测量。
+
+2026-10-11 Bare数据请求在无更老lookup且outcome有Q信用时直接捕获outcome，保留后续保护、
+token租约和取消排空。当前零发射优化阶段按用户要求暂缓时序取舍：LSU 在真实普通对齐整数 load bind
+时，可把窄 slot/tag/保护记录同拍送入有 Q 信用的翻译队列，VA 仍登记在 canonical row 并于下一拍读取。
+旧 NEW/A-D 请求优先，触发器、FP、atomic、split 等走原路径；唯一 admit 事件建立 TRANSLATING。
+此前因关键路径而撤下的实验结论仅适用于当时版本，不能据此描述当前开关状态。
+空 Protection、query、Service 和 Dcache 返回槽的交付规则见 [公共协议](../PROTOCOLS.md)；
+这些功能结果不构成当前候选已通过综合或 STA 的声明。
 
 ## 1. 实际边界与生产参数
 
@@ -16,8 +34,8 @@ ICache 实际在 Frontend.access 内；共享 PMP decode 在 Control 内，取�
 | CoreTop → Frontend / ICache | `PREPARED_PROTECTION=1`；ICache `SET_W=6` | CoreTop 准备取指保护事实，ICache 保存事实并完成优先级判定；8 KiB、2-way、64 B line、16 B sector |
 | Frontend.access → FetchTranslation | `DATA_PROTECTION=0`（默认） | 独立取指 lookup / walk descriptor / 两项响应，不能当作通用数据翻译器 |
 | CoreTop → Memory | `HEAD_AUTHORIZED_QUERY=1`、`PREPARED_CANCEL=1` | 数据 LSU 使用 head 授权 query 与 ROB prepared cancel |
-| Memory → Translation ×2 | `DATA_PROTECTION=1`、`RESERVED_TERMINAL=1` | 实际选择 `g_data.unit : R64DataTranslation`；通用147-bit overflow holder在此关闭 |
-| Memory → DataProtection ×2 | `PMA_PREPARED=1`、`rsp_ready_i=1` | 复用翻译端 PMA 事实；LSU 从真实翻译 fire 起保留终端接收信用 |
+| Memory → DataTranslationService | TOKEN_W=5；每lane4项token/protection账本 | 请求fire取得不透明token租约；最终响应fire释放；LSU无需了解翻译流水容量 |
+| DataTranslationService → Translation / Protection ×2 | DATA_PROTECTION=1、RESERVED_TERMINAL=0、PMA_PREPARED=1 | 启用通用overflow，完整传播响应背压；服务内部核对返回与账本protection一致 |
 | 三套 TLB / walker | ITLB×1、DTLB×2，各 TLB 默认16项，各 walker 单 owner | 双数据通道与取指通道独立翻译；不等于8个 xfifo owner同时做 page walk |
 | Memory → PtePort / LoadStore | 3个PTE端口，`AUX=3`、`SRC_W=2`、LSQ20 | aux0=取指，aux1/2=数据lane0/1；不经过CPU LSQ/Split，当前没有Tensor客户端 |
 | Control → PmpDecode | 16组 PMP CSR 配置与地址 | 组合产生16组 active、56-bit lower/upper 与4-bit permission，供取指/数据/PTE共用 |
@@ -29,14 +47,14 @@ ICache 实际在 Frontend.access 内；共享 PMP decode 在 Control 内，取�
 
 | 文件 | 生产实例 / 职责 |
 | --- | --- |
-| [R64Memory.v](R64Memory.v) | CoreTop.memory；连接两套数据翻译/保护、三个PTE端口与LoadStore，并导出完成、排空与reuse |
-| [R64Translation.v](R64Translation.v)、[R64DataTranslation.v](R64DataTranslation.v) | 两套 `translation.g_data.unit`；前者选择实现，后者保存lookup/outcome、权限与walk上下文；`g_basic`只在兼容配置生效 |
+| [R64Memory.v](R64Memory.v) | CoreTop.memory；组合翻译服务、三个PTE端口及LoadStore；公开205-bit native command，不解释Backend私有UOP |
+| [R64DataTranslationService.v](R64DataTranslationService.v)、[R64Translation.v](R64Translation.v)、[R64DataTranslation.v](R64DataTranslation.v) | Memory.translation独立token端点；服务持有token/protection返回账本，内部两套translation.g_data.unit保存lookup/outcome、权限和walk上下文 |
 | [R64FetchTranslation.v](R64FetchTranslation.v) | Frontend.access.u_translation；取指翻译专用owner与响应队列 |
 | [R64Tlb.v](R64Tlb.v)、[R64PageWalk.v](R64PageWalk.v) | 各翻译实例下的 `u_tlb/u_walk`；VPN/ASID/page-size匹配、Sv39遍历与A/D比较更新 |
 | [R64PmpDecode.v](R64PmpDecode.v) | CoreTop.control.pmp_decode；共享PMP范围/权限组合译码，无事务owner |
 | [R64PmpCheck.v](R64PmpCheck.v) | 生产PtePort.protection；并行范围事实与最低重叠项判定；数据保护及prepared取指保护有各自分段实现 |
 | [R64Pma.v](R64Pma.v)、[R64PmaRange.v](R64PmaRange.v) | PtePort.attributes及DataTranslation.outcome_attributes；按平台窗口检查完整地址范围与访问大小 |
-| [R64DataProtection.v](R64DataProtection.v) | Memory.g_translation[0..1].protection；范围/权限事实Q，再做最低匹配优先级 |
+| [R64DataProtection.v](R64DataProtection.v) | Memory.translation.g_translation[0..1].protection；范围/权限事实Q，再做最低匹配优先级 |
 | [R64FetchProtection.v](R64FetchProtection.v) | 同文件含4个声明。生产使用CoreTop的Prepare（内含FetchPma16）及ICache内Finish×2；legacy `R64FetchProtection`不在当前核心实例化 |
 | [R64PtePort.v](R64PtePort.v) | Memory.g_pte[0..2].port；以S权限检查8 B PTE读/compare-and-OR，保留服务owner到真实终端 |
 | [R64ICache.v](R64ICache.v) | Frontend.access.u_cache；物理sector lookup、保护事实持有、单refill owner、响应背压与invalidate poison |
@@ -57,23 +75,24 @@ R64CoreTop
 │     └─ u_cache : R64ICache
 │        └─ g_protection_finish.g_slot[0..1].finish : R64FetchProtectionFinish
 └─ memory : R64Memory
-   ├─ g_translation[0..1]
-   │  ├─ translation : R64Translation
-   │  │  └─ g_data.unit : R64DataTranslation
-   │  │     ├─ outcome_attributes : R64PmaRange
-   │  │     ├─ u_tlb : R64Tlb
-   │  │     └─ u_walk : R64PageWalk
-   │  └─ protection : R64DataProtection
+   ├─ translation : R64DataTranslationService
+   │  └─ g_translation[0..1]：token/protection账本，每lane4项
+   │     ├─ translation : R64Translation
+   │     │  └─ g_data.unit : R64DataTranslation
+   │     │     ├─ outcome_attributes : R64PmaRange
+   │     │     ├─ u_tlb : R64Tlb
+   │     │     └─ u_walk : R64PageWalk
+   │     └─ protection : R64DataProtection
    ├─ g_pte[0..2].port : R64PtePort
    │  ├─ protection : R64PmpCheck
    │  └─ attributes : R64Pma
    │     └─ classify : R64PmaRange
    └─ unit : R64LoadStore
       ├─ lsu : R64Lsu
-      │  └─ translation_owners : R64LsuTranslationOwners
-      ├─ split : R64MemorySplit
-      ├─ service : R64MemoryService
-      └─ cache : R64Dcache
+      └─ physical : R64PhysicalMemory
+         ├─ split : R64MemorySplit
+         ├─ service : R64MemoryService
+         └─ cache : R64Dcache
 ```
 
 这里列出目录相关的主实例与关键辅助实例；组合generate比较网络不单列为流水级。
@@ -94,7 +113,7 @@ flowchart TB
   IC["[Q] ICache<br/>lookup / overflow / facts×2 / response"]
   FEND["组合：Finish×2<br/>最低PMP重叠项 / halfword fault mask"]
   LSQ["[Q] LSU canonical row / translation_queue"]
-  XF["[Q] LsuTranslationOwners<br/>每数据lane深4"]
+  XF["[Q] DataTranslationService账本<br/>每lane深4，token/protection"]
   DT["[Q] DataTranslation×2<br/>lookup / outcome / PMA facts"]
   DP["[Q] DataProtection×2<br/>范围事实 → 最低匹配判定"]
   IW["[Q] 取指PageWalk×1"]
@@ -119,9 +138,9 @@ flowchart TB
   IC -->|sector与fault| FE
   FT <--> IW
   LSQ -->|双翻译请求| DT
-  LSQ -->|真实翻译fire保存slot/属性| XF
+  LSQ -->|服务保存opaque token/属性| XF
   DT --> DP -->|PA / class / fault / needs_ad| LSQ
-  XF -.->|按lane顺序定位返回owner| LSQ
+  XF -.->|响应携带原token| LSQ
   DT <--> DW
   IW <--> PP
   DW <--> PP
@@ -140,10 +159,11 @@ PtePort不会再经过CPU翻译，CPU侧也不能把PTE返回当作自己的LSQ�
 
 | 边界 | 建立owner / 实际接受 | 保持、信用与释放 |
 | --- | --- | --- |
-| LSU → 数据Translation | `tr_valid && tr_ready` | 同边沿写xfifo；LSU按响应lane的FIFO head关联slot与protection。kill后的已发翻译仍消费返回 |
+| LSU → DataTranslationService | tr_valid && tr_ready | 服务保存token/protection；LSU置tr_issued_q并保留canonical row。取消不清除该位，返回前slot和其完整ROB tag均不可复用 |
 | DataTranslation lookup → outcome | `lookup_fire_w` | lookup保存VA/SATP/有效权限，outcome保存页表/权限事实与walk身份；outcome忙时lookup保持 |
-| 数据Translation → Protection | `raw_valid && raw_ready` | 当前Protection下游固定ready，reserved terminal保证无overflow；断言检查每次protected valid都有LSU owner及相同access/size |
-| Protection → LSU | `protected_valid`与已预约终端信用 | 完整PA/last、PMP、PMA/PBMT和翻译fault均属于同一owner；正常结果更新canonical row，fault后续进入LSU完成通道 |
+| Bare request → outcome | 实际request fire、有效Bare权限、无更老lookup且outcome有Q信用 | 完整owner/PA/last范围同边沿捕获；outcome忙则原lookup排队；后续PMA/PMP仍执行 |
+| 服务内Translation → Protection | raw_valid && raw_ready | 通用overflow与Protection持有背压终端；服务内部账本验证每个结果的protection属于其token |
+| DataTranslationService → LSU | rsp_valid && rsp_ready | 返回PA/class/fault/needs_ad及原token；LSU按token查找canonical row，成功或取消终端都必须排空，响应fire才终结翻译租约 |
 | Frontend.access → FetchTranslation | `req_valid && req_ready` | `reserved_q<3`与lookup/walk/response的Q状态控制接收；两项response队列不代表两个walker |
 | FetchTranslation → ICache | 翻译响应与cache请求共同fire | ICache保存75-bit请求payload及130-bit保护facts；空overflow信用不借本拍hit/ready，facts固定槽跟随lookup/overflow身份 |
 | PageWalk → PtePort | `req_valid && req_ready` | IDLE可预写payload，真实fire进入SEND或FAULT；SEND/WAIT/FAULT冻结该owner |
@@ -164,7 +184,7 @@ vaddr/asid/global语义。空项使用并行前缀选择，全满仍按next替�
 PageWalk使用IDLE→READ→CHECK→UPDATE/UPDATED→RESULT。A/D更新携带expected PTE与OR mask，
 compare失败从根重读；PTE物理错误、权限错误和页表格式错误按原owner形成对应fault。
 TLB invalidate会poison旧翻译上下文、阻止旧walk结果fill，已经接受的walk/PTE请求仍完成排空。
-数据Translation的 `req_poison_i` 在Memory中固定为0，数据ROB kill由LSU保留owner并丢弃返回处理；
+数据Translation的 `req_poison_i` 在DataTranslationService中固定为0，数据ROB kill由LSU保留owner并丢弃返回处理；
 Translation/PtePort没有借kill即时撤销物理事务的接口。
 
 取指redirect的响应归属由Frontend管理，ICache没有redirect或ROB kill端口。
@@ -172,7 +192,7 @@ Translation/PtePort没有借kill即时撤销物理事务的接口。
 TLB invalidate是另一组独立信号。ICache invalidate清tag有效并poison在途填充；旧AXI响应仍必须接收，
 不能由取消lookup推断总线事务也消失。
 
-`Memory.idle_o` 汇总完整LSU owner、Split/Service/Cache及三个PtePort idle；
+`Memory.idle_o` 汇总完整LSU owner、DataTranslationService租约、PhysicalMemory及三个PtePort idle；
 `drain_idle_o` 改用LSU的已绑定工作排空状态，并汇总相同物理服务。
 CoreTop把后者接到Serial的memory_idle，避免年轻未绑定reservation阻塞head Serial。
 ROB reuse与成功store不可逆状态来自LSU；它们的释放边界见[LSU控制网络](../lsu/TOPOLOGY.md)。
@@ -184,13 +204,24 @@ LSU/Split/Service/DCache的状态在[LSU-01～12](../lsu/TOPOLOGY.md)定义，�
 
 | ID / 源码 | 状态与容量 | 同拍/跨拍、信用与取消边界 | 已知量与 UNKNOWN |
 | --- | --- | --- | --- |
-| MEM-01 数据翻译；`R64Memory.v`、`R64Translation.v`、`R64DataTranslation.v` | 实际2套 DataTranslation，每套1个 lookup owner+1个 outcome owner（FACTS/WAIT_WALK/RETURN）；VA64、root44、ASID16、PA64、last65 等；outcome 保存 walk 身份。 | lookup Q→TLB/权限事实组合→outcome Q→保护。集成明确 `DATA_PROTECTION=1, RESERVED_TERMINAL=1`；通用模块的147位 overflow holder在此被常量关闭。LSU发翻译时预留终端信用，不能额外计一个 overflow 容量。invalidate poison后排空已有 walk，LSU按原 owner接收返回。 | 2套通道与边界已知；裸地址/TLB命中/miss各延迟和等待分布 UNKNOWN。xfifo深4并不提供4个独立 walker。 |
+| MEM-01 数据翻译服务；R64DataTranslationService、R64Translation、R64DataTranslation | 服务每lane4项token/protection及head/tail/count；内部各1个lookup和outcome owner，加通用overflow；保存VA/SATP/有效权限和walk身份。 | 接收token到最终受保护rsp fire为服务租约；RESERVED_TERMINAL=0支持任意下游背压。SFENCE poison上下文而不取消租约；响应携token，外部无需读取内部队头属性。 | 最多8个token租约不等于8个walker；新模块TB覆盖9-bit任意token、满信用、双lane、背压、SFENCE和错误排空；当前CPI/STA未测。 |
 | MEM-02 TLB；`R64Tlb.v` | 当前 ITLB及两套DTLB各16项；每项VPN27/PPN44/ASID16/level2/PBMT2/flags8及valid/global/NAPOT；next替换指针4位。 | lookup 是从已保存上下文到并行匹配/one-hot合并的组合网络；fill与SFENCE在时钟边沿更新。重叠项和ASID/global约束继续生效，不能用多个命中OR当作多级页表投机。 | 项数、比较字段已知；工作集命中率、冲突率、fill/SFENCE频度、TLB局部关键弧 UNKNOWN。 |
 | MEM-03 PageWalk；`R64PageWalk.v` | 取指1套+数据2套，每套1个 state3 owner；VA39、PTE64、root44、PTE地址/PA各56、level2等。IDLE→READ→CHECK→UPDATE/UPDATED→RESULT。 | 物理PTE请求经 MEM-06/LSU-11/12；在途请求先真实返回再推进。A/D更新用expected64+ORmask64比较更新，失败重读；数据store A/D授权不能在投机准备时提前取得。 | 3套单owner walker 已知；页表级数分布、A/D重试和CPU/PTW互相阻塞周期 UNKNOWN。 |
-| MEM-04 数据保护；`R64DataProtection.v`、`R64PmpDecode.v`、`R64PmaRange.v` | 2套，每套1个valid holder；PA64、class2、cause5、protection4、overlap16/deny16及资格位；共享16组PMP range/permission来自CSR。 | PA/last范围事实组合→事实Q→最低匹配优先级组合。核心选 `PMA_PREPARED=1`，下游 `rsp_ready=1` 依据LSU预留owner信用。权限/完整范围/跨窗错误与数据在同一 owner上，不能脱离上下文单独提前valid。 | 16项PMP范围与一组事实Q已知；保护命中分布、PMP/PMA各自关键路径、独立面积 UNKNOWN。 |
+| MEM-04 数据保护；R64DataProtection、R64PmpDecode、R64PmaRange | 服务内部2套，每套1个valid holder；PA64、class2、cause5、protection4、overlap16/deny16及资格位。 | PMA_PREPARED=1复用翻译事实，rsp ready来自服务客户端信用；完整结果在背压时保持，服务验证protection与token账本匹配。 | 16项PMP范围与一组事实Q已知；保护命中分布、关键路径及独立面积未重测。 |
 | MEM-05 取指翻译与保护；`R64FetchTranslation.v`、`R64FetchProtection.v` | 1个lookup、1个待启动/在途walk descriptor，2×75bit响应与reserved/count；CoreTop组合准备4个word的130-bit保护事实，由MEM-07的ICache两槽Q保持后由Finish判定，facts不重复计容量。 | 接受前预约响应位置，walk与lookup可有不同owner；redirect/poison处理沿原owner，真实PTE请求需drain。上下文变化不能复用旧权限结果；不把两响应槽解释为两路并行walk。 | owner/响应容量已知；redirect丢弃比例、ITLB miss前端停顿、翻译与取指重叠程度 UNKNOWN。 |
 | MEM-06 coherent PTE port；`R64PtePort.v` | 3套各1个owner；state2（IDLE/SEND/WAIT/FAULT）、address56、expected64、mask64、compare/cache位。 | IDLE可预写payload；真实req fire后冻结，PMP/PMA/对齐错误进入FAULT；否则经Service/Cached CAS后原请求者实际接受才释放。无branch kill端口，不能对已接受物理访问直接清owner。 | 3个端口、每端口1个live事务；各路等待、错误及compare失败计数 UNKNOWN。 |
 | MEM-07 ICache；`R64ICache.v` | 8KiB/2way/64Bline，64set；每way256×128数据+64×52tag；lookup Q、response Q、单 refill FSM与128bit fill result，另1项75-bit overflow及2×130-bit保护事实槽。 | 16B sector lookup提前同步读tag/data；SEND→FILL真R接受更新，8×64bit line refill；uncached取指2×64bit。invalidate/poison与响应owner关联，不能取消已发AXI。寄存槽为同一owner的不同阶段/缓冲，不能简单相加为独立miss容量。 | 容量与单 refill owner已知；hit latency分布、供给空泡、预取有效率（当前无对应测量）、独立STA/PPA UNKNOWN。 |
+
+### 独立开发契约
+
+Memory/LoadStore/LSU仅接受[公共协议](../include/R64Protocol.vh)中的205-bit命令：
+base64、offset64、store data64、func8、amo5。AGU及misalignment检查仍由LSU负责。
+DataTranslationService不依赖ROB tag或LSQ结构；其TOKEN_W参数可独立改变。
+LSU是指令身份的唯一事实源：已经发出的翻译通过tr_issued_q保持row和ROB引用，
+即使cancel/flush也只能将owner标为dead，直到同token终端真实fire。
+服务无需复制ROB tag/reuse位图；Memory同时汇总服务idle作为排空条件。
+PhysicalMemory封装split、请求提示、Service source编码和Dcache；
+CPU普通响应与窄store终端都只返回原token，source判定只存在于Service。
 
 ## 7. 现有验证入口与观察边界
 

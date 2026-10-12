@@ -1,5 +1,17 @@
 # 当前 FP 结构与网络拓扑
 
+## 2026-10-10 当前跨域边界
+
+当前公共恢复采用协议 v2：R64FpExecute 通过 R64RecoveryInbox 登记一拍后驱动
+ingress、数值流水与completion取消。源恢复当拍ROB已撤销架构WB；Backend在源发布和本地交付
+两拍禁止birth。服务接收与数值吞吐保持原合同，取消可见拍数以本地交付为准。
+
+下文中的历史测量与较早阶段同拍控制描述不覆盖本次边界重构。
+
+2026-10-10：域入口使用Recovery记录与command32/tag/operands，
+不消费后端Dispatch，也不依赖其私有状态。公开合同和独立编译入口见[PROTOCOLS](../PROTOCOLS.md)。
+
+
 依据 **2026-10-09 工作区生产 RTL** 核对，入口为 [R64CoreTop.fp](../core/R64CoreTop.v)。
 本文沿现有实现整理浮点执行的文件职责、实际实例、数据流、接收边沿、完成预约和取消关系。
 [全核拓扑](../TOPOLOGY.md)负责系统连接，[Backend 拓扑](../backend/TOPOLOGY.md)负责发射、PRF、写回和 ROB，
@@ -33,7 +45,7 @@ FP 的接口只包含本域实际消费的操作、操作数、事务身份与�
 此接口收窄不改变 `in_fire_i/in_ready_o`、两槽入口信用、动态 rounding 捕获、RAW 分派、kill/flush 或结果返回时序。
 
 来源：[CoreTop](../core/R64CoreTop.v)、[FP Execute](R64FpExecute.v)、
-[Backend 字段定义](../backend/R64Uop.vh)。
+[公共派发字段定义](../include/R64Dispatch.vh)。
 
 ## 2. 文件职责与实际使用方
 

@@ -25,6 +25,10 @@ module tb_r64_rr_lsq_slot;
   R64RegRead #(
     .PAYLOAD_W(128)
   ) rr (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0), .resolved_value_data_i(128'b0),
+    .out_local_alu_valid_o(),
+    .alu_bypass_resident_i(2'b0),
+    .in_src_pending_i(6'b0),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),

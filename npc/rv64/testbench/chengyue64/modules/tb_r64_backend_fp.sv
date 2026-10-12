@@ -21,12 +21,12 @@ module tb_r64_backend_fp;
   wire [5:0] rob_count;
   wire [1:0] lf;
   wire [2*T-1:0] lt;
-  wire [2*U-1:0] lu;
-  wire [383:0] lop;
+  wire [2*`R64_MEM_CMD_W-1:0] lu;
   wire ff, sf;
   wire [T-1:0] ft, st;
-  wire [U-1:0] fu, su;
-  wire [191:0] fop, sop;
+  wire [`R64_FP_CMD_W-1:0] fu;
+  wire [`R64_SERIAL_CMD_W-1:0] su;
+  wire [191:0] fop;
   reg [3:0] ev = 0;
   wire [3:0] er;
   reg [4*T-1:0] et = 0;
@@ -45,7 +45,8 @@ module tb_r64_backend_fp;
   wire [1:0] rwant, rfire;
   wire [17:0] rtag_pair;
   wire [15:0] rfunc;
-  wire [9:0] ramo, bslot;
+  wire [9:0] ramo, bslot, selected_slots;
+  wire [1:0] lane_credit={rwant[0]?rready[1]:rready[0],rready[0]};
   reg [1:0] rready;
   reg [9:0] rslot;
   reg [17:0] reserved = 0, bound = 0, responded = 0;
@@ -55,7 +56,8 @@ module tb_r64_backend_fp;
   integer free0, free1, qslot, zslot, choice, best_age, current_age;
   reg blocked;
   integer reserves = 0, binds = 0, reverse_binds = 0;
-  always @(*) begin
+  // Q offers must be initialized even before the first MEM request.
+  always_comb begin
     free0 = -1;
     free1 = -1;
     for (integer f = 0; f < 18; f = f + 1)
@@ -63,18 +65,22 @@ module tb_r64_backend_fp;
       if (free0 < 0) free0 = f;
       else if (free1 < 0) free1 = f;
     end
-    rready = 3;
-    rslot  = 0;
-    if (rwant[0]) begin
-      rready[0]   = free0 >= 0;
-      rslot[0+:5] = 5'(free0);
-    end
-    if (rwant[1]) begin
-      rready[1]   = rwant[0] ? free1 >= 0 : free0 >= 0;
-      rslot[5+:5] = rwant[0] ? 5'(free1) : 5'(free0);
-    end
+    rready={free1>=0,free0>=0};
+    rslot={5'(free1),5'(free0)};
   end
+  always @(posedge clk)
+    if(!rst)
+      for(integer rank_lane=0;rank_lane<2;rank_lane=rank_lane+1)
+        if(rfire[rank_lane] &&
+            selected_slots[rank_lane*5+:5] !=
+              5'((rank_lane==1 && rwant[0]) ? free1 : free0))
+          $fatal(1,"Backend selected a slot outside its ranked FREE-Q offer");
+
   R64Backend backend (
+    .serial_retire_candidate_o(),
+    .direction_invalidate_i(1'b0),.direction_train_valid_o(),.direction_train_pc_o(),.direction_train_taken_o(),
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
+    .resolved_value_valid_i(2'b0), .resolved_value_tag_i(18'b0), .resolved_value_data_i(128'b0),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -87,13 +93,14 @@ module tb_r64_backend_fp;
     .lsu_reserve_amo_o(ramo),
     .lsu_reserve_ready_i(rready),
     .lsu_reserve_slot_i(rslot),
+    .lsu_reserve_slot_o(selected_slots),
     .lsu_slot_o(bslot),
     .fetch_canonical_i(66'b0),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
     .stop_i(stop),
-    .serial_allow_i(1'b1),
+    .effect_i({1'b1, 1'b0, 1'b1, htag}),
     .reuse_block_i(32'b0),
     .fetch_valid_i(fv),
     .fetch_ready_o(fr),
@@ -105,7 +112,6 @@ module tb_r64_backend_fp;
     .fetch_cause_i(12'b0),
     .fetch_tval_i(128'b0),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -133,18 +139,16 @@ module tb_r64_backend_fp;
     .lsu_ready_i(~ev[1:0]),
     .lsu_fire_o(lf),
     .lsu_tag_o(lt),
-    .lsu_uop_o(lu),
-    .lsu_operand_o(lop),
+    .lsu_command_o(lu),
     .fp_ready_i(fp_credit),
     .fp_fire_o(ff),
     .fp_tag_o(ft),
-    .fp_uop_o(fu),
+    .fp_command_o(fu),
     .fp_operand_o(fop),
     .serial_ready_i(!ev[3]),
     .serial_fire_o(sf),
     .serial_tag_o(st),
-    .serial_uop_o(su),
-    .serial_operand_o(sop),
+    .serial_command_o(su),
     .external_valid_i({ev[3], fp_valid, ev[1:0]}),
     .external_ready_o(er),
     .external_tag_i({et[3*T+:T], fp_result_tag, et[0+:2*T]}),
@@ -156,12 +160,11 @@ module tb_r64_backend_fp;
   R64FpExecute fp (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(km),
+    .recovery_i({65'b0, flush, 1'b1, km}),
     .in_fire_i(ff),
     .in_ready_o(fp_credit),
     .in_tag_i(ft),
-    .in_command_i(fu[`R64_UOP_CMD_LO+:32]),
+    .in_command_i(fu),
     .in_operand_i(fop),
     .fp_enabled_i(1'b1),
     .frm_i(3'b0),
@@ -198,21 +201,21 @@ module tb_r64_backend_fp;
         qslot = bslot[ml*5+:5];
         if (qslot >= 18 || !reserved[qslot] || bound[qslot] || owner_tag[qslot] != lt[ml*T+:T])
           $fatal(1, "dispatch LSQ slot/fulltag bound without unique reserve");
-        if (owner_func[qslot] != lu[ml*U+196+:8]) $fatal(1, "reserve/bind function mismatch");
+        if (owner_func[qslot] != lu[ml*`R64_MEM_CMD_W+192+:8]) $fatal(1, "reserve/bind function mismatch");
         for (zslot = 0; zslot < 18; zslot = zslot + 1)
         if (reserved[zslot] && !bound[zslot] && zslot != qslot &&
             ((owner_tag[zslot][4:0] - htag[4:0]) & 31) < ((owner_tag[qslot][4:0] - htag[4:0]) & 31))
           reverse_binds = reverse_binds + 1;
         bound[qslot] = 1;
         binds = binds + 1;
-        addr = lop[ml*192+:64] + lu[ml*U+64+:64];
+        addr = lu[ml*`R64_MEM_CMD_W+:64] + lu[ml*`R64_MEM_CMD_W+64+:64];
         owner_addr[qslot] = addr;
-        if (lu[ml*U+201]) begin
+        if (lu[ml*`R64_MEM_CMD_W+197]) begin
           ms = lt[ml*T+:5];
           sq_valid[ms] = 1;
           sq_tag[ms] = lt[ml*T+:T];
           sq_addr[ms] = addr;
-          sq_data[ms] = lop[ml*192+64+:64];
+          sq_data[ms] = lu[ml*`R64_MEM_CMD_W+128+:64];
         end
       end
       for (ml = 0; ml < 2; ml = ml + 1)
@@ -253,8 +256,8 @@ module tb_r64_backend_fp;
       end
       for (ml = 0; ml < 2; ml = ml + 1)
       if (rfire[ml]) begin
-        qslot = rslot[ml*5+:5];
-        if (qslot >= 18 || reserved[qslot] || !rready[ml]) $fatal(1, "LSQ reserve overbooked");
+        qslot = selected_slots[ml*5+:5];
+        if (qslot >= 18 || reserved[qslot] || !lane_credit[ml]) $fatal(1, "LSQ reserve overbooked");
         reserved[qslot] = 1;
         bound[qslot] = 0;
         responded[qslot] = 0;
@@ -268,7 +271,7 @@ module tb_r64_backend_fp;
         et[3*T+:T] <= st;
         ed[3*R+:R] <= 0;
         ed[3*R+:64] <= csr_value;
-        csr_value = sop[63:0];
+        csr_value = su[`R64_SERIAL_OPERAND];
       end
     end
   end

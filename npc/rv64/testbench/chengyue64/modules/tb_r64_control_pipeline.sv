@@ -55,11 +55,11 @@ module tb_r64_control_pipeline;
       end
     end
   R64Commit commit (
+    .serial_retire_candidate_i(valid[0] && !ex[0] && (meta[196+:8] >= `R64_K_CSR && meta[196+:8] <= `R64_K_TENSOR)),
     .clk_i(clk),
     .rst_i(rst),
     .rob_valid_i(valid),
     .rob_ready_o(robready),
-    .commit1_allow_o(),
     .rob_tag_i(18'd1),
     .rob_meta_i(meta),
     .rob_data_i(data),

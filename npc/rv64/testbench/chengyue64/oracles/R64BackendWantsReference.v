@@ -114,6 +114,10 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
   wire redirect_pending_w;
   wire recovery_preview_valid_w;wire [TAG_W-1:0] recovery_preview_tag_w;
   R64Rob #(.OWNER_CERTIFICATE(1),.SERIAL_PAYLOAD(1),.HEAD_SERIAL_CACHE(1),.LOCAL_KILL_FREEZE(1),.INDEX_W(ROB_W),.GEN_W(TAG_W-ROB_W),.META_W(M)) rob(
+    .serial_retire_candidate_o(),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
     .owner_query_tag_i(wb_owner_query_tag_w),.owner_query_cert_o(wb_owner_query_cert_w),
     .wb_owner_cert_i(wb_owner_cert_w),
     .recovery_preview_valid_i(recovery_preview_valid_w),.recovery_preview_tag_i(recovery_preview_tag_w),
@@ -132,7 +136,7 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
     .short_preg_i({alu_bypass_preg_w,early_preg_w}),.short_accept_o({alu_bypass_valid_w,early_valid_w}),
     .wb_accept_o(wb_accept_w),.wb_rd_write_o(wb_write_w),
     .wb_rd_fp_o(wb_fp_w),.wb_preg_o(wb_preg_w),
-    .commit_ready_i(commit_ready_i),.commit1_allow_i(commit1_allow_i),
+    .commit_ready_i(commit_ready_i),
     .commit_valid_o(commit_valid_o),.commit_serial_o(commit_serial_o),.commit_tag_o(commit_tag_o),.commit_meta_o(commit_meta_o),
     .commit_data_o(commit_data_o),.commit_exception_o(commit_exception_o),
     .commit_cause_o(commit_cause_o),.commit_tval_o(commit_tval_o),.commit_fflags_o(commit_fflags_o),
@@ -150,7 +154,7 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
   assign head_serial_o=serial_active_w[head_slot_w];
   wire [6*P-1:0] ready_query_preg_w;
   wire [5:0] ready_query_fp_w,ready_query_canonical_w,ready_query_complete_w;
-  R64Rename rename(
+  R64RenameReference rename(
     .ready_query_preg_i(ready_query_preg_w),.ready_query_fp_i(ready_query_fp_w),
     .ready_query_ready_o(ready_query_canonical_w),.clk(clk),.rst(rst),.restore_i(flush_i),
     .request_valid_i(decode_query_valid_w),.rd_write_i(rd_write_w),.rd_fp_i(rd_fp_w),.rd_arch_i(rd_arch_w),
@@ -217,6 +221,7 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
   end
 `endif
   R64Issue #(.MDU_RESOURCE_PAIR(1),.DEFER_READY(1),.PREPARED_CANCEL(1),.ROB_W(ROB_W),.TAG_W(TAG_W),.PAYLOAD_W(U),.LSQ_W(LSQ_W)) issue(
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0),
     .clk(clk),.rst(rst),.flush_i(flush_i),.kill_mask_i(kill_mask_o),.cancel_candidates_i(cancel_candidates_w),.cancel_active_i(cancel_active_w),.rob_head_i(head_slot_w),
     .barrier_valid_i(barrier_valid_w),.barrier_slot_i(barrier_slot_w),
     .serial_active_i(serial_active_w),.serial_release_i(serial_release_w),
@@ -226,12 +231,14 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
     .ready_query_preg_o(ready_query_preg_w),.ready_query_fp_o(ready_query_fp_w),
     .ready_query_ready_i(ready_query_complete_w),
     .wake_valid_i(wb_write_w),.wake_fp_i(wb_fp_w),.wake_preg_i(wb_preg_w),
-    .early_valid_i(early_valid_w),.early_preg_i(early_preg_w),
+    .early_valid_i(early_valid_w), .load_promise_i(2'b0), .load_preg_i(12'b0),.early_preg_i(early_preg_w),
     .fu_allow_i(6'b111111),.serial_allow_i(serial_allow_i),.issue_ready_i(read_credit_w),
     .issue_mem_slot_o(issue_mem_slot_w),.issue_fire_o(issue_fire_w),.issue_tag_o(issue_tag_w),.issue_payload_o(issue_uop_w),
     .issue_class_o(issue_class_w),.issue_gpr_dst_o(issue_dst_w),.issue_src_preg_o(issue_src_w),
     .issue_fp_plan_o(issue_fp_plan_w),.issue_src_fp_o(issue_fp_w),.issue_src_used_o(issue_used_w),.count_o());
   R64RegRead #(.ALU_TERMINAL_BYPASS(RR_ALU_BYPASS),.PREQUALIFIED_ISSUE(1),.Q_ONLY_TERMINAL(1),.PREPARED_CANCEL(1),.COMPACT_FP(1),.UNIQUE_SERIAL(1),.ROB_W(ROB_W),.TAG_W(TAG_W),.PAYLOAD_W(U),.LSQ_W(LSQ_W)) registers(
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0), .resolved_value_data_i(128'b0),
+    .out_local_alu_valid_o(),
     .clk(clk),.rst(rst),.flush_i(flush_i),.kill_mask_i(kill_mask_o),.cancel_candidates_i(cancel_candidates_w),.cancel_active_i(cancel_active_w),
     .fu_credit_i(read_fu_credit_w),.in_mem_slot_i(issue_mem_slot_w),.out_mem_slot_o(read_mem_slot_w),.in_fire_i(issue_fire_w),.in_ready_o(read_credit_w),.in_tag_i(issue_tag_w),.in_payload_i(issue_uop_w),
     .in_fp_plan_i(issue_fp_plan_w),.in_class_i(issue_class_w),.in_gpr_dst_i(issue_dst_w),.in_src_preg_i(issue_src_w),.in_src_fp_i(issue_fp_w),.in_src_used_i(issue_used_w),
@@ -260,6 +267,7 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
   end
 `endif
   R64Execute #(.EARLY_ALU_WAKE(EARLY_ALU_WAKE),.DIRECT_MEM_BIND(DIRECT_MEM_BIND),.PREPARED_CANCEL(1),.RAW_MEM(1),.RAW_FP(1),.RAW_SERIAL(1),.TAG_W(TAG_W),.ROB_W(ROB_W),.LSQ_W(LSQ_W)) execute(
+    .in_local_alu_valid_i(2'b0),
     .clk(clk),.rst(rst),.flush_i(flush_i),.kill_mask_i(kill_mask_o),.cancel_candidates_i(cancel_candidates_w),.cancel_active_i(cancel_active_w),.rob_head_i(head_slot_w),
     .in_valid_i(read_valid_w),.in_ready_o(execute_ready_w),.in_tag_i(read_tag_w),
     .in_mem_slot_i(read_mem_slot_w),.in_uop_i(read_uop_w),.in_alu_control_i(read_alu_control_w),.in_add_source_i(read_add_source_w),.in_shift_amount_i(read_shift_amount_w),.in_branch_imm_i(read_branch_imm_w),.in_branch_control_i(read_branch_control_w),.in_class_i(read_class_w),.in_operand_i(read_operand_w),.in_gpr_dst_i(read_dst_w),
@@ -280,7 +288,7 @@ module R64BackendWantsReference #(parameter TAG_W=9,parameter ROB_W=5,parameter 
     .clk(clk),.rst(rst),.flush_i(flush_i),.kill_mask_i(kill_mask_o),
     .owner_query_tag_o(wb_owner_query_tag_w),.owner_query_cert_i(wb_owner_query_cert_w),
     .wb_owner_cert_o(wb_owner_cert_w),
-    .source_valid_i({external_valid_i,local_valid_w}),.source_ready_o({external_ready_o,local_ready_w}),
+    .source_valid_i({external_valid_i,local_valid_w}), .source_capture_o(),.source_ready_o({external_ready_o,local_ready_w}),
     .source_tag_i({external_tag_i,local_tag_w}),.source_result_i({external_result_i,local_result_w}),
     .wb_valid_o(wb_valid_w),.wb_tag_o(wb_tag_w),.wb_result_o(wb_result_w));
 `ifdef R64_ASSERT

@@ -4,11 +4,11 @@ module tb_r64_lsu_misaligned;
   integer split_blocked_hints = 0, split_live_hints = 0;
   always @(posedge clk)
     if (!rst) begin
-      if (dut.split.out_request_o !== dut.split.out_valid_o) begin
+      if (dut.physical.split.out_request_o !== dut.physical.split.out_valid_o) begin
         split_blocked_hints = split_blocked_hints + 1;
-        if (dut.split.out_valid_o != 0 || (dut.sv & dut.sr) != 0)
+        if (dut.physical.split.out_valid_o != 0 || (dut.physical.sv & dut.physical.sr) != 0)
           $fatal(1, "split hint escaped blocked actual request");
-      end else if (|dut.sv) split_live_hints = split_live_hints + 1;
+      end else if (|dut.physical.sv) split_live_hints = split_live_hints + 1;
     end
   parameter EARLY_STORE = 1;
   parameter DEPTH = 18;
@@ -31,18 +31,24 @@ module tb_r64_lsu_misaligned;
   wire [8:0] store_tag;
   wire [63:0] store_tval;
   integer fast_completions = 0;
-  wire [1:0] out_valid;
+  wire [1:0] out_valid, resolved_valid;
+  wire [17:0] resolved_tag;
+  wire [127:0] resolved_data;
   reg [1:0] out_ready = 3;
   wire [17:0] out_tag;
   wire [2*`R64_RESULT_W-1:0] out_result;
   wire [31:0] reuse;
   wire irreversible, idle;
   wire [1:0] tv, tr, tad, tresp, trespready;
+  wire [2*IW-1:0] ttoken, trtoken;
+  R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr), .req_token_i(ttoken),
+    .rsp_fire_i(tresp & trespready), .rsp_token_o(trtoken)
+  );
   wire [127:0] tva, tpa;
   wire [3:0] ta, tc;
   wire [1:0] tfault, tneeds;
-  wire [9:0] tcause, townersize;
-  wire [5:0] towneraccess;
+  wire [9:0] tcause;
   wire [1:0] mv, mr, mcache, mresp, mrespready, merror;
   wire [2*IW-1:0] mtoken, mresptoken;
   wire [127:0] ma, md, mrd;
@@ -104,15 +110,19 @@ module tb_r64_lsu_misaligned;
     .in_ready_o(),
     .in_tag_i(bind_tag_q),
     .in_slot_i(bind_slot_q),
-    .in_uop_i(bind_uop_q),
-    .in_operand_i(bind_operand_q),
+    .in_command_i({bind_uop_q[1*`R64_UOP_W+155+:5], bind_uop_q[1*`R64_UOP_W+196+:8], bind_operand_q[1*192+64+:64], bind_uop_q[1*`R64_UOP_W+64+:64], bind_operand_q[1*192+:64], bind_uop_q[0*`R64_UOP_W+155+:5], bind_uop_q[0*`R64_UOP_W+196+:8], bind_operand_q[0*192+64+:64], bind_uop_q[0*`R64_UOP_W+64+:64], bind_operand_q[0*192+:64]}),
     .out_valid_o(out_valid),
     .out_ready_i(out_ready),
     .out_tag_o(out_tag),
     .out_result_o(out_result),
+    .resolved_value_valid_o(resolved_valid),
+    .resolved_value_tag_o(resolved_tag),
+    .resolved_value_data_o(resolved_data),
     .reuse_block_o(reuse),
     .irrevocable_o(irreversible),
     .idle_o(idle),
+    .tr_token_o(ttoken),
+    .tr_rsp_token_i(trtoken),
     .tr_valid_o(tv),
     .tr_ready_i(tr),
     .tr_vaddr_o(tva),
@@ -125,8 +135,6 @@ module tb_r64_lsu_misaligned;
     .tr_fault_i(tfault),
     .tr_needs_ad_i(tneeds),
     .tr_cause_i(tcause),
-    .tr_owner_access_o(towneraccess),
-    .tr_owner_size_o(townersize),
     .aux_valid_i(4'b0),
     .aux_ready_o(),
     .aux_addr_i(256'b0),
@@ -314,6 +322,44 @@ module tb_r64_lsu_misaligned;
       end
       if (out_valid == 3 && out_ready == 3) dual = dual + 1;
     end
+  // This fixture sends all successful results through the physical endpoint.
+  // A split fragment is not yet an aggregate LSU response and must not notice.
+  reg [511:0] final_response_seen = 0;
+  integer final_lane;
+  always @(posedge clk) if (!rst) begin
+    for (final_lane=0;final_lane<2;final_lane=final_lane+1) begin
+      if (in_fire[final_lane]) final_response_seen[in_tag[final_lane*9+:9]] <= 0;
+      if (dut.mcv[final_lane] && dut.mcr[final_lane])
+        final_response_seen[dut.lsu.tag_q[dut.mct[final_lane*IW+:IW]]] <= 1;
+    end
+  end
+  integer notice_observations = 0, notice_blocked = 0, notice_dual = 0;
+  integer notice_lane, notice_slot;
+  always @(posedge clk) if (!rst) begin
+    if (resolved_valid == 3) notice_dual = notice_dual + 1;
+    if (flush && resolved_valid != 0)
+      $fatal(1, "resolved memory notice escaped flush");
+    for (notice_lane = 0; notice_lane < 2; notice_lane = notice_lane + 1)
+      if (resolved_valid[notice_lane]) begin
+        notice_slot = int'(resolved_tag[notice_lane*9+:5]);
+        // Aligned accesses may announce on the actual aggregate accept edge.
+        // Individual split fragments never appear on this LSU response interface.
+        if (!final_response_seen[resolved_tag[notice_lane*9+:9]] &&
+            !(dut.mcv[0] && dut.mcr[0] &&
+              dut.lsu.tag_q[dut.mct[0+:IW]] == resolved_tag[notice_lane*9+:9]) &&
+            !(dut.mcv[1] && dut.mcr[1] &&
+              dut.lsu.tag_q[dut.mct[IW+:IW]] == resolved_tag[notice_lane*9+:9]))
+          $fatal(1, "resolved split notice preceded final aggregate response");
+        if (!active[notice_slot] || killed[notice_slot] || kill[notice_slot] ||
+            expectfault[notice_slot] ||
+            resolved_data[notice_lane*64+:64] !== expected[notice_slot])
+          $fatal(1, "resolved memory notice wrong/cancelled/faulted payload tag=%0d data=%h expected=%h",
+                 resolved_tag[notice_lane*9+:9], resolved_data[notice_lane*64+:64],
+                 expected[notice_slot]);
+        notice_observations = notice_observations + 1;
+        if (out_ready == 0) notice_blocked = notice_blocked + 1;
+      end
+  end
   task enqueue;
     input [8:0] tagno;
     input [63:0] addr, data;
@@ -562,8 +608,10 @@ module tb_r64_lsu_misaligned;
     mem_delay = 3;
     repeat (3) @(negedge clk);
     if (!idle) $fatal(1, "split owner leak");
-    if (split_blocked_hints == 0 || split_live_hints == 0 || dut.service.CPU_REQUEST_HINTS != 1)
+    if (split_blocked_hints == 0 || split_live_hints == 0 || dut.physical.service.CPU_REQUEST_HINTS != 1)
       $fatal(1, "split request hint coverage missing");
+    if (notice_observations == 0) $fatal(1,"split notice oracle was vacuous");
+    $display("RESOLVED_MEMORY_NOTICE split_final_values=%0d",notice_observations);
     $display("SPLIT_REQUEST_HINT blocked=%0d live=%0d", split_blocked_hints, split_live_hints);
     $display("[PASS] tb_r64_lsu_misaligned completed=%0d fragment_writes=%0d read_transactions=%0d",
              wbcount, write_txns, read_txns);

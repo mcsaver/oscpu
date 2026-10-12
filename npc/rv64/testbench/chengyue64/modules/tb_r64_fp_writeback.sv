@@ -24,8 +24,7 @@ module tb_r64_fp_writeback;
   R64FpExecute fp (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(iv && ir),
     .in_ready_o(ir),
     .in_tag_i(tag),
@@ -47,7 +46,7 @@ module tb_r64_fp_writeback;
     .rst(rst),
     .flush_i(flush),
     .kill_mask_i(kill),
-    .source_valid_i(valid),
+    .source_valid_i(valid), .source_capture_o(),
     .source_ready_o(ready),
     .source_tag_i(tags),
     .source_result_i(data),
@@ -157,6 +156,10 @@ module tb_r64_fp_writeback;
     tick();
     kill = 0;
     #1;
+    // The source cycle may capture a transport result. Local delivery must
+    // immediately withdraw its valid, then clear its physical holder.
+    if (mv) $fatal(1, "FP published canceled output after inbox delivery");
+    tick();
     if (fp.output_valid_q || fp.fma.out_valid_o)
       $fatal(1, "FP copied canceled source into fresh holder");
     issue(37, 64'h3ff0000000000000, 64'h4000000000000000);
@@ -183,7 +186,7 @@ module tb_r64_fp_writeback;
     if (fp.result_ready[0]) $fatal(1, "FMA kill without READY was not exercised");
     tick();
     kill = 0;
-    #1;
+    tick();
     if (fp.fma.out_valid_o) $fatal(1, "FMA tombstone failed to withdraw");
     link_enable = 1;
     repeat (30) tick();

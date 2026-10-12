@@ -79,6 +79,11 @@ module R64DataTranslation #(
   wire [ 7:0] walk_flags_w;
   wire [1:0] walk_pbmt_w, walk_level_w;
   wire [4:0] walk_cause_w;
+  // MPRV applies before Bare qualification: M-mode data can still require
+  // translation under MPP=S/U, whereas instruction accesses ignore MPRV.
+  wire [1:0] req_effective_priv_w = req_access_i != 0 && req_priv_i == 3 && req_mstatus_i[17] ?
+      req_mstatus_i[12:11] : req_priv_i;
+  wire req_bare_w = req_effective_priv_w == 3 || req_satp_i[63:60] == 0;
   wire lookup_bare_w = lookup_priv_q == 3 || lookup_mode_q == 0;
   wire lookup_address_fault_w = !lookup_bare_w &&
       (lookup_mode_q != 8 || lookup_va_q[63:39] != {25{lookup_va_q[38]}});
@@ -167,23 +172,32 @@ module R64DataTranslation #(
   assign req_ready_o = lookup_credit_w && !rst_i && !invalidate_i;
   wire req_fire_w = req_valid_i && req_ready_o;
   wire lookup_fire_w = lookup_valid_q && outcome_credit_w && !rst_i;
+  // An older lookup always owns the outcome write port. Bare may skip the
+  // unused lookup only when that owner is absent; a blocked outcome instead
+  // queues the request in lookup, preserving the original three-owner capacity.
+  // Source preparation deliberately excludes VALID, READY and reset.
+  wire fast_choice_w = req_bare_w && !lookup_valid_q;
+  wire fast_fire_w = req_fire_w && fast_choice_w && outcome_credit_w;
+  wire req_lookup_fire_w = req_fire_w && !fast_fire_w;
+  wire [63:0] source_va_w = fast_choice_w ? req_vaddr_i : lookup_va_q;
+  wire [3:0] source_protection_w = fast_choice_w ? req_protection_i : lookup_protection_q;
   wire walk_request_w = outcome_valid_q && outcome_state_q == FACTS && !owner_terminal_w && !rst_i;
   wire walk_fire_w = walk_request_w && walk_ready_w;
   wire walk_take_w = outcome_valid_q && outcome_state_q == WAIT_WALK && walk_valid_w && !rst_i;
-  wire [11:0] lookup_delta_w = (12'b1 << lookup_protection_q[1:0]) - 12'd1;
-  wire [12:0] lookup_last_low_w = {1'b0, lookup_va_q[11:0]} + {1'b0, lookup_delta_w};
+  wire [11:0] lookup_delta_w = (12'b1 << source_protection_w[1:0]) - 12'd1;
+  wire [12:0] lookup_last_low_w = {1'b0, source_va_w[11:0]} + {1'b0, lookup_delta_w};
   wire [64:0] lookup_bare_last_w;
   assign lookup_bare_last_w[11:0] = lookup_last_low_w[11:0];
   genvar h;
   generate
     for (h = 12; h < 64; h = h + 1) begin : g_last
-      if (h == 12) assign lookup_bare_last_w[h] = lookup_va_q[h] ^ lookup_last_low_w[12];
+      if (h == 12) assign lookup_bare_last_w[h] = source_va_w[h] ^ lookup_last_low_w[12];
       else
-        assign lookup_bare_last_w[h] = lookup_va_q[h] ^
-            (lookup_last_low_w[12] && (&lookup_va_q[h-1:12]));
+        assign lookup_bare_last_w[h] = source_va_w[h] ^
+            (lookup_last_low_w[12] && (&source_va_w[h-1:12]));
     end
   endgenerate
-  assign lookup_bare_last_w[64] = lookup_last_low_w[12] && (&lookup_va_q[63:12]);
+  assign lookup_bare_last_w[64] = lookup_last_low_w[12] && (&source_va_w[63:12]);
   wire [12:0]
       owner_last_low_w = {1'b0, owner_va_q[11:0]} + ((13'b1 << owner_protection_q[1:0]) - 13'd1);
 
@@ -257,14 +271,14 @@ module R64DataTranslation #(
       outcome_state_q <= FACTS;
     end else begin
       if (lookup_fire_w) lookup_valid_q <= 0;
-      if (req_fire_w) lookup_valid_q <= 1;
+      if (req_lookup_fire_w) lookup_valid_q <= 1;
       if (outcome_release_w) begin
         outcome_valid_q <= 0;
         outcome_state_q <= FACTS;
       end
       if (walk_fire_w) outcome_state_q <= WAIT_WALK;
       if (walk_take_w) outcome_state_q <= RETURN;
-      if (lookup_fire_w) begin
+      if (lookup_fire_w || fast_fire_w) begin
         outcome_valid_q <= 1;
         outcome_state_q <= FACTS;
       end
@@ -277,8 +291,7 @@ module R64DataTranslation #(
       lookup_asid_q <= req_satp_i[59:44];
       lookup_mode_q <= req_satp_i[63:60];
       lookup_access_q <= req_access_i;
-      lookup_priv_q <= req_access_i != 0 && req_priv_i == 3 && req_mstatus_i[17] ?
-          req_mstatus_i[12:11] : req_priv_i;
+      lookup_priv_q <= req_effective_priv_w;
       lookup_sum_q <= req_mstatus_i[18];
       lookup_mxr_q <= req_mstatus_i[19];
       lookup_ad_q <= req_ad_update_i;
@@ -286,27 +299,29 @@ module R64DataTranslation #(
       lookup_protection_q <= req_protection_i;
       lookup_poison_q <= req_poison_i;
     end else if (invalidate_i) lookup_poison_q <= 1;
-    // A free/consumed outcome prepares one complete source snapshot. VALID is
-    // published only by lookup_fire. A simultaneous invalidate follows that owner.
+    // A free/consumed outcome prepares one complete source snapshot. The
+    // source choice uses local lookup occupancy and request context only;
+    // lookup_fire/fast_fire publish VALID separately. Invalidation follows
+    // whichever owner is transferred, including a pre-poisoned request.
     if (outcome_credit_w) begin
-      owner_va_q <= lookup_va_q;
-      owner_root_q <= lookup_root_q;
-      owner_asid_q <= lookup_asid_q;
-      owner_access_q <= lookup_access_q;
-      owner_priv_q <= lookup_priv_q;
-      owner_sum_q <= lookup_sum_q;
-      owner_mxr_q <= lookup_mxr_q;
-      owner_ad_q <= lookup_ad_q;
-      owner_pbmt_enable_q <= lookup_pbmt_enable_q;
-      owner_protection_q <= lookup_protection_q;
-      owner_poison_q <= lookup_poison_q || invalidate_i;
-      outcome_pa_q <= lookup_bare_w ? lookup_va_q : {8'b0, tlb_pa_w};
-      outcome_last_q <= lookup_bare_w ?
+      owner_va_q <= source_va_w;
+      owner_root_q <= fast_choice_w ? req_satp_i[43:0] : lookup_root_q;
+      owner_asid_q <= fast_choice_w ? req_satp_i[59:44] : lookup_asid_q;
+      owner_access_q <= fast_choice_w ? req_access_i : lookup_access_q;
+      owner_priv_q <= fast_choice_w ? req_effective_priv_w : lookup_priv_q;
+      owner_sum_q <= fast_choice_w ? req_mstatus_i[18] : lookup_sum_q;
+      owner_mxr_q <= fast_choice_w ? req_mstatus_i[19] : lookup_mxr_q;
+      owner_ad_q <= fast_choice_w ? req_ad_update_i : lookup_ad_q;
+      owner_pbmt_enable_q <= fast_choice_w ? req_pbmt_enable_i : lookup_pbmt_enable_q;
+      owner_protection_q <= source_protection_w;
+      owner_poison_q <= (fast_choice_w ? req_poison_i : lookup_poison_q) || invalidate_i;
+      outcome_pa_q <= (fast_choice_w || lookup_bare_w) ? source_va_w : {8'b0, tlb_pa_w};
+      outcome_last_q <= (fast_choice_w || lookup_bare_w) ?
           lookup_bare_last_w : {9'b0, tlb_pa_w[55:12], lookup_last_low_w[11:0]};
       outcome_flags_q <= tlb_flags_w;
-      outcome_pbmt_q <= lookup_bare_w ? 2'b0 : tlb_pbmt_w;
-      outcome_bare_q <= lookup_bare_w;
-      outcome_address_fault_q <= lookup_address_fault_w;
+      outcome_pbmt_q <= (fast_choice_w || lookup_bare_w) ? 2'b0 : tlb_pbmt_w;
+      outcome_bare_q <= fast_choice_w || lookup_bare_w;
+      outcome_address_fault_q <= !fast_choice_w && lookup_address_fault_w;
       outcome_hit_q <= tlb_hit_w && !invalidate_i;
     end else if (invalidate_i) owner_poison_q <= 1;
     // Walker return updates this same outcome owner. It cannot overlap a
@@ -329,7 +344,7 @@ module R64DataTranslation #(
   always @(posedge clk_i)
     if (!rst_i) begin
       if (req_fire_w && req_access_i == 3) $fatal(1, "invalid translation access");
-      if ((walk_fire_w || walk_take_w) && (!outcome_valid_q || lookup_fire_w || outcome_release_w))
+      if ((walk_fire_w || walk_take_w) && (!outcome_valid_q || lookup_fire_w || fast_fire_w || outcome_release_w))
         $fatal(1, "R64DataTranslation walker owner overlapped release");
       if (outcome_state_q != FACTS && !outcome_valid_q)
         $fatal(1, "R64DataTranslation outcome state lacks owner");

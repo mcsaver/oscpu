@@ -46,9 +46,15 @@ module tb_r64_store_done;
   reg [8:0] sdt = 0;
   reg [63:0] sdval = 0;
   wire sdr;
+  wire head_exception_raw;
   R64Rob #(
     .META_W(M)
   ) rob (
+    .serial_retire_candidate_o(),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
+    .head_exception_o(head_exception_raw),
     .store_done_valid_i(sdv),
     .store_done_ready_o(sdr),
     .store_done_tag_i(sdt),
@@ -87,7 +93,6 @@ module tb_r64_store_done;
     .wb_rd_fp_o(canonical_fp),
     .wb_preg_o(canonical_preg),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -112,7 +117,7 @@ module tb_r64_store_done;
     .count_o(count),
     .head_slot_o(head)
   );
-  R64Rename rename (
+  R64RenameWithScoreboard rename (
     .clk(clk),
     .rst(rst),
     .restore_i(flush),
@@ -183,17 +188,25 @@ module tb_r64_store_done;
     rst = 0;
     pair(0);
     pair(2);
+    // ERROR without actual valid/ready acceptance is not a head certificate.
+    sdv = 0;
+    sde = 1;
+    sdt = tags[0];
+    #1;
+    check(sdr && !cv[0] && !head_exception_raw, "invalid error projected a head exception");
+    tick();
+    check(!cv[0] && !head_exception_raw, "invalid error changed resident head certificate");
     sdv = 1;
     sdt = tags[0] ^ 9'h020;
     #1;
     check(!sdr, "stale generation accepted");
     tick();
-    check(cv == 0, "stale store completed head");
+    check(cv == 0 && !head_exception_raw, "stale error completed head or changed certificate");
     recovery_preview = 1;
     recovery_tag = tags[1];
     sdt = tags[2];
     #1;
-    check(!sdr, "young ordinary store accepted");
+    check(!sdr && !cv[0] && !head_exception_raw, "young error acquired head certificate");
     tick();
     recovery_preview = 0;
     sdt = tags[0];
@@ -236,7 +249,9 @@ module tb_r64_store_done;
     sdval = 64'h80000ffd;
     #1;
     check(sdr, "error terminal not accepted");
+    check(!head_exception_raw, "resident certificate anticipated array write");
     tick();
+    check(head_exception_raw, "accepted error did not install resident certificate");
     sdv = 0;
     check(cv[0] && cx[0] && cc[0+:6] == 7 && ctval[0+:64] == sdval && !cwr[0],
           "store B error lost precise cause/tval/no-destination");

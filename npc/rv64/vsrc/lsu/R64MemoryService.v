@@ -5,8 +5,18 @@ module R64MemoryService #(
   parameter TOKEN_W = 5,
   parameter AUX = 4,
   parameter SRC_W = 3,
-  parameter CPU_REQUEST_HINTS = 0
+  parameter CPU_REQUEST_HINTS = 0,
+  parameter CPU_PREPARE_HINTS = 0,
+  parameter CPU_READ_EMPTY_FLOW = 0,
+  parameter PREPARE_ID_W = TOKEN_W
 ) (
+  input cpu_prepare_valid_i,
+  input [PREPARE_ID_W-1:0] cpu_prepare_id_i, cpu_identity_i,
+  input [TOKEN_W-1:0] cpu_prepare_token_i,
+  input [63:0] cpu_prepare_addr_i, cpu_prepare_data_i,
+  input [2:0] cpu_prepare_size_i,
+  input [7:0] cpu_prepare_strb_i,
+  input [4:0] cpu_prepare_amo_i,
   input                              clk_i,
   input                              rst_i,
   input      [                  1:0] cpu_fast_store_i,
@@ -26,6 +36,15 @@ module R64MemoryService #(
   output     [        2*TOKEN_W-1:0] cpu_rsp_token_o,
   output     [                127:0] cpu_rsp_data_o,
   output     [                  1:0] cpu_rsp_error_o,
+  // Only this router interprets the cache-side source field.
+  output                             cpu_store_rsp_valid_o,
+  input                              cpu_store_rsp_ready_i,
+  output     [          TOKEN_W-1:0] cpu_store_rsp_token_o,
+  output                             cpu_store_rsp_error_o,
+  input                              cache_store_rsp_valid_i,
+  output                             cache_store_rsp_ready_o,
+  input      [TOKEN_W+SRC_W-1:0]     cache_store_rsp_token_i,
+  input                              cache_store_rsp_error_i,
   input      [              AUX-1:0] aux_valid_i,
   output reg [              AUX-1:0] aux_ready_o,
   input      [           AUX*64-1:0] aux_addr_i, aux_data_i, aux_expected_i,
@@ -57,18 +76,52 @@ module R64MemoryService #(
   // The token's high field is 0 for CPU and n+1 for aux[n]; only CPU
   // consumes the low TOKEN_W bits. AUX packet indexing removes that base.
   localparam CPU_SOURCE = 0, FIRST_AUX_SOURCE = 1;
+  wire store_cpu_source_w = cache_store_rsp_token_i[CT-1:TOKEN_W] == SRC_W'(CPU_SOURCE);
+  assign cpu_store_rsp_valid_o = cache_store_rsp_valid_i && store_cpu_source_w && !rst_i;
+  assign cpu_store_rsp_token_o = cache_store_rsp_token_i[TOKEN_W-1:0];
+  assign cpu_store_rsp_error_o = cache_store_rsp_error_i;
+  assign cache_store_rsp_ready_o = cpu_store_rsp_ready_i && store_cpu_source_w && !rst_i;
+`ifdef R64_ASSERT
+  always @(posedge clk_i)
+    if (!rst_i && cache_store_rsp_valid_i && !store_cpu_source_w)
+      $fatal(1, "R64MemoryService non-CPU source on fast-store terminal");
+`endif
   // Each physical lane owns two fixed request slots. Admission observes
   // only Q occupancy; cache completion never grants same-cycle CPU capacity.
   localparam PAYLOAD_W = 212 + CT;
   reg [1:0] valid_q[0:1], valid_d[0:1];
   reg [1:0] head_q, head_d;
   reg [PAYLOAD_W-1:0] payload_q[0:1][0:1];
-  wire [1:0] write_slot_w, available_w, enqueue_w, cache_take_w;
+  wire [1:0] write_slot_w, available_w, base_enqueue_w, enqueue_w, cache_take_w;
+  wire [1:0] read_offer_w, read_fire_w;
   wire [PAYLOAD_W-1:0] incoming_w[0:1], cpu_payload_w[0:1];
   wire [PAYLOAD_W-1:0] aux_payload_w;
   reg [AUX-1:0] busy_q, out_valid_q, out_error_q, out_compare_q;
   reg [63:0] out_data_q[0:AUX-1];
   reg [SRC_W-1:0] turn_q;
+  // A replaceable payload hint has no ownership, queue credit, bank claim,
+  // response or cancellation acknowledgement. Only a matching real CPU
+  // transfer can activate it, under the unchanged arbitration decision.
+  reg prepare_valid_q;
+  reg [PREPARE_ID_W-1:0] prepare_id_q;
+  reg [PAYLOAD_W-1:0] prepare_payload_q;
+  always @(posedge clk_i) begin
+    if (rst_i) prepare_valid_q <= 0;
+    else begin
+      prepare_valid_q <= CPU_PREPARE_HINTS != 0 && cpu_prepare_valid_i;
+      if (CPU_PREPARE_HINTS != 0 && cpu_prepare_valid_i) begin
+        prepare_id_q <= cpu_prepare_id_i;
+        prepare_payload_q <= {{SRC_W{1'b0}}, cpu_prepare_token_i,
+            cpu_prepare_addr_i, cpu_prepare_data_i, 64'b0, 2'd1, 1'b1,
+            cpu_prepare_size_i, cpu_prepare_strb_i, cpu_prepare_amo_i, 1'b1};
+      end
+    end
+  end
+  wire prepare_route_w = CPU_PREPARE_HINTS != 0 && prepare_valid_q &&
+      cpu_identity_i == prepare_id_q && selected_cpu_w &&
+      valid_q[0] == 0 && valid_q[1] == 0 && cpu_op_i[1:0] == 1 &&
+      cpu_cache_i[0] && cpu_fast_store_i[0];
+  wire prepare_fire_w = prepare_route_w && cpu_take_w[0] && cache_ready_i[0];
 
   // CPU is an always-eligible stable round-robin slot. For each auxiliary
   // client, all earlier eligible clients in this turn are tested in parallel.
@@ -154,7 +207,7 @@ module R64MemoryService #(
         $fatal(1, "R64MemoryService request hint differs with live CPU input");
       if ((cpu_valid_i & cpu_ready_o) !== (cpu_valid_i & original_cpu_ready_w))
         $fatal(1, "R64MemoryService request hint changed CPU acceptance");
-      if (enqueue_w[1] && incoming_w[1] !==
+      if (base_enqueue_w[1] && incoming_w[1] !==
           ((aux_select_w && !original_pair_w) ? cpu_payload_w[0] : cpu_payload_w[1]))
         $fatal(1, "R64MemoryService request hint changed accepted payload");
     end
@@ -174,12 +227,23 @@ module R64MemoryService #(
       wire [SRC_W-1:0] source_w = cache_rsp_token_i[g*CT+TOKEN_W+:SRC_W];
       assign available_w[g] = !(&valid_q[g]);
       assign write_slot_w[g] = valid_q[g][0];
-      assign cache_valid_o[g] = valid_q[g][head_q[g]] && !rst_i;
-      assign cache_take_w[g] = cache_valid_o[g] && cache_ready_i[g];
+      // The original arbitration has already accepted this packet using
+      // Q-only credit. Decode the routed incoming payload so auxiliary pairing
+      // may map either CPU input onto physical lane 1 without changing owners.
+      assign read_offer_w[g] = CPU_READ_EMPTY_FLOW != 0 && base_enqueue_w[g] &&
+          valid_q[g] == 0 && incoming_w[g][PAYLOAD_W-1-:SRC_W] == SRC_W'(CPU_SOURCE) &&
+          incoming_w[g][19:18] == 0 && incoming_w[g][17] && !incoming_w[g][0];
+      assign read_fire_w[g] = read_offer_w[g] && cache_ready_i[g] && !rst_i;
+      assign cache_valid_o[g] = (valid_q[g][head_q[g]] ||
+          (g == 0 && prepare_route_w && cpu_valid_i[0]) || read_offer_w[g]) && !rst_i;
+      // A direct activation consumes no request-queue owner.
+      assign cache_take_w[g] = valid_q[g][head_q[g]] && cache_ready_i[g] && !rst_i;
       assign {cache_token_o[g*CT+:CT], cache_addr_o[g*64+:64], cache_data_o[g*64+:64],
               cache_expected_o[g*64+:64], cache_op_o[g*2+:2], cache_cache_o[g],
               cache_size_o[g*3+:3], cache_strb_o[g*8+:8], cache_amo_o[g*5+:5],
-              cache_fast_store_o[g]} = payload_q[g][head_q[g]];
+              cache_fast_store_o[g]} = valid_q[g][head_q[g]] ? payload_q[g][head_q[g]] :
+              (g == 0 && prepare_route_w) ? prepare_payload_q :
+              read_offer_w[g] ? incoming_w[g] : payload_q[g][head_q[g]];
       assign cpu_payload_w[g] = {
         {SRC_W{1'b0}},
         cpu_token_i[g*TOKEN_W+:TOKEN_W],
@@ -229,8 +293,12 @@ module R64MemoryService #(
   };
   assign incoming_w[0] = aux_select_w ? aux_payload_w : cpu_payload_w[0];
   assign incoming_w[1] = (aux_select_w && !pair_cpu1_w) ? cpu_payload_w[0] : cpu_payload_w[1];
-  assign enqueue_w[0] = (|aux_take_w) || (cpu_take_w[0] && !aux_select_w);
-  assign enqueue_w[1] = cpu_take_w[1] || (cpu_take_w[0] && aux_select_w);
+  assign base_enqueue_w[0] = (|aux_take_w) || (cpu_take_w[0] && !aux_select_w);
+  assign base_enqueue_w[1] = cpu_take_w[1] || (cpu_take_w[0] && aux_select_w);
+  // Base admission contains no downstream ready. Either direct acceptance
+  // allocates no duplicate queue owner. If Cache
+  // stalls, the unchanged incoming packet is captured by the original queue.
+  assign enqueue_w = base_enqueue_w & ~read_fire_w & ~{1'b0, prepare_fire_w};
   integer lane;
   always @* begin
     head_d = head_q;
@@ -297,8 +365,17 @@ module R64MemoryService #(
   integer cq;
   always @(posedge clk_i)
     if (!rst_i) begin
+      if (prepare_fire_w && (prepare_payload_q !== cpu_payload_w[0] ||
+          !cache_valid_o[0] || enqueue_w[0] || (|aux_take_w)))
+        $fatal(1, "Service prepared activation changed real CPU request");
       if ((enqueue_w & ~available_w) != 0) $fatal(1, "Service request overbooked Q credit");
       for (cq = 0; cq < 2; cq = cq + 1) begin
+        if (read_offer_w[cq] && (!base_enqueue_w[cq] || (|valid_q[cq]) ||
+            incoming_w[cq][PAYLOAD_W-1-:SRC_W] != SRC_W'(CPU_SOURCE) ||
+            incoming_w[cq][19:18] != 0 || !incoming_w[cq][17] || incoming_w[cq][0]))
+          $fatal(1, "Service direct read lacks accepted ordinary CPU owner");
+        if (read_fire_w[cq] && (!cache_valid_o[cq] || enqueue_w[cq] || cache_take_w[cq]))
+          $fatal(1, "Service direct read allocated duplicate request owner");
         if ((|valid_q[cq]) && !valid_q[cq][head_q[cq]])
           $fatal(1, "Service head lost oldest request owner");
         if (enqueue_w[cq] && valid_q[cq][write_slot_w[cq]])

@@ -2,6 +2,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 
 namespace r64 {
 // DUT state reconstructed in architectural retirement order by the simulator.
@@ -35,7 +36,8 @@ class DiffTest {
  void check_csrs(uint64_t pc,const CsrSnapshot& dut);
  uint64_t read_memory(uint32_t address,int bytes) const {return peek(address,bytes);}
 #ifdef R64_SYSTEM
- bool receive_serial(uint8_t byte) const {return serial_receive(byte);}
+ void receive_serial(uint8_t byte,uint64_t after_transactions);
+ bool serial_input_complete() const {return serial_pending.empty();}
  uint32_t syscon_value() const {return read_syscon();}
 #endif
 #ifdef R64_TENSOR
@@ -57,6 +59,11 @@ class DiffTest {
  uint64_t (*peek)(uint32_t,int);
 #ifdef R64_SYSTEM
  bool (*serial_receive)(uint8_t);
+ uint64_t (*serial_transactions)();
+ struct SerialInput {uint64_t after_transactions; uint8_t byte;};
+ std::deque<SerialInput> serial_pending;
+ uint64_t serial_last_enqueued=0;
+ void sync_serial_input();
  uint32_t (*read_syscon)();
 #endif
 #ifdef R64_TENSOR

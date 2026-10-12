@@ -47,8 +47,9 @@ module R64LsuRequestQueue #(
     for (lane = 0; lane < 2; lane = lane + 1) begin : g_lane
       assign write_slot_w[lane] = valid_q[lane][0];
       assign in_ready_o[lane] = !(&valid_q[lane]) && !rst_i && !flush_i;
-      // Q occupancy permits payload preparation only; acceptance still uses out_valid.
-      assign out_occupied_o[lane] = valid_q[lane][head_q[lane]];
+      // Every occupied reachable lane has a valid head (asserted below), so
+      // Q occupancy can bypass the head mux; acceptance still uses out_valid.
+      assign out_occupied_o[lane] = |valid_q[lane];
       // Select the resident ROB slot before the late cancellation enable.
       // Keep the canonical/prepared policy explicit at each control consumer.
       wire [ROB_W-1:0] head_rob_slot_w = tag_q[lane][head_q[lane]][ROB_W-1:0];

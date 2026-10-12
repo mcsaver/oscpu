@@ -60,7 +60,7 @@ module tb_r64_axi_read;
   reg active[0:3];
   reg [31:0] random_q = 32'h91ee8ad3;
   reg hold_ar = 0;
-  reg [78:0] held_ar;
+  reg [83:0] held_ar;
   reg [3:0] hold_r = 0;
   reg [66:0] held_r[0:3];
   reg negative;
@@ -78,10 +78,10 @@ module tb_r64_axi_read;
   always @(posedge clk)
     if (!rst) begin
       bus_taken_q = bv && br;
-      if (hold_ar && (!av || {ai, aa, an, az} !== held_ar))
+      if (hold_ar && (!av || {ai, aa, an, az, ap, ab} !== held_ar))
         $fatal(1, "AR changed under backpressure");
       hold_ar = av && !ar;
-      held_ar = {ai, aa, an, az};
+      held_ar = {ai, aa, an, az, ap, ab};
       for (c = 0; c < 4; c = c + 1) begin
         if (hold_r[c] && (!rv[c] || {rd[c*64+:64], rp[c*2+:2], rl[c]} !== held_r[c]))
           $fatal(1, "client response changed while blocked");
@@ -119,21 +119,144 @@ module tb_r64_axi_read;
       if (bv && !br) backpressure = backpressure + 1;
     end
 
-  initial begin
-    negative = $test$plusargs("bad-id");
-    for (c = 0; c < 4; c = c + 1) begin
-      launched[c] = 0;
-      arrived[c] = 0;
-      sent[c] = 0;
-      seen[c] = 0;
-      length[c] = 0;
-      active[c] = 0;
-      address[c] = 0;
-      hold_r[c] = 0;
+
+  // Directed credit checks use interface behavior, not implementation state.
+  // All four clients request while AR is blocked: exactly two may be captured.
+  task automatic test_ar_credit;
+    reg [3:0] ready_before;
+    integer n;
+    begin
+      cv = 4'b1111;
+      rr = 0;
+      ar = 0;
+      for (n = 0; n < 4; n = n + 1) begin
+        ca[n*64+:64] = 64'h8100_0000 + (n << 12);
+        cl[n*8+:8] = n == 0 ? 1 : 0;
+      end
+      #1;
+      if (cr !== 4'b0001) $fatal(1, "empty AR queue has no initial credit");
+      @(negedge clk);
+      #1;
+      if (!av || ai != 0 || cr !== 4'b0010)
+        $fatal(1, "blocked AR did not retain one further command credit");
+      ready_before = cr;
+      ar = 1;
+      #1;
+      if (cr !== ready_before) $fatal(1, "ARREADY changed command credit combinationally");
+      ar = 0;
+      #1;
+      if (cr !== ready_before) $fatal(1, "ARREADY falling changed command credit");
+      @(negedge clk);
+      for (n = 0; n < 8; n = n + 1) begin
+        #1;
+        if (cr !== 0 || !av || ai != 0 || launched[0] != 1 || launched[1] != 1 ||
+            launched[2] != 0 || launched[3] != 0)
+          $fatal(1, "AR queue did not absorb two commands and backpressure the third");
+        @(negedge clk);
+      end
+      ar = 1;
+      #1;
+      if (cr !== 0) $fatal(1, "full AR queue borrowed same-cycle pop credit");
+      @(negedge clk);
+      #1;
+      if (!av || ai != 1 || cr !== 4'b0100 || arrived[0] != 1)
+        $fatal(1, "AR pop did not expose registered credit and next descriptor");
+      @(negedge clk);
+      #1;
+      if (!av || ai != 2 || cr !== 4'b1000 || arrived[1] != 1 || launched[2] != 1)
+        $fatal(1, "AR simultaneous push/pop lost order or throughput");
+      @(negedge clk);
+      #1;
+      if (!av || ai != 3 || arrived[2] != 1 || launched[3] != 1)
+        $fatal(1, "AR failed to sustain one address per cycle");
+      // A legal zero-latency slave returns client 3 on its AR handshake cycle.
+      bv = 1;
+      bi = 3;
+      bd = data_for(aa, 0);
+      bp = resp_for(aa, 0);
+      bl = 1;
+      @(negedge clk);
+      ar = 0;
+      bv = 0;
+      #1;
+      if (arrived[3] != 1 || rv !== 4'b1000 || cr !== 0 || error)
+        $fatal(1, "same-cycle AR/R lost response owner or released busy too early");
+      // Fill the R FIFO behind the blocked client 3, then hold client 1 at AXI.
+      bv = 1;
+      bi = 0;
+      bd = data_for(address[0], 0);
+      bp = resp_for(address[0], 0);
+      bl = 0;
+      @(negedge clk);
+      bi = 1;
+      bd = data_for(address[1], 0);
+      bp = resp_for(address[1], 0);
+      bl = 1;
+      repeat (5) begin
+        #1;
+        if (br || rv !== 4'b1000 || cr !== 0)
+          $fatal(1, "blocked client response failed to retain FIFO/client ownership");
+        @(negedge clk);
+      end
+      rr = 4'b1000;
+      @(negedge clk);
+      rr = 0;
+      #1;
+      if (cr !== 4'b1000 || !br || total != 1)
+        $fatal(1, "last response delivery did not release exactly its client");
+      cv = 0;
+      @(negedge clk);
+      bv = 0;
+      rr = 4'b1111;
+      repeat (2) @(negedge clk);
+      // Finish the two remaining owners, preserving the multi-beat count.
+      bv = 1;
+      bi = 0;
+      bd = data_for(address[0], 1);
+      bp = resp_for(address[0], 1);
+      bl = 1;
+      @(negedge clk);
+      bi = 2;
+      bd = data_for(address[2], 0);
+      bp = resp_for(address[2], 0);
+      @(negedge clk);
+      bv = 0;
+      repeat (3) @(negedge clk);
+      if (total != 4 || beats != 5 || error)
+        $fatal(1, "AR credit directed drain total=%0d beats=%0d", total, beats);
+      $display("COVERAGE ar_credit depth=2 hold_cycles=8 push_pop=2 continuous_ar=4 same_cycle_ar_r=1");
     end
+  endtask
+
+  task automatic clear_scoreboard;
+    integer n;
+    begin
+      total = 0;
+      beats = 0;
+      backpressure = 0;
+      out_of_order = 0;
+      hold_ar = 0;
+      hold_r = 0;
+      bus_taken_q = 0;
+      for (n = 0; n < 4; n = n + 1) begin
+        launched[n] = 0;
+        arrived[n] = 0;
+        sent[n] = 0;
+        seen[n] = 0;
+        length[n] = 0;
+        active[n] = 0;
+        address[n] = 0;
+      end
+    end
+  endtask
+
+  initial begin
+    negative = $test$plusargs("bad-id") || $test$plusargs("bad-last") ||
+        $test$plusargs("bad-count") || $test$plusargs("early-r");
+    clear_scoreboard();
     repeat (3) @(negedge clk);
     rst = 0;
-    if (negative) begin
+    if ($test$plusargs("bad-id")) begin
       bv = 1;
       bi = 4'hf;
       bd = 0;
@@ -141,6 +264,34 @@ module tb_r64_axi_read;
       repeat (5) @(negedge clk);
       $fatal(1, "negative case was not rejected");
     end
+    if (negative) begin
+      cv = 1;
+      ca[0+:64] = 64'h8000_0000;
+      cl[0+:8] = $test$plusargs("bad-last") ? 1 : 0;
+      @(negedge clk);
+      cv = 0;
+      // early-r must be rejected while the accepted command is still queued.
+      if (!$test$plusargs("early-r")) begin
+        ar = 1;
+        @(negedge clk);
+        ar = 0;
+      end
+      bv = 1;
+      bi = 0;
+      bd = data_for(ca[0+:64], 0);
+      bl = !$test$plusargs("bad-count");
+      repeat (5) @(negedge clk);
+      $fatal(1, "negative beat-count/unsent-owner case was not rejected");
+    end
+    test_ar_credit();
+    rst = 1;
+    cv = 0;
+    rr = 0;
+    ar = 0;
+    bv = 0;
+    clear_scoreboard();
+    repeat (3) @(negedge clk);
+    rst = 0;
     for (cycle = 0; cycle < 20000 && total < 512; cycle = cycle + 1) begin
       random_q = rng(random_q);
       ar = random_q[0] || random_q[1];

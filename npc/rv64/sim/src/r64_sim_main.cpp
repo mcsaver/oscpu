@@ -103,12 +103,12 @@ int main(int argc, char **argv) {
   try {
     check(
         argc >= 3,
-        "usage: core-test image reference.so [--verbose] [--stalls] [--maxcycles=N] [--tohost=ADDR] [--progress[=N]] [--system] [--memory=BYTES] [--load=ADDR:PATH] [--uart-input=MARKER:BYTES] [--uart-stdin] [--expect=TEXT] [--block=WRITABLE_RUN_IMAGE]");
+        "usage: core-test image reference.so [--verbose] [--stalls] [--maxcycles=N] [--tohost=ADDR] [--progress[=N]] [--system] [--memory=BYTES] [--load=ADDR:PATH] [--uart-input=MARKER:BYTES] [--uart-input-delay=N] [--uart-stdin] [--expect=TEXT] [--block=WRITABLE_RUN_IMAGE]");
     bool stalls = false, progress = false, system_mode = false, uart_stdin = false;
     std::string expect;
     bool expect_seen = false;
     uint64_t tohost = 0, maxcycles = 200000, memory_size = 64 * 1024 * 1024,
-             progress_interval = 1000000;
+             progress_interval = 1000000, uart_input_delay = 1000;
     struct ExtraImage {
       uint64_t address;
       std::string path;
@@ -161,7 +161,9 @@ int main(int argc, char **argv) {
         check(sep != std::string::npos && sep > 13 && sep + 1 < arg.size(),
               "--uart-input expects MARKER:BYTES");
         uart_inputs.push_back({arg.substr(13, sep - 13), arg.substr(sep + 1)});
-      } else if (arg == "--progress")
+      } else if (arg.rfind("--uart-input-delay=", 0) == 0)
+        uart_input_delay = number(argv[i] + 19);
+      else if (arg == "--progress")
         progress = true;
       else if (arg.rfind("--progress=", 0) == 0) {
         progress_interval = number(argv[i] + 11);
@@ -304,6 +306,7 @@ int main(int argc, char **argv) {
       unsigned strb = 0, size = 0, rerr = 0, berr = 0;
     };
     std::array<Endpoint, 4> ep{};
+    uint64_t uart_native_transactions = 0;
 #endif
 #ifdef R64_TENSOR
     bool dma_pending = false;
@@ -406,7 +409,8 @@ int main(int argc, char **argv) {
         auto &input = uart_inputs[uart_input];
         if (!input.armed && uart_tail.find(input.marker) != std::string::npos) {
           input.armed = true;
-          input.release = cycles + 1000;
+          check(uart_input_delay <= UINT64_MAX - cycles, "UART input delay overflow");
+          input.release = cycles + uart_input_delay;
         }
         if (input.armed && cycles >= input.release) {
           d.uart_rx_valid_i = 1;
@@ -468,12 +472,16 @@ int main(int argc, char **argv) {
           dma_reads++;
       }
 #endif
+      // Sample both native pulses before the edge. UART reads/writes precede
+      // an accepted RX on that edge; AXI address/response handshakes do not.
+      uart_native_transactions += unsigned(d.uart_native_read_o) + unsigned(d.uart_native_write_o);
       if (d.uart_rx_valid_i && d.uart_rx_ready_o) {
-        check(ref.receive_serial(d.uart_rx_data_i), "reference UART rejected accepted input");
+        ref.receive_serial(d.uart_rx_data_i, uart_native_transactions);
         // Preserve causal order when the guest marker has no trailing newline yet.
         std::fflush(stdout);
-        std::fprintf(stderr, "UART_RX cycle=%llu byte=0x%02x\n", (long long)cycles,
-                     d.uart_rx_data_i);
+        std::fprintf(stderr, "UART_RX cycle=%llu byte=0x%02x after_transactions=%llu\n",
+                     (long long)cycles, d.uart_rx_data_i,
+                     (unsigned long long)uart_native_transactions);
         if (uart_input < uart_inputs.size()) {
           auto &input = uart_inputs[uart_input];
           if (++input.offset == input.bytes.size()) {
@@ -625,6 +633,7 @@ int main(int argc, char **argv) {
           }
           check(reference_uart.empty() && dut_uart.empty(),
                 "missing or extra UART bytes at program end");
+          check(ref.serial_input_complete(), "pending reference UART input at program end");
 #endif
           if (x[10] != 0) {
             char msg[96];
@@ -669,6 +678,7 @@ int main(int argc, char **argv) {
       if (system_mode && syscon_events && event && ref.syscon_value() == syscon_value) {
         check(reference_uart.empty() && dut_uart.empty(),
               "missing or extra UART bytes at system end");
+        check(ref.serial_input_complete(), "pending reference UART input at system end");
         check(uart_input == uart_inputs.size(),
               "system ended before consuming requested UART input");
         if (syscon_value == 0x5555) {
@@ -714,6 +724,9 @@ int main(int argc, char **argv) {
     char msg[160];
     std::snprintf(msg, sizeof msg, "timeout: pc=%016llx ROB=%u commits=%llu", (long long)pc,
                   d.rob_count_o, (long long)commits);
+    // Preserve diagnostic counters at a bounded observation window; timeout
+    // remains a failure and never substitutes for natural architectural PASS.
+    d.final();
     fail(msg);
   } catch (const std::exception &e) {
     std::fprintf(stderr, "[FAIL] core cycle=%llu commits=%llu: %s\n", (long long)cycles,

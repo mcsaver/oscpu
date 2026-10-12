@@ -1,6 +1,7 @@
 # Native two-wide RV64 source list, shared by simulation and synthesis.
 R64_RTL_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 R64_RTL_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
   $(R64_RTL_ROOT)/frontend/R64FetchStream.v \
   $(R64_RTL_ROOT)/frontend/R64Align.v \
   $(R64_RTL_ROOT)/frontend/R64PacketParse.v \
@@ -13,12 +14,15 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/backend/R64DecodeStage.v \
   $(R64_RTL_ROOT)/backend/R64Rob.v \
   $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/backend/R64Scoreboard.v \
   $(R64_RTL_ROOT)/backend/R64Rename.v \
   $(R64_RTL_ROOT)/backend/R64Issue.v \
   $(R64_RTL_ROOT)/backend/R64RegRead.v \
   $(R64_RTL_ROOT)/backend/R64FpReadPlan.v \
   $(R64_RTL_ROOT)/backend/R64Writeback.v \
   $(R64_RTL_ROOT)/backend/R64Execute.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionOwners.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionDomain.v \
   $(R64_RTL_ROOT)/backend/R64Backend.v \
   $(R64_RTL_ROOT)/backend/R64Alu.v \
   $(R64_RTL_ROOT)/backend/R64ProductTree.v \
@@ -39,6 +43,7 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/fp/R64FpCompletion.v \
   $(R64_RTL_ROOT)/fp/R64FpExecute.v \
   $(R64_RTL_ROOT)/core/R64CoreTop.v \
+  $(R64_RTL_ROOT)/control/R64MemoryEffectLease.v \
   $(R64_RTL_ROOT)/control/R64Control.v \
   $(R64_RTL_ROOT)/control/R64Commit.v \
   $(R64_RTL_ROOT)/control/R64CsrDecode.v \
@@ -50,6 +55,7 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/control/R64Serial.v \
   $(R64_RTL_ROOT)/memory/R64PmpDecode.v \
   $(R64_RTL_ROOT)/memory/R64PmpCheck.v \
+  $(R64_RTL_ROOT)/memory/R64DataTranslationService.v \
   $(R64_RTL_ROOT)/memory/R64Memory.v \
   $(R64_RTL_ROOT)/memory/R64PtePort.v \
   $(R64_RTL_ROOT)/memory/R64Pma.v \
@@ -70,13 +76,16 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/lsu/R64LsuYoungestByte.v \
   $(R64_RTL_ROOT)/lsu/R64LsuRequestQueue.v \
   $(R64_RTL_ROOT)/lsu/R64LsuMetaRead.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuResponseIngress.v \
+  $(R64_RTL_ROOT)/lsu/R64ValueNoticeMerge.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuCompletionArbiter.v \
   $(R64_RTL_ROOT)/lsu/R64LsuCompletion.v \
-  $(R64_RTL_ROOT)/lsu/R64LsuTranslationOwners.v \
   $(R64_RTL_ROOT)/lsu/R64Lsu.v \
   $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
   $(R64_RTL_ROOT)/lsu/R64Dcache.v \
   $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
   $(R64_RTL_ROOT)/lsu/R64MemorySplit.v \
+  $(R64_RTL_ROOT)/lsu/R64PhysicalMemory.v \
   $(R64_RTL_ROOT)/lsu/R64LoadStore.v \
   $(R64_RTL_ROOT)/platform/R64TensorMemory.v \
   $(R64_RTL_ROOT)/platform/R64AxiReadService.v \
@@ -96,4 +105,4 @@ R64_RTL_SRCS := \
 VSRCDIR ?= $(R64_RTL_ROOT)
 RTL_INCLUDE_DIR := $(R64_RTL_ROOT)/include
 RTL_CORE_SRCS := $(R64_RTL_SRCS)
-RTL_HEADER_SRCS := $(wildcard $(R64_RTL_ROOT)/include/*.v $(R64_RTL_ROOT)/backend/*.vh $(R64_RTL_ROOT)/platform/*.vh)
+RTL_HEADER_SRCS := $(wildcard $(R64_RTL_ROOT)/include/*.v $(R64_RTL_ROOT)/include/*.vh $(R64_RTL_ROOT)/backend/*.vh $(R64_RTL_ROOT)/platform/*.vh)

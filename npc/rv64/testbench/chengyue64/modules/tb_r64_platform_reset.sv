@@ -1,7 +1,7 @@
 // Real AXI/device A/B oracle preserves publication timing across reset.
 // The baseline retains the original local-reset output clamp.
 `timescale 1ns / 1ps
-module tb_r64_platform_reset;
+module tb_r64_platform_reset #(parameter AW_FLOW=1, B_FLOW=1);
   reg clk_i = 0;
   reg rst_i = 0;
   reg arvalid_i = 0;
@@ -207,9 +207,26 @@ module tb_r64_platform_reset;
     .syscon_value_o(b_syscon_value_o),
     .protocol_error_o(b_protocol_error_o)
   );
+  // Match transport latency on both sides of the reset-clamp A/B oracle.
+  // The reset publication comparison remains cycle exact in all four modes.
+  defparam a.fabric.AW_EMPTY_ADMIT = AW_FLOW;
+  defparam a.fabric.WRITE_B_EMPTY_FLOW = B_FLOW;
+  defparam b.fabric.AW_EMPTY_ADMIT = AW_FLOW;
+  defparam b.fabric.WRITE_B_EMPTY_FLOW = B_FLOW;
   always #5 clk_i = ~clk_i;
   reg armed = 0;
   integer events = 0, bytes = 0, resets = 0;
+  integer b_responses = 0, expected_b = 0;
+  // Count actual acceptance before the edge. Empty-flow B may finish before
+  // the later device event is observed; waiting for a second valid would hang.
+  always @(posedge clk_i) if (!rst_i && armed) begin
+    if ((a_bvalid_o && bready_i) !== (b_bvalid_o && bready_i))
+      $fatal(1, "reset A/B mismatch actual B acceptance");
+    if (a_bvalid_o && bready_i) begin
+      if (b_responses >= expected_b) $fatal(1, "platform duplicate/unowned B");
+      b_responses = b_responses + 1;
+    end
+  end
   always @(posedge clk_i) begin
     #1;
     if (armed) begin
@@ -272,6 +289,7 @@ module tb_r64_platform_reset;
   end
   task start_write(input [63:0] address, data, input [2:0] size);
     begin
+      expected_b = b_responses + 1;
       fork
         begin
           @(negedge clk_i);
@@ -335,7 +353,7 @@ module tb_r64_platform_reset;
       @(negedge clk_i);
       if (i[0]) reset_now();
       else begin
-        wait (a_bvalid_o);
+        wait (b_responses == expected_b);
         @(negedge clk_i);
         repeat (3) @(negedge clk_i);
       end
@@ -388,6 +406,6 @@ module tb_r64_platform_reset;
   end
   initial begin
     #300000;
-    $fatal(1, "platform reset timeout");
+    $fatal(1, "platform reset timeout i=%0d events=%0d bytes=%0d resets=%0d B=%0d", i, events, bytes, resets, b_responses);
   end
 endmodule

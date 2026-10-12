@@ -1,0 +1,445 @@
+`timescale 1ns / 1ps
+module tb_r64_direction_frontend_snapshot;
+  parameter BUNDLE_EMPTY_FLOW=1, TOKEN_EMPTY_FLOW=1, TRAIN=1;
+  parameter COMMIT=1;
+  parameter EARLY_PREDICT = 1;
+  reg clk = 0;
+  always #5 clk = ~clk;
+  // Model the lifecycle fence independently of the Frontend inbox.
+  reg local_redirect = 0;
+  always @(posedge clk) local_redirect <= !rst && redirect;
+  reg rst = 1, redirect = 0, enable = 0, invalidate = 0;
+  reg [63:0] target = 64'h80000000, expected = 64'h80000000;
+  reg training=0;
+  reg [63:0] training_pc=0,training_target=0;
+  wire [1:0] valid, fault;
+  reg [1:0] take = 0;
+  wire [127:0] pc, raw, npc, tval;
+  wire [7:0] length;
+  wire [9:0] cause;
+  wire [63:0] pa, ca, pe, pm;
+  wire [1:0] pp;
+  wire cv, br, pv, po, prr;
+  wire [ 7:0] cl;
+  wire [ 2:0] cs;
+  wire [55:0] paddr;
+  reg cr = 0, bv = 0, bl = 0;
+  reg  [63:0] bd = 0;
+  reg  [ 1:0] bp = 0;
+  wire [ 7:0] protection = pa[27:25] == 5 && pa[7:4] == 0 ? 8'h80 : 8'b0;
+  R64Frontend #(
+    .DIRECTION_COMMIT_TRAIN(COMMIT),
+    .BUNDLE_EMPTY_FLOW(BUNDLE_EMPTY_FLOW),.TOKEN_EMPTY_FLOW(TOKEN_EMPTY_FLOW),
+    .EARLY_PREDICT(EARLY_PREDICT)
+  ) dut (
+    .direction_train_valid_i({1'b0,training}),.direction_train_pc_i({64'b0,training_pc}),.direction_train_taken_i(2'b0),
+    .clk_i(clk),
+    .rst_i(rst),
+    .run_i(1'b1),
+    .recovery_i({redirect, target, 34'b0}),
+    .priv_i(2'd3),
+    .mstatus_i(64'd0),
+    .satp_i(64'd0),
+    .pbmt_enable_i(1'b1),
+    .icache_invalidate_i(invalidate),
+    .tlb_invalidate_i(1'b0),
+    .tlb_all_vaddr_i(1'b1),
+    .tlb_all_asid_i(1'b1),
+    .tlb_vpn_i(27'd0),
+    .tlb_asid_i(16'd0),
+    .valid_o(valid),
+    .consume_i(take),
+    .pc_o(pc),
+    .raw_o(raw),
+    .length_o(length),
+    .predicted_npc_o(npc),
+    .fault_o(fault),
+    .cause_o(cause),
+    .tval_o(tval),
+    .prediction_update_i(training),
+    .prediction_pc_i(training_pc),
+    .prediction_conditional_i(1'b1),
+    .prediction_indirect_i(1'b1),
+    .prediction_taken_i(1'b0),
+    .prediction_target_i(training_target),
+    .protect_paddr_o(pa),
+    .protect_priv_o(pp),
+    .protect_facts_i(130'b0),
+    .protect_fault_mask_i(protection),
+    .protect_uncached_i(1'b0),
+    .cache_cmd_valid_o(cv),
+    .cache_cmd_ready_i(cr),
+    .cache_cmd_addr_o(ca),
+    .cache_cmd_len_o(cl),
+    .cache_cmd_size_o(cs),
+    .cache_beat_valid_i(bv),
+    .cache_beat_ready_o(br),
+    .cache_beat_data_i(bd),
+    .cache_beat_resp_i(bp),
+    .cache_beat_last_i(bl),
+    .pte_valid_o(pv),
+    .pte_ready_i(1'b0),
+    .pte_compare_or_o(po),
+    .pte_addr_o(paddr),
+    .pte_expected_o(pe),
+    .pte_or_mask_o(pm),
+    .pte_rsp_valid_i(1'b0),
+    .pte_rsp_ready_o(prr),
+    .pte_rdata_i(64'd0),
+    .pte_error_i(1'b0),
+    .pte_compare_ok_i(1'b0)
+  );
+  reg [7:0] bytes[0:2047];
+  reg active = 0, bt = 0;
+  reg [63:0] bus_addr;
+  integer beat = 0;
+  reg [31:0] random_q = 32'h67531429;
+  integer
+      delivered = 0, cycles = 0, fast = 0, repairs = 0, late = 0, tensors = 0, reads = 0, stale = 0;
+  integer region = 0, lane, i, j, n, start_count, start_fast, first_cycles, second_cycles;
+  reg fault_seen = 0;
+  reg [63:0] software_return[0:7];
+  integer software_ras_count=0;
+  reg [63:0] value, next_expected;
+  reg [31:0] inst;
+  reg [15:0] ci;
+  integer size, idx;
+  function [63:0] base(input integer r);
+    base = 64'h80000000 + (64'(r) << 25);
+  endfunction
+  function [31:0] jal(input integer delta);
+    reg [20:0] imm;
+    begin
+      imm = 21'(delta);
+      jal = {imm[20], imm[10:1], imm[11], imm[19:12], 5'd0, 7'h6f};
+    end
+  endfunction
+  function [15:0] cj(input integer delta);
+    reg [11:0] imm;
+    begin
+      imm = 12'(delta);
+      cj  = {3'b101, imm[11], imm[4], imm[9:8], imm[10], imm[6], imm[7], imm[3:1], imm[5], 2'b01};
+    end
+  endfunction
+  task put32(input integer r, input integer off, input [31:0] data);
+    integer k;
+    begin
+      for (k = 0; k < 4; k = k + 1) bytes[r*256+off+k] = data[k*8+:8];
+    end
+  endtask
+  function [63:0] memory(input [63:0] a);
+    integer k;
+    reg [63:0] data;
+    begin
+      for (k = 0; k < 8; k = k + 1) data[k*8+:8] = bytes[int'(a[27:25])*256+((int'(a[7:0])+k)%256)];
+      memory = data;
+    end
+  endfunction
+  task recover(input integer r, input integer off);
+    begin
+      @(negedge clk);
+      enable = 0;
+      redirect = 1;
+      take = 0;
+      region = r;
+      target = base(r) + 64'(off);
+      expected = target;
+      fault_seen = 0;
+      software_ras_count=0;
+      @(negedge clk);
+      redirect = 0;
+      repeat (45) @(negedge clk);
+      enable = 1;
+    end
+  endtask
+  task train;
+    begin
+      recover(0, 0);
+      start_count = delivered;
+      wait (delivered > start_count + 65);
+    end
+  endtask
+  always @(negedge clk) begin
+    random_q = {random_q[30:0], random_q[31] ^ random_q[21] ^ random_q[1] ^ random_q[0]};
+    cr = !active && random_q[0];
+    if (!bv || bt) begin
+      bv = 0;
+      if (active && (random_q[2] || random_q[4])) begin
+        bv = 1;
+        bd = memory(bus_addr + 64'(beat * 8));
+        bl = beat == 7;
+        bp = 0;
+      end
+    end
+    take = 0;
+    if (enable && !redirect && !local_redirect && !fault_seen && random_q[6]) begin
+      if (valid[0]) take = 1;
+      if (valid[1] && random_q[7]) take = 2;
+    end
+  end
+  always @(posedge clk)
+    if (!rst) begin
+      cycles += 1;
+      bt = bv && br;
+      if (cv && cr) begin
+        if (active || cl != 7 || cs != 3 || ca[5:0] != 0) $fatal(1, "bad I-cache burst");
+        active = 1;
+        bus_addr = ca;
+        beat = 0;
+        reads += 1;
+      end
+      if (bt) begin
+        if (bl) active = 0;
+        else beat += 1;
+      end
+      if (dut.planned_jump_w) fast += 1;
+      if (dut.plan_repair_w) repairs += 1;
+      if (dut.predicted_redirect_w) late += 1;
+      if (dut.u_stream.rsp_fire_w && dut.u_stream.stale_w) stale += 1;
+      if (!redirect && !local_redirect)
+        for (lane = 0; lane < int'(take); lane = lane + 1) begin
+          if (pc[lane*64+:64] !== expected)
+            $fatal(1, "stream PC region=%0d got=%h expected=%h", region, pc[lane*64+:64], expected);
+          value = memory(expected);
+          inst = value[31:0];
+          ci = value[15:0];
+          size = value[1:0] != 3 ? 2 :
+              ((inst[6:0] == 7'h5b && inst[14:12] == 3 && inst[31:27] == 0 && inst[25]) ? 8 : 4);
+          if (region == 5 && expected == base(5) + 12) begin
+            if (!fault[lane] || cause[lane*5+:5] != 1 || tval[lane*64+:64] != base(5) + 14)
+              $fatal(1, "early plan hid source fetch fault");
+            fault_seen = 1;
+          end else begin
+            if (fault[lane]) $fatal(1, "unexpected fault");
+            if (length[lane*4+:4] != size || raw[lane*64+:64] !==
+                (size == 2 ? {48'd0, value[15:0]} : (size == 4 ? {32'd0, value[31:0]} : value)))
+              $fatal(
+                  1,
+                  "instruction spliced across predicted target region=%0d pc=%h",
+                  region,
+                  expected
+              );
+          end
+          next_expected = expected + 64'(size);
+          if (!fault[lane] && size == 4 && inst[6:0] == 7'h6f)
+            next_expected = expected +
+                {{43{inst[31]}}, inst[31], inst[19:12], inst[20], inst[30:21], 1'b0};
+          if (!fault[lane] && size == 2 && ci[15:13] == 5 && ci[1:0] == 1)
+            next_expected = expected +
+                {{52{ci[12]}}, ci[12], ci[8], ci[10:9], ci[6], ci[7], ci[2], ci[11], ci[5:3], 1'b0};
+          if(!fault[lane]&&size==4&&inst[6:0]==7'h6f&&inst[11:7]==1)begin
+            if(software_ras_count>=8)$fatal(1,"fixture software RAS overflow");
+            software_return[software_ras_count]=expected+4;software_ras_count+=1;
+          end
+          if(!fault[lane]&&size==4&&inst==32'h00008067&&software_ras_count>0)begin
+            software_ras_count-=1;next_expected=software_return[software_ras_count];
+          end
+          if (npc[lane*64+:64] !== next_expected) $fatal(1, "prediction mismatch pc=%h", expected);
+          expected = next_expected;
+          delivered += 1;
+          if (size == 8) tensors += 1;
+        end
+      if (pv || cycles > 20000) $fatal(1, "test failed to progress");
+    end
+  initial begin
+    for (i = 0; i < 8; i = i + 1) for (j = 0; j < 256; j = j + 4) put32(i, j, 32'h00108093);
+    put32(0, 12, jal(-12));
+    put32(1,0,jal(12)|32'h80); // call + wrong-path return in same prediction pair
+    put32(1,4,32'h00008067);
+    put32(1,12,jal(20)|32'h80); // nested call; confirmed RAS selects PC16 on return
+    put32(1,28,jal(12));
+    put32(1,32,32'h00008067);
+    put32(2, 12, 32'h00000463);  // forward conditional defaults not taken
+    put32(3, 12, 32'h0220305b);
+    put32(3, 16, 32'h0bf0305b);
+    put32(4, 8, 32'h0220305b);
+    put32(4, 12, 32'h0bf0305b);
+    put32(5, 12, jal(-12));
+    for (j = 0; j < 14; j = j + 2) begin
+      bytes[6*256+j]   = 1;
+      bytes[6*256+j+1] = 0;
+    end
+    put32(6, 14, jal(-14));
+    for (j = 0; j < 16; j = j + 2) begin
+      bytes[7*256+j]   = 1;
+      bytes[7*256+j+1] = 0;
+    end
+    {bytes[7*256+15], bytes[7*256+14]} = cj(-12);
+    repeat (4) @(negedge clk);
+    rst = 0;
+    train();
+    // Invalidate on an actual result acceptance while executing the rd=x0
+    // loop. Predictor invalidation wins the RAS update, but the accepted
+    // result retains the already captured old-Q lookup snapshot.
+    @(negedge clk);
+    while(!dut.result_capture_w)@(negedge clk);
+    invalidate=1;
+    @(negedge clk);invalidate=0;
+    for (n = 1; n <= 4; n = n + 1) begin
+      if (n != 1) train();
+      recover(n, 0);
+      wait (expected >= base(n) + 64);
+    end
+    train();
+    recover(5, 0);
+    wait (fault_seen);
+    start_fast = fast;
+    recover(6, 0);
+    start_count = delivered;
+    wait (delivered >= start_count + 60);
+    if (fast != start_fast) $fatal(1, "cross-sector branch incorrectly entered early table");
+    recover(7, 2);
+    start_count = delivered;
+    wait (delivered >= start_count + 100);
+    if (tensors != 2 || !stale || (EARLY_PREDICT != 0 && (fast < 15 || repairs < 5)))
+      $fatal(
+          1,
+          "early-path coverage gap fast=%0d repair=%0d tensors=%0d stale=%0d",
+          fast,
+          repairs,
+          tensors,
+          stale
+      );
+    @(negedge clk);
+    enable = 0;
+    $display("[PASS] tb_r64_direction_frontend_snapshot bundle=%0d token=%0d training=%0d",BUNDLE_EMPTY_FLOW,TOKEN_EMPTY_FLOW,TRAIN);
+    $display(
+        "early=%0d cycles=%0d instructions=%0d fast_cuts=%0d repairs=%0d late_redirects=%0d stale_returns=%0d real_refills=%0d",
+        EARLY_PREDICT, cycles, delivered, fast, repairs, late, stale, reads);
+    $finish;
+  end
+
+  // The transaction ledger starts at actual Align acceptance and follows each
+  // complete pair through preparation/result. It handles same-edge append/read
+  // explicitly; it never guesses ownership from a combinational valid level.
+  integer bw=0,brd=0,tw=0,trd=0,fc=0,checks=0,epoch_first=-1;
+  integer bundle_direct=0,token_direct=0,blocked_bundle=0,blocked_token=0;
+  integer bundle_old=0,token_old=0,latencies=0,concurrent_train=0,held_training=0;
+  integer bad0=0,bad1=0,ras_pairs=0,ras_results=0,recovery_owned=0,full_pop=0,invalidate_capture=0;
+  reg [201:0] b0[0:8191],b1[0:8191];
+  reg [471:0] t0[0:8191],t1[0:8191];
+  reg [1:0] bvalid[0:8191],bat[0:8191],bbad[0:8191];
+  reg [63:0] btarget[0:8191],bsource[0:8191],ttarget[0:8191],tsource[0:8191];
+  reg [1:0] tvld[0:8191],tat[0:8191],tbad[0:8191];
+  integer born[0:8191],token_born[0:8191];
+  reg [63:0] ref_valid=0;reg[15:0] ref_tag[0:63];reg[62:0] ref_target[0:63];
+  reg [255:0] ref_dvalid=0;reg[1:0] ref_direction[0:255];
+  reg [2:0] expected_ras_pointer;
+  reg [3:0] expected_ras_count;
+  reg [63:0] lookup_pc;integer ti,di;
+  task demand(input yes,input [511:0] why);
+    begin checks+=1;if(yes!==1'b1)$fatal(1,"%0s",why);end
+  endtask
+  always @(negedge clk)begin
+    #1;
+    training=TRAIN&&!rst&&!redirect&&!local_redirect&&
+      dut.prep_in_align_raw_w[6:0]==7'h13;
+    training_pc=dut.prep_in_align_pc_w[63:0];
+    training_target=64'h90000000+64'(cycles*2);
+  end
+  always @(posedge clk) begin
+    fc+=1;
+    if(rst)begin ref_valid=0;ref_dvalid=0;end
+    // Prediction input lookup is an old-Q observation, independent of all
+    // candidate pipeline configurations and of this edge's table update.
+    if(!rst&&!dut.stream_redirect_w)begin
+      if(dut.capture_w)begin
+        if(epoch_first<0)epoch_first=fc;
+        b0[bw]={dut.raw_align_tval_w[63:0],dut.raw_align_cause_w[4:0],
+          dut.raw_align_fault_w[0],dut.raw_align_length_w[3:0],dut.raw_align_raw_w[63:0],dut.raw_align_pc_w[63:0]};
+        b1[bw]={dut.raw_align_tval_w[127:64],dut.raw_align_cause_w[9:5],
+          dut.raw_align_fault_w[1],dut.raw_align_length_w[7:4],dut.raw_align_raw_w[127:64],dut.raw_align_pc_w[127:64]};
+        bvalid[bw]={dut.capture_second_w,1'b1};
+        bat[bw]=dut.raw_plan_at_w&bvalid[bw];bbad[bw]=dut.raw_plan_bad_w&bvalid[bw];
+        btarget[bw]=dut.raw_plan_target_w;bsource[bw]=dut.raw_plan_source_w;born[bw]=fc;bw+=1;
+        if(dut.raw_plan_bad_w[0])bad0+=1;
+        if(dut.capture_second_w&&dut.raw_plan_bad_w[1])bad1+=1;
+        if(dut.bundle_count_q==0&&dut.token_count_q==2)blocked_bundle+=1;
+      end
+      if(dut.token_capture_w)begin
+        demand(brd<bw,"token captured an absent Align owner");
+        demand(dut.prep_inst_w[0]===b0[brd]&&dut.prep_inst_w[1]===b1[brd]&&
+          dut.prep_in_align_v_w===bvalid[brd]&&dut.prep_in_plan_at_w===bat[brd]&&
+          dut.prep_in_plan_bad_w===bbad[brd]&&dut.prep_in_plan_target_w===btarget[brd]&&
+          dut.prep_in_plan_source_w===bsource[brd],"prep selected wrong or changed Align owner");
+        for(integer l=0;l<2;l=l+1)begin
+          lookup_pc=dut.prep_in_align_pc_w[l*64+:64];ti=int'(lookup_pc[6:1]);di=int'(lookup_pc[8:1]);
+          demand(dut.lookup_target_hit_w[l]===(ref_valid[ti]&&ref_tag[ti]==lookup_pc[22:7]),
+            "target snapshot ignored old-Q training generation");
+          if(dut.lookup_target_hit_w[l])demand(dut.lookup_target_w[l*63+:63]===ref_target[ti],
+            "target snapshot used current-edge training data");
+          demand(dut.lookup_direction_valid_w[l]===ref_dvalid[di],"direction validity generation");
+          if(ref_dvalid[di])demand(dut.lookup_direction_w[l]===ref_direction[di][1],"direction old-Q counter");
+          if(training&&training_pc[6:1]==lookup_pc[6:1])concurrent_train+=1;
+        end
+        t0[tw]=dut.token_input_inst_w[0];t1[tw]=dut.token_input_inst_w[1];
+        tvld[tw]=bvalid[brd];tat[tw]=bat[brd];tbad[tw]=bbad[brd];
+        ttarget[tw]=btarget[brd];tsource[tw]=bsource[brd];token_born[tw]=born[brd];
+        tw+=1;brd+=1;
+        if(dut.bundle_count_q!=0)bundle_old+=1;
+        if(dut.token_count_q==0&&dut.result_count_q==2)blocked_token+=1;
+      end
+      if(dut.result_capture_w)begin
+        if(invalidate)invalidate_capture+=1;
+        demand(trd<tw,"result captured absent preparation owner");
+        demand(dut.prediction_inst_w[0]===t0[trd]&&dut.prediction_inst_w[1]===t1[trd]&&
+          dut.prediction_align_v_w===tvld[trd]&&dut.prediction_plan_at_w===tat[trd]&&
+          dut.prediction_plan_bad_w===tbad[trd]&&dut.prediction_plan_target_w===ttarget[trd]&&
+          dut.prediction_plan_source_w===tsource[trd],"held token changed snapshot or lost owner");
+        if(token_born[trd]==epoch_first)begin
+          demand(fc-token_born[trd]==2-BUNDLE_EMPTY_FLOW-TOKEN_EMPTY_FLOW,"empty owner-flow latency");
+          latencies+=1;
+          if(latencies<=4)$display("FRONTEND_FLOW_LATENCY bundle=%0d token=%0d training=%0d edges=%0d",
+            BUNDLE_EMPTY_FLOW,TOKEN_EMPTY_FLOW,TRAIN,fc-token_born[trd]);
+        end
+        trd+=1;ras_results+=1;
+        if(dut.token_count_q!=0)token_old+=1;
+        if(dut.u_predictor.g_lookup[1].pair_forward_w)ras_pairs+=1;
+      end
+      demand((dut.prediction_take_w!=0)==dut.result_capture_w,"RAS advanced without unique result acceptance");
+      if(dut.bundle_direct_w)bundle_direct+=1;
+      if(dut.token_direct_w)token_direct+=1;
+      if(dut.token_count_q!=0&&training&&!dut.result_capture_w)held_training+=1;
+      if((dut.token_count_q==2&&dut.token_pop_w)||(dut.bundle_count_q==2&&dut.bundle_pop_w))full_pop+=1;
+    end
+    // Predict the RAS state transition from its actual result acceptance,
+    // confirm/rollback and invalidate events, then compare after the edge.
+    expected_ras_pointer=dut.u_predictor.ras_pointer_q;expected_ras_count=dut.u_predictor.ras_count_q;
+    if(rst||invalidate||dut.redirect_i)begin expected_ras_pointer=0;expected_ras_count=0;end
+    else if(dut.pending_redirect_w)begin
+      expected_ras_pointer=dut.u_predictor.confirmed_pointer_q;expected_ras_count=dut.u_predictor.confirmed_count_q;
+    end else if(dut.result_capture_w)begin
+      expected_ras_pointer=dut.prediction_post_pointer_w[(dut.prediction_take_w==2?3:0)+:3];
+      expected_ras_count=dut.prediction_post_count_w[(dut.prediction_take_w==2?4:0)+:4];
+    end
+    if(rst||dut.stream_redirect_w)begin
+      if(!rst&&(bw!=brd||tw!=trd))recovery_owned+=1;
+      bw=0;brd=0;tw=0;trd=0;epoch_first=-1;
+    end
+    if(rst||invalidate)begin ref_valid=0;ref_dvalid=0;end
+    else if(training)begin
+      ti=int'(training_pc[6:1]);di=int'(training_pc[8:1]);
+      ref_valid[ti]=1;ref_tag[ti]=training_pc[22:7];ref_target[ti]=training_target[63:1];
+      if(!ref_dvalid[di])ref_direction[di]=1;
+      else if(ref_direction[di]!=0)ref_direction[di]-=1;
+      ref_dvalid[di]=1;
+    end
+    #1;
+    if(!rst)demand(dut.u_predictor.ras_pointer_q===expected_ras_pointer&&
+                  dut.u_predictor.ras_count_q===expected_ras_count,"RAS state advanced twice or lost accepted pair");
+  end
+  final begin
+    if(latencies<5||bad0==0||bad1==0||full_pop==0||ras_pairs==0||recovery_owned==0)
+      $fatal(1,"flow coverage gaps lat=%0d bad=%0d/%0d full=%0d ras_pair=%0d recover=%0d",
+        latencies,bad0,bad1,full_pop,ras_pairs,recovery_owned);
+    if(invalidate_capture==0)$fatal(1,"invalidate/result acceptance overlap absent");
+    if(BUNDLE_EMPTY_FLOW&&blocked_bundle==0)$fatal(1,"empty bundle/token-full fallback absent");
+    if(TOKEN_EMPTY_FLOW&&blocked_token==0)$fatal(1,"empty token/result-full snapshot fallback absent");
+    if(bundle_old==0||token_old==0)$fatal(1,"old owner priority coverage absent");
+    if(BUNDLE_EMPTY_FLOW&&bundle_direct==0)$fatal(1,"bundle direct coverage absent");
+    if(TOKEN_EMPTY_FLOW&&token_direct==0)$fatal(1,"token direct coverage absent");
+    if(TRAIN&&(concurrent_train==0||held_training==0))$fatal(1,"training snapshot coverage absent");
+    $display("FRONTEND_OWNER_FLOW checks=%0d latency_cases=%0d bundle_direct=%0d token_direct=%0d old=%0d/%0d blocked=%0d/%0d bad=%0d/%0d ras_pair=%0d result_accept=%0d concurrent_train=%0d held_train=%0d invalidate_capture=%0d",
+      checks,latencies,bundle_direct,token_direct,bundle_old,token_old,blocked_bundle,blocked_token,bad0,bad1,ras_pairs,ras_results,concurrent_train,held_training,invalidate_capture);
+  end
+endmodule

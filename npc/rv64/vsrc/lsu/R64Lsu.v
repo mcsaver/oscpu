@@ -1,17 +1,24 @@
-`include "R64Uop.vh"
+`include "R64Protocol.vh"
 // Eighteen tagged memory owners cover the registered cache hit pipeline. Admission follows backend memory age order;
 // address/permission preparation is speculative, physical side effects are not.
 // Translation and physical request holders retain cancelled owners until their
 // corresponding ordered/tagged response drains, preventing finite ROB-tag ABA.
 module R64Lsu #(
   parameter EARLY_STORE = 1,
+  parameter EARLY_PHYSICAL_VALUE = 1,
+  parameter BIND_TRANSLATION_BYPASS = 1,
+  parameter BIND_TRANSLATION_EMPTY_FLOW = 0,
+  parameter BIND_STORE_TRANSLATION = 0,
+  parameter TRANSLATION_QUERY_BYPASS = 1,
+  parameter RESPONSE_DESCRIPTOR_BYPASS = 0,
+  parameter STORE_RESPONSE_ELASTIC = 1,
   parameter HEAD_AUTHORIZED_QUERY = 0,
   parameter PREPARED_CANCEL = 0,
-  parameter RESPONSE_BYPASS = 1,
   parameter ENTRIES = 18,
   parameter INDEX_W = 5,
   parameter TAG_W = 9,
-  parameter ROB_W = 5
+  parameter ROB_W = 5,
+  parameter RESPONSE_FORWARD_QUERY = 0
 ) (
   input                        clk_i,
   input                        rst_i,
@@ -36,10 +43,22 @@ module R64Lsu #(
   input  [        INDEX_W-1:0] mem_store_rsp_token_i,
   input                        mem_store_rsp_error_i,
   output [                1:0] mem_fast_store_o,
+  // Optional preparation is not a request and carries no side-effect permit.
+  // The physical endpoint treats {full tag, slot} only as an opaque identity.
+  output                       mem_prepare_valid_o,
+  output [  TAG_W+INDEX_W-1:0] mem_prepare_id_o,
+  output [        INDEX_W-1:0] mem_prepare_token_o,
+  output [               63:0] mem_prepare_addr_o, mem_prepare_data_o,
+  output [                2:0] mem_prepare_size_o,
+  output [                7:0] mem_prepare_strb_o,
+  output [                4:0] mem_prepare_amo_o,
+  output [  TAG_W+INDEX_W-1:0] mem_identity_o,
   input  [                1:0] commit_fire_i,
   input  [        2*TAG_W-1:0] commit_tag_i,
   input  [                1:0] reserve_want_i, reserve_fire_i,
   output [                1:0] reserve_ready_o,
+  output [                1:0] reserve_credit_o,
+  output [      2*INDEX_W-1:0] reserve_offer_o,
   output [      2*INDEX_W-1:0] reserve_slot_o,
   input  [        2*TAG_W-1:0] reserve_tag_i,
   input  [               15:0] reserve_func_i,
@@ -48,31 +67,35 @@ module R64Lsu #(
   output [                1:0] in_ready_o,
   input  [      2*INDEX_W-1:0] in_slot_i,
   input  [        2*TAG_W-1:0] in_tag_i,
-  input  [   2*`R64_UOP_W-1:0] in_uop_i,
-  input  [              383:0] in_operand_i,
+  input  [2*`R64_MEM_CMD_W-1:0] in_command_i,
   output [                1:0] out_valid_o,
   output [                1:0] out_request_o,
   input  [                1:0] out_ready_i,
   output [        2*TAG_W-1:0] out_tag_o,
   output [2*`R64_RESULT_W-1:0] out_result_o,
+  // Successful final memory result notice; repeated observation is allowed.
+  // This is not completion acceptance and carries no ownership or ready/ack.
+  output [                1:0] resolved_value_valid_o,
+  output [        2*TAG_W-1:0] resolved_value_tag_o,
+  output [              127:0] resolved_value_data_o,
   output [     (1<<ROB_W)-1:0] reuse_block_o,
   output                       irrevocable_o,
   output                       idle_o,
   output                       drain_idle_o,
   output [                1:0] tr_valid_o,
   input  [                1:0] tr_ready_i,
+  output [      2*INDEX_W-1:0] tr_token_o,
   output [              127:0] tr_vaddr_o,
   output [                3:0] tr_access_o,
   output [                1:0] tr_ad_update_o,
   input  [                1:0] tr_rsp_valid_i,
   output [                1:0] tr_rsp_ready_o,
+  input  [      2*INDEX_W-1:0] tr_rsp_token_i,
   input  [              127:0] tr_paddr_i,
   input  [                3:0] tr_class_i,
   input  [                1:0] tr_fault_i, tr_needs_ad_i,
   input  [                9:0] tr_cause_i,
   output [                7:0] tr_request_protection_o,
-  output [                5:0] tr_owner_access_o,
-  output [                9:0] tr_owner_size_o,
   output [                1:0] mem_valid_o,
   input  [                1:0] mem_ready_i,
   output [      2*INDEX_W-1:0] mem_token_o,
@@ -91,7 +114,7 @@ module R64Lsu #(
 );
   localparam FREE = 0,
       NEW = 1, TRANSLATING = 2, READY = 3, MEMORY = 4, DONE = 5, PINNED = 6, RETIRE = 7;
-  localparam U = `R64_UOP_W, R = `R64_RESULT_W;
+  localparam C = `R64_MEM_CMD_W, R = `R64_RESULT_W;
   // Descriptor offsets from LSB: slot, PA(DP), store data(DD), func(DF),
   // byte mask(DM), AMO(DA), memory class(DC), misaligned(DI).
   localparam DESC_W = INDEX_W + 152, DP = INDEX_W, DD = INDEX_W + 64, DF = INDEX_W + 128,
@@ -111,6 +134,9 @@ module R64Lsu #(
   wire [ENTRIES-1:0] reserve_mask_w[0:1], bind_mask_w[0:1];
   wire [1:0] reserve_take_w, bind_take_w;
   wire [INDEX_W-1:0] bind_slot_w[0:1];
+  // Ranked free-resource advertisement is independent of requester demand.
+  assign reserve_credit_o = allocation_valid_w;
+  assign reserve_offer_o = allocation_slots_w;
   assign reserve_ready_o[0] = !reserve_want_i[0] || allocation_valid_w[0];
   assign reserve_ready_o[1] = !reserve_want_i[1] ||
       (reserve_want_i[0] ? allocation_valid_w[1] : allocation_valid_w[0]);
@@ -139,6 +165,11 @@ module R64Lsu #(
   wire [ENTRIES*ENTRIES-1:0] older_relations_w, younger_relations_w;
 `ifdef R64_ASSERT
   wire [ROB_W-1:0] age_w[0:ENTRIES-1];
+  wire [ENTRIES-1:0] retiring_store_age_w, retiring_memory_age_w;
+  reg [ENTRIES-1:0] retiring_memory_age_q;
+  always @(posedge clk_i)
+    if (rst_i) retiring_memory_age_q <= 0;
+    else retiring_memory_age_q <= retiring_memory_age_w;
 `endif
   wire [ENTRIES-1:0] store_w, atomic_w, head_w, side_effect_w;
   genvar g, z, other;
@@ -155,6 +186,22 @@ module R64Lsu #(
       assign killed_w[g] = flush_i || kill_mask_i[tag_q[g][ROB_W-1:0]];
 `ifdef R64_ASSERT
       assign age_w[g] = tag_q[g][ROB_W-1:0] - head_tag_i[ROB_W-1:0];
+      // Control may already lease the next ROB head while an older store or
+      // non-atomic MMIO load consumes its registered local retirement here.
+      // Its successful physical terminal has drained, and this exact full-tag
+      // commit clears its remaining effect/live ownership on this edge. Only
+      // that retiring owner lies outside the ROB-live modular-age reference.
+      assign retiring_memory_age_w[g] = live_entry_w[g] && state_q[g] == RETIRE &&
+          (store_w[g] || class_q[g] == 2) && !atomic_w[g] &&
+          effect_q[g] && !mem_issued_q[g] && !tr_issued_q[g] &&
+          ((commit_fire_i[0] && commit_tag_i[0+:TAG_W] == tag_q[g]) ||
+           (commit_fire_i[1] && commit_tag_i[TAG_W+:TAG_W] == tag_q[g]));
+      // Preserve the store-only observation used by the existing N1 checks.
+      assign retiring_store_age_w[g] = retiring_memory_age_w[g] && store_w[g];
+      always @(posedge clk_i)
+        if (!rst_i && retiring_memory_age_q[g] &&
+            (alive_q[g] || effect_q[g] || live_entry_w[g]))
+          $fatal(1, "R64Lsu retired memory retained effect or live age relations");
 `endif
       assign atomic_w[g] = func_q[g][7];
       assign store_w[g] = atomic_w[g] ? (amo_q[g] != 2) : func_q[g][5];
@@ -275,8 +322,8 @@ module R64Lsu #(
 
   wire prepared_offer_w = prepared_valid_q && prepared_payload_valid_q && !prepared_killed_w &&
       head_valid_i && prepared_tag_q == head_tag_i && effect_allow_i;
-  wire [1:0] descriptor_credit_w, descriptor_valid_w, descriptor_pop_w, descriptor_s_take_w,
-      descriptor_tr_take_w;
+  wire [1:0] descriptor_credit_w, descriptor_valid_w, descriptor_occupied_w, descriptor_pop_w, descriptor_s_take_w,
+      descriptor_tr_take_w, translation_descriptor_take_w;
   wire [ 2*TAG_W-1:0] descriptor_in_tag_w;
   wire [2*DESC_W-1:0] descriptor_in_data_w;
   localparam LOAD_DESC_W = DESC_W - 64;
@@ -300,8 +347,28 @@ module R64Lsu #(
   wire [1:0] probe_class_w[0:1];
   wire [1:0] probe_misaligned_w, probe_atomic_w, probe_store_w, probe_side_effect_w;
   wire [1:0] descriptor_queue_fire_w;
-  assign descriptor_queue_fire_w = descriptor_s_take_w;
-  wire prepared_take_w = prepared_offer_w && query_credit_w[0] && !rst_i && !flush_i;
+  assign descriptor_queue_fire_w = descriptor_s_take_w | translation_descriptor_take_w;
+  wire prepared_cached_store_w = EARLY_STORE && prepared_payload_q[DF+5] &&
+      !prepared_payload_q[DF+7] && !prepared_payload_q[DI] &&
+      prepared_payload_q[DC+:2] == 0;
+  // Only registered candidates select the wide payload. The head lease
+  // qualifies VALID, and does not select data or create speculative ownership.
+  wire prepared_direct_route_w = prepared_valid_q && prepared_payload_valid_q &&
+      prepared_cached_store_w && !physical_hold_valid_q[0] && !query_occupied_w[0];
+  wire prepared_query_take_w = prepared_offer_w && !prepared_cached_store_w &&
+      query_credit_w[0] && !rst_i && !flush_i;
+  wire prepared_direct_take_w = prepared_direct_route_w && mfire_w[0];
+  wire prepared_take_w = prepared_query_take_w || prepared_direct_take_w;
+  assign mem_prepare_valid_o = prepared_valid_q && prepared_payload_valid_q &&
+      prepared_cached_store_w && !prepared_killed_w && !rst_i;
+  assign mem_prepare_id_o = {prepared_tag_q, prepared_slot_q};
+  assign mem_prepare_token_o = prepared_slot_q;
+  assign mem_prepare_addr_o = prepared_payload_q[DP+:64];
+  assign mem_prepare_data_o = prepared_payload_q[DD+:64];
+  assign mem_prepare_size_o = {1'b0, prepared_payload_q[DF+:2]};
+  assign mem_prepare_strb_o = prepared_payload_q[DM+:8];
+  assign mem_prepare_amo_o = prepared_payload_q[DA+:5];
+  assign mem_identity_o = {physical_tag_w[0], physical_slot_w[0]};
   R64LsuRequestQueue #(
     .PREPARED_CANCEL(PREPARED_CANCEL),
     .DATA_W(LOAD_DESC_W),
@@ -309,7 +376,7 @@ module R64Lsu #(
     .ROB_W(ROB_W),
     .AGE_W(ENTRIES)
   ) request_queue (
-    .out_occupied_o(),
+    .out_occupied_o(descriptor_occupied_w),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .flush_i(flush_i),
@@ -331,61 +398,54 @@ module R64Lsu #(
     .reuse_block_o(descriptor_reuse_w),
     .idle_o(descriptor_idle_w)
   );
-  assign store_done_valid_o = store_done_q && !rst_i;
-  assign store_done_tag_o = store_tag_q;
-  assign store_done_error_o = store_error_q;
-  assign store_done_tval_o = store_tval_q;
+  // A real final B response can transfer directly to the ROB terminal.
+  // The LSQ owner still moves through RETIRE and local-retire release normally.
+  wire store_response_direct_w = STORE_RESPONSE_ELASTIC != 0 &&
+      store_response_fire_w && store_response_live_w;
+  assign store_done_valid_o = !rst_i && (store_done_q || store_response_direct_w);
+  assign store_done_tag_o = store_done_q ? store_tag_q : tag_q[mem_store_rsp_token_i];
+  assign store_done_error_o = store_done_q ? store_error_q : mem_store_rsp_error_i;
+  assign store_done_tval_o = store_done_q ? store_tval_q : va_q[mem_store_rsp_token_i];
   // A second head store cannot reach B while this head terminal is live.
   // Q-only credit avoids an unnecessary ROB-ready to external-B path.
   assign mem_store_rsp_ready_o = !store_done_q && !rst_i;
   wire store_response_fire_w = mem_store_rsp_valid_i && mem_store_rsp_ready_o;
   wire store_response_live_w = alive_q[mem_store_rsp_token_i] && !killed_w[mem_store_rsp_token_i];
   wire [INDEX_W-1:0] xslot_q[0:1];
+  wire [INDEX_W-1:0] translation_issue_slot_w[0:1];
+  wire [TAG_W-1:0] translation_issue_tag_w[0:1];
+  wire [1:0] translation_empty_owner_w, translation_flow_offer_w, translation_flow_fire_w;
   reg [INDEX_W-1:0] mslot_q[0:1];
   // Four immutable operation bits follow exactly the translation holder/FIFO
   // owner. Dynamic privilege, FS, trigger and A/D authorization are unchanged.
   wire [3:0] xprotection_q[0:1];
   wire [INDEX_W-1:0] response_slot_w[0:1];
-  wire [2*INDEX_W-1:0] translation_response_slot_w;
-  wire [7:0] translation_response_protection_w;
-  wire [1:0] translation_owner_credit_w;
   wire [1:0] xfire_w, mfire_w, xresponse_w;
-  R64LsuTranslationOwners #(
-    .INDEX_W(INDEX_W)
-  ) translation_owners (
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .in_fire_i(xfire_w),
-    .in_ready_o(translation_owner_credit_w),
-    .in_slot_i({xslot_q[1], xslot_q[0]}),
-    .in_protection_i({xprotection_q[1], xprotection_q[0]}),
-    .rsp_valid_i(tr_rsp_valid_i),
-    .rsp_ready_o(tr_rsp_ready_o),
-    .rsp_fire_o(xresponse_w),
-    .rsp_slot_o(translation_response_slot_w),
-    .rsp_protection_o(translation_response_protection_w)
-  );
+  wire [1:0] translation_direct_offer_w, translation_direct_take_w;
+  // Translation is a token-echo service. Each issued LSQ slot remains allocated
+  // until its terminal returns, including after cancellation; no lane FIFO or
+  // protection metadata crosses back into the requester.
+  assign tr_rsp_ready_o = {2{!rst_i}};
+  assign xresponse_w = tr_rsp_valid_i & tr_rsp_ready_o;
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_lane
       assign xkilled_w[g] = flush_i || kill_mask_i[xtag_q[g][ROB_W-1:0]];
       assign mkilled_w[g] = flush_i || kill_mask_i[mtag_q[g][ROB_W-1:0]];
-      assign tr_valid_o[g] = xvalid_q[g] && translation_owner_credit_w[g];
-      assign tr_vaddr_o[g*64+:64] = va_q[xslot_q[g]];
-      assign tr_request_protection_o[g*4+:4] = xprotection_q[g];
-      assign tr_access_o[g*2+:2] = xprotection_q[g][3] ? 2'd2 : 2'd1;
-      assign tr_ad_update_o[g] = xad_q[g];
+      assign tr_valid_o[g] = xvalid_q[g] | translation_flow_offer_w[g];
+      assign tr_access_o[g*2+:2] = tr_request_protection_o[g*4+3] ? 2'd2 : 2'd1;
       assign xfire_w[g] = tr_valid_o[g] && tr_ready_i[g];
-      assign response_slot_w[g] = translation_response_slot_w[g*INDEX_W+:INDEX_W];
-      assign tr_owner_size_o[g*5+:5] = 5'b00001 << translation_response_protection_w[g*4+:2];
-      assign tr_owner_access_o[g*3+:3] = {1'b0, translation_response_protection_w[g*4+2+:2]};
+      assign tr_token_o[g*INDEX_W+:INDEX_W] = translation_issue_slot_w[g];
+      assign response_slot_w[g] = tr_rsp_token_i[g*INDEX_W+:INDEX_W];
 `ifdef R64_ASSERT
       always @(posedge clk_i)
-        if (tr_rsp_ready_o[g]) begin
-          if (tr_owner_size_o[g*5+:5] !== (5'b00001 << func_q[response_slot_w[g]][1:0]) ||
-              tr_owner_access_o[g*3+:3] !==
-              {1'b0, store_w[response_slot_w[g]], atomic_w[response_slot_w[g]] ?
-               (amo_q[response_slot_w[g]] != 3) : !func_q[response_slot_w[g]][5]})
-            $fatal(1, "R64Lsu translation protection metadata changed owner");
+        if (!rst_i && tr_rsp_valid_i[g]) begin
+          if (response_slot_w[g] >= ENTRIES ||
+              !tr_issued_q[response_slot_w[g]] ||
+              state_q[response_slot_w[g]] != TRANSLATING)
+            $fatal(1, "R64Lsu translation response without token owner");
+          if (&tr_rsp_valid_i && tr_rsp_token_i[0+:INDEX_W] ==
+              tr_rsp_token_i[INDEX_W+:INDEX_W])
+            $fatal(1, "R64Lsu duplicate translation terminal token");
         end
 `endif
       assign probe_slot_w[g] = descriptor_data_w[g*DESC_W+:INDEX_W];
@@ -401,11 +461,17 @@ module R64Lsu #(
           probe_side_effect_w[g] = probe_store_w[g] || probe_atomic_w[g] || probe_class_w[g] == 2;
       assign physical_hold_killed_w[g] = flush_i || kill_mask_i[physical_hold_tag_q[g][ROB_W-1:0]];
       assign physical_desc_w[g] = physical_hold_valid_q[g] ? physical_hold_data_q[g] :
-          query_data_w[g*QUERY_W+QD+:DESC_W];
+          ((g == 0 && prepared_direct_route_w) ? prepared_payload_q :
+           (translation_direct_offer_w[g] ? query_fast_data_w[g*DESC_W+:DESC_W] :
+            query_data_w[g*QUERY_W+QD+:DESC_W]));
       assign physical_tag_w[g] = physical_hold_valid_q[g] ? physical_hold_tag_q[g] :
-          query_tag_w[g*TAG_W+:TAG_W];
+          ((g == 0 && prepared_direct_route_w) ? prepared_tag_q :
+           (translation_direct_offer_w[g] ? tag_q[response_slot_w[g]] :
+            query_tag_w[g*TAG_W+:TAG_W]));
       assign physical_offer_w[g] = physical_hold_valid_q[g] ?
-          !physical_hold_killed_w[g] : (query_valid_w[g] && !query_full_w[g]);
+          !physical_hold_killed_w[g] : ((g == 0 && prepared_direct_route_w) ?
+          prepared_offer_w : (translation_direct_offer_w[g] ||
+                              (query_valid_w[g] && !query_full_w[g])));
       always @(posedge clk_i) begin
         if (rst_i) physical_hold_valid_q[g] <= 0;
         else begin
@@ -430,10 +496,10 @@ module R64Lsu #(
           physical_func_w[g][5];
       assign physical_side_effect_w[g] = physical_store_w[g] || physical_atomic_w[g] ||
           physical_class_w[g] == 2;
-      // In the closed core a side effect enters this registered query only at
-      // the ROB head with effect permission. That head cannot finish or retire
-      // before this request is accepted and its response returns. The query owns
-      // this authorization; canonical kill/flush still removes the query itself.
+      // The registered query retains head authorization. A prepared ordinary
+      // store instead qualifies its physical offer with the current head lease.
+      // That head cannot finish before the accepted request returns. Canonical
+      // kill/flush removes unaccepted query or prepared ownership.
       // Standalone callers may revoke head permission, so the generic mode keeps
       // the original live qualification. No payload or handshake stage is added.
       assign mem_valid_o[g] = physical_offer_w[g] &&
@@ -705,11 +771,53 @@ module R64Lsu #(
   );
   // A selected translation owns one of two fixed ingress slots per lane.
   // Occupancy Q alone supplies scheduler credit; TLB/PMP ready cannot select
-  // a new holder. The original four-entry accepted FIFO starts only on xfire.
+  // a new holder. Accepted translation ownership belongs to the token service.
   localparam XREQUEST_W = INDEX_W + 5;
-  wire [1:0] translation_credit_w, translation_pop_w;
+  wire [1:0] translation_credit_w, translation_pop_w, translation_occupied_w;
   wire [2*TAG_W-1:0] translation_request_tag_w;
   wire [2*XREQUEST_W-1:0] translation_request_data_w, translation_request_input_w;
+  wire [2*TAG_W-1:0] translation_enqueue_tag_w;
+  wire [1:0] translation_enqueue_w;
+  // An authenticated aligned integer bind can reserve spare translation Q
+  // credit. Optional empty flow transfers exactly this same candidate; blocked
+  // requests capture the original narrow holder while the row captures its VA.
+  // Store hot admission grants only address translation, not a physical effect.
+  wire [1:0] hot_bind_eligible_w;
+  reg [1:0] hot_bind_queued_w, hot_queue_fire_w, hot_queue_bind_lane_w;
+  integer hot_queue_lane;
+  generate
+    for (genvar hot_bind_lane = 0; hot_bind_lane < 2; hot_bind_lane = hot_bind_lane + 1)
+    begin : gen_hot_bind
+      assign hot_bind_eligible_w[hot_bind_lane] = BIND_TRANSLATION_BYPASS != 0 && bind_take_w[hot_bind_lane] &&
+          !trigger_active_w && input_func_w[hot_bind_lane][7:6] == 2'b00 &&
+          (!input_func_w[hot_bind_lane][5] || BIND_STORE_TRANSLATION != 0) &&
+          !input_misaligned_w[hot_bind_lane];
+    end
+  endgenerate
+  // Existing NEW/head A-D requests keep their selected physical lane. Only
+  // remaining Q credits admit binds, ranked by the original reservation age.
+  // Operand arrival lane order is independent of program age.
+  wire hot_first_bind_w = hot_bind_eligible_w == 2'b11 &&
+      older_q[bind_slot_w[0]][bind_slot_w[1]];
+  always @* begin
+    hot_bind_queued_w = 0;
+    hot_queue_fire_w = 0;
+    hot_queue_bind_lane_w = 0;
+    for (hot_queue_lane = 0; hot_queue_lane < 2; hot_queue_lane = hot_queue_lane + 1) begin
+      if (translation_credit_w[hot_queue_lane] && !trans_select_valid_w[hot_queue_lane]) begin
+        if (hot_bind_eligible_w[hot_first_bind_w] && !hot_bind_queued_w[hot_first_bind_w]) begin
+          hot_queue_fire_w[hot_queue_lane] = 1;
+          hot_queue_bind_lane_w[hot_queue_lane] = hot_first_bind_w;
+          hot_bind_queued_w[hot_first_bind_w] = 1;
+        end else if (hot_bind_eligible_w[!hot_first_bind_w] && !hot_bind_queued_w[!hot_first_bind_w]) begin
+          hot_queue_fire_w[hot_queue_lane] = 1;
+          hot_queue_bind_lane_w[hot_queue_lane] = !hot_first_bind_w;
+          hot_bind_queued_w[!hot_first_bind_w] = 1;
+        end
+      end
+    end
+  end
+  assign translation_enqueue_w = (trans_select_valid_w | hot_queue_fire_w) & ~translation_flow_fire_w;
   wire [(1<<ROB_W)-1:0] translation_reuse_w;
   wire translation_idle_w;
   R64LsuRequestQueue #(
@@ -719,16 +827,16 @@ module R64Lsu #(
     .ROB_W(ROB_W),
     .AGE_W(1)
   ) translation_queue (
-    .out_occupied_o(),
+    .out_occupied_o(translation_occupied_w),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .flush_i(flush_i),
     .kill_mask_i(kill_mask_i),
     .cancel_candidates_i(cancel_candidates_i),
     .cancel_active_i(cancel_active_i),
-    .in_fire_i(trans_select_valid_w),
+    .in_fire_i(translation_enqueue_w),
     .in_ready_o(translation_credit_w),
-    .in_tag_i(selected_xtag_w),
+    .in_tag_i(translation_enqueue_tag_w),
     .in_data_i(translation_request_input_w),
     .in_age_i(2'b0),
     .age_clear_i(1'b0),
@@ -743,13 +851,47 @@ module R64Lsu #(
   );
   generate
     for (genvar xq = 0; xq < 2; xq = xq + 1) begin : gen_translation_request
-      assign translation_request_input_w[xq*XREQUEST_W+:XREQUEST_W] = {
-        selected_ad_allowed_w[xq], selected_protection_w[xq*4+:4], trans_slot_w[xq]
-      };
+      wire bind_lane_w = hot_queue_bind_lane_w[xq];
+      assign translation_enqueue_tag_w[xq*TAG_W+:TAG_W] = hot_queue_fire_w[xq] ?
+          in_tag_i[bind_lane_w*TAG_W+:TAG_W] : selected_xtag_w[xq*TAG_W+:TAG_W];
+      assign translation_request_input_w[xq*XREQUEST_W+:XREQUEST_W] = hot_queue_fire_w[xq] ?
+          {!input_func_w[bind_lane_w][5] ||
+               (head_w[bind_slot_w[bind_lane_w]] && effect_allow_i),
+           input_func_w[bind_lane_w][5], !input_func_w[bind_lane_w][5],
+           input_func_w[bind_lane_w][1:0], bind_slot_w[bind_lane_w]} :
+          {selected_ad_allowed_w[xq], selected_protection_w[xq*4+:4], trans_slot_w[xq]};
       assign {xad_q[xq], xprotection_q[xq], xslot_q[xq]} =
           translation_request_data_w[xq*XREQUEST_W+:XREQUEST_W];
       assign xtag_q[xq] = translation_request_tag_w[xq*TAG_W+:TAG_W];
-      assign translation_pop_w[xq] = tr_ready_i[xq] && translation_owner_credit_w[xq];
+      assign translation_pop_w[xq] = tr_ready_i[xq];
+      // Resident occupancy, including a currently killed holder, has absolute
+      // payload priority. READY never selects the owner or suppresses VALID.
+      assign translation_empty_owner_w[xq] =
+          BIND_TRANSLATION_EMPTY_FLOW != 0 && !translation_occupied_w[xq];
+      assign translation_flow_offer_w[xq] = translation_empty_owner_w[xq] &&
+          hot_queue_fire_w[xq];
+      assign translation_flow_fire_w[xq] = translation_flow_offer_w[xq] && tr_ready_i[xq];
+      assign translation_issue_slot_w[xq] = translation_empty_owner_w[xq] ?
+          bind_slot_w[bind_lane_w] : xslot_q[xq];
+      assign translation_issue_tag_w[xq] = translation_empty_owner_w[xq] ?
+          in_tag_i[bind_lane_w*TAG_W+:TAG_W] : xtag_q[xq];
+      assign tr_vaddr_o[xq*64+:64] = translation_empty_owner_w[xq] ?
+          input_address_w[bind_lane_w] : va_q[xslot_q[xq]];
+      assign tr_request_protection_o[xq*4+:4] = translation_empty_owner_w[xq] ?
+          translation_request_input_w[xq*XREQUEST_W+INDEX_W+:4] : xprotection_q[xq];
+      assign tr_ad_update_o[xq] = translation_empty_owner_w[xq] ?
+          translation_request_input_w[xq*XREQUEST_W+INDEX_W+4] : xad_q[xq];
+`ifdef R64_ASSERT
+      always @(posedge clk_i)
+        if (!rst_i && translation_flow_fire_w[xq] &&
+            (!bind_take_w[bind_lane_w] ||
+             translation_issue_slot_w[xq] >= ENTRIES ||
+             !alive_q[translation_issue_slot_w[xq]] ||
+             state_q[translation_issue_slot_w[xq]] != NEW ||
+             bound_q[translation_issue_slot_w[xq]] ||
+             tag_q[translation_issue_slot_w[xq]] != translation_issue_tag_w[xq]))
+          $fatal(1, "R64Lsu empty translation flow lost actual bind owner");
+`endif
     end
   endgenerate
   wire [1:0] trans_available_w, memory_available_w;
@@ -757,6 +899,11 @@ module R64Lsu #(
   // Decode that owner once, then qualify each row locally. The query queue
   // receives the reduction, while row state never re-decodes that shared event.
   wire [ENTRIES-1:0] translation_response_mask_w[0:1], translation_query_mask_w[0:1];
+  wire [ENTRIES-1:0] translation_descriptor_mask_w[0:1], translation_forward_mask_w[0:1];
+  wire [1:0] translation_forward_route_w, translation_forward_take_w;
+  wire [2*DESC_W-1:0] translation_forward_data_w;
+  wire [2*ENTRIES-1:0] translation_forward_pin_w, match_age_w;
+  wire [127:0] match_pa_w;
   generate
     for (q = 0; q < 2; q = q + 1) begin : gen_holder_credit
       assign trans_available_w[q] = translation_credit_w[q];
@@ -769,6 +916,27 @@ module R64Lsu #(
           !(|(descriptor_age_w[q*ENTRIES+:ENTRIES] & barrier_w));
       wire translation_query_allowed_w = !tr_fault_i[q] && !tr_needs_ad_i[q] && tr_class_i[q*2+:2]
           != 2 && !(q == 0 && prepared_offer_w) && !descriptor_valid_w[q] && query_credit_w[q];
+      // A response that cannot take the existing direct-query path may
+      // capture the original load descriptor. Resident mholder and selected
+      // READY owners retain priority; missing Q credit falls back to READY.
+      wire translation_descriptor_allowed_w = (RESPONSE_DESCRIPTOR_BYPASS != 0) &&
+          !descriptor_tr_take_w[q] && !translation_forward_take_w[q] &&
+          !mvalid_q[q] && !mem_select_valid_w[q] &&
+          descriptor_credit_w[q] && !tr_fault_i[q] && !tr_needs_ad_i[q] &&
+          tr_class_i[q*2+:2] != 2;
+      // Empty matcher ownership is a registered occupancy decision. A dead
+      // descriptor or prepared lane-0 owner retains its identity this edge.
+      assign translation_forward_route_w[q] = (RESPONSE_FORWARD_QUERY != 0) &&
+          !descriptor_occupied_w[q] && !(q == 0 && prepared_valid_q && prepared_payload_valid_q) &&
+          older_ordering_w[response_slot_w[q]];
+      // A failing source has no successful retirement/pin transition. Do not
+      // create a new delayed byte reference to it on its error-return edge.
+      // This changes publication only; matcher ownership remains Q-derived.
+      wire translation_failed_source_w = store_response_fire_w && mem_store_rsp_error_i &&
+          translation_forward_pin_w[q*ENTRIES+mem_store_rsp_token_i];
+      wire translation_forward_allowed_w = translation_forward_route_w[q] &&
+          !translation_failed_source_w && !descriptor_tr_take_w[q] && query_credit_w[q] &&
+          !tr_fault_i[q] && !tr_needs_ad_i[q] && tr_class_i[q*2+:2] < 2;
       // Only older ordering owners matter to this ordinary load. Known older
       // stores still require byte forwarding even after their barrier clears.
       // Keep this per-row reduction shared by both response lanes; LR is atomic
@@ -779,8 +947,17 @@ module R64Lsu #(
         assign translation_query_mask_w[q][z] = translation_response_mask_w[q][z] && alive_q[z] &&
             !killed_w[z] && !older_barrier_w[z] && !older_ordering_w[z] && !store_w[z] &&
             !atomic_w[z] && !misaligned_q[z] && translation_query_allowed_w;
+        assign translation_forward_mask_w[q][z] = translation_response_mask_w[q][z] &&
+            bound_q[z] && tr_issued_q[z] && state_q[z] == TRANSLATING && alive_q[z] &&
+            !killed_w[z] && !older_barrier_w[z] && func_q[z][7:5] == 0 &&
+            !misaligned_q[z] && translation_forward_allowed_w;
+        assign translation_descriptor_mask_w[q][z] = translation_response_mask_w[q][z] &&
+            alive_q[z] && !killed_w[z] && !older_barrier_w[z] && func_q[z][7:5] == 0 &&
+            !misaligned_q[z] && translation_descriptor_allowed_w;
       end
       assign descriptor_tr_take_w[q] = |translation_query_mask_w[q];
+      assign translation_descriptor_take_w[q] = |translation_descriptor_mask_w[q];
+      assign translation_forward_take_w[q] = |translation_forward_mask_w[q];
 `ifdef R64_ASSERT
       wire reference_translation_take_w = xresponse_w[q] && alive_q[response_slot_w[q]] &&
           !killed_w[response_slot_w[q]] && !tr_fault_i[q] && !tr_needs_ad_i[q] &&
@@ -956,7 +1133,9 @@ module R64Lsu #(
     end
     for (g = 0; g < 2; g = g + 1) begin : gen_descriptor_payload
       wire [ENTRIES-1:0] owner_w;
-      wire [87:0] payload_w;
+      wire [87:0] payload_w, descriptor_payload_w;
+      wire [ENTRIES-1:0] holder_age_w;
+      wire [INDEX_W-1:0] descriptor_slot_w;
       for (z = 0; z < ENTRIES; z = z + 1) begin : gen_owner
         localparam [INDEX_W-1:0] SLOT = z[INDEX_W-1:0];
         assign owner_w[z] = mslot_q[g] == SLOT;
@@ -975,22 +1154,44 @@ module R64Lsu #(
       ) read_age (
         .select_i(owner_w),
         .data_i  (descriptor_age_rows_w),
-        .data_o  (descriptor_in_age_w[g*ENTRIES+:ENTRIES])
+        .data_o  (holder_age_w)
       );
+      assign descriptor_payload_w = translation_descriptor_take_w[g] ?
+          {misaligned_q[response_slot_w[g]], tr_class_i[g*2+:2], amo_q[response_slot_w[g]],
+           mask_q[response_slot_w[g]], func_q[response_slot_w[g]], tr_paddr_i[g*64+:64]} :
+          payload_w;
+      assign descriptor_slot_w = translation_descriptor_take_w[g] ? response_slot_w[g] : mslot_q[g];
+      assign descriptor_in_age_w[g*ENTRIES+:ENTRIES] = translation_descriptor_take_w[g] ?
+          older_q[response_slot_w[g]] : holder_age_w;
       assign descriptor_in_data_w[g*DESC_W+:DESC_W] = {
-        payload_w[87:64], 64'b0, payload_w[63:0], mslot_q[g]
+        descriptor_payload_w[87:64], 64'b0, descriptor_payload_w[63:0], descriptor_slot_w
       };
-      assign load_descriptor_in_w[g*LOAD_DESC_W+:LOAD_DESC_W] = {payload_w, mslot_q[g]};
+      assign load_descriptor_in_w[g*LOAD_DESC_W+:LOAD_DESC_W] = {
+        descriptor_payload_w, descriptor_slot_w
+      };
       assign descriptor_data_w[g*DESC_W+:DESC_W] = {
         load_descriptor_out_w[g*LOAD_DESC_W+DD+:24], 64'b0, load_descriptor_out_w[g*LOAD_DESC_W+:DD]
       };
 `ifdef R64_ASSERT
       always @(posedge clk_i)
-        if (!rst_i && descriptor_queue_fire_w[g] &&
-            (side_effect_w[mslot_q[g]] || misaligned_q[mslot_q[g]]))
-          $fatal(1, "R64Lsu load-only descriptor received special owner");
+        if (!rst_i) begin
+          if (descriptor_s_take_w[g] &&
+              (side_effect_w[mslot_q[g]] || misaligned_q[mslot_q[g]]))
+            $fatal(1, "R64Lsu load-only descriptor received special owner");
+          if (translation_descriptor_take_w[g] &&
+              (!xresponse_w[g] || !tr_issued_q[response_slot_w[g]] ||
+               state_q[response_slot_w[g]] != TRANSLATING || !alive_q[response_slot_w[g]] ||
+               killed_w[response_slot_w[g]] || func_q[response_slot_w[g]][7:5] != 0 ||
+               misaligned_q[response_slot_w[g]] || older_barrier_w[response_slot_w[g]] ||
+               tr_fault_i[g] || tr_needs_ad_i[g] || tr_class_i[g*2+:2] == 2 ||
+               descriptor_tr_take_w[g] || mvalid_q[g] || mem_select_valid_w[g] ||
+               !descriptor_credit_w[g] || descriptor_in_tag_w[g*TAG_W+:TAG_W] !=
+                   tag_q[response_slot_w[g]] || descriptor_slot_w != response_slot_w[g]))
+            $fatal(1, "R64Lsu response descriptor lost ordinary translation owner");
+        end
 `endif
-      assign descriptor_in_tag_w[g*TAG_W+:TAG_W] = mtag_q[g];
+      assign descriptor_in_tag_w[g*TAG_W+:TAG_W] = translation_descriptor_take_w[g] ?
+          tag_q[response_slot_w[g]] : mtag_q[g];
     end
   endgenerate
   // Match/youngest selection and source-data read occupy different cycles.
@@ -1045,12 +1246,38 @@ module R64Lsu #(
       assign eligible_source_w[g] = state_q[g] != FREE && alive_q[g] && store_w[g] &&
           !atomic_w[g] && !misaligned_q[g] && state_q[g] != NEW && state_q[g] != TRANSLATING;
       assign source_pin_w[g] = query_held_pin_w[g] ||
+          (translation_forward_take_w[0] && translation_forward_pin_w[g]) ||
+          (translation_forward_take_w[1] && translation_forward_pin_w[ENTRIES+g]) ||
           (descriptor_valid_w[0] && !probe_side_effect_w[0] && !probe_misaligned_w[0] &&
            descriptor_age_w[g] && eligible_source_w[g]) ||
           (descriptor_valid_w[1] && !probe_side_effect_w[1] && !probe_misaligned_w[1] &&
            descriptor_age_w[ENTRIES+g] && eligible_source_w[g]);
     end
     for (g = 0; g < 2; g = g + 1) begin : gen_query_owner
+      // Share the original byte youngest network. Only Q occupancy selects
+      // its wide PA/age input; current response authorization never selects it.
+      assign match_age_w[g*ENTRIES+:ENTRIES] = (RESPONSE_FORWARD_QUERY != 0) &&
+          !descriptor_occupied_w[g] ? older_q[response_slot_w[g]] : descriptor_age_w[g*ENTRIES+:ENTRIES];
+      assign match_pa_w[g*64+:64] = (RESPONSE_FORWARD_QUERY != 0) &&
+          !descriptor_occupied_w[g] ? tr_paddr_i[g*64+:64] : probe_pa_w[g];
+      assign translation_forward_data_w[g*DESC_W+:DESC_W] =
+          {misaligned_q[response_slot_w[g]], tr_class_i[g*2+:2], amo_q[response_slot_w[g]],
+           mask_q[response_slot_w[g]], func_q[response_slot_w[g]], store_q[response_slot_w[g]],
+           tr_paddr_i[g*64+:64], response_slot_w[g]};
+      wire [QD-1:0] response_winners_w;
+      wire [ENTRIES-1:0] response_pair_w[0:3];
+      wire response_full_w = (selected_mask_w[g] & mask_q[response_slot_w[g]]) ==
+          mask_q[response_slot_w[g]];
+      for(z=0;z<8;z=z+1)begin:gen_response_winner
+        assign response_winners_w[z*ENTRIES+:ENTRIES] = selected_winner_w[(g*8+z)*ENTRIES+:ENTRIES] &
+            {ENTRIES{mask_q[response_slot_w[g]][z]}};
+      end
+      for(z=0;z<4;z=z+1)begin:gen_response_pin
+        assign response_pair_w[z] = response_winners_w[(2*z)*ENTRIES+:ENTRIES] |
+            response_winners_w[(2*z+1)*ENTRIES+:ENTRIES];
+      end
+      assign translation_forward_pin_w[g*ENTRIES+:ENTRIES] =
+          (response_pair_w[0] | response_pair_w[1]) | (response_pair_w[2] | response_pair_w[3]);
       assign query_needed_w[g] = !probe_side_effect_w[g] && !probe_misaligned_w[g] &&
           (|(descriptor_age_w[g*ENTRIES+:ENTRIES] & eligible_source_w));
       // Select the prepared/descriptor/translation payload independently of
@@ -1074,22 +1301,40 @@ module R64Lsu #(
       assign winner_pin_w = (winner_pair_w[0] | winner_pair_w[1]) |
           (winner_pair_w[2] | winner_pair_w[3]);
       assign
-          query_in_pin_w[g*ENTRIES+:ENTRIES] = query_raw_fast_w[g] ? {ENTRIES{1'b0}} : winner_pin_w;
+          query_in_pin_w[g*ENTRIES+:ENTRIES] = translation_forward_route_w[g] ?
+              translation_forward_pin_w[g*ENTRIES+:ENTRIES] :
+              (query_raw_fast_w[g] ? {ENTRIES{1'b0}} : winner_pin_w);
       // An ordering-free translation and the reserved head descriptor need no
       // store match. The head has ingress priority over ordinary descriptors;
       // Q-only credit guarantees no already-held output is ever replaced.
-      assign query_fast_w[g] = descriptor_tr_take_w[g] || (g == 0 && prepared_take_w);
+      assign query_fast_w[g] = descriptor_tr_take_w[g] || (g == 0 && prepared_query_take_w);
       assign query_from_descriptor_w[g] = descriptor_valid_w[g] && probe_allowed_w[g] &&
           query_credit_w[g] && !(g == 0 && prepared_offer_w);
-      assign query_fire_w[g] = query_fast_w[g] || query_from_descriptor_w[g];
-      assign query_in_tag_w[g*TAG_W+:TAG_W] = query_raw_fast_w[g] ?
+      // A successful ordering-free integer load may flow through an empty
+      // query lane. The old queue and physical holder retain their priority;
+      // even a prepared store awaiting its head lease owns the lane-0 route.
+      // VALID never depends on memory READY. Only real physical acceptance
+      // removes the queue capture; otherwise the exact descriptor is retained
+      // by the ordinary query queue for a stable retry on the next cycle.
+      assign translation_direct_offer_w[g] = (TRANSLATION_QUERY_BYPASS != 0) &&
+          descriptor_tr_take_w[g] && !func_q[response_slot_w[g]][6] &&
+          !query_occupied_w[g] && !physical_hold_valid_q[g] &&
+          !(g == 0 && prepared_direct_route_w);
+      assign translation_direct_take_w[g] = translation_direct_offer_w[g] && mfire_w[g];
+      assign query_fire_w[g] = (query_fast_w[g] || query_from_descriptor_w[g] ||
+          translation_forward_take_w[g]) &&
+          !translation_direct_take_w[g];
+      assign query_in_tag_w[g*TAG_W+:TAG_W] = translation_forward_route_w[g] ?
+          tag_q[response_slot_w[g]] : query_raw_fast_w[g] ?
           (g == 0 && prepared_offer_w ? prepared_tag_q : tag_q[response_slot_w[g]]) :
           descriptor_tag_w[g*TAG_W+:TAG_W];
       assign query_fast_data_w[g*DESC_W+:DESC_W] = (g == 0 && prepared_offer_w) ? prepared_payload_q
           : {misaligned_q[response_slot_w[g]], tr_class_i[g*2+:2], amo_q[response_slot_w[g]],
              mask_q[response_slot_w[g]], func_q[response_slot_w[g]], store_q[response_slot_w[g]],
              tr_paddr_i[g*64+:64], response_slot_w[g]};
-      assign query_in_data_w[g*QUERY_W+:QUERY_W] = query_raw_fast_w[g] ?
+      assign query_in_data_w[g*QUERY_W+:QUERY_W] = translation_forward_route_w[g] ?
+          {response_full_w, translation_forward_data_w[g*DESC_W+:DESC_W], response_winners_w} :
+          query_raw_fast_w[g] ?
           {1'b0, query_fast_data_w[g*DESC_W+:DESC_W], {8 * ENTRIES{1'b0}}} :
           {full_forward_w[g], descriptor_data_w[g*DESC_W+:DESC_W], used_winners_w};
 `ifdef R64_ASSERT
@@ -1123,13 +1368,64 @@ module R64Lsu #(
               query_data_w[g*QUERY_W+check_byte*ENTRIES+:ENTRIES];
         end
       end
+      reg [QD-1:0] response_reference_winners_w;
+      reg [ENTRIES-1:0] response_reference_pin_w;
+      reg response_reference_full_w;
+      integer response_byte, response_source, response_youngest;
+      always @* begin
+        response_reference_winners_w=0;
+        response_reference_pin_w=0;
+        response_reference_full_w=1;
+        response_youngest=-1;
+        for(response_byte=0;response_byte<8;response_byte=response_byte+1)
+          if(mask_q[response_slot_w[g]][response_byte])begin
+            response_youngest=-1;
+            for(response_source=0;response_source<ENTRIES;response_source=response_source+1)
+              if(state_q[response_source]!=FREE && alive_q[response_source] &&
+                 store_w[response_source] && !atomic_w[response_source] &&
+                 !misaligned_q[response_source] && state_q[response_source]!=NEW &&
+                 state_q[response_source]!=TRANSLATING &&
+                 older_q[response_slot_w[g]][response_source] &&
+                 pa_q[response_source][63:3]==tr_paddr_i[g*64+3+:61] &&
+                 mask_q[response_source][response_byte])
+                if(response_youngest<0 || older_q[response_source][response_youngest])
+                  response_youngest=response_source;
+            if(response_youngest<0)response_reference_full_w=0;
+            else begin
+              response_reference_winners_w[response_byte*ENTRIES+response_youngest]=1;
+              response_reference_pin_w[response_youngest]=1;
+            end
+          end
+      end
       always @(posedge clk_i)
         if (!rst_i) begin
-          if (query_fire_w[g] &&
+          if (query_fire_w[g] && !translation_forward_take_w[g] &&
               {query_in_tag_w[g*TAG_W+:TAG_W], query_in_data_w[g*QUERY_W+:QUERY_W], query_in_pin_w[
                g*ENTRIES+:ENTRIES]} !== {original_query_tag_w, original_query_data_w[QD+:DESC_W+1],
                                          reference_winners_w, reference_pin_w})
             $fatal(1, "R64Lsu raw query selection changed accepted owner payload");
+          if (translation_forward_take_w[g]) begin
+            if(!xresponse_w[g] || !tr_issued_q[response_slot_w[g]] ||
+               !bound_q[response_slot_w[g]] || state_q[response_slot_w[g]] != TRANSLATING ||
+               !alive_q[response_slot_w[g]] || killed_w[response_slot_w[g]] ||
+               func_q[response_slot_w[g]][7:5] != 0 || misaligned_q[response_slot_w[g]] ||
+               mask_q[response_slot_w[g]] == 0 ||
+               (store_response_fire_w && mem_store_rsp_error_i &&
+                response_reference_pin_w[mem_store_rsp_token_i]) ||
+               tr_fault_i[g] || tr_needs_ad_i[g] || tr_class_i[g*2+:2] >= 2 ||
+               older_barrier_w[response_slot_w[g]] || !older_ordering_w[response_slot_w[g]] ||
+               descriptor_occupied_w[g] || (g == 0 && prepared_valid_q && prepared_payload_valid_q) ||
+               !query_credit_w[g] || !query_fire_w[g] || descriptor_tr_take_w[g] ||
+               translation_descriptor_take_w[g] || translation_direct_take_w[g])
+              $fatal(1,"R64Lsu response forwarding lacks exclusive canonical translation owner");
+            if(query_in_tag_w[g*TAG_W+:TAG_W] !== tag_q[response_slot_w[g]] ||
+               query_in_data_w[g*QUERY_W+QD+:DESC_W] !== original_fast_data_w ||
+               query_in_data_w[g*QUERY_W+:QD] !== response_reference_winners_w ||
+               query_in_data_w[g*QUERY_W+QH] !== response_reference_full_w ||
+               query_in_pin_w[g*ENTRIES+:ENTRIES] !== response_reference_pin_w ||
+               (source_pin_w & response_reference_pin_w) !== response_reference_pin_w)
+              $fatal(1,"R64Lsu response forwarding changed byte youngest winner or source protection");
+          end
           if (query_valid_w[g] && query_front_pin_w[g*ENTRIES+:ENTRIES] !== held_winner_union_w)
             $fatal(1, "R64Lsu query pin differs from saved byte references");
           if (query_valid_w[g] && (held_winner_union_w & ~source_pin_w) != 0)
@@ -1198,11 +1494,16 @@ module R64Lsu #(
       integer ref_lane, ref_byte;
       always @(posedge clk_i) begin
         if (!rst_i) begin
-          for (ref_lane = 0; ref_lane < 2; ref_lane = ref_lane + 1)
-          if (query_take_w[ref_lane] && !query_full_w[ref_lane] &&
-              query_slot_w[ref_lane] == SLOT) begin
-            published_reference_q <= selected_forward_w[ref_lane];
-            published_mask_reference_q <= query_mask_w[ref_lane];
+          for (ref_lane = 0; ref_lane < 2; ref_lane = ref_lane + 1) begin
+            if (query_take_w[ref_lane] && !query_full_w[ref_lane] &&
+                query_slot_w[ref_lane] == SLOT) begin
+              published_reference_q <= selected_forward_w[ref_lane];
+              published_mask_reference_q <= query_mask_w[ref_lane];
+            end
+            // A new canonical owner initially owns no forwarded bytes. Direct
+            // prepared stores may issue without publishing a forwarding query.
+            if (reserve_mask_w[ref_lane][forward_row])
+              published_mask_reference_q <= 0;
           end
           if (prepare_w == 2'b11) $fatal(1, "LSU two query heads claim one forwarding row");
           if ((|prepare_w) && (mem_issued_q[forward_row] ||
@@ -1222,14 +1523,14 @@ module R64Lsu #(
 `endif
     end
   endgenerate
-  // The registered physical descriptor, not new arbitration, is the forwarding
-  // owner. Store commit means its successful B already updated coherent memory.
+  // The occupied descriptor, or an empty-lane translation candidate, selects
+  // the shared forwarding matcher. Store data is still read after query capture.
   generate
     for (bk = 0; bk < 2; bk = bk + 1) begin : gen_forward
       wire [ENTRIES-1:0] match_w;
       for (stidx = 0; stidx < ENTRIES; stidx = stidx + 1) begin : gen_match
-        assign match_w[stidx] = eligible_source_w[stidx] && descriptor_age_w[bk*ENTRIES+stidx] &&
-            pa_q[stidx][63:3] == probe_pa_w[bk][63:3];
+        assign match_w[stidx] = eligible_source_w[stidx] && match_age_w[bk*ENTRIES+stidx] &&
+            pa_q[stidx][63:3] == match_pa_w[bk*64+3+:61];
       end
       for (by = 0; by < 8; by = by + 1) begin : gen_byte
         wire [  ENTRIES-1:0] byte_valid_w;
@@ -1289,17 +1590,13 @@ module R64Lsu #(
   // Two lane slots per completion source, before cyclic priority is applied.
   localparam EV_RAW_BASE = 0, EV_FAULT_BASE = 2, EV_FORWARD_BASE = 4;
   wire [1:0] raw_credit_w, raw_valid_w, raw_fire_w, input_response_live_w;
-  wire [1:0] raw_occupied_w, raw_queue_fire_w;
-  wire [1:0] response_bypass_offer_w, response_bypass_fire_w;
-  wire [ENTRIES-1:0] response_bypass_eligible_w;
+  wire [1:0] raw_occupied_w, raw_queue_fire_w, dead_discard_w;
   wire [2*TAG_W-1:0] raw_event_tag_w;
   wire [2*RAW_W-1:0] raw_event_data_w;
   wire [2*TAG_W-1:0] raw_tag_w, raw_in_tag_w;
   wire [2*RAW_W-1:0] raw_data_w, raw_in_data_w;
   wire [(1<<ROB_W)-1:0] raw_reuse_w;
   wire raw_idle_w;
-  wire [1:0] unused_response_age_w;
-  wire unused_response_held_age_w;
   wire [INDEX_W-1:0] input_response_slot_w[0:1];
   wire [127:0] response_data_w, response_va_w;
   wire [5:0] response_load_offset_w;
@@ -1312,9 +1609,6 @@ module R64Lsu #(
   wire [5:0] response_offset_w;
   generate
     for (g = 0; g < ENTRIES; g = g + 1) begin : gen_response_metadata
-      // Class 0/1 are RAM. Side-effect alone does not exclude reserved class 3.
-      assign response_bypass_eligible_w[g] = !store_w[g] && !atomic_w[g] &&
-          !side_effect_w[g] && !misaligned_q[g] && class_q[g] < 2;
       assign response_meta_rows_w[g*META_W+:META_W] = {
         tag_q[g],
         atomic_w[g],
@@ -1329,50 +1623,36 @@ module R64Lsu #(
       };
     end
   endgenerate
-  R64LsuRequestQueue #(
-    .PREPARED_CANCEL(PREPARED_CANCEL),
-    .DATA_W(RAW_W),
-    .TAG_W(TAG_W),
-    .ROB_W(ROB_W)
+  R64LsuResponseIngress #(
+    .DATA_W(RAW_W), .TAG_W(TAG_W), .ROB_W(ROB_W)
   ) response_queue (
-    .out_occupied_o(raw_occupied_w),
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .flush_i(flush_i),
-    .kill_mask_i(kill_mask_i),
-    .cancel_candidates_i(cancel_candidates_i),
-    .cancel_active_i(cancel_active_i),
-    .in_age_i(2'b0),
-    .age_clear_i(1'b0),
-    .out_age_o(unused_response_age_w),
-    .held_age_o(unused_response_held_age_w),
-    .in_fire_i(raw_queue_fire_w),
-    .in_ready_o(raw_credit_w),
-    .in_tag_i(raw_in_tag_w),
-    .in_data_i(raw_in_data_w),
-    .out_valid_o(raw_valid_w),
+    .clk_i(clk_i), .rst_i(rst_i), .flush_i(flush_i), .kill_mask_i(kill_mask_i),
+    .in_valid_i(mem_rsp_valid_i), .in_ready_o(raw_credit_w),
+    .in_live_i(input_response_live_w),
+    .in_tag_i(raw_in_tag_w), .in_data_i(raw_in_data_w),
+    .out_occupied_o(raw_occupied_w), .out_valid_o(raw_valid_w),
     .out_ready_i(event_grant_w[EV_RAW_BASE+:2]),
-    .out_tag_o(raw_tag_w),
-    .out_data_o(raw_data_w),
-    .reuse_block_o(raw_reuse_w),
-    .idle_o(raw_idle_w)
+    .out_tag_o(raw_tag_w), .out_data_o(raw_data_w),
+    .reuse_block_o(raw_reuse_w), .idle_o(raw_idle_w)
   );
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_response_capture
       assign input_response_slot_w[g] = mem_rsp_token_i[g*INDEX_W+:INDEX_W];
       assign input_response_live_w[g] = alive_q[input_response_slot_w[g]] &&
           !killed_w[input_response_slot_w[g]];
-      // Only a registered-dead, issued, aligned ordinary RAM load may drain
-      // without raw storage. The slot remains owned until this response fires;
-      // current kill/flush does not feed this ready bypass.
+      // Registered-dead ordinary reads have no semantic packet to publish.
+      // Their narrow terminal can drain even with a full live ingress. Only Q
+      // owner disposition qualifies this sink; current kill/flush cannot.
       wire [ENTRIES-1:0] dead_load_match_w;
-      for (z = 0; z < ENTRIES; z = z + 1) begin : gen_dead_load
-        assign dead_load_match_w[z] = input_response_slot_w[g] == INDEX_W'(z) &&
-            state_q[z] == MEMORY && mem_issued_q[z] && !alive_q[z] && !store_w[z] && !atomic_w[z] &&
-            !misaligned_q[z] && class_q[z] < 2;
+      for(z=0;z<ENTRIES;z=z+1) begin:gen_dead_terminal
+        assign dead_load_match_w[z]=input_response_slot_w[g]==INDEX_W'(z) &&
+            state_q[z]==MEMORY && mem_issued_q[z] && !alive_q[z] &&
+            !store_w[z] && !atomic_w[z] && !misaligned_q[z] && class_q[z]<2;
       end
-      assign mem_rsp_ready_o[g] = !rst_i && (raw_credit_w[g] || (|dead_load_match_w));
-      assign raw_fire_w[g] = mem_rsp_valid_i[g] && mem_rsp_ready_o[g] && input_response_live_w[g];
+      assign dead_discard_w[g]=!raw_credit_w[g] && (|dead_load_match_w) && !rst_i;
+      assign mem_rsp_ready_o[g]=raw_credit_w[g] || dead_discard_w[g];
+      assign raw_fire_w[g]=mem_rsp_valid_i[g] && mem_rsp_ready_o[g];
+      assign raw_queue_fire_w[g]=mem_rsp_valid_i[g] && raw_credit_w[g];
       wire [ENTRIES-1:0] select_meta_w;
       for (z = 0; z < ENTRIES; z = z + 1) begin : gen_meta_decode
         localparam [INDEX_W-1:0] SLOT = z[INDEX_W-1:0];
@@ -1386,19 +1666,8 @@ module R64Lsu #(
         .data_i  (response_meta_rows_w),
         .data_o  (input_meta_w[g])
       );
-      // A live response already has raw Q credit. Only an actually empty
-      // registered lane may offer its incoming owner to the same raw source.
-      // Keep ready independent of CQ/WB and of current cancellation.
-      assign response_bypass_offer_w[g] = RESPONSE_BYPASS && raw_fire_w[g] &&
-          !raw_occupied_w[g] && !mem_rsp_error_i[g] &&
-          (|(select_meta_w & response_bypass_eligible_w));
-      assign response_bypass_fire_w[g] = response_bypass_offer_w[g] && event_grant_w[EV_RAW_BASE+g];
-      assign raw_queue_fire_w[g] = raw_fire_w[g] && !response_bypass_fire_w[g];
-      // Occupied Q owns the payload even when its VALID is killed this cycle.
-      assign raw_event_tag_w[g*TAG_W+:TAG_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
-          raw_tag_w[g*TAG_W+:TAG_W] : raw_in_tag_w[g*TAG_W+:TAG_W];
-      assign raw_event_data_w[g*RAW_W+:RAW_W] = (!RESPONSE_BYPASS || raw_occupied_w[g]) ?
-          raw_data_w[g*RAW_W+:RAW_W] : raw_in_data_w[g*RAW_W+:RAW_W];
+      assign raw_event_tag_w[g*TAG_W+:TAG_W] = raw_tag_w[g*TAG_W+:TAG_W];
+      assign raw_event_data_w[g*RAW_W+:RAW_W] = raw_data_w[g*RAW_W+:RAW_W];
       // Decode the selected canonical row once, in the same MSB-to-LSB
       // order as gen_response_metadata. These wires carry no new owner state.
       wire [TAG_W-1:0] meta_tag_w;
@@ -1415,6 +1684,20 @@ module R64Lsu #(
             mem_rsp_data_i[g*64+z*8+:8];
       end
       assign raw_in_tag_w[g*TAG_W+:TAG_W] = meta_tag_w;
+      assign early_value_valid_w[g] = raw_queue_fire_w[g] && input_response_live_w[g] &&
+          mem_issued_q[input_response_slot_w[g]] && state_q[input_response_slot_w[g]] == MEMORY &&
+          !meta_atomic_w && !meta_store_w && !meta_func_w[6] && !meta_misaligned_w &&
+          !unused_meta_side_effect_w && !mem_rsp_error_i[g];
+`ifdef R64_ASSERT
+      always @(posedge clk_i) if(!rst_i && early_value_valid_w[g]) begin
+        if(flush_i || killed_w[input_response_slot_w[g]] ||
+           !alive_q[input_response_slot_w[g]] || !raw_queue_fire_w[g] ||
+           !mem_rsp_valid_i[g] || !mem_rsp_ready_o[g] || mem_rsp_error_i[g])
+          $fatal(1,"R64Lsu early value lacks accepted successful live owner");
+      end
+`endif
+      assign early_value_data_w[g*64+:64] = load_value(merged_input_w,
+          {meta_func_w[7:6],meta_func_w[2:0]}, meta_amo_w, meta_va_w[2:0]);
       assign raw_in_data_w[g*RAW_W+:RAW_W] = {
         mem_rsp_offset_i[g*3+:3],
         mem_rsp_error_i[g],
@@ -1426,7 +1709,7 @@ module R64Lsu #(
         meta_store_w && !meta_atomic_w,
         merged_input_w
       };
-      // Held and bypassed responses share this exact raw packet layout.
+      // Only classified resident packets enter result formatting.
       assign {response_offset_w[g*3+:3], response_error_w[g], response_cause_w[g*6+:6],
               response_va_w[g*64+:64], response_func_w[g*5+:5], response_amo_w[g*5+:5],
               response_load_offset_w[g*3+:3], response_zero_w[g], response_data_w[g*64+:64]} =
@@ -1441,17 +1724,16 @@ module R64Lsu #(
   wire [127:0] input_store_pair_w[0:1];
   wire [5:0] input_rotate_start_w[0:1];
   wire [63:0] formatted_response_w[0:1];
-  wire unused_payload_w = |in_uop_i;
-  wire unused_third_operand_w = |{in_operand_i[383:320], in_operand_i[191:128]};
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_input
-      assign input_func_w[g] = in_uop_i[g*U+196+:8];
-      assign input_amo_w[g] = in_uop_i[g*U+128+27+:5];
+      wire [C-1:0] command_w = in_command_i[g*C+:C];
+      assign input_func_w[g] = command_w[`R64_MEM_FUNC];
+      assign input_amo_w[g] = command_w[`R64_MEM_AMO];
       assign input_misaligned_w[g] =
           |(input_address_w[g][2:0] & ((3'b1 << input_func_w[g][1:0]) - 1'b1));
       assign input_cross_page_w[g] = ({1'b0, input_address_w[g][11:0]} +
                                       (13'd1 << input_func_w[g][1:0])) > 13'd4096;
-      assign input_store_pair_w[g] = {in_operand_i[g*192+64+:64], in_operand_i[g*192+64+:64]};
+      assign input_store_pair_w[g] = {command_w[`R64_MEM_DATA], command_w[`R64_MEM_DATA]};
       assign input_rotate_start_w[g] = 6'b0 - {input_address_w[g][2:0], 3'b0};
       wire unused_address_carry_w;
       wire [63:0] address_sum_w;
@@ -1459,13 +1741,13 @@ module R64Lsu #(
         .WIDTH(64),
         .BLOCK(4)
       ) address_add (
-        .a_i(in_operand_i[g*192+:64]),
-        .b_i(in_uop_i[g*U+64+:64]),
+        .a_i(command_w[`R64_MEM_BASE]),
+        .b_i(command_w[`R64_MEM_OFFSET]),
         .carry_i(1'b0),
         .sum_o(address_sum_w),
         .carry_o(unused_address_carry_w)
       );
-      assign input_address_w[g] = input_func_w[g][7] ? in_operand_i[g*192+:64] : address_sum_w;
+      assign input_address_w[g] = input_func_w[g][7] ? command_w[`R64_MEM_BASE] : address_sum_w;
       assign formatted_response_w[g] = load_value(
           response_data_w[g*64+:64],
           response_func_w[g*5+:5],
@@ -1475,15 +1757,17 @@ module R64Lsu #(
 
     end
   endgenerate
+  wire [1:0] early_value_valid_w;
+  wire [127:0] early_value_data_w;
   wire [1:0] completion_credit_w;
-  reg [1:0] completion_fire_w;
-  reg [2*TAG_W-1:0] completion_tag_w;
-  reg [2*R-1:0] completion_result_w;
+  wire [1:0] completion_fire_w, completion_selected_live_w;
+  wire [2*TAG_W-1:0] completion_tag_w;
+  wire [2*R-1:0] completion_result_w;
   wire [(1<<ROB_W)-1:0] completion_reuse_w, fault_reuse_w;
   wire fault_idle_w;
   wire completion_idle_w;
   wire [1:0] full_forward_w, forward_take_w, forward_credit_w;
-  wire [1:0] forward_valid_q;
+  wire [1:0] forward_valid_q, forward_occupied_w;
   wire [TAG_W-1:0] forward_tag_q[0:1];
   wire [63:0] forward_data_q[0:1];
   wire [4:0] forward_func_q[0:1], forward_amo_q[0:1];
@@ -1501,7 +1785,7 @@ module R64Lsu #(
     .TAG_W(TAG_W),
     .ROB_W(ROB_W)
   ) forwarding_results (
-    .out_occupied_o(),
+    .out_occupied_o(forward_occupied_w),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .flush_i(flush_i),
@@ -1539,7 +1823,7 @@ module R64Lsu #(
   endgenerate
   wire [1:0] unused_fault_age_w;
   wire unused_fault_held_age_w;
-  wire [1:0] fault_credit_w, fault_queue_valid_w, fault_capture_w;
+  wire [1:0] fault_credit_w, fault_queue_valid_w, fault_capture_w, fault_occupied_w;
   wire [2*TAG_W-1:0] fault_tag_w;
   wire [139:0] fault_data_w;
   wire [ENTRIES-1:0] fault_capture_mask_w[0:1];
@@ -1572,7 +1856,7 @@ module R64Lsu #(
     .ROB_W(ROB_W),
     .DATA_W(70)
   ) faults (
-    .out_occupied_o(),
+    .out_occupied_o(fault_occupied_w),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .flush_i(flush_i),
@@ -1595,13 +1879,16 @@ module R64Lsu #(
     .idle_o(fault_idle_w)
   );
   wire [5:0] event_valid_w;
+  wire [5:0] event_occupied_w = {forward_occupied_w, fault_occupied_w, raw_occupied_w};
+  wire [6*TAG_W-1:0] event_tags_w;
+  wire [6*R-1:0] event_results_w;
   wire [TAG_W-1:0] event_tag_w[0:5];
   wire [R-1:0] event_result_w[0:5];
-  reg [5:0] event_grant_w;
+  wire [5:0] event_grant_w;
   genvar e;
   generate
     for (e = 0; e < 2; e = e + 1) begin : gen_events
-      assign event_valid_w[EV_RAW_BASE+e] = raw_valid_w[e] || response_bypass_offer_w[e];
+      assign event_valid_w[EV_RAW_BASE+e] = raw_valid_w[e];
       assign event_tag_w[EV_RAW_BASE+e] = raw_event_tag_w[e*TAG_W+:TAG_W];
       assign event_result_w[EV_RAW_BASE+e] = {
         5'b0,
@@ -1631,79 +1918,40 @@ module R64Lsu #(
       };
     end
   endgenerate
-  wire [5:0] event_first_w, event_second_w;
-  wire [35:0] event_order_w;
-  wire unused_event_first_valid_w, unused_event_second_valid_w;
-  wire [2:0] unused_event_first_slot_w, unused_event_second_slot_w;
-  // Cyclic priority advances only after an actual completion capture.
-  // This thermometer marks sources before the next priority position.
-  reg [5:0] event_before_q;
-  wire [5:0] event_last_grant_w = completion_credit_w[1] && (|event_second_w) ?
-      event_second_w : (event_first_w & {6{completion_credit_w[0]}});
-  reg [5:0] event_before_next_w;
-  integer rr_source;
-  always @* begin
-    event_before_next_w = 0;
-    for (rr_source = 0; rr_source < 5; rr_source = rr_source + 1)
-    event_before_next_w = event_before_next_w |
-        ({6{event_last_grant_w[rr_source]}} & ((6'b1 << (rr_source + 1)) - 1'b1));
-  end
-  always @(posedge clk_i) begin
-    if (rst_i) event_before_q <= 0;
-    else if (|event_grant_w) event_before_q <= event_before_next_w;
-  end
   generate
-    for (e = 0; e < 6; e = e + 1) begin : gen_event_order
-      for (z = 0; z < 6; z = z + 1) begin : gen_precedence
-        assign event_order_w[e*6+z] = (event_before_q[e] && !event_before_q[z]) ||
-            ((event_before_q[e] == event_before_q[z]) && (z < e));
-      end
+    for(e=0;e<6;e=e+1) begin:gen_completion_sources
+      assign event_tags_w[e*TAG_W+:TAG_W]=event_tag_w[e];
+      assign event_results_w[e*R+:R]=event_result_w[e];
     end
   endgenerate
-  R64LsuOrderSelect #(
-    .N(6),
-    .SLOT_W(3)
-  ) event_select (
-    .valid_i(event_valid_w),
-    .older_i(event_order_w),
-    .first_mask_o(event_first_w),
-    .second_mask_o(event_second_w),
-    .first_valid_o(unused_event_first_valid_w),
-    .second_valid_o(unused_event_second_valid_w),
-    .first_slot_o(unused_event_first_slot_w),
-    .second_slot_o(unused_event_second_slot_w)
+  R64LsuCompletionArbiter #(.TAG_W(TAG_W)) completion_arbiter (
+    .clk_i(clk_i), .rst_i(rst_i),
+    .source_occupied_i(event_occupied_w), .source_live_i(event_valid_w),
+    .source_tag_i(event_tags_w), .source_result_i(event_results_w),
+    .source_take_o(event_grant_w), .completion_credit_i(completion_credit_w),
+    .completion_fire_o(completion_fire_w), .completion_tag_o(completion_tag_w),
+    .completion_result_o(completion_result_w),
+    .selected_live_o(completion_selected_live_w)
   );
-  // The cyclic order is a total order for every event_before_q bitmap.
-  // Therefore the number of winners depends only on live source count.
-  // Count in parallel with owner arbitration; CQ/WB demand need not wait for
-  // winner selection, while payload and source pop retain canonical winners.
-  wire [2:0] event_pair_any_w = {
-    |event_valid_w[EV_FORWARD_BASE+:2],
-    |event_valid_w[EV_FAULT_BASE+:2],
-    |event_valid_w[EV_RAW_BASE+:2]
-  };
-  wire event_two_w = (|{&event_valid_w[EV_FORWARD_BASE+:2], &event_valid_w[EV_FAULT_BASE+:2],
-                       &event_valid_w[EV_RAW_BASE+:2]}) ||
-      (event_pair_any_w[0] && event_pair_any_w[1]) ||
-      (event_pair_any_w[0] && event_pair_any_w[2]) || (event_pair_any_w[1] && event_pair_any_w[2]);
-  integer ev;
-  always @* begin
-    completion_fire_w = {event_two_w, |event_valid_w} & completion_credit_w;
-    completion_tag_w = 0;
-    completion_result_w = 0;
-    event_grant_w = (event_first_w & {6{completion_credit_w[0]}}) |
-        (event_second_w & {6{completion_credit_w[1]}});
-    for (ev = 0; ev < 6; ev = ev + 1) begin
-      completion_tag_w[0+:TAG_W] = completion_tag_w[0+:TAG_W] |
-          ({TAG_W{event_first_w[ev]}} & event_tag_w[ev]);
-      completion_tag_w[TAG_W+:TAG_W] = completion_tag_w[TAG_W+:TAG_W] |
-          ({TAG_W{event_second_w[ev]}} & event_tag_w[ev]);
-      completion_result_w[0+:R] = completion_result_w[0+:R] |
-          ({R{event_first_w[ev]}} & event_result_w[ev]);
-      completion_result_w[R+:R] = completion_result_w[R+:R] |
-          ({R{event_second_w[ev]}} & event_result_w[ev]);
+  // Reuse the exact winner payload supplied to CQ. Result formation above
+  // already includes forwarding merge, load formatting and final fault state.
+  // Cancellation is part of source_live; CQ credit cannot delay this notice.
+  wire [1:0] resident_value_valid_w;
+  wire [127:0] resident_value_data_w;
+  generate
+    for (g = 0; g < 2; g = g + 1) begin : gen_resolved_value
+      assign resident_value_valid_w[g] = completion_selected_live_w[g] &&
+          !completion_result_w[g*R+`R64_R_EXCEPTION];
+      assign resident_value_data_w[g*64+:64] = completion_result_w[g*R+:64];
     end
-  end
+  endgenerate
+  R64ValueNoticeMerge #(.TAG_W(TAG_W),.EARLY_VALUE(EARLY_PHYSICAL_VALUE)) value_notices (
+    .resident_occupied_i({|(event_occupied_w & (event_occupied_w - 6'd1)), |event_occupied_w}),
+    .resident_valid_i(resident_value_valid_w), .resident_tag_i(completion_tag_w),
+    .resident_data_i(resident_value_data_w), .early_valid_i(early_value_valid_w),
+    .early_tag_i(raw_in_tag_w), .early_data_i(early_value_data_w),
+    .valid_o(resolved_value_valid_o), .tag_o(resolved_value_tag_o), .data_o(resolved_value_data_o)
+  );
   R64LsuCompletion #(
     .TAG_W(TAG_W),
     .ROB_W(ROB_W)
@@ -1753,7 +2001,8 @@ module R64Lsu #(
         assign admit_w[z] = bind_mask_w[z][owner];
         assign trans_start_w[z] = trans_owner_select_w[z][owner];
         assign trans_end_w[z] = translation_response_mask_w[z][owner];
-        assign mem_start_w[z] = mfire_w[z] && physical_slot_w[z] == SLOT;
+        assign mem_start_w[z] = mfire_w[z] && physical_slot_w[z] == SLOT &&
+            !(z == 0 && prepared_direct_take_w) && !translation_direct_take_w[z];
         assign mem_end_w[z] = mem_rsp_valid_i[z] && mem_rsp_ready_o[z] &&
             input_response_live_w[z] && input_response_slot_w[z] == SLOT;
         assign drain_w[z] = mem_rsp_valid_i[z] && mem_rsp_ready_o[z] && !input_response_live_w[z] &&
@@ -1765,10 +2014,13 @@ module R64Lsu #(
         assign admission_state_w[z] =
             ((input_misaligned_w[z] &&
               (input_func_w[z][7] || (translate_active_i && input_cross_page_w[z]))) ||
-             (input_func_w[z][6] && !input_func_w[z][7] && !fp_enable_i)) ? 3'd5 : 3'd1;
+             (input_func_w[z][6] && !input_func_w[z][7] && !fp_enable_i)) ? 3'd5 :
+              (hot_bind_queued_w[z] ? 3'd2 : 3'd1);
         assign translation_state_w[z] = (!alive_q[owner] || killed_w[owner]) ?
             3'd0 : ((tr_fault_i[z] || (misaligned_q[owner] && tr_class_i[z*2+:2] == 2)) ?
-                    3'd5 : (translation_query_mask_w[z][owner] ? 3'd4 : 3'd3));
+                    3'd5 : ((translation_query_mask_w[z][owner] ||
+                              translation_descriptor_mask_w[z][owner] ||
+                              translation_forward_mask_w[z][owner]) ? 3'd4 : 3'd3));
         assign response_state_w[z] = (alive_q[owner] && !killed_w[owner] && side_effect_w[owner] &&
                                       !mem_rsp_error_i[z]) ? 3'd7 : 3'd0;
       end
@@ -1805,8 +2057,10 @@ module R64Lsu #(
         select_mem_w,
         fault_end_w
       };
-      // A physical issue already owns MEMORY; its handshake only sets issued/effect state.
-      // Do not feed downstream ready back into a MEMORY-to-MEMORY state rewrite.
+      // Queued physical issues already own MEMORY. A direct prepared store
+      // creates MEMORY through prepared_event_w at acceptance. A translation
+      // direct load creates MEMORY through trans_end_w. Both also set issued/
+      // effect on the real fire without a duplicate local state event.
       wire [25:0] state_events_w = events_w & ~(26'b11 << 8);
       wire [2:0] next_state_w =
           ({3{|reserve_w}} & 3'd1) |
@@ -1821,7 +2075,11 @@ module R64Lsu #(
           ({3{mem_end_w[0]}} & response_state_w[0]) |
           ({3{mem_end_w[1]}} & response_state_w[1]) |
           ({3{store_event_w && store_response_live_w && !mem_store_rsp_error_i}} & 3'd7) |
-          ({3{commit_event_w && source_pin_w[owner]}} & 3'd6);
+          // Failed stores have drained their external/effect ownership, but
+          // resident byte references still own this source storage until take
+          // or cancellation. Their error completion is independent of this pin.
+          ({3{source_pin_w[owner] && (commit_event_w ||
+              (store_event_w && store_response_live_w && mem_store_rsp_error_i))}} & 3'd6);
       wire cancel_free_w=state_q[owner]!=FREE&&killed_w[owner]&&
      !((state_q[owner]==TRANSLATING&&tr_issued_q[owner])||(state_q[owner]==MEMORY&&mem_issued_q[owner]));
       always @(posedge clk_i) begin
@@ -1877,7 +2135,6 @@ module R64Lsu #(
           tr_issued_q[owner] <= 0;
         end else begin
           for (row_lane = 0; row_lane < 2; row_lane = row_lane + 1) begin
-            if (xfire_w[row_lane] && xslot_q[row_lane] == SLOT) tr_issued_q[owner] <= 1;
             if (trans_end_w[row_lane]) begin
               // The accepted owner drains even after canonical cancellation.
               tr_issued_q[owner] <= 0;
@@ -1902,6 +2159,9 @@ module R64Lsu #(
               class_q[owner] <= 0;
               needs_ad_q[owner] <= 0;
               tr_issued_q[owner] <= 0;
+              // Forwarding validity belongs to this owner, not the recycled
+              // row. A prepared direct store never visits query publication.
+              forward_mask_q[owner] <= 0;
             end
             if (admit_w[row_lane]) begin
               class_q[owner] <= 0;
@@ -1917,6 +2177,11 @@ module R64Lsu #(
                 cause_q[owner] <= 6'd2;
             end
           end
+          // Bind admission initializes this row, then real service acceptance
+          // installs its token obligation. A remapped bind lane cannot clear it.
+          for (row_lane = 0; row_lane < 2; row_lane = row_lane + 1)
+            if (xfire_w[row_lane] && translation_issue_slot_w[row_lane] == SLOT)
+              tr_issued_q[owner] <= 1;
           if (local_fault_w[0] && alive_q[owner] && !killed_w[owner])
             cause_q[owner] <= checked_cause_w[0];
           if (local_fault_w[1] && alive_q[owner] && !killed_w[owner])
@@ -1976,7 +2241,7 @@ module R64Lsu #(
       if (store_response_fire_w) begin
         mem_issued_q[mem_store_rsp_token_i] <= 0;
         if (store_response_live_w) begin
-          store_done_q  <= 1;
+          store_done_q  <= !(store_response_direct_w && store_done_ready_i);
           store_tag_q   <= tag_q[mem_store_rsp_token_i];
           store_error_q <= mem_store_rsp_error_i;
           store_tval_q  <= va_q[mem_store_rsp_token_i];
@@ -2085,7 +2350,6 @@ module R64Lsu #(
       previous_tr_issued_q <= 0;
     end else begin
       for (previous_lane = 0; previous_lane < 2; previous_lane = previous_lane + 1) begin
-        if (xfire_w[previous_lane]) previous_tr_issued_q[xslot_q[previous_lane]] <= 1;
         if (xresponse_w[previous_lane]) begin
           previous_tr_issued_q[response_slot_w[previous_lane]] <= 0;
           if (alive_q[response_slot_w[previous_lane]] &&
@@ -2109,6 +2373,7 @@ module R64Lsu #(
           previous_class_q[reserve_slot_o[previous_lane*INDEX_W+:INDEX_W]] <= 0;
           previous_needs_ad_q[reserve_slot_o[previous_lane*INDEX_W+:INDEX_W]] <= 0;
           previous_tr_issued_q[reserve_slot_o[previous_lane*INDEX_W+:INDEX_W]] <= 0;
+          previous_forward_mask_q[reserve_slot_o[previous_lane*INDEX_W+:INDEX_W]] <= 0;
         end
         if (bind_take_w[previous_lane]) begin
           previous_class_q[bind_slot_w[previous_lane]] <= 0;
@@ -2125,6 +2390,11 @@ module R64Lsu #(
             previous_cause_q[bind_slot_w[previous_lane]] <= 6'd2;
         end
       end
+      // Independent flat-row reference follows actual acceptance after all
+      // admission initialization, regardless of bind/translation lane mapping.
+      for (previous_lane = 0; previous_lane < 2; previous_lane = previous_lane + 1)
+        if (xfire_w[previous_lane])
+          previous_tr_issued_q[translation_issue_slot_w[previous_lane]] <= 1;
       for (previous_row = 0; previous_row < ENTRIES; previous_row = previous_row + 1) begin
         if (admission_check_mask_q[0][previous_row] && alive_q[previous_row] &&
             !killed_w[previous_row])
@@ -2152,29 +2422,13 @@ module R64Lsu #(
   integer response_check;
   always @(posedge clk_i)
     if (!rst_i) begin
-      // Every accepted live response transfers its canonical owner exactly
-      // once, either into raw storage or into the existing CQ capture ports.
-      for (response_check = 0; response_check < 2; response_check = response_check + 1) begin
-        if ((raw_queue_fire_w[response_check] || response_bypass_fire_w[response_check]) !=
-            raw_fire_w[response_check] ||
-            (raw_queue_fire_w[response_check] && response_bypass_fire_w[response_check]))
-          $fatal(1, "R64Lsu response destination is not unique");
-        if (response_bypass_fire_w[response_check]) begin
-          if (raw_occupied_w[response_check] || mem_rsp_error_i[response_check] ||
-              !response_bypass_eligible_w[input_response_slot_w[response_check]])
-            $fatal(1, "R64Lsu response bypass violated registered owner/eligibility");
-          if (!((completion_fire_w[0] &&
-                 completion_tag_w[0+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W]) ||
-                (completion_fire_w[1] &&
-                 completion_tag_w[TAG_W+:TAG_W] == raw_in_tag_w[response_check*TAG_W+:TAG_W])))
-            $fatal(1, "R64Lsu bypass owner was not captured by CQ");
-        end
-      end
-      // Compare the count cone itself: arbitration-only fixtures suppress the
-      // CQ transfer with force, while independently exercising these selectors.
-      if (({event_two_w, |event_valid_w} & completion_credit_w) !==
-          ({|event_second_w, |event_first_w} & completion_credit_w))
-        $fatal(1, "R64Lsu event count changed completion acceptance");
+      // Every response either acquires ingress ownership or terminates an
+      // already registered-dead read. Neither route can publish a bypass result.
+      for(response_check=0;response_check<2;response_check=response_check+1)
+        if((raw_queue_fire_w[response_check] ||
+            (mem_rsp_valid_i[response_check] && dead_discard_w[response_check])) !==
+           (mem_rsp_valid_i[response_check] && mem_rsp_ready_o[response_check]))
+          $fatal(1, "R64Lsu response did not reach unique ingress/dead terminal");
       if (prepared_capture_w !== (unused_prepared_select_w && !killed_w[unused_prepared_choice_w]))
         $fatal(1, "R64Lsu prepared onehot changed capture event");
       if (prepared_capture_w && (prepared_capture_slot_w !== unused_prepared_choice_w ||
@@ -2279,6 +2533,7 @@ module R64Lsu #(
         for (order_row = 0; order_row < ENTRIES; order_row = order_row + 1)
         for (order_col = 0; order_col < ENTRIES; order_col = order_col + 1)
         if (live_entry_w[order_row] && live_entry_w[order_col] &&
+            !retiring_memory_age_w[order_row] && !retiring_memory_age_w[order_col] &&
             older_q[order_row][order_col] != (age_w[order_col] < age_w[order_row]))
           $fatal(1, "R64Lsu admission order relation disagrees with live ROB age");
       for (a = 0; a < ENTRIES; a = a + 1)
@@ -2335,6 +2590,16 @@ module R64Lsu #(
             (!alive_q[probe_slot_w[a]] || tag_q[probe_slot_w[a]] !=
              descriptor_tag_w[a*TAG_W+:TAG_W] || state_q[probe_slot_w[a]] != MEMORY))
           $fatal(1, "R64Lsu descriptor lost canonical owner");
+        if (translation_direct_take_w[a] &&
+            (physical_slot_w[a] != response_slot_w[a] ||
+             physical_tag_w[a] != tag_q[response_slot_w[a]] ||
+             !xresponse_w[a] || !translation_response_mask_w[a][physical_slot_w[a]] ||
+             !tr_issued_q[physical_slot_w[a]] || !alive_q[physical_slot_w[a]] ||
+             killed_w[physical_slot_w[a]] || state_q[physical_slot_w[a]] != TRANSLATING ||
+             func_q[physical_slot_w[a]][7:5] != 0 || misaligned_q[physical_slot_w[a]] ||
+             tr_fault_i[a] || tr_needs_ad_i[a] || tr_class_i[a*2+:2] == 2 ||
+             forward_mask_q[physical_slot_w[a]] != 0 || query_fire_w[a]))
+          $fatal(1, "R64Lsu translation direct issue lost live ordinary token owner");
         if (mem_rsp_valid_i[a] && (!mem_issued_q[input_response_slot_w[a]] ||
                                    state_q[input_response_slot_w[a]] != MEMORY))
           $fatal(1, "R64Lsu physical response without owner");

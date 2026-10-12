@@ -2,8 +2,9 @@
 module tb_r64_recovery_plan;
   reg clk = 0;
   always #5 clk = ~clk;
-  reg rst = 1, flush = 0, kv = 0, pv = 0;
-  reg [8:0] kt = 0, pt = 0;
+  reg rst = 1, flush = 0, kv = 0, pv = 0, pending=0, rv=0;
+  reg [8:0] kt = 0, pt = 0, rt=0;
+  wire accepted_redirect, accepted_resolve;
   reg [1:0] av = 0, wv = 0, cr = 0;
   reg [17:0] wt = 0;
   wire [1:0] ar, cv, uv;
@@ -15,16 +16,21 @@ module tb_r64_recovery_plan;
     .META_W (64),
     .NPC_LSB(0)
   ) dut (
+    .serial_retire_candidate_o(),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
-    .kill_valid_i(kv),
+    .kill_valid_i(kv),.kill_pending_i(pending),
     .kill_tag_i(kt),
     .recovery_preview_valid_i(pv),
     .recovery_preview_tag_i(pt),
     .reuse_block_i(32'b0),
-    .resolve_valid_i(1'b0),
-    .resolve_tag_i(9'b0),
+    .resolve_valid_i(rv),
+    .resolve_tag_i(rt),
+    .resolve_accept_o(accepted_resolve),.redirect_accept_o(accepted_redirect),
     .resolve_npc_i(64'b0),
     .alloc_valid_i(av),
     .alloc_ready_o(ar),
@@ -51,7 +57,6 @@ module tb_r64_recovery_plan;
     .short_tag_i(36'b0),
     .short_preg_i(24'b0),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .undo_valid_o(uv),
@@ -78,6 +83,7 @@ module tb_r64_recovery_plan;
       flush = 0;
       pv = 0;
       kv = 0;
+      pending=0;rv=0;rt=0;
       av = 0;
       wv = 0;
       cr = 0;
@@ -101,6 +107,10 @@ module tb_r64_recovery_plan;
   initial begin
     clear();
     fill8();
+    if($test$plusargs("bad-live-plan")) begin
+      kv=1;kt=9'h024;tick();
+      $fatal(1,"live redirect without plan did not assert");
+    end
     wv = 3;
     wt = {9'h021, 9'h020};
     tick();
@@ -125,7 +135,7 @@ module tb_r64_recovery_plan;
     kt = 9'h022;
     pv = 0;
     #1;
-    check(km == 32'h18, "nested older redirect must kill retained younger");
+    check(km == 32'h18 && accepted_redirect, "nested older redirect must kill retained younger");
     check(count == 3 && dut.undo_count_q == 5, "first recovery count");
     tick();
     kv = 0;
@@ -146,20 +156,32 @@ module tb_r64_recovery_plan;
     kt = 9'h024;
     pt = 9'h026;
     tick();
-    kv = 0;
-    pv = 0;
+    pv = 0;kt=9'h026;pending=1;rv=1;rt=9'h026;
+    #1;
     check(!dut.plan_valid_q, "younger preview must cancel on older redirect");
-    $display("[CASE] younger-preview cancelled PASS");
+    check(!accepted_redirect && !accepted_resolve && km==0,
+          "late cancelled branch escaped lifecycle authentication");
+    tick();check(count==5,"late cancelled branch changed retained ownership");
+    kv=0;pending=0;rv=0;
+    $display("[CASE] younger-preview cancelled and late terminal drained PASS");
     clear();
     fill8();
     pv = 1;
     pt = 9'h024;
     tick();
     pv = 0;
-    flush = 1;
+    flush = 1;kv=1;kt=9'h024;rv=1;rt=9'h024;pending=1;#1;
+    check(!accepted_redirect && !accepted_resolve && km==32'hff,
+          "same-edge full flush did not reject a registered live candidate");
     tick();
     flush = 0;
     check(!dut.plan_valid_q && count == 0, "full flush cancels plan");
+    // Execution may publish another already-captured candidate while the
+    // one-cycle Recovery inbox delivers flush. ROB must reject its full tuple.
+    kt=9'h026;rt=9'h026;#1;
+    check(!accepted_redirect && !accepted_resolve && ar==3 && km==0,
+          "late full-flush candidate escaped authoritative lifecycle");
+    tick();pending=0;kv=0;rv=0;
     av = 3;
     tick();
     av = 0;
@@ -169,12 +191,13 @@ module tb_r64_recovery_plan;
     tick();
     pv = 0;
     kv = 1;
-    kt = 9'h020;
+    kt = 9'h020;rv=1;rt=9'h020;
     #1;
+    check(!accepted_redirect && !accepted_resolve,"stale generation published branch event");
     check(km == 0 && !dut.plan_valid_q, "old generation cannot activate new owners");
     tick();
     kv = 0;
-    check(count == 2, "stale plan damaged replacement owners");
+    check(count == 2, "stale plan damaged replacement owners");rv=0;
     $display("[CASE] flush+slot-generation reuse PASS");
     clear();
     for (lap = 0; lap < 3; lap = lap + 1) begin

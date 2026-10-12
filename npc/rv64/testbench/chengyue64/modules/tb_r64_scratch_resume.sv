@@ -16,6 +16,7 @@ module tb_r64_scratch_resume;
     .HEAD_SERIAL_CLASS(1),
     .HEAD_SERIAL_STOP(1)
   ) dut (
+    .serial_retire_candidate_i(rv[0] && !rx[0] && (meta[196+:8] >= `R64_K_CSR && meta[196+:8] <= `R64_K_TENSOR)),
     .clk_i(clk),
     .rst_i(rst),
     .rob_serial_i({

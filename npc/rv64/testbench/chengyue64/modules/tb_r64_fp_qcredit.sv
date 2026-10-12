@@ -5,6 +5,14 @@ module tb_r64_fp_qcredit;
   always #5 clk = ~clk;
   reg rst = 1, flush = 0, fire = 0, ready = 1, enabled = 1;
   reg [31:0] kill = 0;
+  // This scoreboard tracks local FP ownership, not architectural WB authority.
+  // The external Recovery source is deliberately sampled independently of DUT.
+  reg local_flush = 0;
+  reg [31:0] local_kill = 0;
+  always @(posedge clk) begin
+    local_flush <= !rst && flush;
+    local_kill <= rst ? 32'b0 : kill;
+  end
   reg [8:0] tag = 0;
   reg [2:0] frm = 0;
   reg [`R64_UOP_W-1:0] uop = 0;
@@ -17,8 +25,7 @@ module tb_r64_fp_qcredit;
   ) dut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(fire),
     .in_ready_o(credit),
     .in_tag_i(tag),
@@ -66,18 +73,18 @@ module tb_r64_fp_qcredit;
     end
   endtask
   always @(posedge clk) begin
-    if (rst || flush) begin
+    if (rst || local_flush) begin
       for (integer n = 0; n < 32; n = n + 1) if (pending[n]) canceled = canceled + 1;
       pending = 0;
       held = 0;
     end else begin
       cycles = cycles + 1;
       for (integer n = 0; n < 32; n = n + 1)
-      if (kill[n] && pending[n]) begin
+      if (local_kill[n] && pending[n]) begin
         pending[n] = 0;
         canceled   = canceled + 1;
       end
-      if (fire && !kill[tag[4:0]]) begin
+      if (fire && !local_kill[tag[4:0]]) begin
         if (pending[tag[4:0]]) $fatal(1, "test reused live physical ROB slot");
         owners[tag[4:0]] = tag;
         pending[tag[4:0]] = 1;
@@ -87,7 +94,7 @@ module tb_r64_fp_qcredit;
         dispatches = dispatches + 1;
         last_dispatch = dut.tag_q;
       end
-      if (held && !kill[held_tag[4:0]]) begin
+      if (held && !local_kill[held_tag[4:0]]) begin
         if (!valid || out_tag !== held_tag || result !== held_result)
           $fatal(1, "held output changed");
       end
@@ -114,6 +121,8 @@ module tb_r64_fp_qcredit;
     force dut.path_ready = 4'b0;
     put(9'd20);
     kill[20] = 1;
+    tick();  // Publish; the existing younger owner is still physically held.
+    kill = 0;
     if (!credit) $fatal(1, "single occupied queue did not accept older replacement");
     put(9'd10);
     kill = 0;
@@ -132,6 +141,8 @@ module tb_r64_fp_qcredit;
     if (credit) $fatal(1, "kill leaked into Q-only credit");
     tick();
     kill = 0;
+    if (credit) $fatal(1, "publication borrowed local cancellation credit");
+    tick();  // Deliver; Q-only credit returns after the owner is removed.
     if (!credit || dut.tag_q !== 9'd10) $fatal(1, "tail kill lost head");
     put(9'd43);
     release dut.path_ready;
@@ -157,8 +168,11 @@ module tb_r64_fp_qcredit;
     tick();
     if (last_dispatch !== 9'd14) $fatal(1, "new owner added empty-path cycle");
     drain();
-    // Same-edge birth+kill never creates a live owner.
+    // An already-issued transport arrival at local cancellation cannot revive
+    // its owner. New architectural births remain fenced outside this domain.
     kill[15] = 1;
+    tick();
+    kill = 0;
     put(9'd15);
     kill = 0;
     if (dut.ingress_valid_q) $fatal(1, "birth kill revived owner");
@@ -169,6 +183,8 @@ module tb_r64_fp_qcredit;
     flush = 1;
     tick();
     flush = 0;
+    if (credit) $fatal(1, "flush publication borrowed Q-only credit");
+    tick();
     if (!credit || dut.ingress_valid_q) $fatal(1, "flush retained ingress owners");
     put(9'd48);
     release dut.path_ready;
@@ -184,8 +200,13 @@ module tb_r64_fp_qcredit;
     if (!valid) $fatal(1, "no held completion");
     repeat (20) tick();
     kill[18] = 1;
+    #1;
+    if (!valid || out_tag !== 9'd18 || result !== held_result)
+      $fatal(1, "Recovery source changed held FP output before inbox capture");
     tick();
+    if (valid) $fatal(1, "FP victim stayed visible after local inbox delivery");
     kill  = 0;
+    tick();  // Drain the local event before reusing the ROB slot generation.
     ready = 1;
     put(9'd50);
     drain();

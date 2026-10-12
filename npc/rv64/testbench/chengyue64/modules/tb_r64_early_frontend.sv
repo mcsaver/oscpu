@@ -3,6 +3,9 @@ module tb_r64_early_frontend;
   parameter EARLY_PREDICT = 1;
   reg clk = 0;
   always #5 clk = ~clk;
+  // Model the lifecycle fence independently of the Frontend inbox.
+  reg local_redirect = 0;
+  always @(posedge clk) local_redirect <= !rst && redirect;
   reg rst = 1, redirect = 0, enable = 0, invalidate = 0;
   reg [63:0] target = 64'h80000000, expected = 64'h80000000;
   wire [1:0] valid, fault;
@@ -23,11 +26,11 @@ module tb_r64_early_frontend;
   R64Frontend #(
     .EARLY_PREDICT(EARLY_PREDICT)
   ) dut (
+    .direction_train_valid_i(2'b0),.direction_train_pc_i(128'b0),.direction_train_taken_i(2'b0),
     .clk_i(clk),
     .rst_i(rst),
     .run_i(1'b1),
-    .redirect_i(redirect),
-    .redirect_pc_i(target),
+    .recovery_i({redirect, target, 34'b0}),
     .priv_i(2'd3),
     .mstatus_i(64'd0),
     .satp_i(64'd0),
@@ -160,7 +163,7 @@ module tb_r64_early_frontend;
       end
     end
     take = 0;
-    if (enable && !redirect && !fault_seen && random_q[6]) begin
+    if (enable && !redirect && !local_redirect && !fault_seen && random_q[6]) begin
       if (valid[0]) take = 1;
       if (valid[1] && random_q[7]) take = 2;
     end
@@ -184,7 +187,7 @@ module tb_r64_early_frontend;
       if (dut.plan_repair_w) repairs += 1;
       if (dut.predicted_redirect_w) late += 1;
       if (dut.u_stream.rsp_fire_w && dut.u_stream.stale_w) stale += 1;
-      if (!redirect)
+      if (!redirect && !local_redirect)
         for (lane = 0; lane < int'(take); lane = lane + 1) begin
           if (pc[lane*64+:64] !== expected)
             $fatal(1, "stream PC region=%0d got=%h expected=%h", region, pc[lane*64+:64], expected);

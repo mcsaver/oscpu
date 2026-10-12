@@ -21,12 +21,12 @@ module tb_r64_head_serial_class;
   wire [5:0] rob_count;
   wire [1:0] lf;
   wire [2*T-1:0] lt;
-  wire [2*U-1:0] lu;
-  wire [383:0] lop;
+  wire [2*`R64_MEM_CMD_W-1:0] lu;
   wire ff, sf;
   wire [T-1:0] ft, st;
-  wire [U-1:0] fu, su;
-  wire [191:0] fop, sop;
+  wire [`R64_FP_CMD_W-1:0] fu;
+  wire [`R64_SERIAL_CMD_W-1:0] su;
+  wire [191:0] fop;
   reg [3:0] ev = 0;
   wire [3:0] er;
   reg [4*T-1:0] et = 0;
@@ -45,7 +45,8 @@ module tb_r64_head_serial_class;
   wire [1:0] rwant, rfire;
   wire [17:0] rtag_pair;
   wire [15:0] rfunc;
-  wire [9:0] ramo, bslot;
+  wire [9:0] ramo, bslot, selected_slots;
+  wire [1:0] lane_credit={rwant[0]?rready[1]:rready[0],rready[0]};
   reg [1:0] rready;
   reg [9:0] rslot;
   reg [17:0] reserved = 0, bound = 0, responded = 0;
@@ -55,7 +56,7 @@ module tb_r64_head_serial_class;
   integer free0, free1, qslot, zslot, choice, best_age, current_age;
   reg blocked;
   integer reserves = 0, binds = 0, reverse_binds = 0;
-  always @(*) begin
+  always_comb begin
     free0 = -1;
     free1 = -1;
     for (integer f = 0; f < 18; f = f + 1)
@@ -63,16 +64,8 @@ module tb_r64_head_serial_class;
       if (free0 < 0) free0 = f;
       else if (free1 < 0) free1 = f;
     end
-    rready = 3;
-    rslot  = 0;
-    if (rwant[0]) begin
-      rready[0]   = free0 >= 0;
-      rslot[0+:5] = 5'(free0);
-    end
-    if (rwant[1]) begin
-      rready[1]   = rwant[0] ? free1 >= 0 : free0 >= 0;
-      rslot[5+:5] = rwant[0] ? 5'(free1) : 5'(free0);
-    end
+    rready={free1>=0,free0>=0};
+    rslot={5'(free1),5'(free0)};
   end
   wire [ 65:0] prepared_canonical;
   wire [ 69:0] prepared_control;
@@ -140,6 +133,7 @@ module tb_r64_head_serial_class;
     .lsu_reserve_amo_o(ramo),
     .lsu_reserve_ready_i(rready),
     .lsu_reserve_slot_i(rslot),
+    .lsu_reserve_slot_o(selected_slots),
     .lsu_slot_o(bslot),
     .fetch_canonical_i(prepared_canonical),
     .fetch_control_i(prepared_control),
@@ -186,261 +180,58 @@ module tb_r64_head_serial_class;
     .lsu_ready_i(~ev[1:0]),
     .lsu_fire_o(lf),
     .lsu_tag_o(lt),
-    .lsu_uop_o(lu),
-    .lsu_operand_o(lop),
+    .lsu_command_o(lu),
     .fp_ready_i(!ev[2]),
     .fp_fire_o(ff),
     .fp_tag_o(ft),
-    .fp_uop_o(fu),
+    .fp_command_o(fu),
     .fp_operand_o(fop),
     .serial_ready_i(!ev[3] && !serial_hold),
     .serial_fire_o(sf),
     .serial_tag_o(st),
-    .serial_uop_o(su),
-    .serial_operand_o(sop),
+    .serial_command_o(su),
     .external_valid_i(ev),
     .external_ready_o(er),
     .external_tag_i(et),
     .external_result_i(ed)
   );
-  R64BackendCommitReference reference (
-    .irq_pending_i(irq_pending),
-    .irq_cause_i(6'd7),
-    .trap_target_i(64'h1000),
-    .lsu_irrevocable_i(1'b0),
-    .serial_irrevocable_i(1'b0),
-    .control_full_flush_o(),
-    .control_stop_o(),
-    .control_redirect_o(),
-    .control_target_o(),
-    .retire_fire_o(),
-    .retired_count_o(),
-    .retire_npc_o(),
-    .fp_dirty_o(),
-    .fp_flags_o(),
-    .serial_commit_o(),
-    .serial_commit_tag_o(),
-    .trap_o(),
-    .trap_interrupt_o(),
-    .trap_cause_o(),
-    .trap_pc_o(),
-    .trap_tval_o(),
-    .effect_allow_o(),
-    .serial_issue_allow_o(),
-    .trap_prepare_o(),
-    .store_done_valid_i(1'b0),
-    .store_done_ready_o(),
-    .store_done_tag_i(9'b0),
-    .store_done_error_i(1'b0),
-    .store_done_tval_i(64'b0),
-    .lsu_reserve_want_o(),
-    .lsu_reserve_fire_o(),
-    .lsu_reserve_tag_o(),
-    .lsu_reserve_func_o(),
-    .lsu_reserve_amo_o(),
-    .lsu_reserve_ready_i(rready),
-    .lsu_reserve_slot_i(rslot),
-    .lsu_slot_o(),
-    .fetch_canonical_i(prepared_canonical),
-    .fetch_control_i(prepared_control),
-    .fetch_sequential_npc_i(prepared_npc),
-    .clk(clk),
-    .rst(rst),
-    .flush_i(flush),
-    .stop_i(stop),
-    .reuse_block_i(32'b0),
-    .fetch_valid_i(fv),
-    .fetch_ready_o(),
-    .fetch_pc_i(fpc),
-    .fetch_raw_i(raw),
-    .fetch_pred_npc_i(pred),
-    .fetch_length_i(lengths),
-    .fetch_exception_i(2'b0),
-    .fetch_cause_i(12'b0),
-    .fetch_tval_i(128'b0),
-    .commit_ready_i(cr),
-    .commit_valid_o(),
-    .commit_tag_o(),
-    .commit_meta_o(),
-    .commit_data_o(),
-    .commit_exception_o(),
-    .commit_cause_o(),
-    .commit_tval_o(),
-    .commit_fflags_o(),
-    .commit_rd_write_o(),
-    .commit_rd_fp_o(),
-    .commit_rd_arch_o(),
-    .redirect_valid_o(),
-    .redirect_pc_o(),
-    .resolve_valid_o(),
-    .resolve_tag_o(),
-    .resolve_pc_o(),
-    .resolve_npc_o(),
-    .resolve_conditional_o(),
-    .resolve_indirect_o(),
-    .resolve_taken_o(),
-    .kill_mask_o(),
-    .head_tag_o(),
-    .rob_count_o(),
-    .recover_o(),
-    .lsu_ready_i(~ev[1:0]),
-    .lsu_fire_o(),
-    .lsu_tag_o(),
-    .lsu_uop_o(),
-    .lsu_operand_o(),
-    .fp_ready_i(!ev[2]),
-    .fp_fire_o(),
-    .fp_tag_o(),
-    .fp_uop_o(),
-    .fp_operand_o(),
-    .serial_ready_i(!ev[3] && !serial_hold),
-    .serial_fire_o(),
-    .serial_tag_o(),
-    .serial_uop_o(),
-    .serial_operand_o(),
-    .external_valid_i(ev),
-    .external_ready_o(),
-    .external_tag_i(et),
-    .external_result_i(ed)
-  );
-  always @(negedge clk)
-    if (!rst) begin
-      if (wrapper.commit_cause_o !== reference.commit_cause_o)
-        $fatal(1, "head class closed output mismatch commit_cause_o");
-      if (wrapper.commit_data_o !== reference.commit_data_o)
-        $fatal(1, "head class closed output mismatch commit_data_o");
-      if (wrapper.commit_exception_o !== reference.commit_exception_o)
-        $fatal(1, "head class closed output mismatch commit_exception_o");
-      if (wrapper.commit_fflags_o !== reference.commit_fflags_o)
-        $fatal(1, "head class closed output mismatch commit_fflags_o");
-      if (wrapper.commit_meta_o !== reference.commit_meta_o)
-        $fatal(1, "head class closed output mismatch commit_meta_o");
-      if (wrapper.commit_rd_arch_o !== reference.commit_rd_arch_o)
-        $fatal(1, "head class closed output mismatch commit_rd_arch_o");
-      if (wrapper.commit_rd_fp_o !== reference.commit_rd_fp_o)
-        $fatal(1, "head class closed output mismatch commit_rd_fp_o");
-      if (wrapper.commit_rd_write_o !== reference.commit_rd_write_o)
-        $fatal(1, "head class closed output mismatch commit_rd_write_o");
-      if (wrapper.commit_tag_o !== reference.commit_tag_o)
-        $fatal(1, "head class closed output mismatch commit_tag_o");
-      if (wrapper.commit_tval_o !== reference.commit_tval_o)
-        $fatal(1, "head class closed output mismatch commit_tval_o");
-      if (wrapper.commit_valid_o !== reference.commit_valid_o)
-        $fatal(1, "head class closed output mismatch commit_valid_o");
-      if (wrapper.control_full_flush_o !== reference.control_full_flush_o)
-        $fatal(1, "head class closed output mismatch control_full_flush_o");
-      if (wrapper.control_redirect_o !== reference.control_redirect_o)
-        $fatal(1, "head class closed output mismatch control_redirect_o");
-      if (wrapper.control_stop_o !== reference.control_stop_o)
-        $fatal(1, "head class closed output mismatch control_stop_o");
-      if (wrapper.control_target_o !== reference.control_target_o)
-        $fatal(1, "head class closed output mismatch control_target_o");
-      if (wrapper.effect_allow_o !== reference.effect_allow_o)
-        $fatal(1, "head class closed output mismatch effect_allow_o");
-      if (wrapper.external_ready_o !== reference.external_ready_o)
-        $fatal(1, "head class closed output mismatch external_ready_o");
-      if (wrapper.fetch_ready_o !== reference.fetch_ready_o)
-        $fatal(1, "head class closed output mismatch fetch_ready_o");
-      if (wrapper.fp_dirty_o !== reference.fp_dirty_o)
-        $fatal(1, "head class closed output mismatch fp_dirty_o");
-      if (wrapper.fp_fire_o !== reference.fp_fire_o)
-        $fatal(1, "head class closed output mismatch fp_fire_o");
-      if (wrapper.fp_flags_o !== reference.fp_flags_o)
-        $fatal(1, "head class closed output mismatch fp_flags_o");
-      if (wrapper.fp_operand_o !== reference.fp_operand_o)
-        $fatal(1, "head class closed output mismatch fp_operand_o");
-      if (wrapper.fp_tag_o !== reference.fp_tag_o)
-        $fatal(1, "head class closed output mismatch fp_tag_o");
-      if (wrapper.fp_uop_o !== reference.fp_uop_o)
-        $fatal(1, "head class closed output mismatch fp_uop_o");
-      if (wrapper.head_tag_o !== reference.head_tag_o)
-        $fatal(1, "head class closed output mismatch head_tag_o");
-      if (wrapper.kill_mask_o !== reference.kill_mask_o)
-        $fatal(1, "head class closed output mismatch kill_mask_o");
-      if (wrapper.lsu_fire_o !== reference.lsu_fire_o)
-        $fatal(1, "head class closed output mismatch lsu_fire_o");
-      if (wrapper.lsu_operand_o !== reference.lsu_operand_o)
-        $fatal(1, "head class closed output mismatch lsu_operand_o");
-      if (wrapper.lsu_reserve_amo_o !== reference.lsu_reserve_amo_o)
-        $fatal(1, "head class closed output mismatch lsu_reserve_amo_o");
-      if (wrapper.lsu_reserve_fire_o !== reference.lsu_reserve_fire_o)
-        $fatal(1, "head class closed output mismatch lsu_reserve_fire_o");
-      if (wrapper.lsu_reserve_func_o !== reference.lsu_reserve_func_o)
-        $fatal(1, "head class closed output mismatch lsu_reserve_func_o");
-      if (wrapper.lsu_reserve_tag_o !== reference.lsu_reserve_tag_o)
-        $fatal(1, "head class closed output mismatch lsu_reserve_tag_o");
-      // Capacity queries may remain asserted for Q-owned entries on the clear edge.
-      // Canonical reserve fire is compared unconditionally immediately above.
-      if (!wrapper.dut.flush_i && !wrapper.redirect_valid_o &&
-          wrapper.lsu_reserve_want_o !== reference.lsu_reserve_want_o)
-        $fatal(1, "head class closed capacity mismatch outside Decode clear");
-      if ((wrapper.dut.flush_i || wrapper.redirect_valid_o) &&
-          (wrapper.lsu_reserve_fire_o != 0 || reference.lsu_reserve_fire_o != 0))
-        $fatal(1, "head class cancelled capacity query created owner");
-      if (wrapper.lsu_slot_o !== reference.lsu_slot_o)
-        $fatal(1, "head class closed output mismatch lsu_slot_o");
-      if (wrapper.lsu_tag_o !== reference.lsu_tag_o)
-        $fatal(1, "head class closed output mismatch lsu_tag_o");
-      if (wrapper.lsu_uop_o !== reference.lsu_uop_o)
-        $fatal(1, "head class closed output mismatch lsu_uop_o");
-      if (wrapper.recover_o !== reference.recover_o)
-        $fatal(1, "head class closed output mismatch recover_o");
-      if (wrapper.redirect_pc_o !== reference.redirect_pc_o)
-        $fatal(1, "head class closed output mismatch redirect_pc_o");
-      if (wrapper.redirect_valid_o !== reference.redirect_valid_o)
-        $fatal(1, "head class closed output mismatch redirect_valid_o");
-      if (wrapper.resolve_conditional_o !== reference.resolve_conditional_o)
-        $fatal(1, "head class closed output mismatch resolve_conditional_o");
-      if (wrapper.resolve_indirect_o !== reference.resolve_indirect_o)
-        $fatal(1, "head class closed output mismatch resolve_indirect_o");
-      if (wrapper.resolve_npc_o !== reference.resolve_npc_o)
-        $fatal(1, "head class closed output mismatch resolve_npc_o");
-      if (wrapper.resolve_pc_o !== reference.resolve_pc_o)
-        $fatal(1, "head class closed output mismatch resolve_pc_o");
-      if (wrapper.resolve_tag_o !== reference.resolve_tag_o)
-        $fatal(1, "head class closed output mismatch resolve_tag_o");
-      if (wrapper.resolve_taken_o !== reference.resolve_taken_o)
-        $fatal(1, "head class closed output mismatch resolve_taken_o");
-      if (wrapper.resolve_valid_o !== reference.resolve_valid_o)
-        $fatal(1, "head class closed output mismatch resolve_valid_o");
-      if (wrapper.retire_fire_o !== reference.retire_fire_o)
-        $fatal(1, "head class closed output mismatch retire_fire_o");
-      if (wrapper.retire_npc_o !== reference.retire_npc_o)
-        $fatal(1, "head class closed output mismatch retire_npc_o");
-      if (wrapper.retired_count_o !== reference.retired_count_o)
-        $fatal(1, "head class closed output mismatch retired_count_o");
-      if (wrapper.rob_count_o !== reference.rob_count_o)
-        $fatal(1, "head class closed output mismatch rob_count_o");
-      if (wrapper.serial_commit_o !== reference.serial_commit_o)
-        $fatal(1, "head class closed output mismatch serial_commit_o");
-      if (wrapper.serial_commit_tag_o !== reference.serial_commit_tag_o)
-        $fatal(1, "head class closed output mismatch serial_commit_tag_o");
-      if (wrapper.serial_fire_o !== reference.serial_fire_o)
-        $fatal(1, "head class closed output mismatch serial_fire_o");
-      if (wrapper.serial_issue_allow_o !== reference.serial_issue_allow_o)
-        $fatal(1, "head class closed output mismatch serial_issue_allow_o");
-      if (wrapper.serial_operand_o !== reference.serial_operand_o)
-        $fatal(1, "head class closed output mismatch serial_operand_o");
-      if (wrapper.serial_tag_o !== reference.serial_tag_o)
-        $fatal(1, "head class closed output mismatch serial_tag_o");
-      if (wrapper.serial_uop_o !== reference.serial_uop_o)
-        $fatal(1, "head class closed output mismatch serial_uop_o");
-      if (wrapper.store_done_ready_o !== reference.store_done_ready_o)
-        $fatal(1, "head class closed output mismatch store_done_ready_o");
-      if (wrapper.trap_cause_o !== reference.trap_cause_o)
-        $fatal(1, "head class closed output mismatch trap_cause_o");
-      if (wrapper.trap_interrupt_o !== reference.trap_interrupt_o)
-        $fatal(1, "head class closed output mismatch trap_interrupt_o");
-      if (wrapper.trap_o !== reference.trap_o)
-        $fatal(1, "head class closed output mismatch trap_o");
-      if (wrapper.trap_pc_o !== reference.trap_pc_o)
-        $fatal(1, "head class closed output mismatch trap_pc_o");
-      if (wrapper.trap_prepare_o !== reference.trap_prepare_o)
-        $fatal(1, "head class closed output mismatch trap_prepare_o");
-      if (wrapper.trap_tval_o !== reference.trap_tval_o)
-        $fatal(1, "head class closed output mismatch trap_tval_o");
-      if (wrapper.serial_class_w !== reference.serial_class_w)
-        $fatal(1, "head class retained invalid projection mismatch");
+  // The old frozen Backend copy compared cycle-by-cycle delivery, including
+  // invalid payload. Recovery now crosses local registered inboxes, so the
+  // oracle is the architectural sequence below plus independent transaction
+  // invariants, with retained head-class projection checked against metadata.
+  wire [1:0] metadata_serial={
+      cm[M+196+:8]>=`R64_K_CSR && cm[M+196+:8]<=`R64_K_TENSOR,
+      cm[196+:8]>=`R64_K_CSR && cm[196+:8]<=`R64_K_TENSOR};
+  reg recovery_previous=0;
+  integer prefix_checks=0, dual_retire_checks=0, fence_checks=0;
+  always @(posedge clk)
+    if(rst) recovery_previous<=0;
+    else recovery_previous<=flush || control_flush || redir || wrapper.dut.cancel_active_o;
+  always @(posedge clk)
+    if(!rst) begin
+      prefix_checks=prefix_checks+1;
+      if(wrapper.serial_class_w!==metadata_serial)
+        $fatal(1,"head class lost retained metadata projection");
+      if((retire_fire & ~(cv & cr & ~cx))!=0 ||
+          (retire_fire[1] && (!retire_fire[0] || |metadata_serial)))
+        $fatal(1,"closed retirement violated ordered nonexceptional serial-free prefix");
+      if(wrapper.retired_count_o != ({1'b0,retire_fire[0]}+{1'b0,retire_fire[1]}))
+        $fatal(1,"closed retirement count differs from accepted instruction prefix");
+      if(retire_fire==3) dual_retire_checks=dual_retire_checks+1;
+      if(serial_commit && (retire_fire!=1 || !metadata_serial[0] || serial_commit_tag!=ct[0+:T]))
+        $fatal(1,"serial retirement lost unique head identity");
+      if((flush || control_flush || redir || recovery_previous || stop || control_stop) &&
+          (wrapper.dut.birth_w!=0 || rfire!=0))
+        $fatal(1,"closed recovery/head stop admitted a younger owner");
+      if(recovery_previous) fence_checks=fence_checks+1;
+      if((rfire & ~lane_credit)!=0 || (rfire & ~rwant)!=0)
+        $fatal(1,"closed memory reservation lacked ranked credit");
+      for(integer rank_lane=0;rank_lane<2;rank_lane=rank_lane+1)
+        if(rfire[rank_lane] && selected_slots[rank_lane*5+:5] !=
+            5'((rank_lane==1 && rwant[0])?free1:free0))
+          $fatal(1,"closed reservation chose an unoffered FREE-Q slot");
+      if(trap_event && (retire_fire!=0 || !control_flush || !control_redirect))
+        $fatal(1,"trap side effect overlapped retirement or lost recovery");
     end
 
   // Minimal owner models test command/terminal boundaries, not cache/FP numeric
@@ -471,21 +262,21 @@ module tb_r64_head_serial_class;
         qslot = bslot[ml*5+:5];
         if (qslot >= 18 || !reserved[qslot] || bound[qslot] || owner_tag[qslot] != lt[ml*T+:T])
           $fatal(1, "dispatch LSQ slot/fulltag bound without unique reserve");
-        if (owner_func[qslot] != lu[ml*U+196+:8]) $fatal(1, "reserve/bind function mismatch");
+        if (owner_func[qslot] != lu[ml*`R64_MEM_CMD_W+192+:8]) $fatal(1, "reserve/bind function mismatch");
         for (zslot = 0; zslot < 18; zslot = zslot + 1)
         if (reserved[zslot] && !bound[zslot] && zslot != qslot &&
             ((owner_tag[zslot][4:0] - htag[4:0]) & 31) < ((owner_tag[qslot][4:0] - htag[4:0]) & 31))
           reverse_binds = reverse_binds + 1;
         bound[qslot] = 1;
         binds = binds + 1;
-        addr = lop[ml*192+:64] + lu[ml*U+64+:64];
+        addr = lu[ml*`R64_MEM_CMD_W+:64] + lu[ml*`R64_MEM_CMD_W+64+:64];
         owner_addr[qslot] = addr;
-        if (lu[ml*U+201]) begin
+        if (lu[ml*`R64_MEM_CMD_W+197]) begin
           ms = lt[ml*T+:5];
           sq_valid[ms] = 1;
           sq_tag[ms] = lt[ml*T+:T];
           sq_addr[ms] = addr;
-          sq_data[ms] = lop[ml*192+64+:64];
+          sq_data[ms] = lu[ml*`R64_MEM_CMD_W+128+:64];
         end
       end
       for (ml = 0; ml < 2; ml = ml + 1)
@@ -526,8 +317,8 @@ module tb_r64_head_serial_class;
       end
       for (ml = 0; ml < 2; ml = ml + 1)
       if (rfire[ml]) begin
-        qslot = rslot[ml*5+:5];
-        if (qslot >= 18 || reserved[qslot] || !rready[ml]) $fatal(1, "LSQ reserve overbooked");
+        qslot = selected_slots[ml*5+:5];
+        if (qslot >= 18 || reserved[qslot] || !lane_credit[ml]) $fatal(1, "LSQ reserve overbooked");
         reserved[qslot] = 1;
         bound[qslot] = 0;
         responded[qslot] = 0;
@@ -545,8 +336,8 @@ module tb_r64_head_serial_class;
         ev[3] <= 1;
         et[3*T+:T] <= st;
         ed[3*R+:R] <= 0;
-        ed[3*R+:64] <= su[159:128] == 32'h30200073 ? 64'd40 : csr_value;
-        csr_value = sop[63:0];
+        ed[3*R+:64] <= su[95:64] == 32'h30200073 ? 64'd40 : csr_value;
+        csr_value = su[`R64_SERIAL_OPERAND];
       end
     end
   end
@@ -750,15 +541,15 @@ module tb_r64_head_serial_class;
             {32'b0, program_mem[(fetch_pc>>2)+1], 32'b0, program_mem[fetch_pc>>2]} : 128'b0;
         #1;
         for (integer row = 0; row < 16; row = row + 1) begin
-          if (wrapper.dut.issue.valid_q[row] && wrapper.dut.issue.class_q[row] == 5 &&
-              wrapper.dut.issue.tag_q[row][4:0] == htag[4:0]) begin
+          if (wrapper.dut.execution.issue.valid_q[row] && wrapper.dut.execution.issue.class_q[row] == 5 &&
+              wrapper.dut.execution.issue.tag_q[row][4:0] == htag[4:0]) begin
             canonical_windows = canonical_windows + 1;
             check(
                 wrapper.dut.rob.valid_q[htag[4:0]] && !wrapper.dut.rob.done_q[htag[4:0]] &&
-                    wrapper.dut.issue.tag_q[row] == htag,
+                    wrapper.dut.execution.issue.tag_q[row] == htag,
                 "resident Serial lacks canonical unfinished head");
           end
-          if (wrapper.dut.issue.common_w[row] && wrapper.dut.issue.class_q[row] == 5)
+          if (wrapper.dut.execution.issue.common_w[row] && wrapper.dut.execution.issue.class_q[row] == 5)
             check(effect_allow, "new Serial permission changed reachable IQ grant");
         end
         if (wrapper.dut.serial_active_w[htag[4:0]] && !serial_commit && !rst &&
@@ -787,7 +578,7 @@ module tb_r64_head_serial_class;
           tick();
           $fatal(1, "missing resident head stop assertion");
         end
-        if (wrapper.dut.registers.serial_owner_count != 0 && serial_hold)
+        if (wrapper.dut.execution.registers.serial_owner_count != 0 && serial_hold)
           held_cycles = held_cycles + 1;
         if (wrapper.commit.event_valid_q) begin
           pending_cycles = pending_cycles + 1;
@@ -799,8 +590,8 @@ module tb_r64_head_serial_class;
         end
         if ($test$plusargs(
                 "bad-canonical"
-            ) && ((wrapper.dut.read_valid_w[0] && wrapper.dut.read_class_w[2:0] == 5) ||
-                  (wrapper.dut.read_valid_w[1] && wrapper.dut.read_class_w[5:3] == 5))) begin
+            ) && ((wrapper.dut.execution.read_valid_w[0] && wrapper.dut.execution.read_class_w[2:0] == 5) ||
+                  (wrapper.dut.execution.read_valid_w[1] && wrapper.dut.execution.read_class_w[5:3] == 5))) begin
           bad_tag = htag ^ 9'h020;
           force wrapper.dut.serial_tag_o = bad_tag;
           force wrapper.dut.head_tag_o = bad_tag;
@@ -820,7 +611,7 @@ module tb_r64_head_serial_class;
             generation_wraps = generation_wraps + 1;
           last_generation[st[4:0]]  = st[8:5];
           serial_slot_seen[st[4:0]] = 1;
-          if (su[159:128] == 32'h30200073) total_return = total_return + 1;
+          if (su[95:64] == 32'h30200073) total_return = total_return + 1;
         end
         if (redir) branch_count = branch_count + 1;
         for (lane = 0; lane < 2; lane = lane + 1)
@@ -870,6 +661,10 @@ module tb_r64_head_serial_class;
           "closed boundary coverage");
     if ($test$plusargs("head-stop"))
       check(early_stop_cycles > 20, "early resident stop not exercised");
+    check(prefix_checks>100 && dual_retire_checks>0 && fence_checks>=60,
+          "transaction oracle missed retirement prefix or recovery delivery");
+    $display("TRANSACTION_ORACLE prefix=%0d dual=%0d fence=%0d",
+             prefix_checks,dual_retire_checks,fence_checks);
     $display("EARLY_STOP %0d", early_stop_cycles);
     $display("GEN %h elapsed %0d canonical %0d", generation_seen, elapsed_total, canonical_windows);
     check(canonical_windows >= 60, "resident canonical premise was not exercised");

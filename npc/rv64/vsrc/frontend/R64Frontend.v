@@ -1,3 +1,4 @@
+`include "R64Protocol.vh"
 // Ordered fetch transport -> translation -> synchronous I-cache -> alignment
 // -> local prediction -> four-entry instruction FIFO. Recovery drains accepted
 // memory owners. Prediction redirects only after its branch enters the FIFO.
@@ -6,13 +7,19 @@ module R64Frontend #(
   parameter [63:0] RESET_PC = 64'h80000000,
   parameter integer FETCH_PTR_W = 2,
   parameter integer EARLY_PREDICT = 1,
-  parameter integer ICACHE_SET_W = 6
+  parameter integer ICACHE_SET_W = 6,
+  parameter integer PACKET_EMPTY_FLOW = 1,
+  parameter integer BUNDLE_EMPTY_FLOW = 0,
+  parameter integer TOKEN_EMPTY_FLOW = 0,
+  parameter integer DIRECTION_COMMIT_TRAIN = 0,
+  parameter integer DIRECTION_INDEX_W = 8,
+  parameter integer DIRECTION_COLD_STRONG = 0,
+  parameter integer FTB_INDEX_W = 5
 ) (
   input          clk_i,
   input          rst_i,
   input          run_i,
-  input          redirect_i,
-  input  [ 63:0] redirect_pc_i,
+  input [`R64_RECOVERY_W(32)-1:0] recovery_i,
   input  [  1:0] priv_i,
   input  [ 63:0] mstatus_i,
   input  [ 63:0] satp_i,
@@ -68,8 +75,19 @@ module R64Frontend #(
   output         pte_rsp_ready_o,
   input  [ 63:0] pte_rdata_i,
   input          pte_error_i,
-  input          pte_compare_ok_i
+  input          pte_compare_ok_i,
+  input  [  1:0] direction_train_valid_i,
+  input  [127:0] direction_train_pc_i,
+  input  [  1:0] direction_train_taken_i
 );
+  wire [`R64_RECOVERY_W(32)-1:0] local_recovery;
+  wire unused_recovery_pending;
+  R64RecoveryInbox #(.N(32)) recovery_inbox (
+    .clk_i(clk_i), .rst_i(rst_i), .event_i(recovery_i),
+    .event_o(local_recovery), .pending_o(unused_recovery_pending)
+  );
+  wire redirect_i = local_recovery[`R64_RECOVERY_REDIRECT(32)];
+  wire [63:0] redirect_pc_i = local_recovery[`R64_RECOVERY_PC(32)];
   wire fetch_v_w, fetch_r_w, cache_v_w, cache_r_w, cache_fault_w;
   wire [ 63:0] fetch_pc_w;
   wire [127:0] cache_data_w;
@@ -97,7 +115,7 @@ module R64Frontend #(
   // the record flushes only younger byte/bundle owners and retargets fetch.
   // The existing unconditional PC/target registers below are its payload.
   reg [3:0] pending_kind_q;  // predicted lane0/lane1, repair lane0/lane1
-  reg [4:0] pending_source_q;
+  reg [FTB_INDEX_W-1:0] pending_source_q;
   wire pending_redirect_w = |pending_kind_q;
   wire stream_redirect_w = redirect_i || pending_redirect_w;
   wire [63:0] pending_target_w = ({64{pending_kind_q[0]}} & learn_target_q[63:0]) |
@@ -105,7 +123,7 @@ module R64Frontend #(
       ({64{pending_kind_q[2]}} & learn_pc_q[63:0]) | ({64{pending_kind_q[3]}} & learn_pc_q[127:64]);
   wire [63:0] stream_target_w = redirect_i ? redirect_pc_i : pending_target_w;
   always @(posedge clk_i) begin
-    pending_source_q <= plan_source_w[8:4];
+    pending_source_q <= plan_source_w[FTB_INDEX_W+3:4];
     if (rst_i || redirect_i) pending_kind_q <= 0;
     else
       pending_kind_q <= {
@@ -133,6 +151,8 @@ module R64Frontend #(
     .DEPTH(1 << FETCH_PTR_W),
     .PTR_W(FETCH_PTR_W),
     .EARLY_PREDICT(EARLY_PREDICT),
+    .PACKET_EMPTY_FLOW(PACKET_EMPTY_FLOW),
+    .FTB_INDEX_W(FTB_INDEX_W),
     .RESET_PC(RESET_PC)
   ) u_stream (
     .clk_i(clk_i),
@@ -151,7 +171,7 @@ module R64Frontend #(
     .resolve_taken_i(prediction_taken_i),
     .resolve_target_i(prediction_target_i),
     .repair_i((|pending_kind_q[3:2]) && !redirect_i),
-    .repair_block_i({55'b0, pending_source_q, 4'b0}),
+    .repair_block_i({{(60-FTB_INDEX_W){1'b0}}, pending_source_q, 4'b0}),
     .req_valid_o(fetch_v_w),
     .req_ready_i(fetch_r_w),
     .req_pc_o(fetch_pc_w),
@@ -240,6 +260,8 @@ module R64Frontend #(
   // The low 202 bits shared by all three payloads are, low to high:
   // PC64, raw64, length4, fault1, cause5, TVAL64.
   reg [201:0] bundle_inst_q[0:3];
+  wire [201:0] bundle_input_inst_w[0:1], prep_inst_w[0:1];
+  wire [471:0] token_input_inst_w[0:1], prediction_inst_w[0:1];
   reg [1:0] bundle_valid_q[0:1], bundle_at_q[0:1], bundle_bad_q[0:1];
   reg [63:0] bundle_target_q[0:1], bundle_source_q[0:1];
   reg bundle_head_q, bundle_tail_q, align_barrier_q;
@@ -266,27 +288,40 @@ module R64Frontend #(
   reg [63:0] token_target_q[0:1], token_source_q[0:1];
   reg token_head_q, token_tail_q;
   reg [1:0] token_count_q;
-  wire token_capture_w = bundle_count_q != 0 && token_count_q < 2 && !pending_redirect_w &&
+  // Empty flow selects a complete current owner; all admission credits still
+  // come from Q occupancy. Old resident heads always have precedence.
+  wire bundle_from_input_w = BUNDLE_EMPTY_FLOW != 0 && bundle_count_q == 0;
+  wire bundle_offer_w = bundle_count_q != 0 ||
+      (bundle_from_input_w && capture_w && !rst_i && !stream_redirect_w);
+  wire token_capture_w = bundle_offer_w && token_count_q < 2 && !pending_redirect_w &&
       !fault_barrier_q;
-  wire bundle_pop_w = token_capture_w;
+  wire bundle_direct_w = bundle_from_input_w && capture_w && token_capture_w &&
+      !rst_i && !stream_redirect_w;
+  wire bundle_push_w = capture_w && !bundle_direct_w;
+  wire bundle_pop_w = bundle_count_q != 0 && token_capture_w;
+  wire token_from_input_w = TOKEN_EMPTY_FLOW != 0 && token_count_q == 0;
+  wire token_offer_w = token_count_q != 0 ||
+      (token_from_input_w && token_capture_w && !rst_i && !stream_redirect_w);
+  wire token_direct_w = token_from_input_w && token_capture_w && result_capture_w &&
+      !rst_i && !stream_redirect_w;
+  wire token_push_w = token_capture_w && !token_direct_w;
   wire result_capture_w;
   wire [1:0] prediction_take_w;
-  wire token_pop_w = result_capture_w;
-  assign prep_in_align_v_w = bundle_count_q != 0 ? bundle_valid_q[bundle_head_q] : 2'b0;
+  wire token_pop_w = token_count_q != 0 && result_capture_w;
+  assign prep_in_align_v_w = bundle_count_q != 0 ? bundle_valid_q[bundle_head_q] :
+      bundle_offer_w ? {capture_second_w,1'b1} : 2'b0;
   assign {prep_in_align_tval_w[63:0], prep_in_align_cause_w[4:0], prep_in_align_fault_w[0],
           prep_in_align_length_w[3:0], prep_in_align_raw_w[63:0], prep_in_align_pc_w[63:0]} =
-      bundle_inst_q[{
-    bundle_head_q, 1'b0
-  }];
+      prep_inst_w[0];
   assign {prep_in_align_tval_w[127:64], prep_in_align_cause_w[9:5], prep_in_align_fault_w[1],
           prep_in_align_length_w[7:4], prep_in_align_raw_w[127:64], prep_in_align_pc_w[127:64]} =
-      bundle_inst_q[{
-    bundle_head_q, 1'b1
-  }];
-  assign prep_in_plan_at_w = bundle_count_q != 0 ? bundle_at_q[bundle_head_q] : 2'b0;
-  assign prep_in_plan_bad_w = bundle_count_q != 0 ? bundle_bad_q[bundle_head_q] : 2'b0;
-  assign prep_in_plan_target_w = bundle_target_q[bundle_head_q];
-  assign prep_in_plan_source_w = bundle_source_q[bundle_head_q];
+      prep_inst_w[1];
+  assign prep_in_plan_at_w = bundle_count_q != 0 ? bundle_at_q[bundle_head_q] :
+      (raw_plan_at_w & {2{bundle_offer_w}} & {capture_second_w,1'b1});
+  assign prep_in_plan_bad_w = bundle_count_q != 0 ? bundle_bad_q[bundle_head_q] :
+      (raw_plan_bad_w & {2{bundle_offer_w}} & {capture_second_w,1'b1});
+  assign prep_in_plan_target_w = bundle_from_input_w ? raw_plan_target_w : bundle_target_q[bundle_head_q];
+  assign prep_in_plan_source_w = bundle_from_input_w ? raw_plan_source_w : bundle_source_q[bundle_head_q];
   always @(posedge clk_i) begin
     if (rst_i || stream_redirect_w) begin
       bundle_head_q <= 0;
@@ -296,16 +331,18 @@ module R64Frontend #(
       bundle_valid_q[0] <= 0;
       bundle_valid_q[1] <= 0;
     end else begin
-      bundle_count_q <= bundle_count_q + {1'b0, capture_w} - {1'b0, bundle_pop_w};
+      bundle_count_q <= bundle_count_q + {1'b0, bundle_push_w} - {1'b0, bundle_pop_w};
       if (bundle_pop_w) bundle_head_q <= !bundle_head_q;
-      if (capture_w) begin
+      if (bundle_push_w) begin
         bundle_tail_q <= !bundle_tail_q;
         bundle_valid_q[bundle_tail_q] <= {capture_second_w, 1'b1};
         bundle_at_q[bundle_tail_q] <= raw_plan_at_w & {capture_second_w, 1'b1};
         bundle_bad_q[bundle_tail_q] <= raw_plan_bad_w & {capture_second_w, 1'b1};
 
-        if (raw_plan_bad_w[0] || (capture_second_w && raw_plan_bad_w[1])) align_barrier_q <= 1;
       end
+      // Alignment consumed this owner even if its bundle storage was bypassed.
+      if (capture_w && (raw_plan_bad_w[0] || (capture_second_w && raw_plan_bad_w[1])))
+        align_barrier_q <= 1;
     end
   end
 
@@ -360,27 +397,26 @@ module R64Frontend #(
       unused_prediction_match_w;
   wire [5:0] prediction_write_index_w, prediction_post_pointer_w;
   wire [7:0] prediction_post_count_w;
-  assign prediction_align_v_w = token_count_q != 0 ? token_valid_q[token_head_q] : 2'b0;
+  assign prediction_align_v_w = token_count_q != 0 ? token_valid_q[token_head_q] :
+      token_offer_w ? prep_in_align_v_w : 2'b0;
   assign {prediction_canonical_w[32:0], prediction_preparation_snapshot_w[170:0],
           prediction_target_snapshot_w[62:0], prediction_target_hit_snapshot_w[0],
           prediction_direction_valid_snapshot_w[0], prediction_direction_snapshot_w[0],
           prediction_align_tval_w[63:0], prediction_align_cause_w[4:0], prediction_align_fault_w[0],
           prediction_align_length_w[3:0], prediction_align_raw_w[63:0],
-          prediction_align_pc_w[63:0]} = token_inst_q[{
-    token_head_q, 1'b0
-  }];
+          prediction_align_pc_w[63:0]} = prediction_inst_w[0];
   assign {prediction_canonical_w[65:33], prediction_preparation_snapshot_w[341:171],
           prediction_target_snapshot_w[125:63], prediction_target_hit_snapshot_w[1],
           prediction_direction_valid_snapshot_w[1], prediction_direction_snapshot_w[1],
           prediction_align_tval_w[127:64], prediction_align_cause_w[9:5],
           prediction_align_fault_w[1], prediction_align_length_w[7:4],
-          prediction_align_raw_w[127:64], prediction_align_pc_w[127:64]} = token_inst_q[{
-    token_head_q, 1'b1
-  }];
-  assign prediction_plan_at_w = token_count_q != 0 ? token_at_q[token_head_q] : 2'b0;
-  assign prediction_plan_bad_w = token_count_q != 0 ? token_bad_q[token_head_q] : 2'b0;
-  assign prediction_plan_target_w = token_target_q[token_head_q];
-  assign prediction_plan_source_w = token_source_q[token_head_q];
+          prediction_align_raw_w[127:64], prediction_align_pc_w[127:64]} = prediction_inst_w[1];
+  assign prediction_plan_at_w = token_count_q != 0 ? token_at_q[token_head_q] :
+      (prep_in_plan_at_w & {2{token_offer_w}});
+  assign prediction_plan_bad_w = token_count_q != 0 ? token_bad_q[token_head_q] :
+      (prep_in_plan_bad_w & {2{token_offer_w}});
+  assign prediction_plan_target_w = token_from_input_w ? prep_in_plan_target_w : token_target_q[token_head_q];
+  assign prediction_plan_source_w = token_from_input_w ? prep_in_plan_source_w : token_source_q[token_head_q];
   always @(posedge clk_i) begin
     if (rst_i || stream_redirect_w) begin
       token_head_q <= 0;
@@ -389,13 +425,13 @@ module R64Frontend #(
       token_valid_q[0] <= 0;
       token_valid_q[1] <= 0;
     end else begin
-      token_count_q <= token_count_q + {1'b0, token_capture_w} - {1'b0, token_pop_w};
+      token_count_q <= token_count_q + {1'b0, token_push_w} - {1'b0, token_pop_w};
       if (token_pop_w) token_head_q <= !token_head_q;
-      if (token_capture_w) begin
+      if (token_push_w) begin
         token_tail_q <= !token_tail_q;
-        token_valid_q[token_tail_q] <= bundle_valid_q[bundle_head_q];
-        token_at_q[token_tail_q] <= bundle_at_q[bundle_head_q];
-        token_bad_q[token_tail_q] <= bundle_bad_q[bundle_head_q];
+        token_valid_q[token_tail_q] <= prep_in_align_v_w;
+        token_at_q[token_tail_q] <= prep_in_plan_at_w;
+        token_bad_q[token_tail_q] <= prep_in_plan_bad_w;
 
       end
     end
@@ -412,8 +448,8 @@ module R64Frontend #(
   end
   always @(posedge clk_i) begin
     if (token_count_q < 2) begin
-      token_target_q[token_tail_q] <= bundle_target_q[bundle_head_q];
-      token_source_q[token_tail_q] <= bundle_source_q[bundle_head_q];
+      token_target_q[token_tail_q] <= prep_in_plan_target_w;
+      token_source_q[token_tail_q] <= prep_in_plan_source_w;
     end
   end
   always @(posedge clk_i) begin
@@ -430,27 +466,25 @@ module R64Frontend #(
     for (
         payload_lane = 0; payload_lane < 2; payload_lane = payload_lane + 1
     ) begin : gen_pair_payload
-      localparam LANE = payload_lane[0];
+  localparam LANE = payload_lane[0];
+      assign bundle_input_inst_w[payload_lane] = {
+          raw_align_tval_w[payload_lane*64+:64],raw_align_cause_w[payload_lane*5+:5],
+          raw_align_fault_w[payload_lane],raw_align_length_w[payload_lane*4+:4],
+          raw_align_raw_w[payload_lane*64+:64],raw_align_pc_w[payload_lane*64+:64]};
+      assign prep_inst_w[payload_lane] = bundle_from_input_w ?
+          bundle_input_inst_w[payload_lane] : bundle_inst_q[{bundle_head_q,LANE}];
+      assign token_input_inst_w[payload_lane] = {
+          prep_canonical_w[payload_lane*33+:33],preparation_w[payload_lane*171+:171],
+          lookup_target_w[payload_lane*63+:63],lookup_target_hit_w[payload_lane],
+          lookup_direction_valid_w[payload_lane],lookup_direction_w[payload_lane],
+          prep_inst_w[payload_lane]};
+      assign prediction_inst_w[payload_lane] = token_from_input_w ?
+          token_input_inst_w[payload_lane] : token_inst_q[{token_head_q,LANE}];
       always @(posedge clk_i) begin
         if (bundle_count_q < 2)
-          bundle_inst_q[{bundle_tail_q, LANE}] <= {
-            raw_align_tval_w[payload_lane*64+:64],
-            raw_align_cause_w[payload_lane*5+:5],
-            raw_align_fault_w[payload_lane],
-            raw_align_length_w[payload_lane*4+:4],
-            raw_align_raw_w[payload_lane*64+:64],
-            raw_align_pc_w[payload_lane*64+:64]
-          };
+          bundle_inst_q[{bundle_tail_q,LANE}] <= bundle_input_inst_w[payload_lane];
         if (token_count_q < 2)
-          token_inst_q[{token_tail_q, LANE}] <= {
-            prep_canonical_w[payload_lane*33+:33],
-            preparation_w[payload_lane*171+:171],
-            lookup_target_w[payload_lane*63+:63],
-            lookup_target_hit_w[payload_lane],
-            lookup_direction_valid_w[payload_lane],
-            lookup_direction_w[payload_lane],
-            bundle_inst_q[{bundle_head_q, LANE}]
-          };
+          token_inst_q[{token_tail_q,LANE}] <= token_input_inst_w[payload_lane];
         if (result_count_q < 2)
           result_inst_q[{result_tail_q, LANE}] <= {
             prediction_control_w[payload_lane*35+:35],
@@ -550,7 +584,7 @@ module R64Frontend #(
   wire [  3:0] ras_journal_valid_w;
   wire [ 11:0] ras_journal_index_w;
   wire [251:0] ras_journal_data_w;
-  assign result_capture_w = token_count_q != 0 && result_count_q < 2 && !pending_redirect_w &&
+  assign result_capture_w = token_offer_w && result_count_q < 2 && !pending_redirect_w &&
       !fault_barrier_q;
   assign prediction_take_w = !result_capture_w ? 2'd0 : (prediction_align_v_w[1] ? 2'd2 : 2'd1);
   wire result_pop_w = align_take_w != 0 &&
@@ -637,7 +671,11 @@ module R64Frontend #(
       end
     end
   end
-  R64Predictor u_predictor (
+  R64Predictor #(.DIRECTION_COMMIT_TRAIN(DIRECTION_COMMIT_TRAIN),
+    .DIRECTION_INDEX_W(DIRECTION_INDEX_W),.DIRECTION_COLD_STRONG(DIRECTION_COLD_STRONG)) u_predictor (
+    .direction_train_valid_i(direction_train_valid_i),
+    .direction_train_pc_i(direction_train_pc_i),
+    .direction_train_taken_i(direction_train_taken_i),
     .rollback_i(pending_redirect_w),
     .confirm_i(align_take_w),
     .confirm_state_valid_i(result_ras_valid_w),
@@ -768,6 +806,18 @@ module R64Frontend #(
       };
   end
 `ifdef R64_ASSERT
+  always @(posedge clk_i) if (!rst_i && !stream_redirect_w) begin
+    if (bundle_pop_w && bundle_count_q==0) $fatal(1,"frontend popped absent bundle owner");
+    if (token_pop_w && token_count_q==0) $fatal(1,"frontend popped absent token owner");
+    if (bundle_direct_w && (bundle_count_q!=0 || bundle_push_w || !token_capture_w))
+      $fatal(1,"frontend bundle direct transfer duplicated ownership");
+    if (token_direct_w && (token_count_q!=0 || token_push_w || !result_capture_w))
+      $fatal(1,"frontend token direct transfer duplicated ownership");
+    if (token_capture_w && token_count_q==2)
+      $fatal(1,"frontend borrowed token same-cycle pop credit");
+    if (result_capture_w && result_count_q==2)
+      $fatal(1,"frontend borrowed result same-cycle pop credit");
+  end
   genvar static_check_lane;
   generate
     for (

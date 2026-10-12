@@ -6,7 +6,7 @@ module tb_r64_writeback;
   reg rst = 1, flush = 0;
   reg [31:0] km = 0;
   reg [S-1:0] sv = 0;
-  wire [S-1:0] sr;
+  wire [S-1:0] sr, capture;
   reg [S*T-1:0] st = 0;
   reg [S*R-1:0] sd = 0;
   wire [1:0] wv;
@@ -24,7 +24,7 @@ module tb_r64_writeback;
     .rst(rst),
     .flush_i(flush),
     .kill_mask_i(km),
-    .source_valid_i(sv),
+    .source_valid_i(sv), .source_capture_o(capture),
     .source_ready_o(sr),
     .source_tag_i(st),
     .source_result_i(sd),
@@ -32,6 +32,18 @@ module tb_r64_writeback;
     .wb_tag_o(wt),
     .wb_result_o(wd)
   );
+  integer capture_checks=0, denied_valid=0, empty_grant=0, cancelled_grant=0;
+  always @(posedge clk) begin
+    for(integer s=0;s<S;s=s+1) begin
+      if(capture[s] !== (!rst && !flush && sv[s] && sr[s] && !km[st[s*T+:5]]))
+        $fatal(1,"WB transport event differs from actual capture");
+      capture_checks=capture_checks+1;
+      if(!rst && sv[s] && !sr[s])denied_valid=denied_valid+1;
+      if(!rst && !sv[s] && sr[s])empty_grant=empty_grant+1;
+      if(!rst && sv[s] && sr[s] && (flush||km[st[s*T+:5]]))
+        cancelled_grant=cancelled_grant+1;
+    end
+  end
   task tick;
     begin
       @(posedge clk);
@@ -147,6 +159,9 @@ module tb_r64_writeback;
     $display(
         "[R64-WRITEBACK] two ALUs=2/cycle seven-source contention 140 results/70 cycles every_source=20 PASS"
             );
+    check(denied_valid>0 && empty_grant>0 && cancelled_grant>0,"transport negative coverage");
+    $display("WB_CAPTURE checks=%0d no_grant=%0d empty_grant=%0d cancelled=%0d",
+             capture_checks,denied_valid,empty_grant,cancelled_grant);
     $display("[PASS] tb_r64_writeback");
     $finish;
   end

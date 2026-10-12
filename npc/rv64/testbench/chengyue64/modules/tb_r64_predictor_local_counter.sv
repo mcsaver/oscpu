@@ -37,6 +37,7 @@ module tb_r64_predictor_local_counter;
     end
   endgenerate
   R64Predictor dut (
+    .direction_train_valid_i(2'b0),.direction_train_pc_i(128'b0),.direction_train_taken_i(2'b0),
     .clk_i(clk),
     .rst_i(rst),
     .invalidate_i(invalidate),

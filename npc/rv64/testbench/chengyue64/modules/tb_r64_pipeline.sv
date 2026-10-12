@@ -27,11 +27,11 @@ module tb_r64_pipeline;
   R64Frontend #(
     .FETCH_PTR_W(FETCH_PTR_W)
   ) dut (
+    .direction_train_valid_i(2'b0),.direction_train_pc_i(128'b0),.direction_train_taken_i(2'b0),
     .clk_i(clk),
     .rst_i(rst),
     .run_i(run),
-    .redirect_i(redirect),
-    .redirect_pc_i(target),
+    .recovery_i({redirect,target,34'b0}),
     .priv_i(priv),
     .mstatus_i(status),
     .satp_i(satp),
@@ -145,6 +145,10 @@ module tb_r64_pipeline;
   assign consume = {1'b0, valid[0] && fetch_ready[0]} + {1'b0, valid[1] && fetch_ready[1]};
   wire [1:0] reserve_want, reserve_fire;
   R64Backend backend (
+    .serial_retire_candidate_o(),
+    .direction_invalidate_i(1'b0),.direction_train_valid_o(),.direction_train_pc_o(),.direction_train_taken_o(),
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
+    .resolved_value_valid_i(2'b0), .resolved_value_tag_i(18'b0), .resolved_value_data_i(128'b0),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -155,6 +159,7 @@ module tb_r64_pipeline;
     .lsu_reserve_fire_o(reserve_fire),
     .lsu_reserve_ready_i(2'b0),
     .lsu_reserve_slot_i(10'b0),
+    .lsu_reserve_slot_o(),
     .lsu_reserve_tag_o(),
     .lsu_reserve_func_o(),
     .lsu_reserve_amo_o(),
@@ -163,7 +168,7 @@ module tb_r64_pipeline;
     .rst(rst),
     .flush_i(1'b0),
     .stop_i(!run),
-    .serial_allow_i(1'b1),
+    .effect_i({1'b1, 11'b0}),
     .reuse_block_i(32'b0),
     .fetch_valid_i(valid),
     .fetch_ready_o(fetch_ready),
@@ -175,7 +180,6 @@ module tb_r64_pipeline;
     .fetch_cause_i({1'b0, cause[9:5], 1'b0, cause[4:0]}),
     .fetch_tval_i(tval),
     .commit_ready_i(commit_ready),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(commit_valid),
     .commit_meta_o(commit_meta),
     .commit_data_o(commit_data),

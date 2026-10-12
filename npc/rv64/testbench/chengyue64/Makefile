@@ -1,14 +1,20 @@
 .DEFAULT_GOAL := all
 include ../../sim/build.mk
 BUILD_DIR ?= ../../build/chengyue64/regress
-TESTS ?= tb_r64_lsu_translation_owners tb_r64_service_request_hint tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_dcache_write_buffer tb_r64_issue32 tb_r64_free_select tb_r64_dcache_split_owner tb_r64_fabric_groups tb_r64_fabric_read_continue tb_r64_dcache_store_overlap tb_r64_axi_write_bypass tb_r64_fabric_latency_bypass tb_r64_writeback_demand tb_r64_rr_bypass tb_r64_issue_mdu_pair tb_r64_scratch_resume tb_r64_lsu_network tb_r64_dcache_overlap tb_r64_dispatch_wants tb_r64_rr_raw_fp_pair tb_r64_completion_payload tb_r64_predictor_local_counter tb_r64_fetch_facts_reset tb_r64_fast_raw_owner tb_r64_fma_raw_owner tb_r64_direct_mem_execute tb_r64_lsu_direct_bind tb_r64_lsu_owner_bypass tb_r64_lsu_descriptor_payload tb_r64_lsu_query_pin tb_r64_direct_bind_trigger tb_r64_head_serial_class tb_r64_fetch_protection_owner tb_r64_frontend_prepared tb_r64_fp_qcredit tb_r64_fp_qcredit_vectors tb_r64_service_bank_pair tb_r64_service_cache_hot tb_r64_service_aux_owner tb_r64_service_qcredit tb_r64_dcache_amo_pipe tb_r64_data_terminal tb_r64_fetch_translation tb_r64_fetch_translation_owners tb_r64_packet_map tb_r64_packet_missing tb_r64_packet_headcut tb_r64_align_plan_threebank tb_r64_translation_equiv tb_r64_translation_poison tb_r64_frontend_ingress tb_r64_decode_stage tb_r64_rr_lsq_slot tb_r64_lsu_reserve tb_r64_platform_reset tb_r64_trap_prepare tb_r64_control_pipeline tb_r64_recovery_plan tb_r64_frontend_bundle tb_r64_frontend_training tb_r64_lsu_progress tb_r64_alu_pipe tb_r64_alu_lane tb_r64_fp_normalize tb_r64_clmul_writeback tb_r64_issue_serial tb_r64_fp_fast_pipeline tb_r64_fp_completion tb_r64_trap_vector tb_r64_counter tb_r64_fp_grs tb_r64_mul_booth tb_r64_fp_writeback tb_r64_lsu_metadata tb_r64_fp_product tb_r64_fabric_reset tb_r64_div_pipeline tb_r64_regread_pipeline tb_r64_div_writeback tb_r64_lsu_request_queue tb_r64_writeback_lanes tb_r64_mul_writeback tb_uart tb_axi_clint tb_r64_mul_pipeline tb_axi_reset_syscon tb_r64_lsu_order_select tb_axi_to_uart tb_r64_numeric_helpers tb_r64_lsu_select tb_r64_fabric_latency tb_r64_early_frontend tb_r64_early_wakeup tb_r64_store_done tb_axi_plic tb_r64_tensor_memory tb_r64_mem_admission tb_r64_fetch tb_r64_rvc tb_r64_rob_rename tb_r64_issue_regread tb_r64_writeback tb_r64_axi_read tb_r64_axi_write tb_r64_icache tb_r64_tlb tb_r64_pagewalk tb_r64_translation tb_r64_decode tb_r64_arithmetic tb_r64_backend tb_r64_frontend tb_r64_protection tb_r64_pte_port tb_r64_csr tb_r64_serial tb_r64_commit tb_r64_fp_round tb_r64_fp_fma tb_r64_fp_long tb_r64_fp_fast tb_r64_fp_execute tb_r64_backend_fp tb_r64_predictor tb_r64_pipeline tb_r64_lsu tb_r64_lsu_completion tb_r64_lsu_memory tb_r64_memory_service tb_r64_lsu_coupled tb_r64_lsu_misaligned tb_r64_dcache tb_r64_fabric tb_r64_fabric_devices tb_r64_rtc
+TESTS ?= tb_r64_dual_retire_candidate tb_r64_dual_retire_lease tb_r64_lsu_error_source_pin tb_r64_store_error_pin_core tb_r64_lsu_response_forward tb_r64_response_forward_pin tb_r64_response_forward_returns tb_r64_frontend_owner_flow tb_r64_fetch_protection_owner_fast tb_r64_rr_admit_gpr tb_r64_dcache_command_flow tb_r64_rr_complete_admit tb_r64_rr_complete_admit_chain tb_r64_rr_complete_branch_admit tb_r64_rr_branch_owner tb_r64_dcache_detached_store tb_r64_dcache_hit_flow tb_r64_successor_store_lease tb_r64_ordinary_successor_control tb_r64_ordinary_successor_lease tb_r64_mmio_retire_age tb_r64_successor_lease_control tb_r64_lsu_translation_direct tb_r64_service_read_empty tb_r64_service_read_cache tb_r64_rr_token_memory_values tb_r64_alu_token_lane tb_r64_alu_token_bypass tb_r64_rr_token_values tb_r64_store_response_elastic tb_r64_axi_first_w tb_r64_axi_command_flow tb_r64_axi_command_fabric tb_r64_rr_resolved_values tb_r64_mem_terminal_current tb_r64_rr_mem_terminal tb_r64_value_notice_merge tb_r64_load_early_value tb_r64_early_memory_notice tb_r64_load_resolved_value tb_r64_resolved_memory_notice tb_r64_load_completion_promise tb_r64_lsu_prepared_reuse tb_r64_alu_promise tb_r64_rr_late_values tb_r64_lsu_bind_translation tb_r64_store_commit_overlap tb_r64_service_store_prepare tb_r64_data_bare_fast tb_r64_backend_ranked_credit tb_r64_recovery_inbox tb_r64_memory_effect_lease tb_r64_execution_owners tb_r64_lsu_response_ingress tb_r64_execution_domain tb_r64_control_domain tb_r64_data_translation_service tb_r64_lsu_translation_owners tb_r64_service_request_hint tb_r64_lsu_event_count tb_r64_lsu_wb_request tb_r64_dcache_write_buffer tb_r64_issue32 tb_r64_free_select tb_r64_dcache_split_owner tb_r64_fabric_groups tb_r64_fabric_read_continue tb_r64_dcache_store_overlap tb_r64_axi_write_bypass tb_r64_fabric_latency_bypass tb_r64_fabric_write_flow tb_r64_fabric_write_owner tb_r64_writeback_demand tb_r64_rr_bypass tb_r64_issue_mdu_pair tb_r64_scratch_resume tb_r64_lsu_network tb_r64_dcache_overlap tb_r64_dispatch_wants tb_r64_rr_raw_fp_pair tb_r64_completion_payload tb_r64_predictor_local_counter tb_r64_fetch_facts_reset tb_r64_fast_raw_owner tb_r64_fma_raw_owner tb_r64_direct_mem_execute tb_r64_lsu_direct_bind tb_r64_lsu_owner_bypass tb_r64_lsu_response_descriptor tb_r64_lsu_descriptor_payload tb_r64_lsu_query_pin tb_r64_direct_bind_trigger tb_r64_head_serial_class tb_r64_fetch_protection_owner tb_r64_fetch_packet_flow tb_r64_frontend_packet_flow tb_r64_frontend_prepared tb_r64_fp_qcredit tb_r64_fp_qcredit_vectors tb_r64_service_bank_pair tb_r64_service_cache_hot tb_r64_service_aux_owner tb_r64_service_qcredit tb_r64_dcache_amo_pipe tb_r64_data_terminal tb_r64_fetch_translation tb_r64_fetch_bare_capture tb_r64_fetch_translation_owners tb_r64_packet_map tb_r64_packet_missing tb_r64_packet_headcut tb_r64_align_plan_threebank tb_r64_translation_equiv tb_r64_translation_poison tb_r64_frontend_ingress tb_r64_decode_stage tb_r64_rr_lsq_slot tb_r64_lsu_reserve tb_r64_platform_reset tb_r64_trap_prepare tb_r64_control_pipeline tb_r64_recovery_plan tb_r64_frontend_bundle tb_r64_frontend_training tb_r64_lsu_progress tb_r64_alu_pipe tb_r64_alu_lane tb_r64_fp_normalize tb_r64_clmul_writeback tb_r64_issue_serial tb_r64_fp_fast_pipeline tb_r64_fp_completion tb_r64_trap_vector tb_r64_counter tb_r64_fp_grs tb_r64_mul_booth tb_r64_fp_writeback tb_r64_lsu_metadata tb_r64_fp_product tb_r64_fabric_reset tb_r64_div_pipeline tb_r64_regread_pipeline tb_r64_div_writeback tb_r64_lsu_request_queue tb_r64_writeback_lanes tb_r64_mul_writeback tb_uart tb_axi_clint tb_r64_mul_pipeline tb_axi_reset_syscon tb_r64_lsu_order_select tb_axi_to_uart tb_r64_numeric_helpers tb_r64_lsu_select tb_r64_fabric_latency tb_r64_early_frontend tb_r64_early_wakeup tb_r64_store_done tb_axi_plic tb_r64_tensor_memory tb_r64_mem_admission tb_r64_fetch tb_r64_rvc tb_r64_rob_rename tb_r64_issue_regread tb_r64_issue_init_current tb_r64_issue_init_execute tb_r64_writeback tb_r64_axi_read tb_r64_axi_write tb_r64_icache_hit_flow tb_r64_icache tb_r64_tlb tb_r64_pagewalk tb_r64_translation tb_r64_decode tb_r64_arithmetic tb_r64_backend tb_r64_frontend tb_r64_protection tb_r64_pte_port tb_r64_csr tb_r64_serial tb_r64_commit tb_r64_fp_round tb_r64_fp_fma tb_r64_fp_long tb_r64_fp_fast tb_r64_fp_execute tb_r64_backend_fp tb_r64_predictor tb_r64_pipeline tb_r64_lsu tb_r64_lsu_completion tb_r64_lsu_memory tb_r64_memory_service tb_r64_lsu_coupled tb_r64_lsu_misaligned tb_r64_dcache tb_r64_fabric tb_r64_fabric_devices tb_r64_rtc
+TESTS += tb_r64_bind_translation_flow tb_r64_bind_translation_service tb_r64_direction_backend tb_r64_direction_frontend_snapshot tb_r64_direction_pipeline tb_r64_direction_predictor tb_r64_predictor_capacity tb_r64_direction_capacity
+TESTS += tb_r64_batch_rollback tb_r64_batch_backend tb_r64_ftb_capacity tb_r64_ftb_frontend
+TESTS += tb_r64_serial_retire_candidate
 TEST_ARGS_tb_r64_lsu := +prepared-capture
 TEST_ARGS_tb_r64_dcache_amo_pipe := +late-invalidate
-TEST_ORACLES := oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v oracles/legacy/OooRvcDecompressor.v oracles/legacy/DecodeUnit.v oracles/legacy/OooFpDecode.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v
+TEST_ORACLES := oracles/R64RenameReference.v oracles/R64RenameWithScoreboard.v oracles/R64TranslationTokenEcho.v oracles/R64LsuTranslationOwners.v oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v oracles/legacy/OooRvcDecompressor.v oracles/legacy/DecodeUnit.v oracles/legacy/OooFpDecode.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v
+TEST_HEADERS := $(wildcard modules/*.svh)
 IVERILOG ?= iverilog
 VVP ?= vvp
 # 16-entry PMP plus four fetch queries exercise 30k independent region models.
 TEST_TIMEOUT_tb_r64_packet_map := 180
+# Match the direction-training focused fixture host budget; simulated checks are unchanged.
+TEST_TIMEOUT_tb_r64_direction_pipeline := 120
 # Full SoftFloat FMA vectors can exceed 60 host seconds under EDA load.
 TEST_TIMEOUT_tb_r64_fp_fma := 180
 TEST_TIMEOUT_tb_r64_protection := 600
@@ -24,7 +30,7 @@ all: run
 run: $(TESTS:%=$(BUILD_DIR)/%.pass)
 $(BUILD_DIR):
 	mkdir -p $@
-$(BUILD_DIR)/%.vvp: modules/%.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(TEST_ORACLES) | $(BUILD_DIR)
+$(BUILD_DIR)/%.vvp: modules/%.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) $(TEST_ORACLES) $(TEST_HEADERS) | $(BUILD_DIR)
 	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s $* -o $@ $(R64_RTL_SRCS) $(TEST_ORACLES) $<
 $(BUILD_DIR)/%.pass: $(BUILD_DIR)/%.vvp
 	timeout $(or $(TEST_TIMEOUT_$*),60) $(VVP) $< $(TEST_ARGS_$*) > $(BUILD_DIR)/$*.log 2>&1
@@ -134,10 +140,10 @@ negative-store: $(BUILD_DIR)/tb_r64_lsu_coupled.vvp
 	@if $(VVP) $< +bad-store-flush > $(BUILD_DIR)/store-bad-flush.log 2>&1; then echo 'visible store cancellation accepted'; exit 1; fi
 	rg -F 'R64Lsu visible store cancelled before retirement' $(BUILD_DIR)/store-bad-flush.log
 negative: negative-store
-$(BUILD_DIR)/tb_r64_lsu_coupled_baseline.vvp: modules/tb_r64_lsu_coupled.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu_coupled -Ptb_r64_lsu_coupled.EARLY_STORE=0 -o $@ $(R64_RTL_SRCS) $<
-$(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.EARLY_STORE=1 -o $@ $(R64_RTL_SRCS) $<
+$(BUILD_DIR)/tb_r64_lsu_coupled_baseline.vvp: modules/tb_r64_lsu_coupled.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) oracles/R64TranslationTokenEcho.v | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu_coupled -Ptb_r64_lsu_coupled.EARLY_STORE=0 -o $@ $(R64_RTL_SRCS) oracles/R64TranslationTokenEcho.v $<
+$(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) oracles/R64TranslationTokenEcho.v | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.EARLY_STORE=1 -o $@ $(R64_RTL_SRCS) oracles/R64TranslationTokenEcho.v $<
 $(BUILD_DIR)/tb_r64_lsu_prepared.pass: $(BUILD_DIR)/tb_r64_lsu_prepared.vvp
 	timeout 60 $(VVP) $< +prepared-hold > $(BUILD_DIR)/tb_r64_lsu_prepared.log 2>&1
 	rg -e '^\[PASS\] tb_r64_lsu($$| )' $(BUILD_DIR)/tb_r64_lsu_prepared.log
@@ -160,8 +166,8 @@ $(BUILD_DIR)/tb_axi_clint.vvp: ../tests/tb_axi_clint.sv ../../vsrc/bus/AxiClint.
 	$(IVERILOG) -g2012 -I modules -I ../../vsrc/include -I ../common -s tb_axi_clint -o $@ $^
 
 
-$(BUILD_DIR)/tb_r64_lsu_metadata.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=2 -o $@ $(R64_RTL_SRCS) $<
+$(BUILD_DIR)/tb_r64_lsu_metadata.vvp: modules/tb_r64_lsu.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) oracles/R64TranslationTokenEcho.v | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=2 -o $@ $(R64_RTL_SRCS) oracles/R64TranslationTokenEcho.v $<
 $(BUILD_DIR)/tb_r64_lsu_metadata.pass: $(BUILD_DIR)/tb_r64_lsu_metadata.vvp
 	timeout 60 $(VVP) $< +metadata-hold > $(BUILD_DIR)/tb_r64_lsu_metadata.log 2>&1
 	rg -e '^\[PASS\] tb_r64_lsu($$| )' $(BUILD_DIR)/tb_r64_lsu_metadata.log
@@ -304,9 +310,16 @@ image-test: $(SYSTEM_BUILD_DIR)/test_r64_image
 	$< $(SYSTEM_BUILD_DIR)/image-fixtures
 $(SYSTEM_BUILD_DIR)/system-io-sentinel.bin: | $(SYSTEM_BUILD_DIR)
 	python3 -c 'from pathlib import Path; Path("$@").write_bytes(bytes.fromhex("8877665544332211"))'
-system-io: core-reference $(SYSTEM_BIN) $(CORE_BUILD_DIR)/uart16550.bin $(CORE_BUILD_DIR)/system_io.bin $(SYSTEM_BUILD_DIR)/system-io-sentinel.bin image-test
+system-io: core-reference $(SYSTEM_BIN) $(CORE_BUILD_DIR)/uart16550.bin $(CORE_BUILD_DIR)/system_io.bin $(SYSTEM_BUILD_DIR)/system-io-sentinel.bin image-test system-uart-order
 	@set -e; for mode in plain stalls; do arg=; test $$mode != stalls || arg=--stalls; timeout 60 $(SYSTEM_BIN) $(CORE_BUILD_DIR)/system_io.bin $(CORE_REF) --system --load=0x81000000:$(SYSTEM_BUILD_DIR)/system-io-sentinel.bin '--uart-input=?:Z' $$arg > $(SYSTEM_BUILD_DIR)/system-io-$$mode.log 2>&1; rg -F '[PASS] r64_system_poweroff' $(SYSTEM_BUILD_DIR)/system-io-$$mode.log; done
 	@set -e; for mode in plain stalls; do arg=; test $$mode != stalls || arg=--stalls; timeout 60 $(SYSTEM_BIN) $(CORE_BUILD_DIR)/uart16550.bin $(CORE_REF) --system $$arg > $(SYSTEM_BUILD_DIR)/uart16550-$$mode.log 2>&1; rg -F '[PASS] r64_system_poweroff' $(SYSTEM_BUILD_DIR)/uart16550-$$mode.log; done
+
+# Accepted external RX is replayed at the matching native UART transaction.
+# Exercise actual interrupt entry plus full-FIFO read/RX overlap with DiffTest.
+.PHONY: system-uart-order
+system-uart-order: core-reference $(SYSTEM_BIN) $(CORE_BUILD_DIR)/uart_rx_irq.bin $(CORE_BUILD_DIR)/system_io.bin $(SYSTEM_BUILD_DIR)/system-io-sentinel.bin
+	@set -e; for mode in plain stalls; do arg=; test $$mode != stalls || arg=--stalls; timeout 60 $(SYSTEM_BIN) $(CORE_BUILD_DIR)/uart_rx_irq.bin $(CORE_REF) --system '--uart-input=?:Z' $$arg > $(SYSTEM_BUILD_DIR)/uart-rx-irq-$$mode.log 2>&1; rg -F '[PASS] r64_system_poweroff' $(SYSTEM_BUILD_DIR)/uart-rx-irq-$$mode.log; done
+	@set -e; for mode in plain stalls; do arg=; test $$mode != stalls || arg=--stalls; timeout 60 $(SYSTEM_BIN) $(CORE_BUILD_DIR)/system_io.bin $(CORE_REF) --system --load=0x81000000:$(SYSTEM_BUILD_DIR)/system-io-sentinel.bin '--uart-input=?:ZZ' $$arg > $(SYSTEM_BUILD_DIR)/uart-rx-fifo-$$mode.log 2>&1; rg -F '[PASS] r64_system_poweroff' $(SYSTEM_BUILD_DIR)/uart-rx-fifo-$$mode.log; done
 
 # Real external virtio AXI endpoint, coherent DMA and IRQ2 through PLIC.
 BLOCK_TEMPLATE := $(SYSTEM_BUILD_DIR)/block-template.ext4
@@ -356,10 +369,42 @@ negative-service-request-hint: $(BUILD_DIR)/tb_r64_service_request_hint.vvp
 core-reference: | $(CORE_BUILD_DIR)
 	$(MAKE) --no-print-directory -C ../../difftest reference CORE_REF=$(CORE_REF) > $(CORE_BUILD_DIR)/reference-build.log 2>&1
 
-# Real LSU response-bypass A/B: same public-interface stimuli and scoreboard.
-.PHONY: lsu-response-bypass-matrix
-$(BUILD_DIR)/tb_r64_lsu.vvp $(BUILD_DIR)/tb_r64_lsu_metadata.vvp $(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu_response_bypass.svh
-$(BUILD_DIR)/tb_r64_lsu_response_bypass_%.vvp: modules/tb_r64_lsu.sv modules/tb_r64_lsu_response_bypass.svh $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
-	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=4 -Ptb_r64_lsu.RESPONSE_BYPASS=$* -o $@ $(R64_RTL_SRCS) $<
-lsu-response-bypass-matrix: $(BUILD_DIR)/tb_r64_lsu_response_bypass_0.vvp $(BUILD_DIR)/tb_r64_lsu_response_bypass_1.vvp
-	@set -e; for mode in 0 1; do for stall in plain stalls; do arg=; test $$stall != stalls || arg=+response-stalls; log=$(BUILD_DIR)/response-bypass-$$mode-$$stall.log; timeout 90 $(VVP) $(BUILD_DIR)/tb_r64_lsu_response_bypass_$$mode.vvp +response-bypass $$arg > $$log 2>&1; rg -F "[PASS] tb_r64_lsu response-bypass " $$log; done; done
+# One production response ingress; transport pressure is varied, never bypassed.
+.PHONY: lsu-response-ingress-matrix lsu-response-bypass-matrix
+$(BUILD_DIR)/tb_r64_lsu.vvp $(BUILD_DIR)/tb_r64_lsu_metadata.vvp $(BUILD_DIR)/tb_r64_lsu_prepared.vvp: modules/tb_r64_lsu_response_ingress_cases.svh
+$(BUILD_DIR)/tb_r64_lsu_response_cases.vvp: modules/tb_r64_lsu.sv modules/tb_r64_lsu_response_ingress_cases.svh $(R64_RTL_SRCS) $(R64_RTL_HDRS) oracles/R64TranslationTokenEcho.v | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_lsu -Ptb_r64_lsu.DEPTH=4 -o $@ $(R64_RTL_SRCS) oracles/R64TranslationTokenEcho.v $<
+lsu-response-ingress-matrix: $(BUILD_DIR)/tb_r64_lsu_response_cases.vvp
+	@set -e; for stall in plain stalls; do arg=; test $$stall != stalls || arg=+response-stalls; log=$(BUILD_DIR)/response-ingress-$$stall.log; timeout 90 $(VVP) $< +response-ingress $$arg > $$log 2>&1; rg -F "[PASS] tb_r64_lsu response-ingress " $$log; done
+# Retained command alias for local scripts; there is no production bypass mode.
+lsu-response-bypass-matrix: lsu-response-ingress-matrix
+
+# Standalone domain builds use only each endpoint's explicit source closure.
+include domain-tests.mk
+
+# Physical service alone owns fast-store terminal source validation.
+.PHONY: negative-service
+negative-service: $(BUILD_DIR)/tb_r64_memory_service.vvp
+	@if $(VVP) $< +bad-store-source > $(BUILD_DIR)/service-bad-store-source.log 2>&1; then echo 'non-CPU fast-store terminal was accepted'; exit 1; fi
+	rg -F 'R64MemoryService non-CPU source on fast-store terminal' $(BUILD_DIR)/service-bad-store-source.log
+negative: negative-service
+
+# A stale branch may drain, but a live mispredict must own its exact prepared plan.
+.PHONY: negative-recovery-plan
+negative: negative-recovery-plan
+negative-recovery-plan: $(BUILD_DIR)/tb_r64_recovery_plan.vvp
+	@if $(VVP) $< +bad-live-plan > $(BUILD_DIR)/recovery-live-plan-negative.log 2>&1; then echo 'live redirect without a matching plan was accepted'; exit 1; fi
+	rg -F 'ROB live redirect lacks matching full-tag recovery plan' $(BUILD_DIR)/recovery-live-plan-negative.log
+
+# Rebuild the wrapper when its included frontend oracle changes.
+$(BUILD_DIR)/tb_r64_frontend_packet_flow.vvp: modules/tb_r64_frontend.sv
+
+$(BUILD_DIR)/tb_r64_fetch_protection_owner_fast.vvp: modules/tb_r64_fetch_protection_owner.sv
+
+# Resident Serial eligibility must preserve the real store/Serial retirement edge.
+.PHONY: serial-retire-candidate-matrix
+$(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp: modules/tb_r64_serial_retire_candidate.sv $(R64_RTL_SRCS) $(R64_RTL_HDRS) | $(BUILD_DIR)
+	$(IVERILOG) -g2012 -I modules -DR64_ASSERT -I ../../vsrc/include -I ../../vsrc/backend -I ../../vsrc/platform -s tb_r64_serial_retire_candidate -Ptb_r64_serial_retire_candidate.HEAD_CLASS=0 -o $@ $(R64_RTL_SRCS) $<
+serial-retire-candidate-matrix: $(BUILD_DIR)/tb_r64_serial_retire_candidate.pass $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp
+	timeout 60 $(VVP) $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp > $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.log 2>&1
+	rg -F '[PASS] tb_r64_serial_retire_candidate HEAD_CLASS=0 ' $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.log

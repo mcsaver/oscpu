@@ -39,12 +39,20 @@ def analyze(trace, symbols):
             raise ValueError("missing, duplicate or out-of-order body instruction")
         # Exclude entry/exit overlap; every selected instruction still undergoes
         # the unchanged instruction and complete architectural-state DiffTest.
-        cycles = [cycle for _, cycle in entries[128:896]]
+        fixed_cycles = [cycle for _, cycle in entries[128:896]]
+        # A fixed PC can be the second retirement in a cycle when an earlier
+        # branch changes pair phase. Align by at most one instruction within
+        # the same independent hot body; never search for a better window.
+        # The criterion remains 768 consecutive instructions, 384 consecutive
+        # cycles, and exactly two retirements in every selected cycle.
+        start = 129 if entries[127][1] == entries[128][1] else 128
+        cycles = [cycle for _, cycle in entries[start:start + 768]]
         histogram = {}
         for cycle in cycles:
             histogram[cycle] = histogram.get(cycle, 0) + 1
         span = cycles[-1] - cycles[0] + 1
-        sustained = span == 384 and len(histogram) == 384 and all(
+        phase_contiguous = start == 128 or cycles[0] == entries[128][1] + 1
+        sustained = phase_contiguous and span == 384 and len(histogram) == 384 and all(
             count == 2 for count in histogram.values()
         )
         if index and not sustained:
@@ -53,6 +61,11 @@ def analyze(trace, symbols):
             "iteration": index,
             "body_instructions": 1024,
             "body_cycles": entries[-1][1] - entries[0][1] + 1,
+            "fixed_pc_window_cycles": fixed_cycles[-1] - fixed_cycles[0] + 1,
+            "steady_start_instruction": start,
+            "steady_first_pc": hex(entries[start][0]),
+            "steady_last_pc": hex(entries[start + 767][0]),
+            "retirement_phase_adjustment": start - 128,
             "steady_instructions": 768,
             "steady_cycles": span,
             "steady_cpi": span / 768,

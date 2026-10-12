@@ -7,7 +7,10 @@
 module R64Dcache #(
   parameter SET_W = 6,
   parameter TOKEN_W = 6,
-  parameter SPLIT_STORE_OWNER = 1
+  parameter SPLIT_STORE_OWNER = 1,
+  parameter HIT_RESPONSE_EMPTY_FLOW = 1,
+  parameter FAST_STORE_DETACH = 1,
+  parameter STORE_COMMAND_EMPTY_FLOW = 1
 ) (
   input                      clk_i,
   input                      rst_i,
@@ -62,11 +65,16 @@ module R64Dcache #(
   localparam IDLE = 0, READ = 1, REFILL = 2, MODIFY = 3, WRITE = 4, BRESP = 5, DELIVER = 6,
       AMO_EXEC = 7, AMO_FINISH = 8;
   reg [3:0] state_q;
-  // A detached ordinary store retains its bank stage (address/token/strb).
-  // Refill may change the slow owner's way/data, so these store facts are
-  // captured before releasing that owner. No second store is admitted.
+  // The single B owner retains a complete ordinary-store descriptor. A fast
+  // store returns through its dedicated response endpoint, so its bank lookup
+  // stage can be released after both command and data have been accepted.
+  // Non-fast stores keep that stage until B to serialize the shared output Q.
   reg store_active_q, store_bank_q, store_way_q, store_hit_q, store_poison_q;
-  reg [63:0] store_data_q;
+  reg [63:0] store_data_q, store_address_q;
+  reg [TOKEN_W-1:0] store_token_q;
+  reg [7:0] store_strb_q;
+  reg store_fast_q;
+  wire store_detached_w = FAST_STORE_DETACH != 0 && store_fast_q;
   reg [TAG_W-1:0] tag0_q[0:SETS-1], tag1_q[0:SETS-1];
   reg [SETS-1:0] valid0_q, valid1_q, lru_q;
   // Separate arrays express real bank ports, without replicated data RAM.
@@ -87,14 +95,16 @@ module R64Dcache #(
   reg [63:0] out_data_q[0:1];
   reg [TOKEN_W-1:0] out_token_q[0:1];
   wire [1:0] output_free_w = ~out_valid_q | rsp_ready_i;
-  // Keep one slow owner. Ordinary cached traffic in the other bank and a
-  // different set may overlap a read/refill or an ordinary cached store B wait.
-  // The write owner and its precise B/error remain live until consumption.
+  // Keep one slow read/refill owner with its bank and set exclusion. A fast
+  // detached store excludes only its set, so independent same-bank loads may
+  // reuse the lookup stage while the complete B descriptor remains live.
+  // Non-fast stores retain their bank until their shared response is consumed.
   wire read_overlap_w = (state_q == READ || state_q == REFILL) && op_q[owner_q] == 0 &&
       cache_q[owner_q] && !poison_q;
   wire store_overlap_w = state_q == BRESP && op_q[owner_q] == 1 && cache_q[owner_q] && !poison_q;
   wire hit_overlap_w = read_overlap_w || store_overlap_w;
   wire [1:0] resident0_w, resident1_w, resident_w, hit0_w, hit1_w, hit_w, hit_complete_w;
+  wire [1:0] hit_eligible_w, hit_response_offer_w, hit_response_take_w;
   genvar g;
   generate
     for (g = 0; g < 2; g = g + 1) begin : gen_hit
@@ -104,16 +114,28 @@ module R64Dcache #(
       assign hit0_w[g] = cache_q[g] && resident0_w[g];
       assign hit1_w[g] = cache_q[g] && resident1_w[g];
       assign hit_w[g] = hit0_w[g] || hit1_w[g];
-      assign hit_complete_w[g] = stage_valid_q[g] && op_q[g] == 0 && hit_w[g] && output_free_w[g] &&
-          (state_q == IDLE || (hit_overlap_w && owner_q != g && address_q[g][6+:SET_W] !=
+      wire store_safe_w = !store_active_q ||
+          ((store_detached_w || store_bank_q != g) &&
+           address_q[g][6+:SET_W] != store_address_q[6+:SET_W]);
+      assign hit_eligible_w[g] = stage_valid_q[g] && op_q[g] == 0 && hit_w[g] &&
+          store_safe_w && (state_q == IDLE || (hit_overlap_w && owner_q != g && address_q[g][6+:SET_W] !=
                                address_q[owner_q][6+:SET_W])) && !invalidate_i;
-      assign rsp_token_o[g*TOKEN_W+:TOKEN_W] = out_token_q[g];
-      assign rsp_data_o[g*64+:64] = out_data_q[g];
+      assign hit_complete_w[g] = hit_eligible_w[g] && output_free_w[g];
+      // The lookup stage already owns registered SRAM data and its token.
+      // An empty output slot can publish that complete read result immediately.
+      // A blocked result still captures into the original output register.
+      assign hit_response_offer_w[g] = HIT_RESPONSE_EMPTY_FLOW != 0 &&
+          !out_valid_q[g] && hit_eligible_w[g] && !rst_i;
+      assign hit_response_take_w[g] = hit_response_offer_w[g] && rsp_ready_i[g];
+      assign rsp_valid_o[g] = (out_valid_q[g] || hit_response_offer_w[g]) && !rst_i;
+      assign rsp_token_o[g*TOKEN_W+:TOKEN_W] = out_valid_q[g] ?
+          out_token_q[g] : token_q[g];
+      assign rsp_data_o[g*64+:64] = out_valid_q[g] ? out_data_q[g] :
+          (hit0_w[g] ? rd0_q[g] : rd1_q[g]);
+      assign rsp_error_o[g] = out_valid_q[g] && out_error_q[g];
+      assign rsp_compare_o[g] = out_valid_q[g] && out_compare_q[g];
     end
   endgenerate
-  assign rsp_valid_o   = out_valid_q & {2{!rst_i}};
-  assign rsp_error_o   = out_error_q;
-  assign rsp_compare_o = out_compare_q;
   wire [1:0] available_w = ~stage_valid_q | hit_complete_w;
   wire special_wait_w =
       (stage_valid_q[0] && op_q[0] != 0 &&
@@ -122,12 +144,23 @@ module R64Dcache #(
        !((store_overlap_w && owner_q == 1) || (store_active_q && store_bank_q == 1)));
   wire empty_w = stage_valid_q == 0 && out_valid_q == 0;
   wire bank0_w = req_addr_i[3], bank1_w = req_addr_i[67];
-  wire overlap_owner_w = store_active_q ? store_bank_q : owner_q;
   wire [1:0] overlap_candidate_w;
-  assign overlap_candidate_w[0] = req_op_i[1:0] == 0 && req_cache_i[0] &&
-      bank0_w != overlap_owner_w && req_addr_i[6+:SET_W] != address_q[overlap_owner_w][6+:SET_W];
-  assign overlap_candidate_w[1] = req_op_i[3:2] == 0 && req_cache_i[1] &&
-      bank1_w != overlap_owner_w && req_addr_i[70+:SET_W] != address_q[overlap_owner_w][6+:SET_W];
+  generate
+    for (g = 0; g < 2; g = g + 1) begin : gen_overlap
+      wire candidate_bank_w = req_addr_i[g*64+3];
+      wire [SET_W-1:0] candidate_set_w = req_addr_i[g*64+6+:SET_W];
+      // A refill and a detached B owner can coexist. Every new load must
+      // satisfy both exclusions; choosing only one owner loses the other.
+      wire slow_safe_w = !hit_overlap_w ||
+          (candidate_bank_w != owner_q &&
+           candidate_set_w != address_q[owner_q][6+:SET_W]);
+      wire store_safe_w = !store_active_q ||
+          (!store_poison_q && (store_detached_w || candidate_bank_w != store_bank_q) &&
+           candidate_set_w != store_address_q[6+:SET_W]);
+      assign overlap_candidate_w[g] = req_op_i[g*2+:2] == 0 && req_cache_i[g] &&
+          slow_safe_w && store_safe_w;
+    end
+  endgenerate
   always @* begin
     req_ready_o = 0;
     if (!rst_i && !invalidate_i && !special_wait_w) begin
@@ -145,10 +178,28 @@ module R64Dcache #(
     end
   end
   wire [1:0] take_w = req_valid_i & req_ready_o;
-  wire start0_w = stage_valid_q[0] && !hit_complete_w[0] && output_free_w[0] &&
-      !(store_active_q && store_bank_q == 0);
-  wire start1_w = stage_valid_q[1] && !hit_complete_w[1] && output_free_w[1] &&
-      !(store_active_q && store_bank_q == 1);
+  // A plain cached store needs no old data or AMO operation before AW/W.
+  // Admission already guarantees empty bank/response state. Capture its
+  // registered payload and tag read at this edge. The optional empty path
+  // offers this already accepted packet to the independent command/data ports.
+  // Only the empty IDLE admission arm accepts a store. Overlap admission
+  // explicitly requires a load, so its bank/set checks cannot qualify this
+  // packet. Keep the same acceptance edge without that unrelated ready cone.
+  wire direct_store_w = req_valid_i[0] && !rst_i && !invalidate_i &&
+      !special_wait_w && state_q == IDLE && !store_active_q && empty_w &&
+      req_op_i[1:0] == 1 && req_cache_i[0];
+  wire direct_write_offer_w = STORE_COMMAND_EMPTY_FLOW != 0 && direct_store_w &&
+      state_q != WRITE;
+  wire [1:0] start_candidate_w;
+  generate
+    for (g = 0; g < 2; g = g + 1) begin : gen_start
+      assign start_candidate_w[g] = stage_valid_q[g] && !hit_complete_w[g] &&
+          output_free_w[g] && (!store_active_q ||
+          ((store_detached_w || store_bank_q != g) && op_q[g] == 0 && cache_q[g] &&
+           address_q[g][6+:SET_W] != store_address_q[6+:SET_W]));
+    end
+  endgenerate
+  wire start0_w = start_candidate_w[0], start1_w = start_candidate_w[1];
   wire start_w = state_q == IDLE && !invalidate_i && (start0_w || start1_w);
   wire selected_w = !start0_w;
   // Special admission requires both bank stages and response slots empty.
@@ -170,8 +221,13 @@ module R64Dcache #(
   // Exactly one byte-enabled write port and one synchronous read port per
   // physical data bank/way. Refill and successful write-through share it.
   wire write_owner_w = store_active_q ? store_bank_q : owner_q;
-  wire [63:0] write_owner_address_w = address_q[write_owner_w];
-  wire write_way_w = store_active_q ? store_way_q : way_q;
+  wire [63:0] write_owner_address_w = store_active_q ? store_address_q : owner_address_w;
+  wire [7:0] write_mask_w = store_active_q ? store_strb_q : strb_q[owner_q];
+  wire write_fast_w = store_active_q ? store_fast_q : fast_store_q[owner_q];
+  wire [TOKEN_W-1:0] write_token_w = store_active_q ? store_token_q : token_q[owner_q];
+  wire ordinary_store_way_w = resident1_w[owner_q];
+  wire write_way_w = store_active_q ? store_way_q :
+      (op_q[owner_q] == 1 && cache_q[owner_q] ? ordinary_store_way_w : way_q);
   wire write_hit_w = store_active_q ? store_hit_q : cache_hit_w;
   wire write_poison_w = store_active_q ? store_poison_q : poison_q;
   wire [63:0] write_value_w = store_active_q ? store_data_q : new_q;
@@ -195,7 +251,7 @@ module R64Dcache #(
       assign data_way_w[g] = fill_w ? way_q : write_way_w;
       assign data_index_w[g] = fill_w ? fill_index_w : store_index_w;
       assign data_write_value_w[g] = fill_w ? beat_data_i : write_value_w;
-      assign data_write_mask_w[g] = fill_w ? 8'hff : strb_q[write_owner_w];
+      assign data_write_mask_w[g] = fill_w ? 8'hff : write_mask_w;
     end
   endgenerate
   assign read_valid_o = state_q == READ && !rst_i;
@@ -203,19 +259,29 @@ module R64Dcache #(
   assign read_len_o = allocate_q ? 8'd7 : 8'd0;
   assign read_size_o = allocate_q ? 3'd3 : size_q[owner_q];
   assign beat_ready_o = state_q == REFILL && !rst_i && !fill_port_block_w;
-  assign write_valid_o = state_q == WRITE && !command_sent_q && !rst_i;
-  assign write_data_valid_o = state_q == WRITE && !data_sent_q && !rst_i;
-  assign write_addr_o = owner_address_w;
-  assign write_size_o = size_q[owner_q];
-  assign write_data_o = new_q;
-  assign write_strb_o = strb_q[owner_q];
+  // Registered WRITE owners retain priority. Admission is independent of
+  // both port-ready inputs; each accepted channel is recorded separately.
+  assign write_valid_o = ((state_q == WRITE && !command_sent_q) || direct_write_offer_w) && !rst_i;
+  assign write_data_valid_o = ((state_q == WRITE && !data_sent_q) || direct_write_offer_w) && !rst_i;
+  assign write_addr_o = direct_write_offer_w ? req_addr_i[63:0] : owner_address_w;
+  assign write_size_o = direct_write_offer_w ? req_size_i[2:0] : size_q[owner_q];
+  assign write_data_o = direct_write_offer_w ? req_data_i[63:0] : new_q;
+  assign write_strb_o = direct_write_offer_w ? req_strb_i[7:0] : strb_q[owner_q];
   assign write_rsp_ready_o = !rst_i && (
-      store_active_q ? (fast_store_q[store_bank_q] ? store_rsp_ready_i : output_free_w[store_bank_q]
+      store_active_q ? (store_fast_q ? store_rsp_ready_i : output_free_w[store_bank_q]
           ) : (state_q == BRESP && (!fast_store_q[owner_q] || store_rsp_ready_i)));
   wire write_response_fire_w = write_rsp_valid_i && write_rsp_ready_o;
-  assign store_rsp_valid_o = (store_active_q || state_q == BRESP) && fast_store_q[write_owner_w] &&
+  wire write_channels_complete_w = state_q == WRITE &&
+      (command_sent_q || write_ready_i) && (data_sent_q || write_data_ready_i);
+  // If both ports accepted the input packet, BRESP first exposes its freshly
+  // registered lookup owner to the earliest legal B. Only an unconsumed owner
+  // may migrate to storeQ; lookup hit/way cannot be sampled at input acceptance.
+  wire detach_store_w = SPLIT_STORE_OWNER != 0 && op_q[owner_q] == 1 &&
+      cache_q[owner_q] && (write_channels_complete_w ||
+      (STORE_COMMAND_EMPTY_FLOW != 0 && state_q == BRESP && !write_response_fire_w));
+  assign store_rsp_valid_o = (store_active_q || state_q == BRESP) && write_fast_w &&
       write_rsp_valid_i && !rst_i;
-  assign store_rsp_token_o = token_q[write_owner_w];
+  assign store_rsp_token_o = write_token_w;
   assign store_rsp_error_o = write_resp_i != 0;
   assign idle_o = state_q == IDLE && empty_w && !store_active_q;
   assign mutation_o = write_response_fire_w && write_resp_i == 0;
@@ -418,6 +484,7 @@ module R64Dcache #(
       store_way_q <= 0;
       store_hit_q <= 0;
       store_poison_q <= 0;
+      store_fast_q <= 0;
       state_q <= IDLE;
       stage_valid_q <= 0;
       out_valid_q <= 0;
@@ -442,7 +509,7 @@ module R64Dcache #(
         if (out_valid_q[b] && rsp_ready_i[b]) out_valid_q[b] <= 0;
         if (hit_complete_w[b]) begin
           stage_valid_q[b] <= 0;
-          out_valid_q[b] <= 1;
+          out_valid_q[b] <= !hit_response_take_w[b];
           out_error_q[b] <= 0;
           out_compare_q[b] <= 0;
           out_token_q[b] <= token_q[b];
@@ -515,6 +582,19 @@ module R64Dcache #(
 
         end
       end
+      if (direct_store_w) begin
+        owner_q <= bank0_w;
+        error_q <= 0;
+        compare_q <= 0;
+        poison_q <= 0;
+        beat_q <= 0;
+        allocate_q <= 0;
+        old_q <= 0;
+        new_q <= req_data_i[63:0];
+        command_sent_q <= direct_write_offer_w && write_ready_i;
+        data_sent_q <= direct_write_offer_w && write_data_ready_i;
+        state_q <= direct_write_offer_w && write_ready_i && write_data_ready_i ? BRESP : WRITE;
+      end
       if (state_q == READ && read_ready_i) state_q <= REFILL;
       if (state_q == REFILL && beat_valid_i && beat_ready_o) begin
         error_q <= error_q || beat_resp_i != 0;
@@ -566,25 +646,32 @@ module R64Dcache #(
       if (state_q == WRITE) begin
         if (write_ready_i) command_sent_q <= 1;
         if (write_data_ready_i) data_sent_q <= 1;
-        if ((command_sent_q || write_ready_i) && (data_sent_q || write_data_ready_i)) begin
-          if (SPLIT_STORE_OWNER != 0 && op_q[owner_q] == 1 && cache_q[owner_q]) begin
-            store_active_q <= 1;
-            store_bank_q <= owner_q;
-            store_way_q <= way_q;
-            store_hit_q <= cache_hit_w;
-            store_poison_q <= poison_q || invalidate_i;
-            store_data_q <= new_q;
-            state_q <= IDLE;
-          end else state_q <= BRESP;
-        end
+        if (write_channels_complete_w) state_q <= BRESP;
+      end
+      if (detach_store_w) begin
+        store_active_q <= 1;
+        store_bank_q <= owner_q;
+        store_way_q <= ordinary_store_way_w;
+        store_hit_q <= cache_hit_w;
+        store_poison_q <= poison_q || invalidate_i;
+        store_data_q <= new_q;
+        store_address_q <= owner_address_w;
+        store_token_q <= token_q[owner_q];
+        store_strb_q <= strb_q[owner_q];
+        store_fast_q <= fast_store_q[owner_q];
+        if (FAST_STORE_DETACH != 0 && fast_store_q[owner_q])
+          stage_valid_q[owner_q] <= 0;
+        state_q <= IDLE;
       end
       if (write_response_fire_w) begin
         if (store_active_q) begin
           store_active_q <= 0;
-          stage_valid_q[store_bank_q] <= 0;
-          if (!fast_store_q[store_bank_q]) begin
+          // A fully detached bank may already own an unrelated load. B
+          // clears only the store descriptor, never that load stage/output.
+          if (!store_detached_w) stage_valid_q[store_bank_q] <= 0;
+          if (!store_fast_q) begin
             out_valid_q[store_bank_q] <= 1;
-            out_token_q[store_bank_q] <= token_q[store_bank_q];
+            out_token_q[store_bank_q] <= store_token_q;
             out_data_q[store_bank_q] <= 0;
             out_error_q[store_bank_q] <= write_resp_i != 0;
             out_compare_q[store_bank_q] <= 0;
@@ -607,6 +694,7 @@ module R64Dcache #(
         state_q <= IDLE;
       end
       if (reservation_clear_i ||
+          (direct_write_offer_w && req_addr_i[63:3] == reservation_addr_q[61:1]) ||
           (state_q == WRITE && owner_address_w[63:3] == reservation_addr_q[61:1]) ||
           (mutation_o && mutation_word_o == reservation_addr_q[61:1]))
         reservation_q <= 0;
@@ -623,18 +711,28 @@ module R64Dcache #(
   always @(posedge clk_i)
     if (!rst_i) begin
       for (check_bank = 0; check_bank < 2; check_bank = check_bank + 1) begin
+        if (hit_response_take_w[check_bank] &&
+            (!hit_complete_w[check_bank] || out_valid_q[check_bank] ||
+             !stage_valid_q[check_bank] || op_q[check_bank] != 0 ||
+             !cache_q[check_bank] || invalidate_i))
+          $fatal(1, "R64Dcache direct hit response lost registered lookup owner");
         if (bank_take_w[check_bank] &&
             input_lane_w[check_bank] != !(take_w[0] && bank0_w == check_bank[0]))
           $fatal(1, "R64Dcache candidate address disagrees with accepted owner");
         if (lookup_read_w[check_bank] && !bank_take_w[check_bank] && state_q != DELIVER)
           $fatal(1, "R64Dcache lookup without accepted or refresh owner");
       end
-      if (store_active_q &&
+      if (direct_write_offer_w && (state_q != IDLE || store_active_q || !empty_w))
+        $fatal(1, "Dcache direct write lacks exclusive accepted store owner");
+      if (detach_store_w && (write_response_fire_w || store_active_q))
+        $fatal(1, "Dcache store descriptor duplicated a completed owner");
+      if (store_active_q && !store_detached_w &&
           (!stage_valid_q[store_bank_q] || op_q[store_bank_q] != 1 || !cache_q[store_bank_q]))
         $fatal(1, "Dcache detached store lost its retained stage");
       if (store_active_q && start_w &&
-          (selected_w == store_bank_q || op_q[selected_w] != 0 || !cache_q[selected_w] ||
-           address_q[selected_w][6+:SET_W] == address_q[store_bank_q][6+:SET_W]))
+          ((!store_detached_w && selected_w == store_bank_q) ||
+           op_q[selected_w] != 0 || !cache_q[selected_w] ||
+           address_q[selected_w][6+:SET_W] == store_address_q[6+:SET_W]))
         $fatal(1, "Dcache read crossed detached store exclusion");
       if (fill_write_w && store_write_w && beat_q[0] == write_owner_w)
         $fatal(1, "Dcache physical bank write port collision");

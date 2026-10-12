@@ -2,7 +2,7 @@
 // Four read / two write transactions share address launch and response buffers.
 // IDs live until the upstream final R/B handshake; each Lite response accounts
 // for exactly one beat. MMIO bursts and malformed descriptors have no side effect.
-// Every external output depends only on registers (plus synchronous reset).
+// External AW/W remain registered; optional empty B flow carries a completed owner.
 module R64AxiFabric #(
   parameter integer SLAVES = 16,
   parameter integer SLAVE_W = 4,
@@ -12,7 +12,9 @@ module R64AxiFabric #(
   parameter [SLAVES*64-1:0] BASE = 0,
   parameter [SLAVES*64-1:0] MASK = 0,
   parameter [SLAVES-1:0] MEMORY = 0,
-  parameter [SLAVES-1:0] EXECUTABLE = 0
+  parameter [SLAVES-1:0] EXECUTABLE = 0,
+  parameter integer WRITE_B_EMPTY_FLOW = 0,
+  parameter integer AW_EMPTY_ADMIT = 0
 ) (
   input                      clk_i,
   input                      rst_i,
@@ -85,6 +87,17 @@ module R64AxiFabric #(
   reg [1:0] arib_q, awib_q;
   assign arready_o = !ari_q && !reset_q;
   assign awready_o = !awi_q && !reset_q;
+  // Empty descriptor admission reuses Q-only owner/order credit. An old skid
+  // owns the decode; an accepted raw AW falls back to that skid if blocked.
+  wire awaccept_w=awvalid_i && awready_o;
+  wire awempty_offer_w=AW_EMPTY_ADMIT != 0 && active_w && !awi_q && awaccept_w;
+  wire awoffer_w=awi_q || awempty_offer_w;
+  wire [63:0] awaddr_w=awi_q || AW_EMPTY_ADMIT == 0 ? awia_q : awaddr_i;
+  wire [3:0] awid_w=awi_q || AW_EMPTY_ADMIT == 0 ? awii_q : awid_i;
+  wire [7:0] awlen_w=awi_q || AW_EMPTY_ADMIT == 0 ? awil_q : awlen_i;
+  wire [2:0] awsize_w=awi_q || AW_EMPTY_ADMIT == 0 ? awis_q : awsize_i;
+  wire [1:0] awburst_w=awi_q || AW_EMPTY_ADMIT == 0 ? awib_q : awburst_i;
+
 
   reg [3:0] rlive_q, rwaiting_q, rterminal_q, rbad_q, rfixed_q;
   reg [63:0] ra_q[0:3];
@@ -207,12 +220,23 @@ module R64AxiFabric #(
   wire rpop_w = rc_q != 0 && rready_i;
   assign rpush_w = group_return_valid[merge_q] && rc_q < 2;
 
-  // Terminal write results stay in their owner; arbitration/output is registered.
+  // Old output ownership always wins. An empty output may expose a complete
+  // terminal owner, including this edge's real final Lite B. READY is never
+  // part of the offer or downstream Lite credit.
   reg bout_q, bowner_q;
-  assign bvalid_o = bout_q && !rst_i;
-  assign bid_o = wi_q[bowner_q];
-  assign bresp_o = we_q[bowner_q];
-  wire bpop_w = bout_q && bready_i;
+  wire [1:0] bcandidate_w=wterminal_q | wterminal_now_w;
+  wire bcandidate_owner_w=!bcandidate_w[0];
+  wire bdirect_offer_w=WRITE_B_EMPTY_FLOW != 0 && active_w && !bout_q &&
+      (|bcandidate_w) && (wterminal_q[bcandidate_owner_w] ||
+      (wreturn_w[bcandidate_owner_w] && wn_q[bcandidate_owner_w]==0));
+  wire boutput_owner_w=bout_q || WRITE_B_EMPTY_FLOW == 0 ? bowner_q : bcandidate_owner_w;
+  wire [1:0] bcurrent_error_w=bdirect_offer_w && wreturn_w[boutput_owner_w] &&
+      wn_q[boutput_owner_w]==0 ? s_bresp_i[wt_q[boutput_owner_w]*2+:2] : 2'b00;
+  assign bvalid_o = (bout_q || bdirect_offer_w) && !rst_i;
+  assign bid_o = wi_q[boutput_owner_w];
+  assign bresp_o = we_q[boutput_owner_w] | bcurrent_error_w;
+  wire bpop_w = (bout_q || bdirect_offer_w) && bready_i;
+  wire bdirect_pop_w=bdirect_offer_w && bready_i;
 
   // A legal aligned beat fits inside its 4 KiB page. For INCR, page
   // overflow is the carry from the eight length bits AND the untouched
@@ -251,7 +275,7 @@ module R64AxiFabric #(
   // Page-aligned apertures need no second address comparator. Non-page
   // masks retain the exact last-beat low-address check.
   wire [11:0] arlast_low_w = aria_q[11:0] + ((arib_q == 0 ? 12'd0 : {4'd0, aril_q}) << aris_q);
-  wire [11:0] awlast_low_w = awia_q[11:0] + ((awib_q == 0 ? 12'd0 : {4'd0, awil_q}) << awis_q);
+  wire [11:0] awlast_low_w = awaddr_w[11:0] + ((awburst_w == 0 ? 12'd0 : {4'd0, awlen_w}) << awsize_w);
   wire [SLAVES-1:0] ar_boundary_w, aw_boundary_w;
   genvar boundary;
   generate
@@ -283,7 +307,7 @@ module R64AxiFabric #(
         arfound_r = 1;
         art_r = j[SLAVE_W-1:0];
       end
-      if (!awfound_r && MASK[j*64+:64] != 0 && (awia_q & MASK[j*64+:64]) == BASE[j*64+:64]) begin
+      if (!awfound_r && MASK[j*64+:64] != 0 && (awaddr_w & MASK[j*64+:64]) == BASE[j*64+:64]) begin
         awfound_r = 1;
         awt_r = j[SLAVE_W-1:0];
       end
@@ -292,9 +316,9 @@ module R64AxiFabric #(
         page_cross(aria_q[11:0], aril_q, aris_q, arib_q) || misaligned(aria_q[2:0], aris_q) ||
         (arip_q[2] && !EXECUTABLE[art_r]) || (aril_q != 0 && !MEMORY[art_r]) ||
         (arib_q == 0 && aril_q > 15) || ar_boundary_w[art_r];
-    awbad_r = !awfound_r || awis_q > 3 || awib_q > 1 ||
-        page_cross(awia_q[11:0], awil_q, awis_q, awib_q) || misaligned(awia_q[2:0], awis_q) ||
-        (awil_q != 0 && !MEMORY[awt_r]) || (awib_q == 0 && awil_q > 15) || aw_boundary_w[awt_r];
+    awbad_r = !awfound_r || awsize_w > 3 || awburst_w > 1 ||
+        page_cross(awaddr_w[11:0], awlen_w, awsize_w, awburst_w) || misaligned(awaddr_w[2:0], awsize_w) ||
+        (awlen_w != 0 && !MEMORY[awt_r]) || (awburst_w == 0 && awlen_w > 15) || aw_boundary_w[awt_r];
   end
 
   integer k;
@@ -320,11 +344,11 @@ module R64AxiFabric #(
         wfree_r = 1;
         wslot_r = k[0];
       end
-      if (wlive_q[k] && wi_q[k] == awii_q) wduplicate_r = 1;
+      if (wlive_q[k] && wi_q[k] == awid_w) wduplicate_r = 1;
     end
   end
   assign radmit_w = ari_q && rfree_r && !rduplicate_r;
-  wire wadmit_w = awi_q && wfree_r && !wduplicate_r && oc_q < 2;
+  wire wadmit_w = awoffer_w && wfree_r && !wduplicate_r && oc_q < 2;
   // Captured-AW decode already ends at owner registers. If no older W owner
   // exists, admission can reserve the idle target at that same edge.
   wire wadmit_active_w = wadmit_w && oc_q == 0 && !awbad_r && !wbusy_q[awt_r];
@@ -548,7 +572,7 @@ module R64AxiFabric #(
         arip_q <= arprot_i;
         arib_q <= arburst_i;
       end
-      if (awvalid_i && awready_o) begin
+      if (awaccept_w) begin
         awi_q  <= 1;
         awia_q <= awaddr_i;
         awii_q <= awid_i;
@@ -609,7 +633,7 @@ module R64AxiFabric #(
         awi_q <= 0;
         wlive_q[wslot_r] <= 1;
         wbad_q[wslot_r] <= awbad_r;
-        wfixed_q[wslot_r] <= awib_q == 0;
+        wfixed_q[wslot_r] <= awburst_w == 0;
         wwait_q[wslot_r] <= wadmit_active_w;
         if (wadmit_active_w) begin
           wbusy_q[awt_r] <= 1;
@@ -619,10 +643,10 @@ module R64AxiFabric #(
         waw_q[wslot_r] <= 0;
         ww_q[wslot_r] <= 0;
         wterminal_q[wslot_r] <= 0;
-        wa_q[wslot_r] <= awia_q;
-        wi_q[wslot_r] <= awii_q;
-        wn_q[wslot_r] <= awil_q;
-        ws_q[wslot_r] <= awis_q;
+        wa_q[wslot_r] <= awaddr_w;
+        wi_q[wslot_r] <= awid_w;
+        wn_q[wslot_r] <= awlen_w;
+        ws_q[wslot_r] <= awsize_w;
         wt_q[wslot_r] <= awt_r;
         we_q[wslot_r] <= awbad_r ? 2'b11 : 2'b00;
         order_q[ot_q] <= wslot_r;
@@ -698,10 +722,10 @@ module R64AxiFabric #(
       end
       if (bpop_w) begin
         bout_q <= 0;
-        wlive_q[bowner_q] <= 0;
-        wterminal_q[bowner_q] <= 0;
+        wlive_q[boutput_owner_w] <= 0;
+        wterminal_q[boutput_owner_w] <= 0;
       end
-      if (!bout_q) begin
+      if (!bout_q && !bdirect_pop_w) begin
         if (wterminal_q[0] || wterminal_now_w[0]) begin
           bout_q   <= 1;
           bowner_q <= 0;

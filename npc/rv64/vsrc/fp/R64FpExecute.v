@@ -1,6 +1,6 @@
-`include "R64Uop.vh"
-// Unified native FP transaction owner. The architectural RAT, PRF, readiness,
-// destination and fflags accumulation remain solely in Rename/ROB/commit.
+`include "R64Protocol.vh"
+// Unified native FP transaction owner. The architectural RAT, physical-register readiness and retirement
+// belong to their lifecycle/execution domains, not this arithmetic service.
 // Ingress stores only the operation, operands and owner; three arithmetic
 // paths keep their own elastic completions until fair one-port arbitration.
 module R64FpExecute #(
@@ -12,8 +12,7 @@ module R64FpExecute #(
 ) (
   input                      clk,
   input                      rst,
-  input                      flush_i,
-  input  [   (1<<ROB_W)-1:0] kill_mask_i,
+  input [`R64_RECOVERY_W(1<<ROB_W)-1:0] recovery_i,
   input                      in_fire_i,
   output                     in_ready_o,
   input  [        TAG_W-1:0] in_tag_i,
@@ -27,6 +26,15 @@ module R64FpExecute #(
   output [`R64_RESULT_W-1:0] out_result_o
 );
   // One encoding indexes every path payload, ready/valid bit and return rank.
+  wire [`R64_RECOVERY_W(1<<ROB_W)-1:0] local_recovery;
+  wire unused_recovery_pending;
+  R64RecoveryInbox #(.N(1<<ROB_W)) recovery_inbox (
+    .clk_i(clk), .rst_i(rst), .event_i(recovery_i),
+    .event_o(local_recovery), .pending_o(unused_recovery_pending)
+  );
+  wire flush_i = local_recovery[(1<<ROB_W)+1];
+  wire [(1<<ROB_W)-1:0] kill_mask_i =
+      local_recovery[0+:(1<<ROB_W)] & {(1<<ROB_W){local_recovery[1<<ROB_W]}};
   localparam [1:0] PATH_FMA = 2'd0, PATH_LONG = 2'd1, PATH_FAST = 2'd2, PATH_FAULT = 2'd3;
   localparam RETURN_TUPLE_W = TAG_W + `R64_RESULT_W;
   // The caller projects the FP command from its dispatch representation.

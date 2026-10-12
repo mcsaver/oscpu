@@ -45,6 +45,10 @@ module tb_r64_rob_rename;
   R64Rob #(
     .META_W(M)
   ) rob (
+    .serial_retire_candidate_o(),
+    .batch_apply_o(),.batch_mask_o(),.batch_head_o(),.batch_desc_o(),
+
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
     .store_done_valid_i(1'b0),
     .store_done_ready_o(),
     .store_done_tag_i(9'b0),
@@ -83,7 +87,6 @@ module tb_r64_rob_rename;
     .wb_rd_fp_o(canonical_fp),
     .wb_preg_o(canonical_preg),
     .commit_ready_i(cr),
-    .commit1_allow_i(1'b1),
     .commit_valid_o(cv),
     .commit_tag_o(ct),
     .commit_meta_o(cm),
@@ -108,7 +111,7 @@ module tb_r64_rob_rename;
     .count_o(count),
     .head_slot_o(head)
   );
-  R64Rename rename (
+  R64RenameWithScoreboard rename (
     .clk(clk),
     .rst(rst),
     .restore_i(flush),

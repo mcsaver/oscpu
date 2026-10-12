@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 module tb_r64_service_cache_hot;
+  parameter HIT_FLOW=1;
   parameter CACHE_SET_W = 6;
   reg clk = 0;
   always #5 clk = ~clk;
@@ -37,6 +38,14 @@ module tb_r64_service_cache_hot;
   R64MemoryService service (
     .clk_i(clk),
     .rst_i(rst),
+    .cpu_store_rsp_valid_o(),
+    .cpu_store_rsp_ready_i(1'b1),
+    .cpu_store_rsp_token_o(),
+    .cpu_store_rsp_error_o(),
+    .cache_store_rsp_valid_i(1'b0),
+    .cache_store_rsp_ready_o(),
+    .cache_store_rsp_token_i('0),
+    .cache_store_rsp_error_i(1'b0),
     .cpu_fast_store_i(2'b0),
     .cache_fast_store_o(),
     .cpu_valid_i(cv),
@@ -104,7 +113,7 @@ module tb_r64_service_cache_hot;
   reg [1:0] bresp = 0;
   reg [63:0] memory[0:255];
   assign bd = memory[ri];
-  R64Dcache #(
+  R64Dcache #(.HIT_RESPONSE_EMPTY_FLOW(HIT_FLOW),
     .SET_W  (CACHE_SET_W),
     .TOKEN_W(8)
   ) cache (
@@ -371,7 +380,7 @@ module tb_r64_service_cache_hot;
     cv = 0;
     while (clive != 0) @(negedge clk);
     repeat (2) @(negedge clk);
-    if (!serviceidle || !cacheidle || hot_pair != 200 || min_hot != 3 || max_hot != 3)
+    if (!serviceidle || !cacheidle || hot_pair != 200 || min_hot != (HIT_FLOW ? 2 : 3) || max_hot != (HIT_FLOW ? 2 : 3))
       $fatal(1, "resident latency/drain mismatch min=%0d max=%0d", min_hot, max_hot);
     $display(
         "[PASS] tb_r64_service_cache_hot hot_pairs=%0d resident_min=%0d resident_max=%0d CPU=%0d reads=%0d writes=%0d",

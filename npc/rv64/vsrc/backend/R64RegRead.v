@@ -1,4 +1,5 @@
 // Native address admission -> physical read -> independently held operands.
+// Optional complete certified packets directly allocate the same terminal owner.
 // Four GPR and three FPR ports are explicit. Blocked read results remain local
 // to ingress; they never keep claiming a port. Each MEM carries the LSQ slot
 // allocated at dispatch; the LSQ alone owns memory age and capacity.
@@ -14,10 +15,24 @@ module R64RegRead #(
   parameter PREQUALIFIED_ISSUE = 0,
   parameter Q_ONLY_TERMINAL = 0,
   parameter ALU_TERMINAL_BYPASS = 0,
+  parameter LATE_OPERANDS = 0,
+  parameter LOAD_RESOLVED_VALUE = 0,
+  parameter ALU_TOKEN_BYPASS = 0,
+  // Only MEM may bind an existing LSQ owner from certified current ALU values.
+  parameter MEM_TERMINAL_CURRENT = 0,
+  // A complete certified input packet may skip the empty physical-read ingress.
+  parameter RR_COMPLETE_ADMIT = 0,
+  // Keep shared-resource Q readiness separate from local ALU late acceptance;
+  // MEM_TERMINAL_CURRENT may additionally qualify the existing MEM bind path.
+  parameter SPLIT_VALUE_VALID = 0,
   parameter ROB_W = 5,
   parameter TAG_W = 9,
   parameter PAYLOAD_W = 128,
-  parameter LSQ_W = 5
+  parameter LSQ_W = 5,
+  // Reuse an empty lane's original GPR ports for canonically ready input sources.
+  parameter RR_ADMIT_GPR_READ = 0,
+  // Native branches use the same complete snapshot and their own input control.
+  parameter RR_COMPLETE_BRANCH_ADMIT = 0
 ) (
   input                       clk,
   input                       rst,
@@ -35,20 +50,35 @@ module R64RegRead #(
   input  [      6*PREG_W-1:0] in_src_preg_i,
   input  [               5:0] in_src_fp_i,
   input  [               5:0] in_src_used_i,
+  input  [               5:0] in_src_pending_i,
   input  [2*(3*PREG_W+8)-1:0] in_fp_plan_i,
   input  [               1:0] wb_write_i,
   input  [               1:0] wb_fp_i,
   input  [      2*PREG_W-1:0] wb_preg_i,
   input  [             127:0] wb_data_i,
   // Short ALU result holders bridge early wakeup to canonical WB/PRF.
+  // Resident Q candidates select wide late data independently of current
+  // owner/recovery authorization. VALID below certifies only narrow use.
+  // Completed memory results are non-owning observations. They feed only
+  // edge-captured history/local values, never current terminal fast acceptance.
+  input  [               1:0] resolved_value_valid_i,
+  input  [      2*PREG_W-1:0] resolved_value_preg_i,
+  input  [             127:0] resolved_value_data_i,
+  input  [               1:0] alu_bypass_resident_i,
   input  [               1:0] alu_bypass_valid_i,
   input  [      2*PREG_W-1:0] alu_bypass_preg_i,
   input  [             127:0] alu_bypass_data_i,
+  // Separate token and old-head sources: neither may hide the other.
+  input  [               1:0] alu_token_resident_i,
+  input  [               1:0] alu_token_valid_i,
+  input  [      2*PREG_W-1:0] alu_token_preg_i,
+  input  [             127:0] alu_token_data_i,
   // Native bypass mode publishes a resident candidate to Execute. Only
   // VALID/READY transfers it; Execute must not retain an unaccepted candidate.
   // Generic mode retains the original FIFO held-output contract.
   input  [               5:0] fu_credit_i,
   output [               1:0] out_valid_o,
+  output [               1:0] out_local_alu_valid_o,
   input  [               1:0] out_ready_i,
   output [       2*TAG_W-1:0] out_tag_o,
   output [       2*LSQ_W-1:0] out_mem_slot_o,
@@ -194,11 +224,229 @@ module R64RegRead #(
   wire [3:0] gpr_forward_valid_w = {wb_write_i & ~wb_fp_i, alu_bypass_valid_i};
   wire [4*PREG_W-1:0] gpr_forward_preg_w = {wb_preg_i, alu_bypass_preg_i};
   wire [255:0] gpr_forward_data_w = {wb_data_i, alu_bypass_data_i};
+  // Ordinary PRF snapshots retain the four original sources. Optional
+  // numerical notices are only used by pending owners and arrival history.
+  localparam TOKEN_SOURCES = ALU_TOKEN_BYPASS != 0 ? 2 : 0;
+  localparam LATE_SOURCES = 4 + TOKEN_SOURCES + (LOAD_RESOLVED_VALUE != 0 ? 2 : 0);
+  wire [LATE_SOURCES-1:0] late_forward_valid_w;
+  wire [LATE_SOURCES*PREG_W-1:0] late_forward_preg_w;
+  wire [LATE_SOURCES*64-1:0] late_forward_data_w;
+  assign late_forward_valid_w[0+:4] = gpr_forward_valid_w;
+  assign late_forward_preg_w[0+:4*PREG_W] = gpr_forward_preg_w;
+  assign late_forward_data_w[0+:256] = gpr_forward_data_w;
+  generate
+    if (ALU_TOKEN_BYPASS != 0) begin : g_token_arrivals
+      assign late_forward_valid_w[4+:2] = alu_token_valid_i;
+      assign late_forward_preg_w[4*PREG_W+:2*PREG_W] = alu_token_preg_i;
+      assign late_forward_data_w[256+:128] = alu_token_data_i;
+    end
+    if (LOAD_RESOLVED_VALUE != 0) begin : g_memory_arrival
+      assign late_forward_valid_w[4+TOKEN_SOURCES+:2] = resolved_value_valid_i;
+      assign late_forward_preg_w[(4+TOKEN_SOURCES)*PREG_W+:2*PREG_W] = resolved_value_preg_i;
+      assign late_forward_data_w[(4+TOKEN_SOURCES)*64+:128] = resolved_value_data_i;
+    end
+  endgenerate
+  // A promise grants only scheduling eligibility. Every resident RR position
+  // retains unresolved source identity and captures one-shot real values even
+  // while the physical snapshot or terminal queue is blocked.
+  reg [2*PREG_W-1:0] late_src_q[0:3];
+  reg [1:0] late_pending_q[0:3], late_resolved_q[0:3];
+  reg [127:0] late_data_q[0:3];
+  reg [1:0] ingress_late_pending_q[0:1], ingress_late_resolved_q[0:1];
+  reg [127:0] ingress_late_data_q[0:1];
+  wire [LATE_SOURCES*64-1:0] arrival_data_w;
+  wire [LATE_SOURCES*PREG_W-1:0] arrival_preg_w;
+  wire [LATE_SOURCES-1:0] arrival_valid_w;
+  wire [1:0] ingress_history_hit_w[0:1];
+  wire [1:0] ingress_effective_pending_w[0:1], ingress_effective_resolved_w[0:1];
+  wire [127:0] ingress_effective_data_w[0:1];
+  wire [1:0] late_hit_w[0:3], ingress_late_hit_w[0:1];
+  wire [127:0] late_data_w[0:3], ingress_late_data_w[0:1];
+  generate
+    if (LATE_OPERANDS != 0) begin : g_arrival_history
+      // Save the complete, already certified arrival event independently of
+      // current Issue source selection. Its identity is matched only against
+      // the admitted ingress owner at the one-shot physical-read boundary.
+      reg [LATE_SOURCES*64-1:0] arrival_data_q;
+      reg [LATE_SOURCES*PREG_W-1:0] arrival_preg_q;
+      reg [LATE_SOURCES-1:0] arrival_valid_q;
+      always @(posedge clk) begin
+        arrival_data_q <= late_forward_data_w;
+        arrival_preg_q <= late_forward_preg_w;
+        arrival_valid_q <= late_forward_valid_w;
+      end
+      assign arrival_data_w = arrival_data_q;
+      assign arrival_preg_w = arrival_preg_q;
+      assign arrival_valid_w = arrival_valid_q;
+    end else begin : g_no_arrival_history
+      assign arrival_data_w = 0;
+      assign arrival_preg_w = 0;
+      assign arrival_valid_w = 0;
+    end
+  endgenerate
+  wire [3:0] late_ready_w;
+  wire [1:0] late_alu_hit_w[0:3];
+  wire [127:0] late_alu_data_w[0:3];
+  function [LATE_SOURCES-1:0] late_match;
+    input [PREG_W-1:0] preg;
+    input [LATE_SOURCES-1:0] valid_mask;
+    input [LATE_SOURCES*PREG_W-1:0] pregs;
+    integer k;
+    begin
+      for (k=0; k<LATE_SOURCES; k=k+1)
+        late_match[k] = preg != 0 && valid_mask[k] && pregs[k*PREG_W+:PREG_W] == preg;
+    end
+  endfunction
+  function [63:0] late_value;
+    input [LATE_SOURCES-1:0] hits;
+    input [LATE_SOURCES*64-1:0] values;
+    integer k;
+    begin
+      late_value=0;
+      // Registered capture has deterministic lane order, matching PRF WB1
+      // priority. The independent collision assertion still rejects different
+      // real values for one physical owner; priority never makes that legal.
+      for (k=0; k<LATE_SOURCES; k=k+1) if (hits[k]) late_value=values[k*64+:64];
+      // Canonical WB retains priority above optional numerical observations.
+      if(hits[2])late_value=values[128+:64];
+      if(hits[3])late_value=values[192+:64];
+    end
+  endfunction
+  // Destination choice is made only after Issue's actual acceptance. Read
+  // credit remains Q-only; no current value or Execute READY enters in_ready.
+  // WB uses the same highest capture priority as every other numerical holder.
+  wire [1:0] direct_eligible_w, direct_admit_w, ingress_admit_w, terminal_push_w;
+  wire [1:0] direct_source_ready_w[0:1];
+  wire [127:0] direct_value_w[0:1];
+  wire [36:0] direct_alu_control_w[0:1];
+  wire [4:0] direct_add_source_w[0:1];
+  wire [5:0] direct_shift_amount_w[0:1];
+  wire [20:0] direct_branch_imm_w[0:1];
+  wire [4:0] direct_branch_control_w[0:1];
+  genvar direct_lane, direct_source;
+  generate for (direct_lane=0; direct_lane<2; direct_lane=direct_lane+1) begin : g_direct_admit
+    wire [PAYLOAD_W-1:0] payload_w=in_payload_i[direct_lane*PAYLOAD_W+:PAYLOAD_W];
+    wire [2:0] used_w=in_src_used_i[direct_lane*3+:3];
+    wire [2:0] fp_w=in_src_fp_i[direct_lane*3+:3];
+    wire [2:0] class_w=in_class_i[direct_lane*3+:3];
+    for (direct_source=0; direct_source<2; direct_source=direct_source+1) begin : g_source
+      wire [PREG_W-1:0] preg_w=in_src_preg_i[(direct_lane*3+direct_source)*PREG_W+:PREG_W];
+      wire zero_w=!used_w[direct_source] || preg_w==0;
+      wire [LATE_SOURCES-1:0] hits_w=late_match(preg_w,late_forward_valid_w,late_forward_preg_w);
+      // Pending is the IQ's canonical-not-ready fact, not a PRF init bit.
+      // Same-edge actual arrivals override storage, including WB before its NBA.
+      wire prf_ready_w=RR_ADMIT_GPR_READ != 0 &&
+          !in_src_pending_i[direct_lane*3+direct_source];
+      assign direct_source_ready_w[direct_lane][direct_source]=zero_w || |hits_w || prf_ready_w;
+      assign direct_value_w[direct_lane][direct_source*64+:64]=
+          zero_w ? 64'b0 : |hits_w ? late_value(hits_w,late_forward_data_w) :
+          gdata_w[direct_lane*2+direct_source];
+    end
+    assign direct_eligible_w[direct_lane]=!rst && !flush_i && !input_cancel_w[direct_lane] &&
+        !ingress_valid_q[direct_lane] && terminal_count_q[direct_lane]<2 &&
+        (class_w==3'd0 || class_w==3'd4 ||
+         (RR_COMPLETE_BRANCH_ADMIT != 0 && PAYLOAD_W>=208 && class_w==3'd1)) && !used_w[2] && !(|(used_w & fp_w)) &&
+        (&direct_source_ready_w[direct_lane]);
+    assign direct_admit_w[direct_lane]=RR_COMPLETE_ADMIT != 0 &&
+        in_fire_i[direct_lane] && direct_eligible_w[direct_lane];
+    assign ingress_admit_w[direct_lane]=in_fire_i[direct_lane] && !direct_admit_w[direct_lane];
+    assign terminal_push_w[direct_lane]=transfer_w[direct_lane] || direct_admit_w[direct_lane];
+    if (PAYLOAD_W>=208) begin : g_native
+      wire [31:0] inst_w=payload_w[128+:32];
+      wire conditional_w=inst_w[6:0]==7'h63, indirect_w=inst_w[6:0]==7'h67;
+      wire [20:0] bi_w={{8{inst_w[31]}},inst_w[31],inst_w[7],inst_w[30:25],inst_w[11:8],1'b0};
+      wire [20:0] ji_w={inst_w[31],inst_w[19:12],inst_w[20],inst_w[30:21],1'b0};
+      wire [20:0] ii_w={{9{inst_w[31]}},inst_w[31:20]};
+      wire [7:0] function_w=class_w==3'd1 ? 8'd0 : payload_w[196+:8];
+      R64AluControl decoder(.function_i(function_w),.control_o(direct_alu_control_w[direct_lane]));
+      assign direct_branch_imm_w[direct_lane]=indirect_w ? ii_w : conditional_w ? bi_w : ji_w;
+      assign direct_branch_control_w[direct_lane]={inst_w[14:12],indirect_w,conditional_w};
+      assign direct_add_source_w[direct_lane]=class_w==3'd1 ? {3'b100,!indirect_w,indirect_w} :
+          {1'b0,payload_w[207],!payload_w[207],payload_w[205],!payload_w[205] && !payload_w[206]};
+      assign direct_shift_amount_w[direct_lane]=payload_w[207] ?
+          payload_w[64+:6] : direct_value_w[direct_lane][64+:6];
+    end else begin : g_generic
+      assign direct_branch_imm_w[direct_lane]=0;
+      assign direct_branch_control_w[direct_lane]=0;
+      assign direct_alu_control_w[direct_lane]=37'd2;
+      assign direct_add_source_w[direct_lane]=5'b00101;
+      assign direct_shift_amount_w[direct_lane]=direct_value_w[direct_lane][64+:6];
+    end
+  end endgenerate
+  genvar late_owner, late_source;
+  generate
+    for (late_owner=0; late_owner<4; late_owner=late_owner+1) begin : g_late_terminal
+      for (late_source=0; late_source<2; late_source=late_source+1) begin : g_source
+        wire [LATE_SOURCES-1:0] hits_w = late_match(late_src_q[late_owner][late_source*PREG_W+:PREG_W],
+            late_forward_valid_w, late_forward_preg_w);
+        assign late_hit_w[late_owner][late_source] = LATE_OPERANDS != 0 && |hits_w;
+        assign late_data_w[late_owner][late_source*64+:64] = late_value(hits_w, late_forward_data_w);
+        wire [PREG_W-1:0] preg_w=late_src_q[late_owner][late_source*PREG_W+:PREG_W];
+        wire raw0_w=alu_bypass_resident_i[0] && preg_w!=0 && alu_bypass_preg_i[0+:PREG_W]==preg_w;
+        wire raw1_w=alu_bypass_resident_i[1] && preg_w!=0 &&
+            alu_bypass_preg_i[PREG_W+:PREG_W]==preg_w;
+        // A stale same-preg candidate cannot redirect the wide mux using
+        // current kill. Its fixed choice stalls until certified or local WB
+        // capture supplies the value; the other raw lane never contaminates it.
+        wire token0_w=ALU_TOKEN_BYPASS != 0 && alu_token_resident_i[0] &&
+            preg_w!=0 && alu_token_preg_i[0+:PREG_W]==preg_w;
+        wire token1_w=ALU_TOKEN_BYPASS != 0 && alu_token_resident_i[1] &&
+            preg_w!=0 && alu_token_preg_i[PREG_W+:PREG_W]==preg_w;
+        assign late_alu_data_w[late_owner][late_source*64+:64] =
+            raw0_w ? alu_bypass_data_i[0+:64] :
+            raw1_w ? alu_bypass_data_i[64+:64] :
+            token0_w ? alu_token_data_i[0+:64] :
+            token1_w ? alu_token_data_i[64+:64] : alu_bypass_data_i[64+:64];
+        assign late_alu_hit_w[late_owner][late_source] = LATE_OPERANDS != 0 &&
+            (raw0_w ? alu_bypass_valid_i[0] :
+             raw1_w ? alu_bypass_valid_i[1] :
+             token0_w ? alu_token_valid_i[0] : token1_w && alu_token_valid_i[1]);
+      end
+      // Canonical WB only discharges the local pending register at the edge.
+      // Only a certified resident ALU head or registered numerical token may
+      // satisfy the current candidate. WB still updates local readiness at Q.
+      assign late_ready_w[late_owner] = LATE_OPERANDS == 0 ||
+          !(|(late_pending_q[late_owner] & ~late_alu_hit_w[late_owner]));
+    end
+    for (late_owner=0; late_owner<2; late_owner=late_owner+1) begin : g_late_ingress
+      for (late_source=0; late_source<2; late_source=late_source+1) begin : g_source
+        wire [LATE_SOURCES-1:0] resident_hits_w = late_match(
+            ingress_src_q[late_owner][late_source*PREG_W+:PREG_W],
+            late_forward_valid_w, late_forward_preg_w);
+        wire [LATE_SOURCES-1:0] history_hits_w = late_match(
+            ingress_src_q[late_owner][late_source*PREG_W+:PREG_W],
+            arrival_valid_w, arrival_preg_w);
+        assign ingress_late_hit_w[late_owner][late_source] = LATE_OPERANDS != 0 && |resident_hits_w;
+        assign ingress_late_data_w[late_owner][late_source*64+:64] =
+            late_value(resident_hits_w, late_forward_data_w);
+        // A held ingress never replays later history as its admission event.
+        // The already-certified earlier event wins over current arrivals.
+        assign ingress_history_hit_w[late_owner][late_source] = LATE_OPERANDS != 0 &&
+            read_select_w[late_owner] && ingress_late_pending_q[late_owner][late_source] &&
+            |history_hits_w;
+        assign ingress_effective_pending_w[late_owner][late_source] =
+            ingress_late_pending_q[late_owner][late_source] &
+            ~ingress_history_hit_w[late_owner][late_source];
+        assign ingress_effective_resolved_w[late_owner][late_source] =
+            ingress_late_resolved_q[late_owner][late_source] |
+            ingress_history_hit_w[late_owner][late_source];
+        assign ingress_effective_data_w[late_owner][late_source*64+:64] =
+            ingress_history_hit_w[late_owner][late_source] ?
+            late_value(history_hits_w, arrival_data_w) :
+            ingress_late_data_q[late_owner][late_source*64+:64];
+      end
+    end
+  endgenerate
   genvar p;
   generate
     for (p = 0; p < 4; p = p + 1) begin : gen_gpr_port
       localparam SRC = (p / 2) * 3 + (p % 2);
-      assign gaddr_w[p] = read_src_w[SRC*PREG_W+:PREG_W];
+      // Q-only selection gives every old ingress its original two read ports.
+      // The empty lane may inspect an input address regardless of fire/kill;
+      // only actual direct admission captures its complete ready packet.
+      assign gaddr_w[p] = RR_COMPLETE_ADMIT != 0 && RR_ADMIT_GPR_READ != 0 &&
+          !ingress_valid_q[p/2] ? in_src_preg_i[SRC*PREG_W+:PREG_W] :
+          read_src_w[SRC*PREG_W+:PREG_W];
       assign gdata_w[p] = (gaddr_w[p] != 0 && ginit_q[gaddr_w[p]]) ? gpr_q[gaddr_w[p]] : 64'b0;
     end
     for (p = 0; p < 3; p = p + 1) begin : gen_fpr_port
@@ -249,8 +497,18 @@ module R64RegRead #(
       wire [63:0] alu1_w = forward_w[64+:64] & {64{hit_w[1]}};
       wire [63:0] wb0_w = forward_w[128+:64] & {64{hit_w[2]}};
       wire [63:0] wb1_w = forward_w[192+:64] & {64{hit_w[3]}};
-      assign terminal_operand_w[p*64+:64] = (alu0_w | alu1_w) | (wb0_w | wb1_w) |
+      wire [63:0] original_operand_w = (alu0_w | alu1_w) | (wb0_w | wb1_w) |
           (stored_operand_w & {64{!(|hit_w)}});
+      if (SOURCE < 2) begin : g_late_source
+        // A token value is formed only from arithmetic partial/control Q.
+        // There is no current Execute input-to-output combinational shortcut.
+        // Wide selection sees only Q state and resident Q routing. Current
+        // authorization changes readiness/capture, never this value choice.
+        assign terminal_operand_w[p*64+:64] = LATE_OPERANDS != 0 &&
+            late_resolved_q[SLOT][SOURCE] ? late_data_q[SLOT][SOURCE*64+:64] :
+            LATE_OPERANDS != 0 && late_pending_q[SLOT][SOURCE] ?
+            late_alu_data_w[SLOT][SOURCE*64+:64] : original_operand_w;
+      end else assign terminal_operand_w[p*64+:64] = original_operand_w;
     end
     for (p = 0; p < 2; p = p + 1) begin : gen_lane
       wire [31:0] selected_terminal_w = p*2+{31'b0, terminal_select_w[p]};
@@ -261,8 +519,10 @@ module R64RegRead #(
         // Execute credit bits, high to low: {FP, CLMUL, DIV, MUL, ALU1, ALU0}.
         wire head_credit_w = head_payload_w[199] ? fu_credit_i[4] :
             head_payload_w[198] ? fu_credit_i[3] : fu_credit_i[2];
-        wire head_blocked_w = (head_class_w == 3'd2 && !head_credit_w) ||
-            (head_class_w == 3'd3 && !fu_credit_i[5]);
+        wire head_pending_w = SPLIT_VALUE_VALID != 0 && LATE_OPERANDS != 0 &&
+            (|late_pending_q[p*2+{31'b0, terminal_head_q[p]}]);
+        wire head_blocked_w = (head_class_w == 3'd2 && (!head_credit_w || head_pending_w)) ||
+            (head_class_w == 3'd3 && (!fu_credit_i[5] || head_pending_w));
         // Credits are resident FU capacity, independent of this RR candidate.
         // MEM/Serial/branch heads retain their original lane/order boundary.
         wire escape_w = terminal_count_q[p] == 2 && head_blocked_w && !terminal_dead_q[
@@ -316,7 +576,14 @@ module R64RegRead #(
       end
       assign out_alu_control_o[p*37+:37] = alu_control_q[selected_terminal_w];
       assign out_add_source_o[p*5+:5] = add_source_q[selected_terminal_w];
-      assign out_shift_amount_o[p*6+:6] = shift_amount_q[selected_terminal_w];
+      if (PAYLOAD_W >= 208) begin : g_late_shift_native
+        assign out_shift_amount_o[p*6+:6] = LATE_OPERANDS != 0 &&
+            !payload_q[selected_terminal_w][207] ?
+            out_operand_o[p*192+64+:6] : shift_amount_q[selected_terminal_w];
+      end else begin : g_late_shift_generic
+        assign out_shift_amount_o[p*6+:6] = LATE_OPERANDS != 0 ?
+            out_operand_o[p*192+64+:6] : shift_amount_q[selected_terminal_w];
+      end
       assign out_branch_imm_o[p*21+:21] = branch_imm_q[selected_terminal_w];
       assign out_branch_control_o[p*5+:5] = branch_control_q[selected_terminal_w];
       wire [ROB_W-1:0] output_slot_w = tag_q[selected_terminal_w][ROB_W-1:0];
@@ -334,8 +601,21 @@ module R64RegRead #(
       // kill/flush before any FU/LSU admission; local state cancels at this edge.
       assign out_live_w[p] = terminal_count_q[p] != 0 &&
           !terminal_dead_q[selected_terminal_w];
-      assign out_valid_o[p] = out_live_w[p];
-      assign out_fire_w[p] = out_valid_o[p] && out_ready_i[p];
+      // MEM may bind its existing LSQ owner when every pending GPR has a
+      // certified resident ALU head/token value. The operand mux uses that same
+      // fixed resident selection; WB and memory notices still resolve only at Q.
+      // Other shared units retain registered operand readiness. Execute checks
+      // current kill/flush and resource acceptance before any actual transfer.
+      wire mem_current_ready_w = MEM_TERMINAL_CURRENT != 0 &&
+          class_q[selected_terminal_w] == 3'd4 && late_ready_w[selected_terminal_w];
+      assign out_valid_o[p] = out_live_w[p] && (SPLIT_VALUE_VALID != 0 ?
+          (LATE_OPERANDS == 0 || !(|late_pending_q[selected_terminal_w]) ||
+           mem_current_ready_w) : late_ready_w[selected_terminal_w]);
+      assign out_local_alu_valid_o[p] = SPLIT_VALUE_VALID != 0 && out_live_w[p] &&
+          (class_q[selected_terminal_w] == 3'd0 || class_q[selected_terminal_w] == 3'd1) &&
+          late_ready_w[selected_terminal_w];
+      // This is a local consumption join only, never a downstream resource fire.
+      assign out_fire_w[p] = out_ready_i[p] && (out_valid_o[p] || out_local_alu_valid_o[p]);
       assign terminal_pop_w[p] = terminal_count_q[p] != 0 &&
           (out_fire_w[p] || terminal_dead_q[selected_terminal_w]);
       // Q-only capacity prevents Execute READY/cancellation from re-entering
@@ -351,6 +631,74 @@ module R64RegRead #(
       assign out_gpr_dst_o[p*PREG_W+:PREG_W] = gpr_dst_q[selected_terminal_w];
     end
   endgenerate
+  integer late_slot, late_lane, late_operand;
+  always @(posedge clk) begin
+    if (rst || flush_i) begin
+      for (late_slot=0; late_slot<4; late_slot=late_slot+1) begin
+        late_pending_q[late_slot] <= 0;
+        late_resolved_q[late_slot] <= 0;
+      end
+      for (late_lane=0; late_lane<2; late_lane=late_lane+1) begin
+        ingress_late_pending_q[late_lane] <= 0;
+        ingress_late_resolved_q[late_lane] <= 0;
+      end
+    end else if (LATE_OPERANDS != 0) begin
+      for (late_slot=0; late_slot<4; late_slot=late_slot+1)
+        for (late_operand=0; late_operand<2; late_operand=late_operand+1)
+          if (late_pending_q[late_slot][late_operand] && late_hit_w[late_slot][late_operand]) begin
+            late_pending_q[late_slot][late_operand] <= 0;
+            late_resolved_q[late_slot][late_operand] <= 1;
+            late_data_q[late_slot][late_operand*64+:64] <= late_data_w[late_slot][late_operand*64+:64];
+          end
+      for (late_lane=0; late_lane<2; late_lane=late_lane+1) begin
+        // Resolve the admission-edge history once, even when terminal credit
+        // is absent. Current events can discharge only the remaining pending
+        // sources, so a later event cannot overwrite the admitted sample.
+        for (late_operand=0; late_operand<2; late_operand=late_operand+1) begin
+          if (ingress_history_hit_w[late_lane][late_operand]) begin
+            ingress_late_pending_q[late_lane][late_operand] <= 0;
+            ingress_late_resolved_q[late_lane][late_operand] <= 1;
+            ingress_late_data_q[late_lane][late_operand*64+:64] <=
+                ingress_effective_data_w[late_lane][late_operand*64+:64];
+          end
+          if (ingress_effective_pending_w[late_lane][late_operand] &&
+              ingress_late_hit_w[late_lane][late_operand]) begin
+            ingress_late_pending_q[late_lane][late_operand] <= 0;
+            ingress_late_resolved_q[late_lane][late_operand] <= 1;
+            ingress_late_data_q[late_lane][late_operand*64+:64] <=
+                ingress_late_data_w[late_lane][late_operand*64+:64];
+          end
+        end
+        if (transfer_w[late_lane]) begin
+          late_src_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <=
+              ingress_src_q[late_lane][0+:2*PREG_W];
+          late_pending_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <=
+              ingress_effective_pending_w[late_lane] & ~ingress_late_hit_w[late_lane];
+          late_resolved_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <=
+              ingress_effective_resolved_w[late_lane] |
+              (ingress_effective_pending_w[late_lane] & ingress_late_hit_w[late_lane]);
+          for (late_operand=0; late_operand<2; late_operand=late_operand+1)
+            late_data_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}][late_operand*64+:64] <=
+                ingress_effective_pending_w[late_lane][late_operand] && ingress_late_hit_w[late_lane][late_operand] ?
+                ingress_late_data_w[late_lane][late_operand*64+:64] :
+                ingress_effective_data_w[late_lane][late_operand*64+:64];
+        end
+        if (direct_admit_w[late_lane]) begin
+          late_src_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <=
+              in_src_preg_i[late_lane*3*PREG_W+:2*PREG_W];
+          late_pending_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <= 0;
+          late_resolved_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <= 0;
+          late_data_q[late_lane*2+{31'b0,terminal_tail_q[late_lane]}] <= 0;
+        end
+        if (ingress_admit_w[late_lane]) begin
+          // Refill follows old-owner transfer/capture. NBA pairs that owner
+          // with old history; the newly admitted owner reads new history next.
+          ingress_late_pending_q[late_lane] <= in_src_pending_i[late_lane*3+:2];
+          ingress_late_resolved_q[late_lane] <= 0;
+        end
+      end
+    end
+  end
   // Port allocation belongs to the address admission edge. Every pending
   // read is from exactly this previous bundle; completed blocked reads keep
   // their own physical values/rank and never consume these addresses again.
@@ -415,7 +763,7 @@ module R64RegRead #(
           ingress_valid_q[lane] <= 0;
           operand_ready_q[lane] <= 0;
         end else begin
-          terminal_count_q[lane] <= terminal_count_q[lane] + {1'b0, transfer_w[lane]} -
+          terminal_count_q[lane] <= terminal_count_q[lane] + {1'b0, terminal_push_w[lane]} -
               {1'b0, terminal_pop_w[lane]};
           if (terminal_pop_w[lane]) begin
             if (terminal_select_w[lane] == terminal_head_q[lane])
@@ -449,6 +797,28 @@ module R64RegRead #(
             forward_data_q[lane*2+{31'b0, terminal_tail_q[lane]}] <= operand_ready_q[lane] ?
                 ingress_forward_data_q[lane] : gpr_forward_data_w;
           end
+          if (direct_admit_w[lane]) begin
+            // Direct capture writes the same terminal owner and metadata as
+            // old-ingress transfer. The two events are mutually exclusive.
+            terminal_tail_q[lane] <= ~terminal_tail_q[lane];
+            terminal_dead_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= 0;
+            tag_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_tag_i[lane*TAG_W+:TAG_W];
+            payload_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_payload_i[lane*PAYLOAD_W+:PAYLOAD_W];
+            class_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_class_i[lane*3+:3];
+            gpr_dst_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_gpr_dst_i[lane*PREG_W+:PREG_W];
+            mem_slot_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_mem_slot_i[lane*LSQ_W+:LSQ_W];
+            alu_control_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= direct_alu_control_w[lane];
+            add_source_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= direct_add_source_w[lane];
+            shift_amount_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= direct_shift_amount_w[lane];
+            branch_imm_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= direct_branch_imm_w[lane];
+            branch_control_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= direct_branch_control_w[lane];
+            operand_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= {192'b0,direct_value_w[lane]};
+            operand_fp_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= 0;
+            operand_used_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= in_src_used_i[lane*3+:3];
+            operand_rank_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= 0;
+            forward_hit_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= 0;
+            forward_data_q[lane*2+{31'b0,terminal_tail_q[lane]}] <= 0;
+          end
           if (!ingress_live_w[lane] || transfer_w[lane]) begin
             ingress_valid_q[lane] <= 0;
             operand_ready_q[lane] <= 0;
@@ -462,7 +832,7 @@ module R64RegRead #(
             ingress_forward_hit_q[lane] <= read_forward_hit_w[lane*12+:12];
             ingress_forward_data_q[lane] <= gpr_forward_data_w;
           end
-          if (in_fire_i[lane]) begin
+          if (ingress_admit_w[lane]) begin
             // Issue already qualifies a new owner; held owners retain cancellation.
             ingress_valid_q[lane] <= PREQUALIFIED_ISSUE != 0 ? 1'b1 : !input_cancel_w[lane];
             operand_ready_q[lane] <= 0;
@@ -536,8 +906,9 @@ module R64RegRead #(
     end
   endgenerate
 
-  // Preserve the original admission predicate as an independent shadow.
-  // An already-held owner's later cancellation remains unchanged.
+  // Preserve the original cancellation predicate for owners routed to ingress.
+  // Complete direct packets instead allocate terminal ownership at that edge;
+  // already-held ingress cancellation remains unchanged.
   reg [1:0] ingress_valid_shadow_q;
   integer qualified_lane;
   always @(posedge clk) begin
@@ -545,7 +916,7 @@ module R64RegRead #(
     else
       for (integer q = 0; q < 2; q = q + 1) begin
         if (!ingress_live_w[q] || transfer_w[q]) ingress_valid_shadow_q[q] <= 0;
-        if (in_fire_i[q]) ingress_valid_shadow_q[q] <= !kill_mask_i[in_tag_i[q*TAG_W+:ROB_W]];
+        if (ingress_admit_w[q]) ingress_valid_shadow_q[q] <= !kill_mask_i[in_tag_i[q*TAG_W+:ROB_W]];
       end
     if (PREQUALIFIED_ISSUE != 0)
       for (qualified_lane = 0; qualified_lane < 2; qualified_lane = qualified_lane + 1)
@@ -601,9 +972,32 @@ module R64RegRead #(
   reg [1:0] prior_admit_q;
   always @(posedge clk) begin
     if (rst || flush_i) prior_admit_q <= 0;
-    else prior_admit_q <= in_fire_i;
+    else prior_admit_q <= ingress_admit_w;
     if (!rst && !flush_i && (read_select_w & ~prior_admit_q) != 0)
       $fatal(1, "R64 physical read retried beyond its admission bundle");
+  end
+  // Check the actual owner destination, independently of downstream pop.
+  reg [1:0] prior_direct_q;
+  always @(posedge clk) begin
+    if (rst || flush_i) prior_direct_q <= 0;
+    else prior_direct_q <= direct_admit_w;
+    if (!rst && !flush_i) begin
+      if (RR_ADMIT_GPR_READ != 0)
+        for (integer gp=0;gp<4;gp=gp+1)
+          if (read_select_w[gp/2] && gaddr_w[gp] !==
+              read_src_w[((gp/2)*3+gp%2)*PREG_W+:PREG_W])
+            $fatal(1,"RR input PRF read displaced an old ingress port");
+      if ((direct_admit_w & transfer_w)!=0)
+        $fatal(1,"RR direct admission collided with old ingress transfer");
+      if ((direct_admit_w & ~in_fire_i)!=0 || (direct_admit_w & ingress_valid_q)!=0)
+        $fatal(1,"RR direct admission lacks an accepted empty-ingress owner");
+      if ((prior_direct_q & read_select_w)!=0)
+        $fatal(1,"RR directly captured owner retried the physical read");
+      for (integer d=0;d<2;d=d+1)
+        if (direct_admit_w[d] && (terminal_count_q[d]>=2 ||
+            in_src_used_i[d*3+2] || |(in_src_used_i[d*3+:3]&in_src_fp_i[d*3+:3])))
+          $fatal(1,"RR direct admission violated Q capacity or integer-source shape");
+    end
   end
   integer mem_owner_check;
   always @(posedge clk)
@@ -618,12 +1012,12 @@ module R64RegRead #(
   integer forward_a, forward_b;
   always @(posedge clk)
     if (!rst && !flush_i) begin
-      for (forward_a = 0; forward_a < 4; forward_a = forward_a + 1)
-      for (forward_b = forward_a + 1; forward_b < 4; forward_b = forward_b + 1)
-      if (gpr_forward_valid_w[forward_a] && gpr_forward_valid_w[forward_b] &&
-          gpr_forward_preg_w[forward_a*PREG_W+:PREG_W] != 0 && gpr_forward_preg_w[
-          forward_a*PREG_W+:PREG_W] == gpr_forward_preg_w[forward_b*PREG_W+:PREG_W] &&
-          gpr_forward_data_w[forward_a*64+:64] != gpr_forward_data_w[forward_b*64+:64])
+      for (forward_a = 0; forward_a < LATE_SOURCES; forward_a = forward_a + 1)
+      for (forward_b = forward_a + 1; forward_b < LATE_SOURCES; forward_b = forward_b + 1)
+      if (late_forward_valid_w[forward_a] && late_forward_valid_w[forward_b] &&
+          late_forward_preg_w[forward_a*PREG_W+:PREG_W] != 0 && late_forward_preg_w[
+          forward_a*PREG_W+:PREG_W] == late_forward_preg_w[forward_b*PREG_W+:PREG_W] &&
+          late_forward_data_w[forward_a*64+:64] != late_forward_data_w[forward_b*64+:64])
         $fatal(1, "R64 two forwarding stages disagree on a live physical value");
     end
 

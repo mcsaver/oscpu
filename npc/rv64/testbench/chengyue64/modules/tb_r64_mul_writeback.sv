@@ -42,7 +42,7 @@ module tb_r64_mul_writeback;
     .rst(rst),
     .flush_i(flush),
     .kill_mask_i(kill),
-    .source_valid_i(valid),
+    .source_valid_i(valid), .source_capture_o(),
     .source_ready_o(ready),
     .source_tag_i(tags),
     .source_result_i(data),

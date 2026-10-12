@@ -20,12 +20,24 @@ module tb_r64_memory_service;
   wire [15:0] ks;
   wire [9:0] km;
   wire idle;
+  reg store_valid = 0, store_ready = 0, store_error = 0;
+  reg [6:0] store_token = 0;
+  wire store_return_valid, store_return_ready, store_return_error;
+  wire [4:0] store_return_token;
   R64MemoryService #(
     .AUX  (3),
     .SRC_W(2)
   ) dut (
     .clk_i(clk),
     .rst_i(rst),
+    .cpu_store_rsp_valid_o(store_return_valid),
+    .cpu_store_rsp_ready_i(store_ready),
+    .cpu_store_rsp_token_o(store_return_token),
+    .cpu_store_rsp_error_o(store_return_error),
+    .cache_store_rsp_valid_i(store_valid),
+    .cache_store_rsp_ready_o(store_return_ready),
+    .cache_store_rsp_token_i(store_token),
+    .cache_store_rsp_error_i(store_error),
     .cpu_valid_i(cv),
     .cpu_ready_o(cr),
     .cpu_token_i(ct),
@@ -77,6 +89,26 @@ module tb_r64_memory_service;
   initial begin
     repeat (3) @(negedge clk);
     rst = 0;
+    if ($test$plusargs("bad-store-source")) begin
+      store_valid = 1; store_token = 7'h25;
+      #1;
+      if (store_return_valid || store_return_ready)
+        $fatal(1, "auxiliary token escaped as CPU store terminal");
+      @(negedge clk);
+      $fatal(1, "invalid source assertion did not fire");
+    end
+    store_valid = 1; store_token = 7'd27; store_error = 1;
+    repeat (5) begin
+      #1;
+      if (!store_return_valid || store_return_ready || store_return_token != 27 ||
+          !store_return_error) $fatal(1, "CPU store terminal routing/backpressure");
+      @(negedge clk);
+    end
+    store_ready = 1;
+    #1;
+    if (!store_return_ready) $fatal(1, "CPU store terminal ready routing");
+    @(negedge clk);
+    store_valid = 0;
     cv  = 1;
     ct  = 5;
     ca  = 64'h80001000;

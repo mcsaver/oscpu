@@ -57,6 +57,6 @@ block_irq_done:
 
 #define _start block_irq_body
 #define ebreak j block_irq_exit
-#include "../../../../Linux/tools/virtio-blk-smoke.S"
+#include "../../../../../Linux/tools/virtio-blk-smoke.S"
 #undef ebreak
 #undef _start

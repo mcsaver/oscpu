@@ -5,6 +5,12 @@ module tb_r64_fast_raw_owner;
   always #5 clk = ~clk;
   reg rst = 1, flush = 0, fire = 0, ready = 0;
   reg [31:0] kill = 0;
+  reg local_flush = 0;
+  reg [31:0] local_kill = 0;
+  always @(posedge clk) begin
+    local_flush <= !rst && flush;
+    local_kill <= rst ? 32'b0 : kill;
+  end
   reg [8:0] tag = 0;
   reg [`R64_UOP_W-1:0] uop = 0;
   reg [191:0] operand = 0;
@@ -18,8 +24,7 @@ module tb_r64_fast_raw_owner;
   ) dut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(fire),
     .in_ready_o(credit),
     .in_tag_i(tag),
@@ -89,29 +94,29 @@ module tb_r64_fast_raw_owner;
   endtask
   always @(posedge clk) begin
     cycles = cycles + 1;
-    if (rst || flush) begin
+    if (rst || local_flush) begin
       for (integer a = 0; a < 512; a = a + 1) if (pending[a]) canceled = canceled + 1;
       pending = 0;
       held = 0;
     end else begin
       for (integer a = 0; a < 512; a = a + 1)
-      if (pending[a] && kill[a%32]) begin
+      if (pending[a] && local_kill[a%32]) begin
         pending[a] = 0;
         canceled   = canceled + 1;
       end
       if (fire) begin
         accepted = accepted + 1;
-        if (kill[tag%32]) canceled = canceled + 1;
+        if (local_kill[tag%32]) canceled = canceled + 1;
         else begin
           if (pending[tag]) $fatal(1, "test reused live full tag");
           pending[tag] = 1;
         end
       end
       if (dut.fast_offer_w && !dut.fire[2]) begin
-        if (!kill[dut.tag_q[4:0]]) $fatal(1, "extra numeric producer lacks killed owner");
+        if (!local_kill[dut.tag_q[4:0]]) $fatal(1, "extra numeric producer lacks killed owner");
         extra = extra + 1;
       end
-      if (held && !kill[held_tag%32]) begin
+      if (held && !local_kill[held_tag%32]) begin
         if (!valid || result_tag !== held_tag || result !== held_data)
           $fatal(1, "held visible FP result changed");
       end
@@ -150,6 +155,11 @@ module tb_r64_fast_raw_owner;
         negative_edge();
         prepare(serial_number[8:0], phase != 0);
         if (!credit) $fatal(1, "ingress filled before final Fast slot boundary");
+        // Publish cancellation for the transport owner being enqueued.
+        // Delivery coincides with its offer for the final real numeric slot.
+        if (dut.fast.owner.reserved_q[12] && !dut.fast.owner.credit_return_q &&
+            dut.ingress_valid_q && dut.path_ready[2])
+          kill[tag%32] = 1;
         fire = 1;
         tick();
         fire = 0;
@@ -160,7 +170,8 @@ module tb_r64_fast_raw_owner;
       negative_edge();
       killed_tag = dut.tag_q;
       born_slot = dut.fast.allocation_w;
-      kill[killed_tag%32] = 1;
+      if (!local_kill[killed_tag%32]) $fatal(1, "cancellation was not published ahead of final offer");
+      kill = 0;
       #1;
       if (!dut.fast_offer_w || dut.fire[2]) $fatal(1, "cancellation numerical offer not reached");
       tick();
@@ -195,6 +206,10 @@ module tb_r64_fast_raw_owner;
       if (phase == 0) flush = 1;
       else rst = 1;
       tick();
+      if (phase == 0) begin
+        flush = 0;
+        tick();
+      end
       if (dut.fast.token_q != 0 || dut.fast.owner.allocated_q != 0 ||
           dut.fast.owner.reserved_q != 1)
         $fatal(1, "reset split numeric producer from completion owner");

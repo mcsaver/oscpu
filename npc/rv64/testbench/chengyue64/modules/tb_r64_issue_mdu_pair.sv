@@ -17,6 +17,7 @@ module tb_r64_issue_mdu_pair;
     .PAYLOAD_W(U),
     .MDU_RESOURCE_PAIR(1)
   ) dut (
+    .resolved_value_valid_i(2'b0), .resolved_value_preg_i(12'b0),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
@@ -43,7 +44,7 @@ module tb_r64_issue_mdu_pair;
     .wake_valid_i(2'd0),
     .wake_fp_i(2'd0),
     .wake_preg_i(12'd0),
-    .early_valid_i(2'd0),
+    .early_valid_i(2'd0), .load_promise_i(2'b0), .load_preg_i(12'b0),
     .early_preg_i(12'd0),
     .fu_allow_i(6'd63),
     .serial_allow_i(1'b1),

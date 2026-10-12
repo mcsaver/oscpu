@@ -7,7 +7,7 @@ module tb_r64_direct_mem_execute;
   reg rst = 1, flush = 0;
   reg [31:0] kill = 0;
   reg [4:0] head = 0;
-  reg [1:0] valid = 0;
+  reg [1:0] valid = 0, local_alu_valid = 3;
   reg [17:0] tags = 0;
   reg [9:0] slots = 0;
   reg [2*U-1:0] uops = 0;
@@ -70,8 +70,10 @@ module tb_r64_direct_mem_execute;
     .RAW_MEM(1),
     .RAW_FP(1),
     .RAW_SERIAL(1),
-    .DIRECT_MEM_BIND(1)
+    .DIRECT_MEM_BIND(1),
+    .SPLIT_VALUE_VALID(1)
   ) dut1 (
+    .in_local_alu_valid_i(local_alu_valid),
     .clk(clk),
     .rst(rst),
     .flush_i(flush),
@@ -134,6 +136,7 @@ module tb_r64_direct_mem_execute;
       lane1_only = 0,
       canceled = 0,
       mixed = 0;
+  reg count_vector = 1;
   task check;
     begin
       if (ready[0] !== ready[1]) $fatal(1, "direct MEM changes accepted RR set iter%0d", i);
@@ -153,14 +156,14 @@ module tb_r64_direct_mem_execute;
           if ({lslot[0][j*S+:S], luop[0][j*U+:U], lop[0][j*192+:192]} !==
               {lslot[1][k*S+:S], luop[1][k*U+:U], lop[1][k*192+:192]})
             $fatal(1, "MEM full owner payload changed");
-          if (j != k) swapped = swapped + 1;
+          if (count_vector && j != k) swapped = swapped + 1;
         end
         if (match_count != 1) $fatal(1, "MEM bind missing/duplicate fulltag");
-        accepted = accepted + 1;
+        if (count_vector) accepted = accepted + 1;
       end
-      if (fire[1] == 2'b10) lane1_only = lane1_only + 1;
-      if (|kill) canceled = canceled + 1;
-      if ((ff[1] || sf[1]) && |fire[1]) mixed = mixed + 1;
+      if (count_vector && fire[1] == 2'b10) lane1_only = lane1_only + 1;
+      if (count_vector && |kill) canceled = canceled + 1;
+      if (count_vector && (ff[1] || sf[1]) && |fire[1]) mixed = mixed + 1;
     end
   endtask
   initial begin
@@ -189,8 +192,10 @@ module tb_r64_direct_mem_execute;
         end
       for (m = 0; m < 2 * U; m = m + 1) uops[m] = 1'(random_word());
       for (m = 0; m < 384; m = m + 1) operands[m] = 1'(random_word());
-      #1;
-      check();
+      // Toggling the fast channel cannot influence any shared resource, even
+      // for mixed classes, cancellation, ordering and two physical MEM lanes.
+      count_vector=0;local_alu_valid=0;#1;check();
+      count_vector=1;local_alu_valid=3;#1;check();
     end
     @(negedge clk);
     valid = 0;
@@ -199,6 +204,23 @@ module tb_r64_direct_mem_execute;
     kill  = 0;
     if (accepted < 5000 || swapped < 3000 || lane1_only < 1000 || mixed < 300 || canceled < 1000)
       $fatal(1, "direct MEM coverage not reached");
+    // A local-only ALU can consume alongside a registered MEM, without
+    // exposing that ALU to shared priority or inventing a MEM fire.
+    @(negedge clk);head=0;classes={`R64_C_MEM,`R64_C_ALU};
+    tags={9'd2,9'd1};slots={5'd4,5'd3};uops=0;operands=0;
+    valid=2;local_alu_valid=1;fpready=1;sready=1;#1;
+    if(ready[1]!==3||fire[1]!==2||ltag[1][9+:9]!==9'd2||ff[1]||sf[1])
+      $fatal(1,"local ALU/shared MEM split acceptance failed");
+    @(negedge clk);valid=0;local_alu_valid=0;
+    repeat(5)@(negedge clk);
+    // Fast branch candidates use their own age arbitration when Q-ready=0.
+    classes={`R64_C_BRANCH,`R64_C_BRANCH};tags={9'd4,9'd3};
+    local_alu_valid=3;#1;
+    if(ready[1]!==1||fire[1]!==0||ff[1]||sf[1])
+      $fatal(1,"local-only dual branch arbitration failed");
+    @(negedge clk);local_alu_valid=0;
+    repeat(5)@(negedge clk);
+    $display("EXECUTE_SPLIT_VALID shared_vectors=20000 fast_toggles=2 mixed_ALU_MEM=1 dual_branch=1");
     $display(
         "[PASS] tb_r64_direct_mem_execute vectors=%0d accepted=%0d swapped=%0d lane1_only=%0d mixed=%0d canceled=%0d",
         i, accepted, swapped, lane1_only, mixed, canceled);

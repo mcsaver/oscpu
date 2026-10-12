@@ -20,6 +20,7 @@ module R64Writeback #(
   input      [              (1<<ROB_W)-1:0] kill_mask_i,
   input      [                 SOURCES-1:0] source_valid_i, source_request_i,
   output reg [                 SOURCES-1:0] source_ready_o,
+  output     [                 SOURCES-1:0] source_capture_o,
   input      [           SOURCES*TAG_W-1:0] source_tag_i,
   input      [        SOURCES*RESULT_W-1:0] source_result_i,
   output     [                 2*TAG_W-1:0] owner_query_tag_o,
@@ -52,6 +53,9 @@ module R64Writeback #(
   wire [SOURCES*BANKS-1:0] accept0_w, accept1_w;
   generate
     for (src = 0; src < SOURCES; src = src + 1) begin : gen_source
+      // Exact transport acceptance; a READY grant may survive kill/flush.
+      assign source_capture_o[src] = !rst && !flush_i &&
+          (|accept0_w[src*BANKS+:BANKS] || |accept1_w[src*BANKS+:BANKS]);
       for (bank = 0; bank < BANKS; bank = bank + 1) begin : gen_bank
         wire in_bank_w;
         if (BANK_BITS == 0) assign in_bank_w = 1'b1;

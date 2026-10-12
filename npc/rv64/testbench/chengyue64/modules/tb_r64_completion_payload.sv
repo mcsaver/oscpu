@@ -9,6 +9,7 @@ module tb_r64_completion_payload;
   reg [ 17:0] tags = 0;
   reg [279:0] packets = 0;
   wire [1:0] ready[0:1], valid[0:1];
+  wire [1:0] request;
   wire [ 17:0] otag [0:1];
   wire [279:0] data [0:1];
   wire [ 31:0] reuse[0:1];
@@ -39,6 +40,7 @@ module tb_r64_completion_payload;
     .in_tag_i(tags),
     .in_result_i(packets),
     .out_valid_o(valid[1]),
+    .out_request_o(request),
     .out_ready_i(consume),
     .out_tag_o(otag[1]),
     .out_result_o(data[1]),
@@ -79,6 +81,11 @@ module tb_r64_completion_payload;
     if (!rst) begin
       if ({ready[0], valid[0], reuse[0], idle[0]} !== {ready[1], valid[1], reuse[1], idle[1]})
         $fatal(1, "control mismatch c=%0d", cycle);
+      if (a.turn_q !== b.turn_q) $fatal(1, "lane rotation mismatch c=%0d", cycle);
+      for (integer q = 0; q < 2; q = q + 1)
+        if (request[q] !== (a.front_q[q] || a.back_q[q] ||
+            (fire[0] && a.first_w == q[0]) || (fire[1] && a.first_w != q[0])))
+          $fatal(1, "WB demand mismatch c=%0d lane%0d", cycle, q);
       for (integer q = 0; q < 2; q = q + 1) begin
         if (valid[0][q] &&
             {otag[0][q*9+:9], data[0][q*140+:140]} !== {otag[1][q*9+:9], data[1][q*140+:140]})
@@ -102,6 +109,26 @@ module tb_r64_completion_payload;
       oldtag  = otag[1];
       olddata = data[1];
     end else oldheld = 0;
+  end
+  reg [1:0] occupied_before[0:1];
+  reg [148:0] physical_before[0:1][0:1];
+  integer physical_lane, physical_slot;
+  always @(posedge clk) begin
+    if (!rst) begin
+      for (physical_lane = 0; physical_lane < 2; physical_lane = physical_lane + 1) begin
+        occupied_before[physical_lane] = b.valid_q[physical_lane];
+        for (physical_slot = 0; physical_slot < 2; physical_slot = physical_slot + 1)
+          physical_before[physical_lane][physical_slot] =
+              {b.tag_q[physical_lane][physical_slot], b.result_q[physical_lane][physical_slot]};
+      end
+      #1;
+      for (physical_lane = 0; physical_lane < 2; physical_lane = physical_lane + 1)
+        for (physical_slot = 0; physical_slot < 2; physical_slot = physical_slot + 1)
+          if (occupied_before[physical_lane][physical_slot] &&
+              physical_before[physical_lane][physical_slot] !==
+              {b.tag_q[physical_lane][physical_slot], b.result_q[physical_lane][physical_slot]})
+            $fatal(1, "owned physical payload changed at removal/capture c=%0d", cycle);
+    end
   end
   initial begin
     for (j = 0; j < 32; j = j + 1) gen[j] = 0;

@@ -84,6 +84,8 @@ module R64SystemTestTop (
   input               uart_rx_valid_i,
   input      [   7:0] uart_rx_data_i,
   output              uart_rx_ready_o,
+  output              uart_native_read_o,
+  output              uart_native_write_o,
   output              uart_tx_valid_o,
   output     [   7:0] uart_tx_data_o,
   input      [  31:0] external_irq_sources_i,
@@ -203,6 +205,12 @@ module R64SystemTestTop (
     .time_o(time_o),
     .protocol_error_o(protocol_error_o)
   );
+  // Observe the native edge, not AXI address acceptance or later retirement.
+  // UART applies native reads/writes before an external RX on this same edge.
+  assign uart_native_read_o = !`R64_SYSTEM_HIER.platform.device_reset_q &&
+      `R64_SYSTEM_HIER.platform.uart.read_apply_w;
+  assign uart_native_write_o = !`R64_SYSTEM_HIER.platform.device_reset_q &&
+      `R64_SYSTEM_HIER.platform.uart.write_done_w;
   assign csr_snapshot_o[0+:64] = `R64_SYSTEM_HIER.core.mstatus_o;
   assign csr_snapshot_o[64+:64] = {`R64_SYSTEM_HIER.core.control.csr.mepc_q, 1'b0};
   assign csr_snapshot_o[128+:64] = `R64_SYSTEM_HIER.core.control.csr.mcause_q;
@@ -283,24 +291,24 @@ module R64SystemTestTop (
     if (!rst_i && debug_cycle == 20000 && $test$plusargs("memory-debug")) begin
       $display(
           "BACKEND readv=%b readready=%b tags=%h classes=%h issue=%b credit=%b localv=%b wb=%b recover=%b",
-          `R64_SYSTEM_HIER.core.backend.read_valid_w,
-          `R64_SYSTEM_HIER.core.backend.execute_ready_w,
-          `R64_SYSTEM_HIER.core.backend.read_tag_w, `R64_SYSTEM_HIER.core.backend.read_class_w,
-          `R64_SYSTEM_HIER.core.backend.issue_fire_w,
-          `R64_SYSTEM_HIER.core.backend.read_credit_w,
+          `R64_SYSTEM_HIER.core.backend.execution.read_valid_w,
+          `R64_SYSTEM_HIER.core.backend.execution.execute_ready_w,
+          `R64_SYSTEM_HIER.core.backend.execution.read_tag_w, `R64_SYSTEM_HIER.core.backend.execution.read_class_w,
+          `R64_SYSTEM_HIER.core.backend.execution.issue_fire_w,
+          `R64_SYSTEM_HIER.core.backend.execution.read_credit_w,
           `R64_SYSTEM_HIER.core.backend.local_valid_w,
           `R64_SYSTEM_HIER.core.backend.wb_accept_w, `R64_SYSTEM_HIER.core.backend.recover_o);
       for (debug_index = 0; debug_index < 16; debug_index = debug_index + 1)
-      if (`R64_SYSTEM_HIER.core.backend.issue.valid_q[debug_index])
+      if (`R64_SYSTEM_HIER.core.backend.execution.issue.valid_q[debug_index])
         $display(
             "IQ slot=%d tag=%h class=%d ready=%b used=%b common=%b eligible0=%b",
             debug_index,
-            `R64_SYSTEM_HIER.core.backend.issue.tag_q[debug_index],
-            `R64_SYSTEM_HIER.core.backend.issue.class_q[debug_index],
-            `R64_SYSTEM_HIER.core.backend.issue.ready_q[debug_index],
-            `R64_SYSTEM_HIER.core.backend.issue.used_q[debug_index],
-            `R64_SYSTEM_HIER.core.backend.issue.common_w[debug_index],
-            `R64_SYSTEM_HIER.core.backend.issue.eligible0_w[debug_index]
+            `R64_SYSTEM_HIER.core.backend.execution.issue.tag_q[debug_index],
+            `R64_SYSTEM_HIER.core.backend.execution.issue.class_q[debug_index],
+            `R64_SYSTEM_HIER.core.backend.execution.issue.ready_q[debug_index],
+            `R64_SYSTEM_HIER.core.backend.execution.issue.used_q[debug_index],
+            `R64_SYSTEM_HIER.core.backend.execution.issue.common_w[debug_index],
+            `R64_SYSTEM_HIER.core.backend.execution.issue.eligible0_w[debug_index]
         );
       $display("MEM head=%h kill=%h tv=%b tr=%b rv=%b rr=%b pv=%b pr=%b prv=%b av=%b ar=%b arv=%b",
                `R64_SYSTEM_HIER.core.head_tag, `R64_SYSTEM_HIER.core.kill_mask,
@@ -310,11 +318,11 @@ module R64SystemTestTop (
                `R64_SYSTEM_HIER.core.memory.prv, `R64_SYSTEM_HIER.core.memory.av,
                `R64_SYSTEM_HIER.core.memory.ar, `R64_SYSTEM_HIER.core.memory.arv);
       $display("SERVICE valid=%b busy=%b out=%b CACHE state=%d stage=%b",
-               `R64_SYSTEM_HIER.core.memory.unit.service.valid_q,
-               `R64_SYSTEM_HIER.core.memory.unit.service.busy_q,
-               `R64_SYSTEM_HIER.core.memory.unit.service.out_valid_q,
-               `R64_SYSTEM_HIER.core.memory.unit.cache.state_q,
-               `R64_SYSTEM_HIER.core.memory.unit.cache.stage_valid_q);
+               `R64_SYSTEM_HIER.core.memory.unit.physical.service.valid_q,
+               `R64_SYSTEM_HIER.core.memory.unit.physical.service.busy_q,
+               `R64_SYSTEM_HIER.core.memory.unit.physical.service.out_valid_q,
+               `R64_SYSTEM_HIER.core.memory.unit.physical.cache.state_q,
+               `R64_SYSTEM_HIER.core.memory.unit.physical.cache.stage_valid_q);
       for (debug_index = 0; debug_index < 18; debug_index = debug_index + 1)
       if (`R64_SYSTEM_HIER.core.memory.unit.lsu.state_q[debug_index] != 0)
         $display(
@@ -330,12 +338,12 @@ module R64SystemTestTop (
         );
       $display(
           "TRANS s0=%d s1=%d valid0=%b valid1=%b walk0=%d walk1=%d",
-          `R64_SYSTEM_HIER.core.memory.g_translation[0].translation.g_data.unit.outcome_state_q,
-          `R64_SYSTEM_HIER.core.memory.g_translation[1].translation.g_data.unit.outcome_state_q,
-          `R64_SYSTEM_HIER.core.memory.g_translation[0].translation.g_data.unit.lookup_valid_q,
-          `R64_SYSTEM_HIER.core.memory.g_translation[1].translation.g_data.unit.lookup_valid_q,
-          `R64_SYSTEM_HIER.core.memory.g_translation[0].translation.g_data.unit.u_walk.state_q,
-          `R64_SYSTEM_HIER.core.memory.g_translation[1].translation.g_data.unit.u_walk.state_q);
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[0].translation.g_data.unit.outcome_state_q,
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[1].translation.g_data.unit.outcome_state_q,
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[0].translation.g_data.unit.lookup_valid_q,
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[1].translation.g_data.unit.lookup_valid_q,
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[0].translation.g_data.unit.u_walk.state_q,
+          `R64_SYSTEM_HIER.core.memory.translation.g_translation[1].translation.g_data.unit.u_walk.state_q);
     end
   end
   `include "R64CpiProfile.svh"

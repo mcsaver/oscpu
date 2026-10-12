@@ -1,6 +1,20 @@
 # 当前 Frontend 结构与网络拓扑
 
-依据 **2026-10-09 工作区生产 RTL** 核对，实例入口为 [R64CoreTop.frontend](../core/R64CoreTop.v)。
+## 2026-10-10 当前跨域边界
+
+当前公共恢复采用协议 v2：R64Frontend 入口的 R64RecoveryInbox 登记完整事件，
+redirect/PC 从本地寄存记录驱动 FetchStream/Align/取指FIFO。源发布当拍，Backend 已停止
+接收新 birth；下一拍本地清理，防止旧取指结果进入恢复后的命名空间。预测器的本地 redirect
+保留原有域内语义，外部已接受读请求继续排空。
+
+下文中的历史测量与较早阶段同拍控制描述不覆盖本次边界重构。
+
+2026-10-10：域入口的外部恢复统一为Recovery99（redirect及PC字段），
+输出Fetch canonical33/control35是公开静态ABI。位布局、consume语义和独立域源码集合见
+[PROTOCOLS](../PROTOCOLS.md)；下文redirect_i/redirect_pc_i为域内解包后的名称。
+
+
+实例边界依据 **2026-10-09 工作区生产 RTL** 核对；预测配置已同步 **2026-10-12 第十八批**，实例入口为 [R64CoreTop.frontend](../core/R64CoreTop.v)。
 本文负责取指请求、字节对齐、预测和双指令输出的实际连接；[全核拓扑](../TOPOLOGY.md)负责跨域导航，
 翻译、PMP 与 ICache 内部 owner 见[存储与翻译拓扑](../memory/TOPOLOGY.md)，后续统一分配见[Backend 拓扑](../backend/TOPOLOGY.md)。
 本轮提取 FetchAccess 后，相关前端定向测试通过；累计验证见[全核拓扑](../TOPOLOGY.md)。历史实验与测量说明置于文末。
@@ -19,13 +33,15 @@ R64Frontend 负责 FetchStream、Align、Predictor 及双路 RVC/预测准备/�
 | Frontend 默认参数 | `FETCH_PTR_W=2` → Stream `DEPTH=4`；`EARLY_PREDICT=1` 同时传给 Stream 和 Align |
 | Access → FetchTranslation | `DATA_PROTECTION=0`（默认）；取指 access=0、AD update=1；返回 PA/privilege 后由取指保护逻辑判定 |
 | ICache 参数 | `ICACHE_SET_W=6` → 64 sets；传递 `PREPARED_PROTECTION=1`，使用外部准备的取指保护事实 |
-| Predictor 默认参数 | `RAS_PTR_W=3` → RAS8；方向表256项、间接目标表64项；Stream 另有32项 early-target 表 |
+| 生产预测配置 | `RAS_PTR_W=3` → RAS8；Core 方向表1024项、首次训练强状态；间接目标表64项；Stream 早期块目标表128项。通用模块默认仍为方向256/早期目标32项 |
 | 主输出 | 每拍最多2条有序指令；每条携带 PC/raw/length、canonical33、control35、sequential NPC、预测 NPC 与异常 |
 | CoreTop 接收 | `fetch_take = fetch_valid & fetch_ready`；其 popcount 成为 Frontend `consume_i`，消费者是 Backend DecodeStage |
 | 运行与恢复 | `frontend.run_i = CoreTop.run_i && !stop_birth`；外部 redirect 目标在 CoreTop 先选 Commit，再选 Backend |
 | 外部服务 | ICache 使用 AXI read adapter 的取指通道；I-side page walk 经 PTE 接口送往 Memory；接口 owner 不使用 ROB tag |
 
 容量和寄存数据宽度集中在 FE-01～FE-08 表中，不能把 packet、pair、指令槽数直接相加为独立指令容量。
+方向表默认继续使用已认证 resolve 训练；可选退休训练已实现但在 Core 关闭。
+方向强初始化、旧 Q 快照及 FTB 容量的精确合同见[公共协议](../PROTOCOLS.md)。
 
 ### 1.1 文件职责索引
 
@@ -64,7 +80,7 @@ flowchart TB
     R["[Q] Result：2 pair<br/>预测结果 / 静态control / RAS journal"]
     A("计划校验 / 前缀接收")
     O["[Q] 指令FIFO：4条"]
-    BP["[Q] Predictor<br/>BHT256 / 间接目标64 / RAS8"]
+    BP["[Q] Predictor<br/>BHT1024 / 间接目标64 / RAS8"]
     LOCAL["[Q] pending prediction / repair redirect"]
     REQ --> H --> TR --> IC
     IC -->|"response；按旧owner配对"| REQ
@@ -167,7 +183,7 @@ fault barrier 在首个被指令 FIFO 接受的 fault 后阻止年轻指令继�
 | FE-05 Token；Frontend `token_*` + RVC / PredictionPrepare | 2 个 pair，每 pair 2×472 bit，含 canonical33、预计算/预测快照、原始记录 | Bundle Q→RVC展开/PC准备/预测表查询→Token Q；`token_capture` 用 Bundle 非空、Token Q空位及 pending/fault 状态。后续预测训练不会改变该 owner 的已捕获快照 | `stream_redirect` 清 owner；Token 接收自身不等于指令 FIFO 接收，也不等于 ROB birth |
 | FE-06 Result 与预测结果 journal；Frontend `result_*` | 2 个 pair，每 pair 2×410 bit；每 pair half 位，最多4个 RAS journal 记录 | Token Q→预测/RAS组合查询→Result Q；Q空位决定接收。向指令FIFO部分消费时通过 half 位选择余下物理lane，不搬移宽 payload；RAS speculative consume 和前端 confirm 是不同边沿 | `stream_redirect` 清本地 owner；预测修复可以只接收合法前缀。journal 只作用于预测，不拥有架构状态 |
 | FE-07 指令输出 FIFO；Frontend `instruction_q` | 4×398 bit，head/tail/count；每拍最多2条送 DecodeStage | Result Q→检查计划/预测目标/异常→指令 FIFO Q；`room=4-count_q`，不借本拍 Backend 消费信用。输出 payload 由 Q head 选出，`consume_i` 更新计数 | 外部 `redirect_i` 清此 FIFO；本地预测跳转仍保留当拍实际接收的正确前缀。fault barrier 阻止错误路径继续出生 |
-| FE-08 预测状态；[R64Predictor.v](R64Predictor.v) + FetchStream early target | direction 256×2 bit+valid；间接 target64项×(tag16+target63)+valid；RAS8×63 bit+pointer/count；2个待写 RAS 记录+FE-06 的4个 journal；early target32项×(tag16+offset3+word1+target63)+valid | 表查询为组合，表训练在时钟边沿。Result 接收推进推测 RAS，指令FIFO接收前缀更新 confirmed；pending记录下一拍写 backing array，查询合并记录。early target 学习/修复单独保持 Q | `recover` 清 RAS 逻辑状态，局部 prediction rollback 回 confirmed 前缀。confirmed 不是退休栈；方向/目标只是预测，正确性由真实执行恢复 |
+| FE-08 预测状态；[R64Predictor.v](R64Predictor.v) + FetchStream early target | 生产 direction 1024×2 bit+valid；间接 target64项×(tag16+target63)+valid；RAS8×63 bit+pointer/count；2个待写 RAS 记录+FE-06 的4个 journal；生产 early target128项×(tag14+offset3+word1+target63)+valid | 表查询为组合，表训练在时钟边沿。Result 接收推进推测 RAS，指令FIFO接收前缀更新 confirmed；pending记录下一拍写 backing array，查询合并记录。early target 学习/修复单独保持 Q；FTB 索引7位、tag14位，共保留原 PC[24:4] 签名，plan 仍为68位 | `recover` 清 RAS 逻辑状态，局部 prediction rollback 回 confirmed 前缀。confirmed 不是退休栈；方向/目标只是预测，正确性由真实执行恢复 |
 
 ## 5. 验证与观测入口
 

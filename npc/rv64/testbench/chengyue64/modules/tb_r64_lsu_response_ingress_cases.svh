@@ -1,5 +1,7 @@
 // Directed response-path tests through the ordinary reserve/bind/translation/
-// memory interfaces. No DUT force or assertion suppression is used.
+// memory interfaces. Verify registered ingress,
+// cancellation disposition, source competition, and full-tag exactly-once.
+// No DUT force or assertion suppression is used.
 integer rb_rsp_cycle[0:511], rb_cq_cycle[0:511];
 integer rb_rsp_count[0:511], rb_cq_count[0:511], rb_wb_count[0:511], rb_raw_count[0:511];
 reg [8:0] rb_slot_tag[0:DEPTH-1];
@@ -7,7 +9,7 @@ integer rb_epoch = 0, rb_dual_rsp = 0, rb_competition_lost = 0;
 integer rb_l, rb_t, rb_k;
 reg rb_same_capture;
 always @(posedge clk) begin
-  if (!rst && $test$plusargs("response-bypass")) begin
+  if (!rst && $test$plusargs("response-ingress")) begin
     rb_epoch = rb_epoch + 1;
     if ((mresp & mrespready) == 3) rb_dual_rsp = rb_dual_rsp + 1;
     for (rb_l = 0; rb_l < 2; rb_l = rb_l + 1) begin
@@ -33,19 +35,21 @@ always @(posedge clk) begin
       if (out_valid[rb_l] && out_ready[rb_l]) begin
         rb_t = int'(out_tag[rb_l*9+:9]);
         if (out_tag[rb_l*9+:9] !== full_tag[rb_t%32])
-          $fatal(1, "response bypass full generation mismatch actual=%0d expected=%0d",
+          $fatal(1, "response ingress full generation mismatch actual=%0d expected=%0d",
                  rb_t, full_tag[rb_t%32]);
         rb_wb_count[rb_t] = rb_wb_count[rb_t] + 1;
         if (rb_wb_count[rb_t] != 1) $fatal(1, "duplicate WB tag=%0d", rb_t);
       end
     end
-    // Process CQ after both response lanes, allowing same-edge captures.
+    // Completion must follow the physical capture edge; incoming data never bypasses Q.
     for (rb_l = 0; rb_l < 2; rb_l = rb_l + 1)
       if (dut.completion_fire_w[rb_l]) begin
         rb_t = int'(dut.completion_tag_w[rb_l*9+:9]);
         rb_cq_count[rb_t] = rb_cq_count[rb_t] + 1;
         rb_cq_cycle[rb_t] = rb_epoch;
         if (rb_cq_count[rb_t] != 1) $fatal(1, "duplicate CQ tag=%0d", rb_t);
+        if (rb_rsp_count[rb_t] && rb_epoch-rb_rsp_cycle[rb_t]<1)
+          $fatal(1, "physical response crossed ingress register boundary");
         if (!active[rb_t%32] || killed[rb_t%32] ||
             dut.completion_tag_w[rb_l*9+:9] !== full_tag[rb_t%32])
           $fatal(1, "CQ accepted wrong owner tag=%0d", rb_t);
@@ -112,11 +116,11 @@ task rb_drain;
       @(negedge clk);
       bound = bound + 1;
     end
-    if (!idle || reuse != 0) $fatal(1, "response bypass owner leak reuse=%h", reuse);
+    if (!idle || reuse != 0) $fatal(1, "response ingress owner leak reuse=%h", reuse);
   end
 endtask
 
-task run_response_bypass;
+task run_response_ingress;
   integer q;
   begin
     for (q = 0; q < 512; q = q + 1) begin
@@ -130,9 +134,9 @@ task run_response_bypass;
     tr_delay = 1; mem_delay = 1;
     enqueue(0, 0, 0, 8'h03, 0, memory[0], 0, 0);
     wait_result(0);
-    rb_check_latency(0, RESPONSE_BYPASS ? 0 : 1);
+    rb_check_latency(0, 1);
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE single_empty delta=%0d", rb_cq_cycle[0]-rb_rsp_cycle[0]);
+    $display("RESPONSE_INGRESS_CASE single_empty delta=%0d", rb_cq_cycle[0]-rb_rsp_cycle[0]);
 
     response_hold = 3;
     rb_pair(1, 2, 8, 16);
@@ -140,13 +144,13 @@ task run_response_bypass;
     repeat (4) @(negedge clk);
     response_hold = 0;
     wait_result(1); wait_result(2);
-    rb_check_latency(1, RESPONSE_BYPASS ? 0 : 1);
-    rb_check_latency(2, RESPONSE_BYPASS ? 0 : 1);
+    rb_check_latency(1, 1);
+    rb_check_latency(2, 1);
     if (rb_dual_rsp == 0) $fatal(1, "two-lane response case vacuous");
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE dual_empty dual_rsp=%0d", rb_dual_rsp);
+    $display("RESPONSE_INGRESS_CASE dual_empty dual_rsp=%0d", rb_dual_rsp);
 
-    // CQ-full fallback must also complete normally, without using cancellation
+    // CQ-full retention must complete normally, without using cancellation
     // to drain the retained response. Distinct generations reuse old ROB slots.
     out_ready = 0;
     for (q = 64; q < 68; q = q + 1)
@@ -168,7 +172,7 @@ task run_response_bypass;
         $fatal(1, "CQ-full live fallback lost or duplicated completion tag=%0d", q);
     end
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE cq_full_live_fallback exactly_once=6");
+    $display("RESPONSE_INGRESS_CASE cq_full_live_fallback exactly_once=6");
 
     // Four CQ owners block WB, then raw heads occupy both lanes.
     out_ready = 0;
@@ -184,8 +188,8 @@ task run_response_bypass;
     if (rb_cq_count[7] != 0 || rb_cq_count[8] != 0 ||
         rb_raw_count[7] != 1 || rb_raw_count[8] != 1)
       $fatal(1, "CQ full did not retain exact raw fallback");
-    $display("RESPONSE_BYPASS_CASE cq_full raw_fallback=2");
-    // Next two real responses meet kill of old raw heads, while CQ is free.
+    $display("RESPONSE_INGRESS_CASE cq_full raw_fallback=2");
+    // New transport captures meet kill of old resident heads, while CQ is free.
     response_hold = 3;
     rb_pair(9, 10, 72, 80);
     while (mn[0] == 0 || mn[1] == 0) @(negedge clk);
@@ -205,7 +209,7 @@ task run_response_bypass;
         rb_wb_count[7] != 0 || rb_wb_count[8] != 0)
       $fatal(1, "old killed raw head was treated as physically empty");
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE occupied_kill_new_response no_bypass=2");
+    $display("RESPONSE_INGRESS_CASE occupied_kill_new_response registered=2");
 
     response_hold = 3;
     enqueue(11, 88, 0, 8'h03, 0, memory[11], 0, 0);
@@ -214,7 +218,7 @@ task run_response_bypass;
     killed[11] = 1; kill = 32'h800; response_hold = 0;
     @(negedge clk); kill = 0;
     rb_drain;
-    if (rb_cq_count[11] != 0 || rb_raw_count[11] != 0 || rb_wb_count[11] != 0)
+    if (rb_cq_count[11] != 0 || rb_raw_count[11] != 1 || rb_wb_count[11] != 0)
       $fatal(1, "incoming killed response escaped");
     response_hold = 3;
     enqueue(12, 96, 0, 8'h03, 0, memory[12], 0, 0);
@@ -223,9 +227,9 @@ task run_response_bypass;
     killed[12] = 1; flush = 1; response_hold = 0;
     @(negedge clk); flush = 0;
     rb_drain;
-    if (rb_cq_count[12] != 0 || rb_raw_count[12] != 0 || rb_wb_count[12] != 0)
+    if (rb_cq_count[12] != 0 || rb_raw_count[12] != 1 || rb_wb_count[12] != 0)
       $fatal(1, "incoming flushed response escaped");
-    $display("RESPONSE_BYPASS_CASE incoming_kill_flush no_completion=2");
+    $display("RESPONSE_INGRESS_CASE incoming_kill_flush no_completion=2");
 
     // Hold results while LSQ entries are reused; cancel an old canonical tag
     // and reuse its physical ROB slot with a different generation and value.
@@ -243,7 +247,7 @@ task run_response_bypass;
     rb_drain;
     if (rb_wb_count[13] != 0 || rb_wb_count[45] != 1 || rb_cq_count[45] != 1)
       $fatal(1, "held metadata / full generation reuse failed");
-    $display("RESPONSE_BYPASS_CASE held_metadata_generation old=13 new=45");
+    $display("RESPONSE_INGRESS_CASE held_metadata_generation old=13 new=45");
 
     error_read = 1;
     enqueue(17, 136, 0, 8'h03, 0, 0, 1, 5);
@@ -260,11 +264,11 @@ task run_response_bypass;
     enqueue(20, 3, 0, 8'h03, 0, memory[0], 0, 0);
     wait_result(20); rb_check_latency(20, 1); retire(20);
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE excluded error_io_atomic_misaligned=4");
+    $display("RESPONSE_INGRESS_CASE excluded error_io_atomic_misaligned=4");
 
     // Competing fault and store-forward events are retained behind full CQ.
     // Release CQ and ordinary responses together. RR must arbitrate all six
-    // original sources; an ungranted response must fall back exactly once.
+    // sources; every ungranted response must remain resident exactly once.
     out_ready = 0;
     for (q = 21; q < 25; q = q + 1)
       enqueue(9'(q), 64'(q*8), 0, 8'h03, 0, memory[q], 0, 0);
@@ -291,9 +295,9 @@ task run_response_bypass;
     head_tag = 26;
     wait_result(26); retire(26);
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE competing_fault_forward lost_grant=%0d", rb_competition_lost);
-    // Two empty raw lanes compete for exactly one registered CQ credit.
-    // The unselected physical response must retain its own raw fallback.
+    $display("RESPONSE_INGRESS_CASE competing_fault_forward lost_grant=%0d", rb_competition_lost);
+    // Two resident heads compete for exactly one registered CQ credit.
+    // The unselected response retains its own ingress slot.
     out_ready = 0;
     for (q = 80; q < 83; q = q + 1)
       enqueue(9'(q), 64'((q-80)*8), 0, 8'h03, 0, memory[q-80], 0, 0);
@@ -305,8 +309,8 @@ task run_response_bypass;
     repeat (4) @(negedge clk);
     response_hold = 0;
     while (rb_rsp_count[83] == 0 || rb_rsp_count[84] == 0) @(negedge clk);
-    if (rb_cq_count[83] + rb_cq_count[84] != (RESPONSE_BYPASS ? 1 : 0) ||
-        rb_raw_count[83] + rb_raw_count[84] != (RESPONSE_BYPASS ? 1 : 2))
+    if (rb_cq_count[83] + rb_cq_count[84] != 0 ||
+        rb_raw_count[83] + rb_raw_count[84] != 2)
       $fatal(1, "two responses consumed wrong CQ credit or lost fallback");
     out_ready = 3;
     for (q = 80; q < 85; q = q + 1) begin
@@ -315,10 +319,10 @@ task run_response_bypass;
         $fatal(1, "one-credit case lost or duplicated owner tag=%0d", q);
     end
     rb_drain;
-    $display("RESPONSE_BYPASS_CASE dual_one_credit exactly_once=5 raw_fallback=%0d",
+    $display("RESPONSE_INGRESS_CASE dual_one_credit exactly_once=5 raw_fallback=%0d",
              rb_raw_count[83] + rb_raw_count[84]);
-    $display("[PASS] tb_r64_lsu response-bypass parameter=%0d stalls=%0d full_tag_exactly_once",
-             RESPONSE_BYPASS, random_stall);
+    $display("[PASS] tb_r64_lsu response-ingress stalls=%0d full_tag_exactly_once",
+             random_stall);
     $finish;
   end
 endtask

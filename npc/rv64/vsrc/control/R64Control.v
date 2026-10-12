@@ -1,9 +1,12 @@
-`include "R64Uop.vh"
+`include "R64Protocol.vh"
 // 精确退休控制域：Commit 持有事件，Serial 持有串行事务，CSR 持有架构状态。
-// 查询、prepare、退休写入的内部协议在本域闭合；层级不增加寄存器或改动拍数。
+// 查询、prepare、退休写入在本域闭合；跨域恢复通过 inbox，访存许可由租约持有。
 // full_flush、选择性 kill 与外部事务 reuse_block 保持独立的生命周期。
 module R64Control #(
-  parameter [63:0] RESET_PC = 64'h80000000
+  parameter [63:0] RESET_PC = 64'h80000000,
+  parameter SUCCESSOR_STORE_LEASE = 0,
+  parameter ORDINARY_SUCCESSOR_STORE_LEASE = 0,
+  parameter DUAL_RETIRE_STORE_LEASE = 0
 ) (
   // 时钟、运行和外部事件。
   input                       clk_i,
@@ -22,7 +25,6 @@ module R64Control #(
   input                 [1:0] rob_write_i,
   input                 [1:0] rob_fp_i,
   output                [1:0] rob_ready_o,
-  output                      commit1_allow_o,
   input                [17:0] rob_tag_i,
   input   [2*`R64_META_W-1:0] rob_meta_i,
   input               [127:0] rob_data_i,
@@ -35,13 +37,14 @@ module R64Control #(
   input                       head_serial_i,
   input                       head_exception_raw_i,
   input                       recover_i,
-  input                [31:0] kill_mask_i,
+  input [`R64_RECOVERY_W(32)-1:0] recovery_i,
+  output [`R64_EFFECT_W(9)-1:0] effect_o,
+  output [`R64_EFFECT_W(9)-1:0] memory_effect_o,
   // 串行执行、完成与不可取消事务。
   input                       serial_fire_i,
   output                      serial_ready_o,
   input                 [8:0] serial_tag_i,
-  input      [`R64_UOP_W-1:0] serial_uop_i,
-  input               [191:0] serial_operand_i,
+  input [`R64_SERIAL_CMD_W-1:0] serial_command_i,
   output                      serial_result_valid_o,
   input                       serial_result_ready_i,
   output                [8:0] serial_result_tag_o,
@@ -55,10 +58,8 @@ module R64Control #(
   output                      stop_birth_o,
   output                      full_flush_o,
   output                      control_redirect_o,
-  output                      effect_allow_o,
-  output                      serial_allow_o,
   output               [63:0] control_target_o,
-  output                [1:0] retire_fire_o,
+  output [`R64_RETIRE_W(9)-1:0] retire_o,
   // 架构上下文、保护与失效。
   output                [1:0] privilege_o,
   output               [63:0] mstatus_o,
@@ -110,9 +111,92 @@ module R64Control #(
   output               [63:0] trap_tval_o,
   output               [63:0] trap_raw_o,
   output               [63:0] trap_target_o,
-  output                [3:0] trap_length_o
+  output                [3:0] trap_length_o,
+  input                       pair_store_candidate_valid_i,
+  input                 [8:0] pair_store_candidate_tag_i,
+  // ROB resident completed Serial head, same identity as rob_tag_i lane 0.
+  input                       serial_retire_candidate_i
 );
   localparam M = `R64_META_W;
+  wire [`R64_RECOVERY_W(32)-1:0] local_recovery;
+  wire unused_recovery_pending;
+  R64RecoveryInbox #(.N(32)) recovery_inbox (
+    .clk_i(clk_i), .rst_i(rst_i), .event_i(recovery_i),
+    .event_o(local_recovery), .pending_o(unused_recovery_pending)
+  );
+  wire [31:0] kill_mask_i = local_recovery[31:0] & {32{local_recovery[32]}};
+  wire memory_lease_valid;
+  wire [8:0] memory_lease_tag;
+  wire effect_allow_o, serial_allow_o;
+  wire [1:0] retire_fire_o;
+  assign effect_o = {serial_allow_o, 1'b0, (rob_count_i != 0), head_tag_i};
+  assign memory_effect_o = {1'b0, memory_lease_valid, memory_lease_valid, memory_lease_tag};
+  // Non-owning resident-window hint. It neither grants permission nor retains
+  // an owner; stale full tags only miss and fall back to the normal head grant.
+  reg successor_hint_valid_q;
+  reg [8:0] successor_pred_tag_q, successor_tag_q;
+  wire ordinary_store_pair_w = rob_count_i > 1 &&
+      rob_meta_i[`R64_M_KIND] == `R64_K_STORE &&
+      rob_meta_i[M+196+:8] == `R64_K_STORE && !(|rob_serial_i) && !(|rob_write_i);
+  always @(posedge clk_i) begin
+    if (rst_i || recover_i || full_flush_o) begin
+      successor_hint_valid_q <= 0;
+      successor_pred_tag_q <= 0;
+      successor_tag_q <= 0;
+    end else begin
+      successor_hint_valid_q <= (SUCCESSOR_STORE_LEASE != 0) && ordinary_store_pair_w;
+      if (ordinary_store_pair_w) begin
+        successor_pred_tag_q <= rob_tag_i[8:0];
+        successor_tag_q <= rob_tag_i[17:9];
+      end
+    end
+  end
+  wire hinted_store_pair_w = (SUCCESSOR_STORE_LEASE != 0) &&
+      successor_hint_valid_q && ordinary_store_pair_w &&
+      successor_pred_tag_q == head_tag_i && successor_pred_tag_q == rob_tag_i[8:0] &&
+      successor_tag_q == rob_tag_i[17:9];
+  // The current ROB window is already registered ownership. A ready ordinary
+  // predecessor may become head and retire before an older hint can name it.
+  // Read its resident successor directly; only actual retirement installs the
+  // lease Q, so LSU permission is still first visible at the following edge.
+  wire ordinary_predecessor_w = rob_meta_i[`R64_M_KIND] == `R64_K_NORMAL ||
+      rob_meta_i[`R64_M_KIND] == `R64_K_BRANCH ||
+      rob_meta_i[`R64_M_KIND] == `R64_K_LOAD ||
+      rob_meta_i[`R64_M_KIND] == `R64_K_STORE;
+  wire ordinary_successor_pair_w = (ORDINARY_SUCCESSOR_STORE_LEASE != 0) &&
+      rob_count_i > 1 && ordinary_predecessor_w &&
+      rob_meta_i[M+196+:8] == `R64_K_STORE && !(|rob_serial_i) && !rob_write_i[1] &&
+      head_tag_i == rob_tag_i[8:0];
+  wire successor_single_grant_w = retire_fire_o == 2'b01 &&
+      (hinted_store_pair_w || ordinary_successor_pair_w) && !rob_valid_i[1] &&
+      effect_allow_o && !recover_i && !full_flush_o;
+  wire ordinary_second_predecessor_w = rob_meta_i[M+196+:8] == `R64_K_NORMAL ||
+      rob_meta_i[M+196+:8] == `R64_K_BRANCH ||
+      rob_meta_i[M+196+:8] == `R64_K_LOAD ||
+      rob_meta_i[M+196+:8] == `R64_K_STORE;
+  // The third resident owner is certified inside ROB. Its narrow tag selects
+  // only the next lease register; this edge's Memory permission remains Q.
+  wire successor_dual_grant_w = (DUAL_RETIRE_STORE_LEASE != 0) &&
+      retire_fire_o == 2'b11 && pair_store_candidate_valid_i &&
+      head_tag_i == rob_tag_i[8:0] && ordinary_predecessor_w &&
+      ordinary_second_predecessor_w && !(|rob_serial_i) && !(|rob_exception_i) &&
+      effect_allow_o && !recover_i && !full_flush_o;
+  wire successor_grant_w = successor_single_grant_w || successor_dual_grant_w;
+  wire [8:0] successor_next_tag_w = successor_dual_grant_w ?
+      pair_store_candidate_tag_i : rob_tag_i[17:9];
+  R64MemoryEffectLease #(
+    .TAG_W(9), .SUCCESSOR_STORE_LEASE(SUCCESSOR_STORE_LEASE),
+    .ORDINARY_SUCCESSOR_STORE_LEASE(ORDINARY_SUCCESSOR_STORE_LEASE),
+    .DUAL_RETIRE_STORE_LEASE(DUAL_RETIRE_STORE_LEASE)
+  ) memory_lease (
+    .clk_i(clk_i), .rst_i(rst_i), .head_present_i(rob_count_i != 0),
+    .head_tag_i(head_tag_i), .head_kind_i(rob_meta_i[`R64_M_KIND]),
+    .head_complete_i(rob_valid_i[0]), .allow_i(effect_allow_o),
+    .recover_i(recover_i), .flush_i(full_flush_o),
+    .successor_grant_i(successor_grant_w), .successor_tag_i(successor_next_tag_w),
+    .valid_o(memory_lease_valid), .tag_o(memory_lease_tag)
+  );
+  assign retire_o = {rob_tag_i, retire_fire_o};
   wire serial_commit;
   wire [8:0] serial_commit_tag;
   wire [1:0] retired_count;
@@ -154,9 +238,8 @@ module R64Control #(
     .fire_i(serial_fire_i),
     .ready_o(serial_ready_o),
     .tag_i(serial_tag_i),
-    .head_tag_i(head_tag_i),
-    .uop_i(serial_uop_i),
-    .operand_i(serial_operand_i),
+    .head_tag_i(effect_o[8:0]),
+    .command_i(serial_command_i),
     .memory_idle_i(memory_idle_i),
     .wfi_wake_i(!wfi_wait_i || wfi_wake || irq_timer_i),
     .result_valid_o(serial_result_valid_o),
@@ -262,8 +345,8 @@ module R64Control #(
     .rst_i(rst_i),
     .rob_valid_i(rob_valid_i),
     .rob_serial_i(rob_serial_i),
+    .serial_retire_candidate_i(serial_retire_candidate_i),
     .rob_ready_o(rob_ready_o),
-    .commit1_allow_o(commit1_allow_o),
     .rob_tag_i(rob_tag_i),
     .rob_meta_i(rob_meta_i),
     .rob_data_i(rob_data_i),
@@ -278,7 +361,7 @@ module R64Control #(
     .head_serial_i(head_serial_i),
     .head_exception_i(head_exception_raw_i),
     .recover_i(recover_i),
-    .lsu_irrevocable_i(lsu_irrevocable_i),
+    .lsu_irrevocable_i(lsu_irrevocable_i || memory_lease_valid),
     .serial_irrevocable_i(serial_irrevocable_o),
     .irq_pending_i(irq_pending),
     .irq_cause_i(irq_cause),
@@ -326,4 +409,44 @@ module R64Control #(
   assign trap_target_o = trap_target;
   assign trap_raw_o = trap_interrupt ? 64'b0 : rob_meta_i[127:64];
   assign trap_length_o = trap_interrupt ? 4'b0 : rob_meta_i[195:192];
+`ifdef R64_ASSERT
+  reg previous_dual_grant_q;
+  reg [8:0] previous_dual_tag_q;
+  always @(posedge clk_i) begin
+    if (rst_i) begin
+      previous_dual_grant_q <= 0;
+      previous_dual_tag_q <= 0;
+    end else begin
+      previous_dual_grant_q <= successor_dual_grant_w;
+      if (successor_dual_grant_w) previous_dual_tag_q <= pair_store_candidate_tag_i;
+      if (previous_dual_grant_q &&
+          (!memory_lease_valid || memory_lease_tag != previous_dual_tag_q ||
+           head_tag_i != previous_dual_tag_q || rob_count_i == 0))
+        $fatal(1, "Control dual-retire lease did not become exact new canonical head");
+      if (successor_single_grant_w && successor_dual_grant_w)
+        $fatal(1, "Control single and dual successor grants overlap");
+      if (successor_dual_grant_w &&
+          (retire_fire_o != 2'b11 || rob_ready_o != 2'b11 ||
+           rob_valid_i != 2'b11 || trace_ready_i != 2'b11 || |rob_exception_i ||
+           rob_tag_i[8:0] == rob_tag_i[17:9] ||
+           pair_store_candidate_tag_i == rob_tag_i[8:0] ||
+           pair_store_candidate_tag_i == rob_tag_i[17:9] ||
+           (memory_lease_valid && memory_lease_tag != head_tag_i)))
+        $fatal(1, "Control dual successor lease lacks actual precise retirement prefix");
+    end
+  end
+  always @(posedge clk_i)
+    if (!rst_i && successor_grant_w) begin
+      if (!rob_valid_i[0] || rob_exception_i[0] || !trace_ready_i[0] ||
+          !rob_ready_o[0] || successor_next_tag_w == head_tag_i ||
+          (memory_lease_valid && memory_lease_tag != head_tag_i))
+        $fatal(1, "Control successor lease lacks successful precise retirement");
+    end
+  always @(posedge clk_i)
+    if (!rst_i && serial_fire_i) begin
+      if (!effect_o[`R64_EFFECT_PRESENT(9)] || !effect_o[`R64_EFFECT_SERIAL(9)] ||
+          serial_tag_i != effect_o[8:0])
+        $fatal(1, "Control command accepted without matching head authorization");
+    end
+`endif
 endmodule

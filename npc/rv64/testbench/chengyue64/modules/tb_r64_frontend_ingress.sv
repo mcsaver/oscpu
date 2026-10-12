@@ -18,16 +18,23 @@ module tb_r64_frontend_ingress;
   reg cache_active = 0, pte_active = 0;
   integer beat = 0;
   reg [63:0] pte_data = 0;
-  wire [1:0] consume = redirect ? 2'b0 : (valid[1] ? 2'd2 : (valid[0] ? 2'd1 : 2'd0));
+  reg local_redirect = 0;
+  reg [63:0] local_target = 0;
+  always @(posedge clk) begin
+    local_redirect <= !rst && redirect;
+    local_target <= target;
+  end
+  // The lifecycle domain fences consumption during publication and delivery.
+  wire [1:0] consume = (redirect || local_redirect) ? 2'b0 : (valid[1] ? 2'd2 : (valid[0] ? 2'd1 : 2'd0));
   R64Frontend #(
     .RESET_PC(64'h40000000),
     .ICACHE_SET_W(1)
   ) dut (
+    .direction_train_valid_i(2'b0),.direction_train_pc_i(128'b0),.direction_train_taken_i(2'b0),
     .clk_i(clk),
     .rst_i(rst),
     .run_i(run),
-    .redirect_i(redirect),
-    .redirect_pc_i(target),
+    .recovery_i({redirect, target, 34'b0}),
     .priv_i(priv),
     .mstatus_i(status),
     .satp_i(satp),
@@ -174,7 +181,9 @@ module tb_r64_frontend_ingress;
         if (paddr == 56'h1008) begin
           pte_data <= 64'h200000cf;
           old_pte = old_pte + 1;
-        end else if (paddr == 56'h2008) begin
+        end else if (paddr == 56'h2008 || paddr == 56'h2010) begin
+          // The registered redirect permits an old 0x81000000 request to
+          // capture the new S/root2 context before local delivery.
           pte_data <= 64'h300000cf;
           new_pte = new_pte + 1;
         end else $fatal(1, "wrong captured SATP root PTE address %h", paddr);
@@ -188,7 +197,7 @@ module tb_r64_frontend_ingress;
         if (beat == 7) cache_active <= 0;
         else beat <= beat + 1;
       end
-      if (redirect) expected_pc = target;
+      if (local_redirect) expected_pc = local_target;
       else
         for (k = 0; k < consume; k = k + 1) begin
           if (pc[k*64+:64] !== expected_pc || raw[k*64+:64] !== 64'h1 || len[k*4+:4] != 2 ||

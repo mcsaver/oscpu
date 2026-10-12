@@ -11,16 +11,30 @@ module R64Backend #(
   parameter LSQ_W = 5,
   parameter DIRECT_MEM_BIND = 0,
   parameter EARLY_ALU_WAKE = 1,
+  parameter LOAD_COMPLETION_PROMISE = 1,
+  parameter LOAD_RESOLVED_VALUE = 0,
   parameter WB_DEFER_REQUEST = 0,
   parameter WB_REQUEST_HINTS = 0,
   parameter RR_ALU_BYPASS = 1,
-  parameter ISSUE_SLOTS = 16
+  parameter ALU_TOKEN_BYPASS = 0,
+  parameter MEM_TERMINAL_CURRENT = 0,
+  parameter RR_COMPLETE_ADMIT = 0,
+  parameter ISSUE_SLOTS = 16,
+  parameter RR_ADMIT_GPR_READ = 0,
+  parameter INIT_CURRENT_READY = 0,
+  parameter RR_COMPLETE_BRANCH_ADMIT = 0,
+  parameter DUAL_RETIRE_STORE_LEASE = 0,
+  parameter DIRECTION_COMMIT_TRAIN = 0,
+  parameter BATCH_SUFFIX_ROLLBACK = 0
 ) (
   input                        clk,
   input                        rst,
   input                        flush_i,
   input                        stop_i,
-  input                        serial_allow_i,
+  input [1:0] resolved_value_valid_i,
+  input [2*TAG_W-1:0] resolved_value_tag_i,
+  input [127:0] resolved_value_data_i,
+  input  [          TAG_W+2:0] effect_i,
   input  [     (1<<ROB_W)-1:0] reuse_block_i,
   input  [                1:0] fetch_valid_i,
   output [                1:0] fetch_ready_o,
@@ -32,8 +46,9 @@ module R64Backend #(
   input  [                1:0] fetch_exception_i,
   input  [               11:0] fetch_cause_i,
   input  [              127:0] fetch_tval_i,
+  // Consumer accepts an ordered prefix: lane 1 take requires lane 0 take.
+  // Candidate VALID does not depend on READY; cancellation may revoke it.
   input  [                1:0] commit_ready_i,
-  input                        commit1_allow_i,
   output [                1:0] commit_valid_o,
   output [                1:0] commit_serial_o,
   output [        2*TAG_W-1:0] commit_tag_o,
@@ -64,24 +79,25 @@ module R64Backend #(
   output [        2*TAG_W-1:0] lsu_reserve_tag_o,
   output [               15:0] lsu_reserve_func_o,
   output [                9:0] lsu_reserve_amo_o,
+  // Memory publishes first/second FREE-Q offers independently of request.
+  // Backend chooses instruction-lane slots locally and sends them explicitly.
   input  [                1:0] lsu_reserve_ready_i,
   input  [        2*LSQ_W-1:0] lsu_reserve_slot_i,
+  output [        2*LSQ_W-1:0] lsu_reserve_slot_o,
   input  [                1:0] lsu_ready_i,
   output [                1:0] lsu_fire_o,
   output [        2*TAG_W-1:0] lsu_tag_o,
-  output [   2*`R64_UOP_W-1:0] lsu_uop_o,
-  output [              383:0] lsu_operand_o,
+  output [2*`R64_MEM_CMD_W-1:0] lsu_command_o,
   output [        2*LSQ_W-1:0] lsu_slot_o,
   input                        fp_ready_i,
   output                       fp_fire_o,
   output [          TAG_W-1:0] fp_tag_o,
-  output [     `R64_UOP_W-1:0] fp_uop_o,
+  output [  `R64_FP_CMD_W-1:0] fp_command_o,
   output [              191:0] fp_operand_o,
   input                        serial_ready_i,
   output                       serial_fire_o,
   output [          TAG_W-1:0] serial_tag_o,
-  output [     `R64_UOP_W-1:0] serial_uop_o,
-  output [              191:0] serial_operand_o,
+  output [`R64_SERIAL_CMD_W-1:0] serial_command_o,
   // Result lanes: LSU0, LSU1, FP, serial. VALID/payload remain stable until
   // READY, except an explicit kill/flush cancellation by the external owner.
   // Narrow precise terminal for the irrevocable ordinary store at ROB head.
@@ -93,8 +109,21 @@ module R64Backend #(
   input  [                3:0] external_valid_i, external_request_i,
   output [                3:0] external_ready_o,
   input  [        4*TAG_W-1:0] external_tag_i,
-  input  [4*`R64_RESULT_W-1:0] external_result_i
+  input  [4*`R64_RESULT_W-1:0] external_result_i,
+  output                       pair_store_candidate_valid_o,
+  output [          TAG_W-1:0] pair_store_candidate_tag_o,
+  // Non-owning, one-cycle direction observations. No READY or retirement credit.
+  input                        direction_invalidate_i,
+  output [                1:0] direction_train_valid_o,
+  output [              127:0] direction_train_pc_o,
+  output [                1:0] direction_train_taken_o,
+  output                      serial_retire_candidate_o
+`ifdef R64_ASSERT
+  , output [31:0] audit_serial_owner_count_o
+`endif
 );
+  wire serial_allow_i = effect_i[TAG_W+2] && effect_i[TAG_W] &&
+      effect_i[0+:TAG_W] == head_tag_o;
   localparam P = 6, U = `R64_UOP_W, M = `R64_META_W, R = `R64_RESULT_W;
   wire [2*U-1:0] decode_uop_w;
   wire [2*M-1:0] decode_meta_w;
@@ -102,19 +131,34 @@ module R64Backend #(
   wire [1:0] rd_write_w, rd_fp_w, serial_w;
   wire [ 9:0] rd_arch_w;
   wire [29:0] src_arch_w;
-  genvar l;
+  genvar l, event_lane;
   wire [1:0] decode_valid_w, decode_query_valid_w;
   wire [1:0] rob_credit_w, rename_credit_w, issue_credit_w;
-  wire birth0_w = decode_valid_w[0] && !stop_i && rob_credit_w[0] && rename_credit_w[0] &&
-      issue_credit_w[0] && (!lsu_reserve_want_o[0] || lsu_reserve_ready_i[0]);
+  // Source recovery is authoritative at t0 and consumed by Execution at t1.
+  // Freeze namespace allocation across both edges, including zero-victim
+  // redirects, so the prior event cannot cancel a newly reused slot.
+  reg recovery_fence_q;
+  wire recovery_source_w=flush_i || cancel_active_w || redirect_valid_o;
+  wire birth_stop_w=stop_i || recovery_source_w || recovery_fence_q;
+  always @(posedge clk)
+    if (rst) recovery_fence_q<=0;
+    else recovery_fence_q<=recovery_source_w;
+  wire birth0_w = decode_valid_w[0] && !birth_stop_w && rob_credit_w[0] && rename_credit_w[0] &&
+      issue_credit_w[0] && (!lsu_reserve_want_o[0] || reserve_lane_ready_w[0]);
   wire birth1_w = decode_valid_w[1] && birth0_w && rob_credit_w[1] && rename_credit_w[1] &&
-      issue_credit_w[1] && (!lsu_reserve_want_o[1] || lsu_reserve_ready_i[1]);
+      issue_credit_w[1] && (!lsu_reserve_want_o[1] || reserve_lane_ready_w[1]);
   wire [1:0] birth_w = {birth1_w, birth0_w};
   // Capacity is a read-only query about the Q-owned decode prefix.
   // Reset/clear/stop qualify the canonical birth, never this FREE query.
   // A cancelled raw want cannot reserve a slot or create an instruction.
   assign lsu_reserve_want_o = decode_query_valid_w &
       {decode_class_w[3+:3] == `R64_C_MEM, decode_class_w[0+:3] == `R64_C_MEM};
+  wire [1:0] reserve_lane_ready_w={
+      lsu_reserve_want_o[0] ? lsu_reserve_ready_i[1] : lsu_reserve_ready_i[0],
+      lsu_reserve_ready_i[0]};
+  assign lsu_reserve_slot_o={
+      lsu_reserve_want_o[0] ? lsu_reserve_slot_i[LSQ_W+:LSQ_W] :
+          lsu_reserve_slot_i[0+:LSQ_W], lsu_reserve_slot_i[0+:LSQ_W]};
   assign lsu_reserve_fire_o = birth_w & lsu_reserve_want_o;
   assign lsu_reserve_tag_o = birth_tag_w;
   assign lsu_reserve_func_o = {decode_uop_w[U+196+:8], decode_uop_w[196+:8]};
@@ -132,7 +176,7 @@ module R64Backend #(
     .clk(clk),
     .rst(rst),
     .clear_i(flush_i || redirect_valid_o),
-    .stop_i(stop_i),
+    .stop_i(birth_stop_w),
     .in_valid_i(fetch_valid_i),
     .in_ready_o(fetch_ready_o),
     .pc_i(fetch_pc_i),
@@ -159,7 +203,6 @@ module R64Backend #(
   wire [2*TAG_W-1:0] birth_tag_w;
   wire [2*P-1:0] pnew_w, pold_w;
   wire [6*P-1:0] src_preg_w;
-  wire [5:0] src_ready_w;
   localparam WB_OWNER_BANKS = 1 << ((ROB_W > 2) ? 2 : 0), WB_CERT_W = P + 3;
   wire [2*TAG_W-1:0] wb_owner_query_tag_w;
   wire [2*WB_OWNER_BANKS*WB_CERT_W-1:0] wb_owner_query_cert_w;
@@ -182,7 +225,95 @@ module R64Backend #(
     end
   endgenerate
   wire [1:0] commit_fire_w = commit_valid_o & commit_ready_i;
+
+  // Advisory resolve facts share the canonical ROB slot lifetime. They never
+  // hold retirement, reuse or recovery: only an exact actual retirement emits.
+  generate
+    if (DIRECTION_COMMIT_TRAIN != 0) begin : gen_direction_commit
+      localparam N=1<<ROB_W, GEN_W=TAG_W-ROB_W;
+      reg [N-1:0] valid_q, conditional_q, taken_q;
+      reg [GEN_W-1:0] generation_q[0:N-1];
+      wire [1:0] emit_w, emit_taken_w;
+      reg [1:0] event_valid_q, event_taken_q;
+      reg [127:0] event_pc_q;
+      assign direction_train_valid_o=event_valid_q;
+      assign direction_train_pc_o=event_pc_q;
+      assign direction_train_taken_o=event_taken_q;
+      genvar direction_slot, direction_lane;
+      for (direction_slot=0;direction_slot<N;direction_slot=direction_slot+1) begin : g_record
+        localparam [ROB_W-1:0] SLOT=ROB_W'(direction_slot);
+        wire birth_w_slot=(birth_w[0]&&birth_tag_w[0+:ROB_W]==SLOT)||
+                         (birth_w[1]&&birth_tag_w[TAG_W+:ROB_W]==SLOT);
+        wire retire_w=(commit_fire_w[0]&&commit_tag_o[0+:ROB_W]==SLOT)||
+                      (commit_fire_w[1]&&commit_tag_o[TAG_W+:ROB_W]==SLOT);
+        wire resolve_w=resolve_valid_o&&resolve_tag_o[0+:ROB_W]==SLOT;
+        always @(posedge clk) begin
+          if(rst||flush_i||kill_mask_o[direction_slot]||birth_w_slot||retire_w)
+            valid_q[direction_slot]<=0;
+          else if(resolve_w)valid_q[direction_slot]<=1;
+          if(resolve_w)begin
+            generation_q[direction_slot]<=resolve_tag_o[ROB_W+:GEN_W];
+            conditional_q[direction_slot]<=resolve_conditional_o;
+            taken_q[direction_slot]<=resolve_taken_o;
+          end
+        end
+`ifdef R64_ASSERT
+        always @(posedge clk)if(!rst)begin
+          if(resolve_w&&(birth_w_slot||kill_mask_o[direction_slot]||flush_i))
+            $fatal(1,"direction journal accepted resolve conflicts with canonical lifetime");
+          if(resolve_w&&retire_w&&
+             !((commit_fire_w[0]&&commit_tag_o[0+:TAG_W]==resolve_tag_o)||
+               (commit_fire_w[1]&&commit_tag_o[TAG_W+:TAG_W]==resolve_tag_o)))
+            $fatal(1,"direction journal same-slot resolve/retire generation mismatch");
+        end
+`endif
+      end
+      for(direction_lane=0;direction_lane<2;direction_lane=direction_lane+1)begin : g_emit
+        wire [TAG_W-1:0] tag_w=commit_tag_o[direction_lane*TAG_W+:TAG_W];
+        wire [ROB_W-1:0] slot_w=tag_w[0+:ROB_W];
+        wire record_match_w=valid_q[slot_w]&&generation_q[slot_w]==tag_w[ROB_W+:GEN_W];
+        wire current_match_w=resolve_valid_o&&resolve_tag_o==tag_w;
+        assign emit_w[direction_lane]=commit_fire_w[direction_lane]&&
+            (current_match_w?resolve_conditional_o:(record_match_w&&conditional_q[slot_w]));
+        assign emit_taken_w[direction_lane]=current_match_w?resolve_taken_o:taken_q[slot_w];
+`ifdef R64_ASSERT
+        if(M>=204)begin : g_metadata_assert
+        wire [63:0] raw_w=commit_meta_o[direction_lane*M+64+:64];
+        wire [3:0] length_w=commit_meta_o[direction_lane*M+192+:4];
+        wire conditional_retire_w=commit_fire_w[direction_lane]&&
+            commit_meta_o[direction_lane*M+196+:8]==`R64_K_BRANCH&&
+            ((length_w==4&&raw_w[6:0]==7'h63)||
+             (length_w==2&&raw_w[1:0]==2'b01&&
+              (raw_w[15:13]==3'b110||raw_w[15:13]==3'b111)));
+        always @(posedge clk)if(!rst)begin
+          if(conditional_retire_w!==emit_w[direction_lane])
+            $fatal(1,"direction journal lost or fabricated conditional retirement tag=%h",tag_w);
+        end
+        end
+`endif
+      end
+      // A committed event survives younger recovery. Invalidate discards both
+      // the event already at Predictor and this edge's new event, preserving
+      // the shared clear-table boundary without discarding unretired facts.
+      always @(posedge clk)begin
+        if(rst||direction_invalidate_i)event_valid_q<=0;
+        else event_valid_q<=emit_w;
+        event_pc_q<={commit_meta_o[M+:64],commit_meta_o[0+:64]};
+        event_taken_q<=emit_taken_w;
+      end
+    end else begin : gen_direction_resolve
+      assign direction_train_valid_o=0;
+      assign direction_train_pc_o=0;
+      assign direction_train_taken_o=0;
+    end
+  endgenerate
+
   wire [2*P-1:0] commit_pnew_w, commit_pold_w;
+  wire batch_rollback_apply_w;
+  wire [(1<<ROB_W)-1:0] batch_rollback_mask_w;
+  wire [ROB_W-1:0] batch_rollback_head_w;
+  wire [(1<<ROB_W)*(7+2*P)-1:0] batch_rollback_desc_w;
+  wire [63:0] batch_greclaim_w,batch_freclaim_w;
   wire [1:0] undo_valid_w, undo_write_w, undo_fp_w;
   wire [9:0] undo_arch_w;
   wire [2*P-1:0] undo_pnew_w, undo_pold_w;
@@ -194,6 +325,7 @@ module R64Backend #(
   assign cancel_candidates_o = cancel_candidates_w;
   assign cancel_active_o = cancel_active_w;
   wire redirect_pending_w;
+  wire raw_resolve_valid_w, raw_redirect_valid_w;
   wire recovery_preview_valid_w;
   wire [TAG_W-1:0] recovery_preview_tag_w;
   R64Rob #(
@@ -203,8 +335,12 @@ module R64Backend #(
     .LOCAL_KILL_FREEZE(1),
     .INDEX_W(ROB_W),
     .GEN_W(TAG_W - ROB_W),
-    .META_W(M)
+    .META_W(M),
+    .DUAL_RETIRE_STORE_LEASE(DUAL_RETIRE_STORE_LEASE),
+    .BATCH_SUFFIX_ROLLBACK(BATCH_SUFFIX_ROLLBACK)
   ) rob (
+    .batch_apply_o(batch_rollback_apply_w),.batch_mask_o(batch_rollback_mask_w),
+    .batch_head_o(batch_rollback_head_w),.batch_desc_o(batch_rollback_desc_w),
     .owner_query_tag_i(wb_owner_query_tag_w),
     .owner_query_cert_o(wb_owner_query_cert_w),
     .wb_owner_cert_i(wb_owner_cert_w),
@@ -219,12 +355,13 @@ module R64Backend #(
     .rst(rst),
     .flush_i(flush_i),
     .kill_pending_i(redirect_pending_w),
-    .kill_valid_i(redirect_valid_o),
+    .kill_valid_i(raw_redirect_valid_w),
     .kill_tag_i(resolve_tag_o),
     .reuse_block_i(reuse_block_i),
-    .resolve_valid_i(resolve_valid_o),
+    .resolve_valid_i(raw_resolve_valid_w),
     .resolve_tag_i(resolve_tag_o),
     .resolve_npc_i(resolve_npc_o),
+    .resolve_accept_o(resolve_valid_o), .redirect_accept_o(redirect_valid_o),
     .alloc_valid_i(birth_w),
     .alloc_ready_o(rob_credit_w),
     .alloc_tag_o(birth_tag_w),
@@ -242,18 +379,18 @@ module R64Backend #(
     .wb_cause_i(wb_cause_w),
     .wb_tval_i(wb_tval_w),
     .wb_fflags_i(wb_fflags_w),
-    .short_valid_i({raw_alu_bypass_valid_w, raw_early_valid_w}),
-    .short_tag_i({local_tag_w[0+:2*TAG_W], early_tag_w}),
-    .short_preg_i({alu_bypass_preg_w, early_preg_w}),
-    .short_accept_o({alu_bypass_valid_w, early_valid_w}),
+    .short_valid_i(4'b0),
+    .short_tag_i({(4*TAG_W){1'b0}}),
+    .short_preg_i(24'b0),
+    .short_accept_o(),
     .wb_accept_o(wb_accept_w),
     .wb_rd_write_o(wb_write_w),
     .wb_rd_fp_o(wb_fp_w),
     .wb_preg_o(wb_preg_w),
     .commit_ready_i(commit_ready_i),
-    .commit1_allow_i(commit1_allow_i),
     .commit_valid_o(commit_valid_o),
     .commit_serial_o(commit_serial_o),
+    .serial_retire_candidate_o(serial_retire_candidate_o),
     .commit_tag_o(commit_tag_o),
     .commit_meta_o(commit_meta_o),
     .commit_data_o(commit_data_o),
@@ -279,6 +416,8 @@ module R64Backend #(
     .head_exception_o(head_exception_o),
     .count_o(rob_count_o),
     .head_slot_o(head_slot_w),
+    .pair_store_candidate_valid_o(pair_store_candidate_valid_o),
+    .pair_store_candidate_tag_o(pair_store_candidate_tag_o),
     .serial_valid_o(barrier_valid_w),
     .serial_slot_o(barrier_slot_w),
     .serial_active_o(serial_active_w),
@@ -288,12 +427,10 @@ module R64Backend #(
   // Resident ROB state, independent of completion, retirement and recovery.
   // Commit uses this only to stop younger births behind a serial head.
   assign head_serial_o = serial_active_w[head_slot_w];
-  wire [6*P-1:0] ready_query_preg_w;
-  wire [5:0] ready_query_fp_w, ready_query_canonical_w, ready_query_complete_w;
-  R64Rename rename (
-    .ready_query_preg_i(ready_query_preg_w),
-    .ready_query_fp_i(ready_query_fp_w),
-    .ready_query_ready_o(ready_query_canonical_w),
+  R64Rename #(.ROB_W(ROB_W),.BATCH_SUFFIX_ROLLBACK(BATCH_SUFFIX_ROLLBACK)) rename (
+    .batch_apply_i(batch_rollback_apply_w),.batch_mask_i(batch_rollback_mask_w),
+    .batch_head_i(batch_rollback_head_w),.batch_desc_i(batch_rollback_desc_w),
+    .batch_greclaim_o(batch_greclaim_w),.batch_freclaim_o(batch_freclaim_w),
     .clk(clk),
     .rst(rst),
     .restore_i(flush_i),
@@ -308,11 +445,7 @@ module R64Backend #(
     .pnew_o(pnew_w),
     .pold_o(pold_w),
     .src_preg_o(src_preg_w),
-    .src_ready_o(src_ready_w),
     .alloc_fire_i(birth_w),
-    .wb_accept_i(wb_write_w),
-    .wb_fp_i(wb_fp_w),
-    .wb_preg_i(wb_preg_w),
     .commit_fire_i(commit_fire_w),
     .commit_rd_write_i(commit_rd_write_o),
     .commit_rd_fp_i(commit_rd_fp_o),
@@ -326,268 +459,134 @@ module R64Backend #(
     .undo_pnew_i(undo_pnew_w),
     .undo_pold_i(undo_pold_w)
   );
-  wire [1:0] issue_fire_w, read_credit_w, read_valid_w, execute_ready_w;
-  wire [2*TAG_W-1:0] issue_tag_w, read_tag_w;
-  wire [2*LSQ_W-1:0] issue_mem_slot_w, read_mem_slot_w;
-  wire [2*U-1:0] issue_uop_w, read_uop_w;
-  wire [5:0] issue_class_w, issue_fp_w, issue_used_w, read_class_w;
-  wire [6*P-1:0] issue_src_w;
-  wire [2*(3*P+8)-1:0] issue_fp_plan_w;
-  wire [383:0] read_operand_w;
-  wire [5:0] read_fu_credit_w;
-  wire [2*P-1:0] short_dst_w, issue_dst_w, read_dst_w, early_preg_w, alu_bypass_preg_w;
-  wire [1:0] early_valid_w, alu_bypass_valid_w, raw_early_valid_w, raw_alu_bypass_valid_w;
-  wire [2*TAG_W-1:0] early_tag_w;
-  wire [73:0] read_alu_control_w;
-  wire [9:0] read_add_source_w;
-  wire [11:0] read_shift_amount_w;
-  wire [41:0] read_branch_imm_w;
-  wire [9:0] read_branch_control_w;
-  wire [127:0] alu_bypass_data_w;
-  wire [5:0] birth_src_ready_w;
+  wire [4:0] local_valid_w, local_ready_w;
+  wire [8:0] wb_source_capture_w;
+  wire [1:0] load_capture_w;
+  // Sources 5/6 are fixed LSU CQ ports. Faults complete canonically but
+  // cannot announce numerical availability to dependent instructions.
+  assign load_capture_w={
+      wb_source_capture_w[6] && !external_result_i[R+`R64_R_EXCEPTION],
+      wb_source_capture_w[5] && !external_result_i[`R64_R_EXCEPTION]};
+  wire [5*TAG_W-1:0] local_tag_w;
+  wire [5*R-1:0] local_result_w;
+  wire [1:0] birth_write_w, reclaim_write_w;
   generate
-    for (l = 0; l < 2; l = l + 1) begin : gen_short_destination
-      assign short_dst_w[l*P+:P] = rd_write_w[l] && !rd_fp_w[l] &&
-          (decode_class_w[l*3+:3] == `R64_C_ALU || decode_class_w[l*3+:3] == `R64_C_BRANCH) ?
-          pnew_w[l*P+:P] : {P{1'b0}};
-    end
-    for (l = 0; l < 6; l = l + 1) begin : gen_birth_early_ready
-      // Existing IQ entries saw the producer's fire pulse. New entries born
-      // after that pulse can see its held result until canonical WB arrives.
-      assign birth_src_ready_w[l] = src_ready_w[l];
-      assign ready_query_complete_w[l] = ready_query_canonical_w[l] ||
-          (!ready_query_fp_w[l] &&
-           ((alu_bypass_valid_w[0] && ready_query_preg_w[l*P+:P] == alu_bypass_preg_w[0+:P]) ||
-            (alu_bypass_valid_w[1] && ready_query_preg_w[l*P+:P] == alu_bypass_preg_w[P+:P])));
+    for (event_lane=0; event_lane<2; event_lane=event_lane+1) begin : gen_destination_event
+      assign birth_write_w[event_lane]=rd_write_w[event_lane] &&
+          (rd_fp_w[event_lane] || rd_arch_w[event_lane*5+:5] != 0);
+      assign reclaim_write_w[event_lane]=undo_valid_w[event_lane] && undo_write_w[event_lane] &&
+          (undo_fp_w[event_lane] || undo_arch_w[event_lane*5+:5] != 0);
     end
   endgenerate
 `ifdef R64_ASSERT
-  integer early_check;
+  wire [3:0] audit_fast_valid_w;
+  wire [4*TAG_W-1:0] audit_fast_tag_w;
+  wire [23:0] audit_fast_preg_w;
+  wire [1:0] audit_read_valid_w, audit_issue_fire_w;
+  wire [2*TAG_W-1:0] audit_read_tag_w, audit_issue_tag_w;
+  wire [5:0] audit_read_class_w, audit_issue_class_w;
+`endif
+  R64ExecutionDomain #(
+    .TAG_W(TAG_W), .ROB_W(ROB_W), .LSQ_W(LSQ_W),
+    .BATCH_SUFFIX_ROLLBACK(BATCH_SUFFIX_ROLLBACK),
+    .DIRECT_MEM_BIND(DIRECT_MEM_BIND), .EARLY_ALU_WAKE(EARLY_ALU_WAKE),
+    .ALU_TOKEN_BYPASS(ALU_TOKEN_BYPASS),
+    .MEM_TERMINAL_CURRENT(MEM_TERMINAL_CURRENT),
+    .RR_COMPLETE_ADMIT(RR_COMPLETE_ADMIT),
+    .RR_COMPLETE_BRANCH_ADMIT(RR_COMPLETE_BRANCH_ADMIT),
+    .RR_ADMIT_GPR_READ(RR_ADMIT_GPR_READ),
+    .INIT_CURRENT_READY(INIT_CURRENT_READY),
+    .RR_ALU_BYPASS(RR_ALU_BYPASS), .ISSUE_SLOTS(ISSUE_SLOTS),
+    .LOAD_COMPLETION_PROMISE(LOAD_COMPLETION_PROMISE),
+    .LOAD_RESOLVED_VALUE(LOAD_RESOLVED_VALUE)
+  ) execution (
+    .batch_apply_i(batch_rollback_apply_w),.batch_greclaim_i(batch_greclaim_w),
+    .batch_freclaim_i(batch_freclaim_w),
+    .clk(clk), .rst(rst),
+    .recovery_i({65'b0, flush_i, cancel_active_w, cancel_candidates_w}),
+    .serial_allow_i(serial_allow_i),
+    .head_slot_i(head_slot_w), .head_tag_i(head_tag_o),
+    .barrier_valid_i(barrier_valid_w), .barrier_slot_i(barrier_slot_w),
+    .serial_active_i(serial_active_w), .serial_release_i(serial_release_w),
+    .birth_i(birth_w), .birth_ready_o(issue_credit_w),
+    .birth_rd_write_i(birth_write_w), .birth_rd_fp_i(rd_fp_w),
+    .birth_tag_i(birth_tag_w), .birth_mem_slot_i(lsu_reserve_slot_o),
+    .birth_uop_i(decode_uop_w), .birth_class_i(decode_class_w),
+    .birth_preg_i(pnew_w), .birth_src_preg_i(src_preg_w),
+    .birth_src_fp_i(src_fp_w), .birth_src_used_i(src_used_w),
+    .resolved_value_valid_i(resolved_value_valid_i),
+    .resolved_value_tag_i(resolved_value_tag_i), .resolved_value_data_i(resolved_value_data_i),
+    .load_capture_i(load_capture_w), .load_capture_tag_i(external_tag_i[0+:2*TAG_W]),
+    .wb_accept_i(wb_accept_w), .wb_tag_i(wb_tag_w),
+    .wb_write_i(wb_write_w), .wb_fp_i(wb_fp_w), .wb_preg_i(wb_preg_w), .wb_data_i(wb_data_w),
+    .reclaim_write_i(reclaim_write_w), .reclaim_fp_i(undo_fp_w), .reclaim_preg_i(undo_pnew_w),
+    .result_valid_o(local_valid_w), .result_ready_i(local_ready_w),
+    .result_tag_o(local_tag_w), .result_o(local_result_w),
+    .recovery_preview_valid_o(recovery_preview_valid_w),
+    .recovery_preview_tag_o(recovery_preview_tag_w),
+    .resolve_valid_o(raw_resolve_valid_w), .resolve_tag_o(resolve_tag_o),
+    .resolve_npc_o(resolve_npc_o), .resolve_pc_o(resolve_pc_o),
+    .resolve_conditional_o(resolve_conditional_o), .resolve_indirect_o(resolve_indirect_o),
+    .resolve_taken_o(resolve_taken_o), .redirect_valid_o(raw_redirect_valid_w),
+    .redirect_pending_o(redirect_pending_w),
+    .lsu_ready_i(lsu_ready_i), .lsu_fire_o(lsu_fire_o), .lsu_tag_o(lsu_tag_o),
+    .lsu_slot_o(lsu_slot_o), .lsu_command_o(lsu_command_o),
+    .fp_ready_i(fp_ready_i), .fp_fire_o(fp_fire_o), .fp_tag_o(fp_tag_o),
+    .fp_command_o(fp_command_o), .fp_operand_o(fp_operand_o),
+    .serial_ready_i(serial_ready_i), .serial_fire_o(serial_fire_o), .serial_tag_o(serial_tag_o),
+    .serial_command_o(serial_command_o)
+`ifdef R64_ASSERT
+    , .audit_fast_valid_o(audit_fast_valid_w), .audit_fast_tag_o(audit_fast_tag_w),
+    .audit_fast_preg_o(audit_fast_preg_w), .audit_read_valid_o(audit_read_valid_w), .audit_read_tag_o(audit_read_tag_w),
+    .audit_read_class_o(audit_read_class_w), .audit_issue_fire_o(audit_issue_fire_w),
+    .audit_issue_tag_o(audit_issue_tag_w), .audit_issue_class_o(audit_issue_class_w),
+    .audit_serial_owner_count_o(audit_serial_owner_count_o)
+`endif
+  );
+`ifdef R64_ASSERT
+  // Audit the speculative lease against the authoritative lifecycle identity.
+  // t0/t1 are a deliberate revocation-delivery window: cancelled values may
+  // circulate locally, but ROB certification forbids their architectural WB.
+  // Namespace allocation remains fenced until local cancellation is consumed.
   always @(posedge clk)
-    if (!rst && !flush_i) begin
-      for (early_check = 0; early_check < 2; early_check = early_check + 1)
-      if (early_valid_w[early_check]) begin
-        if (!rob.valid_q[early_tag_w[early_check*TAG_W+:ROB_W]] ||
-            rob.generation_q[early_tag_w[early_check*TAG_W+:ROB_W]] !=
-            early_tag_w[early_check*TAG_W+ROB_W+:TAG_W-ROB_W] ||
-            rob.pnew_q[early_tag_w[early_check*TAG_W+:ROB_W]] != early_preg_w[early_check*P+:P] ||
-            !rob.rd_write_q[early_tag_w[early_check*TAG_W+:ROB_W]] ||
-            rob.rd_fp_q[early_tag_w[early_check*TAG_W+:ROB_W]])
-          $fatal(1, "R64 early ALU destination disagrees with live canonical owner");
-      end
-      if (early_valid_w == 3 && early_preg_w[0+:P] == early_preg_w[P+:P])
-        $fatal(1, "R64 two live early ALUs own the same physical destination");
+    if (!rst && !recovery_source_w && !recovery_fence_q) begin
+      for (integer f=0;f<4;f=f+1)
+        if (audit_fast_valid_w[f] &&
+            (!rob.valid_q[audit_fast_tag_w[f*TAG_W+:ROB_W]] ||
+             rob.generation_q[audit_fast_tag_w[f*TAG_W+:ROB_W]] !=
+                 audit_fast_tag_w[f*TAG_W+ROB_W+:TAG_W-ROB_W] ||
+             rob.pnew_q[audit_fast_tag_w[f*TAG_W+:ROB_W]] != audit_fast_preg_w[f*P+:P] ||
+             !rob.rd_write_q[audit_fast_tag_w[f*TAG_W+:ROB_W]] ||
+             rob.rd_fp_q[audit_fast_tag_w[f*TAG_W+:ROB_W]]))
+          $fatal(1,"Execution local fast lease disagrees with canonical full-tag destination");
+      for (integer f=0; f<2; f=f+1)
+        if (audit_read_valid_w[f] &&
+            (audit_read_class_w[f*3+:3] == `R64_C_FP || audit_read_class_w[f*3+:3] == `R64_C_MEM)) begin
+          if (!rob.valid_q[audit_read_tag_w[f*TAG_W+:ROB_W]] ||
+              rob.generation_q[audit_read_tag_w[f*TAG_W+:ROB_W]] !=
+                  audit_read_tag_w[f*TAG_W+ROB_W+:TAG_W-ROB_W] ||
+              rob.done_q[audit_read_tag_w[f*TAG_W+:ROB_W]])
+            $fatal(1, "Backend raw data owner left its unfinished ROB generation");
+        end
+      if (audit_read_valid_w == 3 && audit_read_class_w[0+:3] == `R64_C_MEM &&
+          audit_read_class_w[3+:3] == `R64_C_MEM &&
+          audit_read_tag_w[0+:ROB_W] == audit_read_tag_w[TAG_W+:ROB_W])
+        $fatal(1, "Backend raw MEM owners share a ROB slot");
+      if (audit_read_valid_w == 3 && audit_read_class_w[0+:3] == `R64_C_FP &&
+          audit_read_class_w[3+:3] == `R64_C_FP &&
+          audit_read_tag_w[0+:ROB_W] == audit_read_tag_w[TAG_W+:ROB_W])
+        $fatal(1, "Backend raw FP owners share a ROB slot");
     end
   always @(posedge clk)
     if (!rst) begin
-      if ((lsu_reserve_fire_o & ~lsu_reserve_ready_i) != 0)
+      if ((lsu_reserve_fire_o & ~reserve_lane_ready_w) != 0)
         $fatal(1, "R64 LSQ reserve without Q credit");
       if (flush_i && lsu_reserve_fire_o != 0) $fatal(1, "R64 LSQ birth survived flush");
       if (lsu_reserve_fire_o == 3 &&
-          lsu_reserve_slot_i[0+:LSQ_W] == lsu_reserve_slot_i[LSQ_W+:LSQ_W])
+          lsu_reserve_slot_o[0+:LSQ_W] == lsu_reserve_slot_o[LSQ_W+:LSQ_W])
         $fatal(1, "R64 dual MEM birth shares LSQ slot");
     end
 `endif
-  R64Issue #(
-    .N(ISSUE_SLOTS),
-    .SLOT_W($clog2(ISSUE_SLOTS)),
-    .MDU_RESOURCE_PAIR(1),
-    .DEFER_READY(1),
-    .PREPARED_CANCEL(1),
-    .ROB_W(ROB_W),
-    .TAG_W(TAG_W),
-    .PAYLOAD_W(U),
-    .LSQ_W(LSQ_W)
-  ) issue (
-    .clk(clk),
-    .rst(rst),
-    .flush_i(flush_i),
-    .kill_mask_i(kill_mask_o),
-    .cancel_candidates_i(cancel_candidates_w),
-    .cancel_active_i(cancel_active_w),
-    .rob_head_i(head_slot_w),
-    .barrier_valid_i(barrier_valid_w),
-    .barrier_slot_i(barrier_slot_w),
-    .serial_active_i(serial_active_w),
-    .serial_release_i(serial_release_w),
-    .enq_valid_i(birth_w),
-    .enq_ready_o(issue_credit_w),
-    .enq_tag_i(birth_tag_w),
-    .enq_mem_slot_i(lsu_reserve_slot_i),
-    .enq_payload_i(decode_uop_w),
-    .enq_class_i(decode_class_w),
-    .enq_gpr_dst_i(short_dst_w),
-    .enq_src_preg_i(src_preg_w),
-    .enq_src_fp_i(src_fp_w),
-    .enq_src_used_i(src_used_w),
-    .enq_src_ready_i(6'b0),
-    .ready_query_preg_o(ready_query_preg_w),
-    .ready_query_fp_o(ready_query_fp_w),
-    .ready_query_ready_i(ready_query_complete_w),
-    .wake_valid_i(wb_write_w),
-    .wake_fp_i(wb_fp_w),
-    .wake_preg_i(wb_preg_w),
-    .early_valid_i(early_valid_w),
-    .early_preg_i(early_preg_w),
-    .fu_allow_i(6'b111111),
-    .serial_allow_i(serial_allow_i),
-    .issue_ready_i(read_credit_w),
-    .issue_mem_slot_o(issue_mem_slot_w),
-    .issue_fire_o(issue_fire_w),
-    .issue_tag_o(issue_tag_w),
-    .issue_payload_o(issue_uop_w),
-    .issue_class_o(issue_class_w),
-    .issue_gpr_dst_o(issue_dst_w),
-    .issue_src_preg_o(issue_src_w),
-    .issue_fp_plan_o(issue_fp_plan_w),
-    .issue_src_fp_o(issue_fp_w),
-    .issue_src_used_o(issue_used_w),
-    .count_o()
-  );
-  R64RegRead #(
-    .ALU_TERMINAL_BYPASS(RR_ALU_BYPASS),
-    .PREQUALIFIED_ISSUE(1),
-    .Q_ONLY_TERMINAL(1),
-    .PREPARED_CANCEL(1),
-    .COMPACT_FP(1),
-    .RAW_FP_ALLOCATION(1),
-    .UNIQUE_SERIAL(1),
-    .ROB_W(ROB_W),
-    .TAG_W(TAG_W),
-    .PAYLOAD_W(U),
-    .LSQ_W(LSQ_W)
-  ) registers (
-    .clk(clk),
-    .rst(rst),
-    .flush_i(flush_i),
-    .kill_mask_i(kill_mask_o),
-    .cancel_candidates_i(cancel_candidates_w),
-    .cancel_active_i(cancel_active_w),
-    .fu_credit_i(read_fu_credit_w),
-    .in_mem_slot_i(issue_mem_slot_w),
-    .out_mem_slot_o(read_mem_slot_w),
-    .in_fire_i(issue_fire_w),
-    .in_ready_o(read_credit_w),
-    .in_tag_i(issue_tag_w),
-    .in_payload_i(issue_uop_w),
-    .in_fp_plan_i(issue_fp_plan_w),
-    .in_class_i(issue_class_w),
-    .in_gpr_dst_i(issue_dst_w),
-    .in_src_preg_i(issue_src_w),
-    .in_src_fp_i(issue_fp_w),
-    .in_src_used_i(issue_used_w),
-    .wb_write_i(wb_write_w),
-    .wb_fp_i(wb_fp_w),
-    .wb_preg_i(wb_preg_w),
-    .wb_data_i(wb_data_w),
-    .out_valid_o(read_valid_w),
-    .out_ready_i(execute_ready_w),
-    .out_tag_o(read_tag_w),
-    .out_payload_o(read_uop_w),
-    .out_alu_control_o(read_alu_control_w),
-    .out_add_source_o(read_add_source_w),
-    .out_shift_amount_o(read_shift_amount_w),
-    .out_branch_imm_o(read_branch_imm_w),
-    .out_branch_control_o(read_branch_control_w),
-    .out_class_o(read_class_w),
-    .out_operand_o(read_operand_w),
-    .out_gpr_dst_o(read_dst_w),
-    .alu_bypass_valid_i(alu_bypass_valid_w),
-    .alu_bypass_preg_i(alu_bypass_preg_w),
-    .alu_bypass_data_i(alu_bypass_data_w)
-  );
-  wire [4:0] local_valid_w, local_ready_w;
-  wire [5*TAG_W-1:0] local_tag_w;
-  wire [5*R-1:0] local_result_w;
-`ifdef R64_ASSERT
-  // Raw FP/MEM projection is valid only inside the same live ROB age window.
-  always @(posedge clk)
-    if (!rst && !flush_i) begin
-      for (integer f = 0; f < 2; f = f + 1)
-      if (read_valid_w[f] &&
-          (read_class_w[f*3+:3] == `R64_C_FP || read_class_w[f*3+:3] == `R64_C_MEM)) begin
-        if (!rob.valid_q[read_tag_w[f*TAG_W+:ROB_W]] || rob.generation_q[read_tag_w[f*TAG_W+:ROB_W]]
-            != read_tag_w[f*TAG_W+ROB_W+:TAG_W-ROB_W] || rob.done_q[read_tag_w[f*TAG_W+:ROB_W]])
-          $fatal(1, "Backend raw data owner left its unfinished ROB generation");
-      end
-      if (read_valid_w == 3 && read_class_w[0+:3] == `R64_C_MEM &&
-          read_class_w[3+:3] == `R64_C_MEM && read_tag_w[0+:ROB_W] == read_tag_w[TAG_W+:ROB_W])
-        $fatal(1, "Backend raw MEM owners share a ROB slot");
-      if (read_valid_w == 3 && read_class_w[0+:3] == `R64_C_FP && read_class_w[3+:3] == `R64_C_FP &&
-          read_tag_w[0+:ROB_W] == read_tag_w[TAG_W+:ROB_W])
-        $fatal(1, "Backend raw FP owners share a ROB slot");
-    end
-`endif
-  R64Execute #(
-    .EARLY_ALU_WAKE(EARLY_ALU_WAKE),
-    .DIRECT_MEM_BIND(DIRECT_MEM_BIND),
-    .PREPARED_CANCEL(1),
-    .RAW_MEM(1),
-    .RAW_FP(1),
-    .RAW_SERIAL(1),
-    .TAG_W(TAG_W),
-    .ROB_W(ROB_W),
-    .LSQ_W(LSQ_W)
-  ) execute (
-    .clk(clk),
-    .rst(rst),
-    .flush_i(flush_i),
-    .kill_mask_i(kill_mask_o),
-    .cancel_candidates_i(cancel_candidates_w),
-    .cancel_active_i(cancel_active_w),
-    .rob_head_i(head_slot_w),
-    .in_valid_i(read_valid_w),
-    .in_ready_o(execute_ready_w),
-    .in_tag_i(read_tag_w),
-    .in_mem_slot_i(read_mem_slot_w),
-    .in_uop_i(read_uop_w),
-    .in_alu_control_i(read_alu_control_w),
-    .in_add_source_i(read_add_source_w),
-    .in_shift_amount_i(read_shift_amount_w),
-    .in_branch_imm_i(read_branch_imm_w),
-    .in_branch_control_i(read_branch_control_w),
-    .in_class_i(read_class_w),
-    .in_operand_i(read_operand_w),
-    .in_gpr_dst_i(read_dst_w),
-    .early_valid_o(raw_early_valid_w),
-    .early_preg_o(early_preg_w),
-    .rr_fu_credit_o(read_fu_credit_w),
-    .early_tag_o(early_tag_w),
-    .alu_bypass_valid_o(raw_alu_bypass_valid_w),
-    .alu_bypass_preg_o(alu_bypass_preg_w),
-    .alu_bypass_data_o(alu_bypass_data_w),
-    .result_valid_o(local_valid_w),
-    .result_ready_i(local_ready_w),
-    .result_tag_o(local_tag_w),
-    .result_o(local_result_w),
-    .recovery_preview_valid_o(recovery_preview_valid_w),
-    .recovery_preview_tag_o(recovery_preview_tag_w),
-    .resolve_valid_o(resolve_valid_o),
-    .resolve_tag_o(resolve_tag_o),
-    .resolve_npc_o(resolve_npc_o),
-    .redirect_valid_o(redirect_valid_o),
-    .redirect_pending_o(redirect_pending_w),
-    .resolve_pc_o(resolve_pc_o),
-    .resolve_conditional_o(resolve_conditional_o),
-    .resolve_indirect_o(resolve_indirect_o),
-    .resolve_taken_o(resolve_taken_o),
-    .lsu_slot_o(lsu_slot_o),
-    .lsu_ready_i(lsu_ready_i),
-    .lsu_fire_o(lsu_fire_o),
-    .lsu_tag_o(lsu_tag_o),
-    .lsu_uop_o(lsu_uop_o),
-    .lsu_operand_o(lsu_operand_o),
-    .fp_ready_i(fp_ready_i),
-    .fp_fire_o(fp_fire_o),
-    .fp_tag_o(fp_tag_o),
-    .fp_uop_o(fp_uop_o),
-    .fp_operand_o(fp_operand_o),
-    .serial_ready_i(serial_ready_i),
-    .serial_fire_o(serial_fire_o),
-    .serial_tag_o(serial_tag_o),
-    .serial_uop_o(serial_uop_o),
-    .serial_operand_o(serial_operand_o)
-  );
   assign redirect_pc_o = resolve_npc_o;
   R64Writeback #(
     .REQUEST_HINTS(WB_REQUEST_HINTS),
@@ -610,6 +609,7 @@ module R64Backend #(
     .source_request_i({external_request_i, 5'b0}),
     .source_valid_i({external_valid_i, local_valid_w}),
     .source_ready_o({external_ready_o, local_ready_w}),
+    .source_capture_o(wb_source_capture_w),
     .source_tag_i({external_tag_i, local_tag_w}),
     .source_result_i({external_result_i, local_result_w}),
     .wb_valid_o(wb_valid_w),
@@ -621,13 +621,13 @@ module R64Backend #(
   always @(posedge clk)
     if (!rst && !flush_i)
       for (serial_issue_lane = 0; serial_issue_lane < 2; serial_issue_lane = serial_issue_lane + 1)
-        if (issue_fire_w[serial_issue_lane] && issue_class_w[serial_issue_lane*3+:3] == 3'd5) begin
-          if (issue_tag_w[serial_issue_lane*TAG_W+:TAG_W] != head_tag_o ||
-              registers.serial_owner_count != 0 ||
-              !rob.valid_q[issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]] ||
-              rob.generation_q[issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]] !=
-              issue_tag_w[serial_issue_lane*TAG_W+ROB_W+:TAG_W-ROB_W] ||
-              rob.done_q[issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]])
+        if (audit_issue_fire_w[serial_issue_lane] && audit_issue_class_w[serial_issue_lane*3+:3] == 3'd5) begin
+          if (audit_issue_tag_w[serial_issue_lane*TAG_W+:TAG_W] != head_tag_o ||
+              audit_serial_owner_count_o != 0 ||
+              !rob.valid_q[audit_issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]] ||
+              rob.generation_q[audit_issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]] !=
+              audit_issue_tag_w[serial_issue_lane*TAG_W+ROB_W+:TAG_W-ROB_W] ||
+              rob.done_q[audit_issue_tag_w[serial_issue_lane*TAG_W+:ROB_W]])
             $fatal(1, "Serial issue lacks unique canonical head ownership");
         end
   always @(posedge clk)
@@ -635,13 +635,13 @@ module R64Backend #(
       if (rst || flush_i || serial_tag_o != head_tag_o || kill_mask_o[serial_tag_o[ROB_W-1:0]] ||
           !rob.valid_q[serial_tag_o[ROB_W-1:0]] ||
           rob.generation_q[serial_tag_o[ROB_W-1:0]] != serial_tag_o[TAG_W-1:ROB_W] ||
-          rob.done_q[serial_tag_o[ROB_W-1:0]] || registers.serial_owner_count != 1)
+          rob.done_q[serial_tag_o[ROB_W-1:0]] || audit_serial_owner_count_o != 1)
         $fatal(1, "Serial fire lacks an unfinished unique canonical head");
     end
   // Query occupancy is not an allocation permit. Every state-holding
   // consumer still uses the same qualified birth pulse.
   always @(posedge clk) begin
-    if ((rst || flush_i || redirect_valid_o || recover_o || stop_i) && birth_w != 0)
+    if ((rst || birth_stop_w || recover_o) && birth_w != 0)
       $fatal(1, "R64 resource query caused forbidden birth");
     if ((lsu_reserve_fire_o & ~birth_w) != 0) $fatal(1, "R64 LSQ reservation without common birth");
   end
@@ -654,17 +654,17 @@ module R64Backend #(
 `ifdef R64_ASSERT
   wire [1:0] qualified_mem_want_w = decode_valid_w &
       {decode_class_w[3+:3] == `R64_C_MEM, decode_class_w[0+:3] == `R64_C_MEM};
-  wire reference_birth0_w = decode_valid_w[0] && !stop_i && rob_credit_w[0] && rename_credit_w[0] &&
-      issue_credit_w[0] && (!qualified_mem_want_w[0] || lsu_reserve_ready_i[0]);
+  wire reference_birth0_w = decode_valid_w[0] && !birth_stop_w && rob_credit_w[0] && rename_credit_w[0] &&
+      issue_credit_w[0] && (!qualified_mem_want_w[0] || reserve_lane_ready_w[0]);
   wire reference_birth1_w = decode_valid_w[1] && reference_birth0_w && rob_credit_w[1] &&
       rename_credit_w[1] && issue_credit_w[1] &&
-      (!qualified_mem_want_w[1] || lsu_reserve_ready_i[1]);
+      (!qualified_mem_want_w[1] || reserve_lane_ready_w[1]);
   always @(posedge clk)
     if (!rst) begin
       if (birth_w !== {reference_birth1_w, reference_birth0_w} ||
           lsu_reserve_fire_o !== (birth_w & qualified_mem_want_w))
         $fatal(1, "Raw MEM capacity query changed canonical instruction birth");
-      if ((flush_i || stop_i || redirect_valid_o || recover_o) && (|birth_w))
+      if ((birth_stop_w || recover_o) && (|birth_w))
         $fatal(1, "Raw MEM capacity query created a frozen or cancelled owner");
     end
 `endif

@@ -4,6 +4,7 @@ module tb_r64_lsu_owner_bypass;
   parameter DEPTH = 20;
   parameter CORE_MODE = 1;
   parameter EARLY_STORE = 1;
+  parameter DIRECT_RESPONSE = 1;
   localparam IW = $clog2(DEPTH);
   reg clk = 0;
   always #5 clk = ~clk;
@@ -29,11 +30,15 @@ module tb_r64_lsu_owner_bypass;
   wire [31:0] reuse;
   wire irreversible, idle, drained;
   wire [1:0] tv, tr, tad, tresp, trespready;
+  wire [2*IW-1:0] ttoken, trtoken;
+  R64TranslationTokenEcho #(.TOKEN_W(IW)) translation_model_tokens (
+    .clk_i(clk), .rst_i(rst), .req_fire_i(tv & tr), .req_token_i(ttoken),
+    .rsp_fire_i(tresp & trespready), .rsp_token_o(trtoken)
+  );
   wire [127:0] tva, tpa;
   wire [3:0] ta, tc;
   wire [1:0] tfault, tneeds;
-  wire [9:0] tcause, townersize;
-  wire [5:0] towneraccess;
+  wire [9:0] tcause;
   wire [1:0] mv, mr, mcache, mresp, mrespready, merror;
   wire [2*IW-1:0] mtoken, mresptoken;
   wire [127:0] ma, md, mrd;
@@ -50,6 +55,7 @@ module tb_r64_lsu_owner_bypass;
   reg [2*IW-1:0] bslot = 0;
   reg [IW-1:0] saved_slot[0:31];
   R64Lsu #(
+    .TRANSLATION_QUERY_BYPASS(DIRECT_RESPONSE),
     .HEAD_AUTHORIZED_QUERY(CORE_MODE),
     .PREPARED_CANCEL(CORE_MODE),
     .EARLY_STORE(EARLY_STORE),
@@ -92,8 +98,7 @@ module tb_r64_lsu_owner_bypass;
     .in_fire_i(in_fire),
     .in_ready_o(in_ready),
     .in_tag_i(in_tag),
-    .in_uop_i(in_uop),
-    .in_operand_i(operand),
+    .in_command_i({in_uop[1*`R64_UOP_W+155+:5], in_uop[1*`R64_UOP_W+196+:8], operand[1*192+64+:64], in_uop[1*`R64_UOP_W+64+:64], operand[1*192+:64], in_uop[0*`R64_UOP_W+155+:5], in_uop[0*`R64_UOP_W+196+:8], operand[0*192+64+:64], in_uop[0*`R64_UOP_W+64+:64], operand[0*192+:64]}),
     .out_valid_o(out_valid),
     .out_ready_i(out_ready),
     .out_tag_o(out_tag),
@@ -102,6 +107,8 @@ module tb_r64_lsu_owner_bypass;
     .irrevocable_o(irreversible),
     .idle_o(idle),
     .drain_idle_o(drained),
+    .tr_token_o(ttoken),
+    .tr_rsp_token_i(trtoken),
     .tr_valid_o(tv),
     .tr_ready_i(tr),
     .tr_vaddr_o(tva),
@@ -114,8 +121,6 @@ module tb_r64_lsu_owner_bypass;
     .tr_fault_i(tfault),
     .tr_needs_ad_i(tneeds),
     .tr_cause_i(tcause),
-    .tr_owner_access_o(towneraccess),
-    .tr_owner_size_o(townersize),
     .mem_valid_o(mv),
     .mem_ready_i(mr),
     .mem_token_o(mtoken),
@@ -433,7 +438,7 @@ module tb_r64_lsu_owner_bypass;
       bind_one(0, base_tag, 64'h80, 0, 8'h03, 0, memory[16]);
       wait_result(0);
       latency[mode] = physical_cycle[0] - response_cycle[0];
-      if (latency[mode] != (mode == 0 || expect_fast ? 1 : 4))
+      if (latency[mode] != (mode == 0 || expect_fast ? (DIRECT_RESPONSE ? 0 : 1) : 4))
         $fatal(1, "owner bypass latency mode%0d got%0d", mode, latency[mode]);
       if (bypass_count[0] != (mode == 0 || expect_fast ? 1 : 0))
         $fatal(1, "unexpected fast admission");

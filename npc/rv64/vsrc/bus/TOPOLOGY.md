@@ -1,10 +1,10 @@
 # 当前 BUS 与平台结构及事务拓扑
 
-依据 **2026-10-09 生产 RTL** 核对，范围是 `R64SystemTop.core` 的读写适配器与
+依据 **2026-10-10 生产 RTL** 核对，范围是 `R64SystemTop.core` 的读写适配器与
 `R64SystemTop.platform` 的 Fabric、端点及中断事件。本文是这两个目录共享的事务拓扑入口；
 [platform/README](../platform/README.md)补充系统装配与可选 Tensor 接入，
 [全核拓扑](../TOPOLOGY.md)连接 CPU 请求、完成和恢复。
-本次仅整理文档；历史优化与测量独立列于文末。
+核侧读适配器已改为两项 AR 描述符队列；历史优化与测量独立列于文末。
 
 ## 1. 实际边界、配置与职责
 
@@ -26,7 +26,7 @@ Tensor 系统。文件所在目录不代表相同父实例，AXI ID、Fabric 槽
 
 | 源码 | 实际职责 / 使用方 |
 | --- | --- |
-| [R64AxiRead.v](R64AxiRead.v) | 核侧读 ID 占用、AR holder、R FIFO、RID/RLAST 检查；client 保留自己的架构 owner |
+| [R64AxiRead.v](R64AxiRead.v) | 核侧读 ID 占用、两项 AR 描述符队列、R FIFO、RID/RLAST 检查；client 保留自己的架构 owner |
 | [R64AxiWrite.v](R64AxiWrite.v) | 核侧 AW 描述符、W 次序与数据寄存、B 归属校验和内部空 FIFO 直通 |
 | [R64AxiFabric.v](../platform/R64AxiFabric.v) | AXI burst 描述符检查、canonical owner、AW/W 配对和共享返回；不把上游 burst 伪装成一个单拍完成 |
 | [R64AxiReadService.v](../platform/R64AxiReadService.v) | 两个读服务组的 plan/launch/return；共享 Fabric 的四个 owner |
@@ -95,7 +95,7 @@ flowchart TD
 
 | 边界 | 生产能力 | 释放占用的事件 |
 |---|---|---|
-| R64AxiRead | I-cache / D-cache 各一个 live ID；共享 2 项 R FIFO | 对应缓存消费最后一拍 R |
+| R64AxiRead | I-cache / D-cache 各一个 live ID；共享 2 项 AR 描述符 FIFO、2 项 R FIFO | 对应缓存消费最后一拍 R |
 | R64AxiWrite | 2 项 AW、2 项 W owner、2 项 B FIFO；实际只启用 client 0，AWLEN=0 | 客户端真正消费 B，包含合法直通 |
 | Fabric 读 owner | 4 槽；当前核最多两个读 ID | 最后 R 被上游适配器接受 |
 | Fabric 写 owner | 2 槽；当前核只有一个写 ID | B 被上游适配器接受 |
@@ -105,7 +105,7 @@ flowchart TD
 
 | 接收边界 | 真实事件 | 反压与所有权 |
 | --- | --- | --- |
-| I/D cache → Read adapter | `cmd_valid_i & cmd_ready_o`，最多1条/拍 | 占用 client ID 与 AR holder；client 在末拍交付前不可复用 |
+| I/D cache → Read adapter | `cmd_valid_i & cmd_ready_o`，最多1条/拍 | 占用 client ID 与一个 AR 描述符槽；client 在末拍交付前不可复用 |
 | Read adapter → Fabric | `ARVALID && ARREADY` | Fabric 先持有描述符，再译码/分配 canonical owner；下游尚未访问 |
 | Fabric group → endpoint | 该目标 `ARVALID && ARREADY` | 一个真实单拍读 owner；未 ready 时保持 launch payload |
 | endpoint → Fabric → Read adapter | 各层独立 `RVALID && RREADY` | endpoint、Fabric slot、adapter client 分别在自己的边界释放，不能用同一个 done 代替 |
@@ -113,6 +113,12 @@ flowchart TD
 | Fabric → endpoint write | AW、W 独立接受，设备配对后执行一次访问 | AW fire 或 W fire 单独发生不代表设备写完；目标 B 汇总错误 |
 | Write adapter → Memory | `rsp_valid_o & rsp_ready_i` | 合法 B 直通或旧 FIFO 头交付才释放 client；空 FIFO 不是未授权 B 的通行条件 |
 | 设备 → IRQ/syscon | 设备特定的寄存状态/本地完成事件 | IRQ 不走 AXI 返回；syscon 等本地 B 接受后发布，不能据 CPU 退休反推设备首次副作用 |
+
+`R64AxiRead.cmd_ready_o` 仅取 AR 队列的寄存容量 `ar_count_q < 2`、client busy 与本地轮询仲裁。
+外部 `ARREADY` 不再参与命令信用；满队列同拍发出 AR 后，下一拍才恢复信用。两项队列在
+AR 长时间阻塞时仍可接受 I/D 两个不同 client，第三条命令背压；非满时可同拍入队、出队，
+保持每拍一个 AR 的吞吐。head 描述符在阻塞期间保持，client ID 从内部命令接受到最后
+内部响应交付一直占用；已接受但尚未发出 AR 的 client 不能接收 R，AR/R 同拍合法返回仍可识别。
 
 四个读事务槽由两个服务组共享；分组没有增加事务槽数。D-cache 分离的是普通 cached store 的等待 B 阶段。其 bank stage 保留地址、token、字节掩码；way、resident hit、数据和 invalidate poison 单独保存，不能被新 refill owner 覆盖。
 
@@ -124,7 +130,7 @@ I-cache 补行 8×8 B，uncached fetch 2×8 B；D-cache 可分配 load miss 为 
 
 ```mermaid
 flowchart LR
-  C["I/D-cache cmd"] --> A["读适配器 AR holder"]
+  C["I/D-cache cmd"] --> A["读适配器：两项 AR 描述符队列"]
   A --> I["Fabric AR 入口"]
   I --> D["共用 decode / ID / 空槽检查"]
   D --> O["4 项 canonical read owner"]
@@ -156,6 +162,10 @@ flowchart LR
 AW 描述符和 W owner 按命令同时登记，W 数据按接受顺序发送；AW/W 独立反压。最后一拍装入适配器 W 寄存器时可释放 W 队列项，但 `wstage_client_q` 继续持有真实 WLAST 握手的 owner。Fabric 通过 AW 顺序队列为无 ID 的 W 归属，所有子 B 错误最终汇总为一个 B。
 
 生产 `R64AxiWrite.B_BYPASS=1`：B FIFO 非空时总是交付旧头；为空时，当前 B 通过 BID/live/AW/final-W/重复响应检查后可直接送给内部客户端。客户端不接收时写入原 FIFO，payload 与 ID 保持。物理 BREADY 只依赖寄存 FIFO 容量，不能依赖客户端 ready、kill 或旁路结果。通用默认参数仍为 0。
+
+B 的同拍 AW/final-W 完成资格只观察驻留 AW descriptor 和 W stage 的真实握手。
+当前新 cmd 只允许 free client，而合法 B 必须指向 busy client；因此新命令直通不参与旧 B
+返回资格，也不延迟旧 AW／末拍 W 与 B 同拍完成。错误检查和 BREADY 信用保持原样。
 
 普通 store 的 AW/W 命令与数据交付后，D-cache 可保留独立 B owner，让 read/refill 状态机处理独立 miss。成功 B 更新 resident cache bytes；失败 B 保留原缓存字节并精确返回错误。fast-store 完成仍经过 LSU 的 `store_done_q` 与 ROB 的 owner/tag 检查。
 
@@ -212,12 +222,12 @@ BUS 没有 ROB kill/branch flush 输入。已经接受的 AR/AW/W 继续 drain�
 
 ## 8. 当前设计单元与状态 owner
 
-以下依据 2026-10-09 当前生产连接核对，保留 BUS-01～05 稳定 ID；容量和状态宽度是 RTL 声明，不是映射面积。
+以下依据 2026-10-10 当前生产连接核对，保留 BUS-01～05 稳定 ID；容量和状态宽度是 RTL 声明，不是映射面积。
 AXI ID、Fabric owner槽、LSU slot/tag与aux source属于不同命名空间。容量不能跨层相加当成不同访存数。
 
 | ID / 源码 | 状态 owner、真实容量与字段 | 同拍/跨拍与取消、副作用 | 已知量与 UNKNOWN |
 | --- | --- | --- | --- |
-| BUS-01 核读适配器；[R64AxiRead.v](R64AxiRead.v) | 生产CLIENTS=2/CLIENT_W=1/AXI ID4；每I/D client至多1 live ID；AR holder1项（addr64,len8,size/prot各3等），共享R FIFO2项（data64,resp2,last1,client1）。 | client命令真实接受登记busy；外部AR/R由owner与寄存状态管理；缓存消费最后一拍才释放client。RREADY取寄存FIFO余量；ROB flush无端口，已发布请求继续drain。 | 最多2 live读ID、每拍最多1个R beat进共享FIFO；平均/尾延迟、R队头阻塞及读请求利用率 UNKNOWN。 |
+| BUS-01 核读适配器；[R64AxiRead.v](R64AxiRead.v) | 生产CLIENTS=2/CLIENT_W=1/AXI ID4；每I/D client至多1 live ID；AR描述符FIFO2项（addr64,len8,size/prot各3等），共享R FIFO2项（data64,resp2,last1,client1）。 | client命令真实接受登记busy；外部AR/R由owner与寄存状态管理；缓存消费最后一拍才释放client。CMDREADY/RREADY取各自寄存FIFO余量，不借外部同拍pop信用；ROB flush无端口，已发布请求继续drain。 | 最多2 live读ID、每拍最多1个R beat进共享FIFO；平均/尾延迟、R队头阻塞及读请求利用率 UNKNOWN。 |
 | BUS-02 核写适配器；[R64AxiWrite.v](R64AxiWrite.v) | 通用2client但生产只有client0使用；AW2项、W owner2项、W data stage1项(data64/strb8/last1)、B FIFO2项(resp2/client1)。 | AW/W独立握手，final-W owner不能在装入W stage时丢失。B_BYPASS=1已存在：合法B且FIFO空可同拍交给client，否则入FIFO。外部BREADY仅取Q容量；真正消费B才释放busy。 | 当前core单外部store/BID；写等待B分布、旁路命中率、AW/W独立背压损失 UNKNOWN。 |
 | BUS-03 Fabric canonical owner与返回；[R64AxiFabric.v](../platform/R64AxiFabric.v) | AR/AW入口各1项；读owner4槽，写owner2槽；共享R FIFO2项(data64/resp2/last/owner2)，写顺序与W数据各2项，B返回holder。read保存addr64/ID4/剩余8/size3/prot3/target4及状态。 | decode/ID/空槽检查后建立owner；真实末R/B被上游适配器接受才释放Fabric事务槽。每目标read/write忙状态分别管理，非法地址/属性错误仍有终端。无ROB取消端口。 | 4读/2写是Fabric容量，上游实际不足以全部占满；各owner寿命、入口与共享返回FIFO阻塞 UNKNOWN。 |
 | BUS-04 两组读服务；[R64AxiReadService.v](../platform/R64AxiReadService.v) | 2个服务组共享BUS-03 owner；每组plan2项（owner2）、launch1项（addr64,size/prot3、owner2、target mask16）、return selector1项；每target最多1真实Lite读拍。 | 组合选plan→寄存launch→真实AR→寄存return→注册merge→共享R FIFO。续拍只在先前真实R接受后发布；merge每拍最多消费1组R，另组必须保持。分组不增加canonical槽。 | memory mask为0x2800（PSRAM/SDRAM）；两个目标AR可同拍，返回合并峰值1beat/拍。组间重叠利用率、续拍成功率、公平等待尾部 UNKNOWN。 |
@@ -228,7 +238,7 @@ LSU/Frontend原owner交付或丢弃。不同层的释放边沿不能用一个“
 普通store路径中真实B错误必须返回LSU精确终端；不能通过只测AW/W或缓存hit就证明store已经架构完成。
 Dcache独立store B owner、每bank pending write及B空队列直通均已存在，见 [LSU-09/12](../lsu/TOPOLOGY.md)。
 
-本次为文档复核，没有新BUS benchmark或综合。布局前全核WNS、TNS、面积没有分离BUS-01～05的代价，
+本次 AR 信用解耦增加了模块定向检查，没有新 BUS benchmark 或综合。布局前全核WNS、TNS、面积没有分离BUS-01～05的代价，
 旧模块测试的局部拍数改善也不是当前程序CPI的可加分解。需要量化某项改法时应以相同workload、配置和
 事务端到端起止事件取数，并同时观察其可能把背压传回的上游单元。
 
@@ -237,15 +247,16 @@ Dcache独立store B owner、每bank pending write及B空队列直通均已存在
 
 | 机制 | 已有定向入口 | 验证范围 |
 | --- | --- | --- |
-| 核侧 ID / beat / B owner | [tb_r64_axi_read](../../testbench/chengyue64/modules/tb_r64_axi_read.sv)、[tb_r64_axi_write](../../testbench/chengyue64/modules/tb_r64_axi_write.sv) | 读写 client、背压、响应归属；Makefile 另提供错误 ID/提前 B 负向测试 |
+| 核侧 ID / beat / B owner | [tb_r64_axi_read](../../testbench/chengyue64/modules/tb_r64_axi_read.sv)、[tb_r64_axi_write](../../testbench/chengyue64/modules/tb_r64_axi_write.sv) | 读写 client、背压、响应归属；读 TB 覆盖两项 AR 信用、ARREADY 组合隔离与同拍 AR/R，并提供 bad-id/bad-last/bad-count/early-r 负向模式；写侧有提前 B 负向测试 |
 | B 直通 | [tb_r64_axi_write](../../testbench/chengyue64/modules/tb_r64_axi_write.sv) 的 `B_BYPASS=1` 配置（Makefile 入口 `tb_r64_axi_write_bypass`） | 空 B FIFO 直通与受阻回退，保留 owner 校验 |
 | Fabric 协议 / 隔离 | [tb_r64_fabric](../../testbench/chengyue64/modules/tb_r64_fabric.sv)、[tb_r64_fabric_reset](../../testbench/chengyue64/modules/tb_r64_fabric_reset.sv) | burst/ID/错误/反压及 reset，含 bad-last 负向入口 |
 | 分组 / 续拍 | [tb_r64_fabric_groups](../../testbench/chengyue64/modules/tb_r64_fabric_groups.sv)、[tb_r64_fabric_read_continue](../../testbench/chengyue64/modules/tb_r64_fabric_read_continue.sv)、[tb_r64_fabric_latency](../../testbench/chengyue64/modules/tb_r64_fabric_latency.sv) | 慢 MMIO 与内存服务隔离、同目标竞争、逐拍进展 |
 | 真实设备 / 平台 | [tb_r64_fabric_devices](../../testbench/chengyue64/modules/tb_r64_fabric_devices.sv)、[tb_r64_platform_reset](../../testbench/chengyue64/modules/tb_r64_platform_reset.sv)、[tb_r64_rtc](../../testbench/chengyue64/modules/tb_r64_rtc.sv) | 设备访问与副作用、复位发布边界、RTC |
 | store 与缓存重叠 | [tb_r64_dcache_store_overlap](../../testbench/chengyue64/modules/tb_r64_dcache_store_overlap.sv)、[tb_r64_dcache_write_buffer](../../testbench/chengyue64/modules/tb_r64_dcache_write_buffer.sv) | 独立 store B owner、bank 写口冲突、pending write / invalidate |
 
-运行范围见[验证平台](../../testbench/chengyue64/README.md)。本次仅文档整理，未重跑这些用例、
-系统基准或综合/STA；表中的测试名称不构成一次新 PASS。端到端延迟应分别观察 cmd/AR、
+运行范围见[验证平台](../../testbench/chengyue64/README.md)。AR 信用修改执行读适配器定向、
+固定种子随机和四种协议负向检查；本节列出的其他测试不据此视为新 PASS，也不构成系统
+基准或综合/STA 结论。端到端延迟应分别观察 cmd/AR、
 每个目标 R、Fabric/adapter 交付、cache 完成与 LSU/Frontend 消费。
 
 完整 AXI burst 外部内存端点、多外部 store、store 提前退休、per-ID 返回 FIFO 均不是当前图中

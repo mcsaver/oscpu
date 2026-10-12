@@ -1,10 +1,17 @@
-`include "R64Uop.vh"
+`include "R64Protocol.vh"
 // Native two-wide RV64 core. Architectural state lives in Rename/ROB/CSR;
 // external owners live in the LSU and serial unit until their true terminal.
 // The public memory interface is AXI4 including response IDs and last-beat.
 module R64CoreTop #(
   parameter [63:0] RESET_PC = 64'h80000000,
-  parameter ISSUE_SLOTS = 16
+  parameter BIND_TRANSLATION_EMPTY_FLOW = 1,
+  parameter BIND_STORE_TRANSLATION = 1,
+  parameter ISSUE_SLOTS = 16,
+  parameter DIRECTION_COMMIT_TRAIN = 0,
+  parameter DIRECTION_INDEX_W = 10,
+  parameter DIRECTION_COLD_STRONG = 1,
+  parameter BATCH_SUFFIX_ROLLBACK = 1,
+  parameter integer FTB_INDEX_W = 7
 ) (
   input          clk_i,
   input          rst_i,
@@ -71,16 +78,21 @@ module R64CoreTop #(
   output [  5:0] rob_count_o,
   output         protocol_error_o
 );
-  localparam U = `R64_UOP_W, M = `R64_META_W, R = `R64_RESULT_W;
+  localparam M = `R64_META_W, R = `R64_RESULT_W;
   wire stop_birth, full_flush, control_redirect, effect_allow, serial_allow;
   wire head_serial, head_exception_raw;
+  wire serial_retire_candidate;
   wire [ 1:0] rob_serial;
   wire [63:0] control_target;
   wire backend_redirect, recover, resolve, resolve_conditional, resolve_indirect, resolve_taken;
+  wire [1:0] direction_train_valid, direction_train_taken;
+  wire [127:0] direction_train_pc;
   wire [63:0] backend_target, resolve_pc, resolve_npc;
   wire [31:0] memory_cancel_candidates;
   wire memory_cancel_active;
   wire [8:0] head_tag, resolve_tag;
+  wire pair_store_candidate_valid;
+  wire [8:0] pair_store_candidate_tag;
   wire [31:0] kill_mask, lsu_reuse, serial_reuse;
   wire [ 65:0] fetch_canonical;
   wire [ 69:0] fetch_control;
@@ -93,13 +105,21 @@ module R64CoreTop #(
   wire [1:0] fetch_consume = {1'b0, fetch_take[0]} + {1'b0, fetch_take[1]};
   wire redirect = control_redirect || backend_redirect;
   wire [63:0] redirect_target = control_redirect ? control_target : backend_target;
+  // Public domain network: one recovery event, one head authorization and one
+  // accepted-retirement stream. No receiver interprets another domain's state.
+  wire [`R64_RECOVERY_W(32)-1:0] recovery =
+      {redirect, redirect_target, full_flush, memory_cancel_active, memory_cancel_candidates};
+  wire [`R64_EFFECT_W(9)-1:0] effect, memory_effect;
+  wire [`R64_RETIRE_W(9)-1:0] retire;
+  assign serial_allow = effect[`R64_EFFECT_SERIAL(9)];
+  assign effect_allow = memory_effect[`R64_EFFECT_MEMORY(9)];
   wire [1:0] rob_valid, rob_ready, retire_fire, rob_exception, rob_write, rob_fp;
+  assign retire_fire = retire[1:0];
   wire [17:0] rob_tag;
   wire [2*M-1:0] rob_meta;
   wire [127:0] rob_data, rob_tval;
   wire [11:0] rob_cause;
   wire [9:0] rob_arch, rob_flags;
-  wire commit1_allow;
   wire [2:0] frm;
   wire pbmt_enable;
   wire [15:0] pmp_active;
@@ -113,17 +133,15 @@ module R64CoreTop #(
   assign fetch_protect_mask = 0;
   wire [1:0] lsu_ready, lsu_fire;
   wire [17:0] lsu_tag;
-  wire [2*U-1:0] lsu_uop;
-  wire [383:0] lsu_operand;
+  wire [2*`R64_MEM_CMD_W-1:0] lsu_command;
   wire lsu_irrevocable, memory_idle, memory_owner_idle;
   wire fp_ready, fp_fire;
   wire [  8:0] fp_tag;
-  wire [U-1:0] fp_uop;
+  wire [`R64_FP_CMD_W-1:0] fp_command;
   wire [191:0] fp_operand;
   wire serial_ready, serial_fire;
   wire [  8:0] serial_tag;
-  wire [U-1:0] serial_uop;
-  wire [191:0] serial_operand;
+  wire [`R64_SERIAL_CMD_W-1:0] serial_command;
   wire serial_irrevocable, serial_idle;
   wire [1:0] memory_request_hint;
   wire [3:0] external_valid, external_ready;
@@ -174,14 +192,22 @@ module R64CoreTop #(
     .uncached_o(fetch_uncached)
   );
   R64Frontend #(
+    .FTB_INDEX_W(FTB_INDEX_W),
+    .DIRECTION_COMMIT_TRAIN(DIRECTION_COMMIT_TRAIN),
+    .DIRECTION_INDEX_W(DIRECTION_INDEX_W),
+    .DIRECTION_COLD_STRONG(DIRECTION_COLD_STRONG),
+    .BUNDLE_EMPTY_FLOW(1),
+    .TOKEN_EMPTY_FLOW(1),
     .PREPARED_PROTECTION(1),
     .RESET_PC(RESET_PC)
   ) frontend (
+    .direction_train_valid_i(direction_train_valid),
+    .direction_train_pc_i(direction_train_pc),
+    .direction_train_taken_i(direction_train_taken),
     .clk_i(clk_i),
     .rst_i(rst_i),
     .run_i(run_i && !stop_birth),
-    .redirect_i(redirect),
-    .redirect_pc_i(redirect_target),
+    .recovery_i(recovery),
     .priv_i(privilege_o),
     .mstatus_i(mstatus_o),
     .satp_i(satp_o),
@@ -242,11 +268,26 @@ module R64CoreTop #(
   wire [1:0] lsu_reserve_want, lsu_reserve_fire, lsu_reserve_ready;
   wire [17:0] lsu_reserve_tag;
   wire [15:0] lsu_reserve_func;
-  wire [9:0] lsu_reserve_amo, lsu_reserve_slot, lsu_slot;
+  wire [9:0] lsu_reserve_amo, lsu_reserve_slot, lsu_reserve_selected, lsu_slot;
   wire store_done_valid, store_done_ready, store_done_error;
   wire [ 8:0] store_done_tag;
   wire [63:0] store_done_tval;
+  // Successful final Memory values are advisory numerical events. Canonical
+  // completion, architectural writeback and retirement retain their owners.
+  wire [1:0] resolved_value_valid;
+  wire [17:0] resolved_value_tag;
+  wire [127:0] resolved_value_data;
   R64Backend #(
+    .BATCH_SUFFIX_ROLLBACK(BATCH_SUFFIX_ROLLBACK),
+    .DIRECTION_COMMIT_TRAIN(DIRECTION_COMMIT_TRAIN),
+    .DUAL_RETIRE_STORE_LEASE(1),
+    .LOAD_RESOLVED_VALUE(1),
+    .ALU_TOKEN_BYPASS(1),
+    .MEM_TERMINAL_CURRENT(1),
+    .RR_COMPLETE_ADMIT(1),
+    .RR_COMPLETE_BRANCH_ADMIT(1),
+    .RR_ADMIT_GPR_READ(1),
+    .INIT_CURRENT_READY(1),
     .WB_REQUEST_HINTS(1),
     .ISSUE_SLOTS(ISSUE_SLOTS),
     .DIRECT_MEM_BIND(1),
@@ -254,19 +295,29 @@ module R64CoreTop #(
     .PREPARED_NPC(1),
     .PRECONTROLLED(1)
   ) backend (
+`ifdef R64_ASSERT
+    .audit_serial_owner_count_o(),
+`endif
     .fetch_canonical_i(fetch_canonical),
     .fetch_control_i(fetch_control),
     .fetch_sequential_npc_i(fetch_sequential_npc),
+    .resolved_value_valid_i(resolved_value_valid),
+    .resolved_value_tag_i(resolved_value_tag),
+    .resolved_value_data_i(resolved_value_data),
     .store_done_valid_i(store_done_valid),
     .store_done_ready_o(store_done_ready),
     .store_done_tag_i(store_done_tag),
     .store_done_error_i(store_done_error),
     .store_done_tval_i(store_done_tval),
+    .direction_invalidate_i(icache_invalidate || dma_invalidate_i),
+    .direction_train_valid_o(direction_train_valid),
+    .direction_train_pc_o(direction_train_pc),
+    .direction_train_taken_o(direction_train_taken),
     .clk(clk_i),
     .rst(rst_i),
     .flush_i(full_flush),
     .stop_i(stop_birth || !run_i),
-    .serial_allow_i(serial_allow),
+    .effect_i(effect),
     .reuse_block_i(lsu_reuse | serial_reuse),
     .fetch_valid_i(fetch_valid),
     .fetch_ready_o(fetch_ready),
@@ -278,9 +329,9 @@ module R64CoreTop #(
     .fetch_cause_i(frontend_exception_cause),
     .fetch_tval_i(frontend_exception_tval),
     .commit_ready_i(rob_ready),
-    .commit1_allow_i(commit1_allow),
     .commit_valid_o(rob_valid),
     .commit_serial_o(rob_serial),
+    .serial_retire_candidate_o(serial_retire_candidate),
     .commit_tag_o(rob_tag),
     .commit_meta_o(rob_meta),
     .commit_data_o(rob_data),
@@ -304,6 +355,8 @@ module R64CoreTop #(
     .cancel_candidates_o(memory_cancel_candidates),
     .cancel_active_o(memory_cancel_active),
     .head_tag_o(head_tag),
+    .pair_store_candidate_valid_o(pair_store_candidate_valid),
+    .pair_store_candidate_tag_o(pair_store_candidate_tag),
     .head_serial_o(head_serial),
     .head_exception_o(head_exception_raw),
     .rob_count_o(rob_count_o),
@@ -314,23 +367,22 @@ module R64CoreTop #(
     .lsu_reserve_fire_o(lsu_reserve_fire),
     .lsu_reserve_ready_i(lsu_reserve_ready),
     .lsu_reserve_slot_i(lsu_reserve_slot),
+    .lsu_reserve_slot_o(lsu_reserve_selected),
     .lsu_reserve_tag_o(lsu_reserve_tag),
     .lsu_reserve_func_o(lsu_reserve_func),
     .lsu_reserve_amo_o(lsu_reserve_amo),
     .lsu_fire_o(lsu_fire),
     .lsu_tag_o(lsu_tag),
-    .lsu_uop_o(lsu_uop),
-    .lsu_operand_o(lsu_operand),
+    .lsu_command_o(lsu_command),
     .fp_ready_i(fp_ready),
     .fp_fire_o(fp_fire),
     .fp_tag_o(fp_tag),
-    .fp_uop_o(fp_uop),
+    .fp_command_o(fp_command),
     .fp_operand_o(fp_operand),
     .serial_ready_i(serial_ready),
     .serial_fire_o(serial_fire),
     .serial_tag_o(serial_tag),
-    .serial_uop_o(serial_uop),
-    .serial_operand_o(serial_operand),
+    .serial_command_o(serial_command),
     .external_request_i({2'b0, memory_request_hint}),
     .external_valid_i(external_valid),
     .external_ready_o(external_ready),
@@ -344,12 +396,11 @@ module R64CoreTop #(
   ) fp (
     .clk(clk_i),
     .rst(rst_i),
-    .flush_i(full_flush),
-    .kill_mask_i(kill_mask),
+    .recovery_i(recovery),
     .in_fire_i(fp_fire),
     .in_ready_o(fp_ready),
     .in_tag_i(fp_tag),
-    .in_command_i(fp_uop[`R64_UOP_CMD_LO+:32]),
+    .in_command_i(fp_command),
     .in_operand_i(fp_operand),
     .fp_enabled_i(mstatus_o[14:13] != 0),
     .frm_i(frm),
@@ -359,7 +410,10 @@ module R64CoreTop #(
     .out_result_o(external_result[2*R+:R])
   );
   R64Control #(
-    .RESET_PC(RESET_PC)
+    .RESET_PC(RESET_PC),
+    .SUCCESSOR_STORE_LEASE(1),
+    .ORDINARY_SUCCESSOR_STORE_LEASE(1),
+    .DUAL_RETIRE_STORE_LEASE(1)
   ) control (
     .clk_i(clk_i),
     .rst_i(rst_i),
@@ -372,11 +426,11 @@ module R64CoreTop #(
     .time_i(time_i),
     .rob_valid_i(rob_valid),
     .rob_serial_i(rob_serial),
+    .serial_retire_candidate_i(serial_retire_candidate),
     .rob_exception_i(rob_exception),
     .rob_write_i(rob_write),
     .rob_fp_i(rob_fp),
     .rob_ready_o(rob_ready),
-    .commit1_allow_o(commit1_allow),
     .rob_tag_i(rob_tag),
     .rob_meta_i(rob_meta),
     .rob_data_i(rob_data),
@@ -386,15 +440,18 @@ module R64CoreTop #(
     .rob_flags_i(rob_flags),
     .rob_count_i(rob_count_o),
     .head_tag_i(head_tag),
+    .pair_store_candidate_valid_i(pair_store_candidate_valid),
+    .pair_store_candidate_tag_i(pair_store_candidate_tag),
     .head_serial_i(head_serial),
     .head_exception_raw_i(head_exception_raw),
     .recover_i(recover),
-    .kill_mask_i(kill_mask),
+    .recovery_i(recovery),
+    .effect_o(effect),
+    .memory_effect_o(memory_effect),
     .serial_fire_i(serial_fire),
     .serial_ready_o(serial_ready),
     .serial_tag_i(serial_tag),
-    .serial_uop_i(serial_uop),
-    .serial_operand_i(serial_operand),
+    .serial_command_i(serial_command),
     .serial_result_valid_o(external_valid[3]),
     .serial_result_ready_i(external_ready[3]),
     .serial_result_tag_o(external_tag[27+:9]),
@@ -407,10 +464,8 @@ module R64CoreTop #(
     .stop_birth_o(stop_birth),
     .full_flush_o(full_flush),
     .control_redirect_o(control_redirect),
-    .effect_allow_o(effect_allow),
-    .serial_allow_o(serial_allow),
     .control_target_o(control_target),
-    .retire_fire_o(retire_fire),
+    .retire_o(retire),
     .privilege_o(privilege_o),
     .mstatus_o(mstatus_o),
     .satp_o(satp_o),
@@ -462,11 +517,17 @@ module R64CoreTop #(
     .trap_length_o(trap_length_o)
   );
   R64Memory #(
+    .BIND_TRANSLATION_EMPTY_FLOW(BIND_TRANSLATION_EMPTY_FLOW),
+    .BIND_STORE_TRANSLATION(BIND_STORE_TRANSLATION),
+    .RESPONSE_FORWARD_QUERY(1),
     .HEAD_AUTHORIZED_QUERY(1),
     .PREPARED_CANCEL(1)
   ) memory (
     .trigger_enable_i(trigger_enable),
     .trigger_address_i(trigger_address),
+    .resolved_value_valid_o(resolved_value_valid),
+    .resolved_value_tag_o(resolved_value_tag),
+    .resolved_value_data_o(resolved_value_data),
     .store_done_valid_o(store_done_valid),
     .store_done_ready_i(store_done_ready),
     .store_done_tag_o(store_done_tag),
@@ -474,20 +535,14 @@ module R64CoreTop #(
     .store_done_tval_o(store_done_tval),
     .clk_i(clk_i),
     .rst_i(rst_i),
-    .flush_i(full_flush),
+    .recovery_i(recovery),
+    .effect_i(memory_effect),
     .invalidate_i(dma_invalidate_i),
-    .kill_mask_i(kill_mask),
-    .cancel_candidates_i(memory_cancel_candidates),
-    .cancel_active_i(memory_cancel_active),
-    .head_valid_i(rob_count_o != 0),
-    .head_tag_i(head_tag),
-    .effect_allow_i(effect_allow),
-    .commit_fire_i(retire_fire),
-    .commit_tag_i(rob_tag),
+    .retire_i(retire),
     .in_fire_i(lsu_fire),
     .in_ready_o(lsu_ready),
     .in_slot_i(lsu_slot),
-    .reserve_want_i(lsu_reserve_want),
+    .reserve_slot_i(lsu_reserve_selected),
     .reserve_fire_i(lsu_reserve_fire),
     .reserve_ready_o(lsu_reserve_ready),
     .reserve_slot_o(lsu_reserve_slot),
@@ -495,8 +550,7 @@ module R64CoreTop #(
     .reserve_func_i(lsu_reserve_func),
     .reserve_amo_i(lsu_reserve_amo),
     .in_tag_i(lsu_tag),
-    .in_uop_i(lsu_uop),
-    .in_operand_i(lsu_operand),
+    .in_command_i(lsu_command),
     .out_request_o(memory_request_hint),
     .out_valid_o(external_valid[1:0]),
     .out_ready_i(external_ready[1:0]),
@@ -592,7 +646,8 @@ module R64CoreTop #(
   assign write_rsp_valid = unused_write_response[0];
   assign write_resp = write_responses[1:0];
   R64AxiWrite #(
-    .B_BYPASS(1)
+    .B_BYPASS(1),
+    .CMD_EMPTY_FLOW(1)
   ) write_bus (
     .clk_i(clk_i),
     .rst_i(rst_i),
@@ -629,24 +684,29 @@ module R64CoreTop #(
     .protocol_error_o(write_error)
   );
 `ifdef R64_ASSERT
+  // The narrow store terminal may project an authenticated exception before
+  // the resident ROB array write. Birth stopping still uses the resident Q
+  // certificate; only this observation compares Commit's current projection.
+  wire head_exception_effective_w = head_exception_raw ||
+      (store_done_valid && store_done_ready && store_done_error);
   always @(posedge clk_i)
     if (!rst_i) begin
-      if (rob_valid[0] && rob_exception[0] && !head_exception_raw)
+      if (rob_valid[0] && rob_exception[0] && !head_exception_effective_w)
         $fatal(1, "head exception certificate lost a canonical completion");
       if (!(full_flush || backend_redirect || recover) &&
-          head_exception_raw !== (rob_valid[0] && rob_exception[0]))
+          head_exception_effective_w !== (rob_valid[0] && rob_exception[0]))
         $fatal(1, "head exception certificate disagrees outside freeze");
-      if (head_exception_raw && (full_flush || backend_redirect || recover) && backend.birth_w != 0)
-        $fatal(1, "frozen head exception allowed younger birth");
+      if (head_exception_raw && (full_flush || backend_redirect || recover) && lsu_reserve_fire != 0)
+        $fatal(1, "frozen head exception allowed younger memory reservation");
     end
 
   // Keep the original authority predicate observable on every actual command.
   // Permission without an unfinished canonical owner is never a transaction.
   always @(posedge clk_i)
     if (serial_fire) begin
-      if (rst_i || full_flush || !effect_allow || serial_tag != head_tag || !backend.rob.valid_q[
-          serial_tag[4:0]] || backend.rob.generation_q[serial_tag[4:0]] != serial_tag[8:5] ||
-          backend.rob.done_q[serial_tag[4:0]] || backend.registers.serial_owner_count != 1)
+      if (rst_i || recovery[`R64_RECOVERY_FLUSH(32)] ||
+          !effect[`R64_EFFECT_PRESENT(9)] || !effect[`R64_EFFECT_SERIAL(9)] ||
+          serial_tag != effect[8:0])
         $fatal(1, "Core serial issue certificate violated original authority");
     end
 `endif

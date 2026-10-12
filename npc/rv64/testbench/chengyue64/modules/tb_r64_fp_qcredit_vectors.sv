@@ -5,6 +5,15 @@ module tb_r64_fp_qcredit_vectors;
   always #5 clk = ~clk;
   reg rst = 1, flush = 0, fire = 0, ready = 1, enabled = 1;
   reg [31:0] kill = 0;
+  // Architectural cancellation is immediate at the source; local transport
+  // owners consume the inbox event one edge later. No new namespace birth is
+  // legal in either cycle.
+  reg local_flush = 0;
+  reg [31:0] local_kill = 0;
+  always @(posedge clk) begin
+    local_flush <= !rst && flush;
+    local_kill <= rst ? 32'b0 : kill;
+  end
   reg [8:0] tag = 0;
   reg [2:0] frm = 0;
   reg [`R64_UOP_W-1:0] uop = 0;
@@ -17,8 +26,7 @@ module tb_r64_fp_qcredit_vectors;
   ) dut (
     .clk(clk),
     .rst(rst),
-    .flush_i(flush),
-    .kill_mask_i(kill),
+    .recovery_i({65'b0, flush, 1'b1, kill}),
     .in_fire_i(fire),
     .in_ready_o(credit),
     .in_tag_i(tag),
@@ -147,12 +155,17 @@ module tb_r64_fp_qcredit_vectors;
         end
         ready = phase == 0 ? 1 : (($random & 7) != 0);
         #1;
-        if (held && !flush && !kill[held_tag[4:0]] &&
+        if (held && !local_flush && !local_kill[held_tag[4:0]] &&
             (!valid || result !== held_result || out_tag !== held_tag))
           $fatal(1, "FP owner held output changed");
+        if (valid && (local_flush || local_kill[out_tag[4:0]]))
+          $fatal(1, "FP published a victim after local Recovery delivery");
         if (valid && ready) begin
           slot = out_tag[4:0];
-          if (!pending[slot] || owner[slot] !== out_tag || result !== expected[slot])
+          // A response in the source event cycle still belongs to its old
+          // transport owner, but the architectural sink must discard it.
+          if ((!pending[slot] && !flush && !kill[slot]) ||
+              owner[slot] !== out_tag || result !== expected[slot])
             $fatal(
                 1,
                 "FP owner wrong/duplicate tag=%h result=%h expected=%h",
@@ -160,15 +173,18 @@ module tb_r64_fp_qcredit_vectors;
                 result,
                 expected[slot]
             );
-          pending[slot] = 0;
-          completed = completed + 1;
+          if (pending[slot]) begin
+            pending[slot] = 0;
+            completed = completed + 1;
+          end
           run = run + 1;
           if (run > longest) longest = run;
         end else run = 0;
         held = valid && !ready;
         held_tag = out_tag;
         held_result = result;
-        if (prepared && !flush && !kill[tag[4:0]] && !pending[tag[4:0]] && credit) begin
+        if (prepared && !flush && kill == 0 && !local_flush && local_kill == 0 &&
+            !pending[tag[4:0]] && credit) begin
           fire = 1;
           pending[tag[4:0]] = 1;
           owner[tag[4:0]] = tag;

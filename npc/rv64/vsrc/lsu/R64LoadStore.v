@@ -1,9 +1,9 @@
-`include "R64Uop.vh"
-// Native load/store subsystem. Translation policy and PMP/PMA are external:
-// each response still belongs to the LSU's ordered translation-owner FIFO.
-// Auxiliary requests have already passed their own physical protection check.
+`include "R64Protocol.vh"
+// Composition of instruction-ordering LSU and an independent physical endpoint.
+// Translation is an opaque token service; auxiliary clients are already protected.
 module R64LoadStore #(
   parameter EARLY_STORE = 1,
+  parameter RESPONSE_DESCRIPTOR_BYPASS = 1,
   parameter HEAD_AUTHORIZED_QUERY = 0,
   parameter PREPARED_CANCEL = 0,
   parameter ENTRIES = 18,
@@ -12,7 +12,10 @@ module R64LoadStore #(
   parameter ROB_W = 5,
   parameter CACHE_SET_W = 6,
   parameter AUX = 4,
-  parameter SRC_W = 3
+  parameter SRC_W = 3,
+  parameter BIND_TRANSLATION_EMPTY_FLOW = 0,
+  parameter BIND_STORE_TRANSLATION = 0,
+  parameter RESPONSE_FORWARD_QUERY = 0
 ) (
   input                        clk_i,
   input                        rst_i,
@@ -37,6 +40,8 @@ module R64LoadStore #(
   input  [        2*TAG_W-1:0] commit_tag_i,
   input  [                1:0] reserve_want_i, reserve_fire_i,
   output [                1:0] reserve_ready_o,
+  output [                1:0] reserve_credit_o,
+  output [      2*INDEX_W-1:0] reserve_offer_o,
   output [      2*INDEX_W-1:0] reserve_slot_o,
   input  [        2*TAG_W-1:0] reserve_tag_i,
   input  [               15:0] reserve_func_i,
@@ -45,31 +50,35 @@ module R64LoadStore #(
   output [                1:0] in_ready_o,
   input  [      2*INDEX_W-1:0] in_slot_i,
   input  [        2*TAG_W-1:0] in_tag_i,
-  input  [   2*`R64_UOP_W-1:0] in_uop_i,
-  input  [              383:0] in_operand_i,
+  input  [2*`R64_MEM_CMD_W-1:0] in_command_i,
   output [                1:0] out_valid_o,
   output [                1:0] out_request_o,
   input  [                1:0] out_ready_i,
   output [        2*TAG_W-1:0] out_tag_o,
   output [2*`R64_RESULT_W-1:0] out_result_o,
+  // Successful final memory result notice; repeated observation is allowed.
+  // This is not completion acceptance and carries no ownership or ready/ack.
+  output [                1:0] resolved_value_valid_o,
+  output [        2*TAG_W-1:0] resolved_value_tag_o,
+  output [              127:0] resolved_value_data_o,
   output [     (1<<ROB_W)-1:0] reuse_block_o,
   output                       irrevocable_o,
   output                       idle_o,
   output                       drain_idle_o,
   output [                1:0] tr_valid_o,
   input  [                1:0] tr_ready_i,
+  output [      2*INDEX_W-1:0] tr_token_o,
   output [              127:0] tr_vaddr_o,
   output [                3:0] tr_access_o,
   output [                1:0] tr_ad_update_o,
   input  [                1:0] tr_rsp_valid_i,
   output [                1:0] tr_rsp_ready_o,
+  input  [      2*INDEX_W-1:0] tr_rsp_token_i,
   input  [              127:0] tr_paddr_i,
   input  [                3:0] tr_class_i,
   input  [                1:0] tr_fault_i, tr_needs_ad_i,
   input  [                9:0] tr_cause_i,
   output [                7:0] tr_request_protection_o,
-  output [                5:0] tr_owner_access_o,
-  output [                9:0] tr_owner_size_o,
   input  [            AUX-1:0] aux_valid_i,
   output [            AUX-1:0] aux_ready_o,
   input  [         AUX*64-1:0] aux_addr_i, aux_data_i, aux_expected_i,
@@ -103,41 +112,33 @@ module R64LoadStore #(
   output                       write_rsp_ready_o,
   input  [                1:0] write_resp_i
 );
-  localparam CT = INDEX_W + SRC_W;
-  wire [1:0] mfast, sfast, kfast;
+  wire [1:0] mfast;
+  wire prepare_valid_w;
+  wire [TAG_W+INDEX_W-1:0] prepare_id_w, physical_identity_w;
+  wire [INDEX_W-1:0] prepare_token_w;
+  wire [63:0] prepare_addr_w, prepare_data_w;
+  wire [2:0] prepare_size_w;
+  wire [7:0] prepare_strb_w;
+  wire [4:0] prepare_amo_w;
   wire store_response_valid_w, store_response_ready_w, store_response_error_w;
-  wire [CT-1:0] store_response_token_w;
+  wire [INDEX_W-1:0] store_response_token_w;
   wire [1:0] mv, mr, mcv, mcr, me, mcached;
   wire [2*INDEX_W-1:0] mt, mct;
   wire [127:0] ma, md, mcd;
-  wire [ 3:0] mo;
-  wire [ 5:0] mz;
+  wire [3:0] mo;
+  wire [5:0] mz, moffset;
   wire [15:0] ms;
-  wire [ 9:0] mm;
-  wire [1:0] sv, sr, scv, scr, se, scached;
-  wire [2*INDEX_W-1:0] st, sct;
-  wire [127:0] sa, sd, scd;
-  wire [3:0] so;
-  wire [5:0] sz, moffset;
-  wire [15:0] ss;
-  wire [9:0] sm;
-  wire split_idle_w;
-  wire [1:0] service_request_w;
-  wire [1:0] kv, kr, kcv, kcr, ke, kcompare, kcached;
-  wire [2*CT-1:0] kt, kct;
-  wire [127:0] ka, kd, kexpected, kcd;
-  wire [ 3:0] ko;
-  wire [ 5:0] kz;
-  wire [15:0] ks;
-  wire [ 9:0] km;
-  wire lsu_idle_w, lsu_drained_w, service_idle_w, cache_idle_w;
-  wire unused_mutation_w;
-  wire [60:0] unused_mutation_word_w;
-  assign idle_o = lsu_idle_w && split_idle_w && service_idle_w && cache_idle_w;
-  assign drain_idle_o = lsu_drained_w && split_idle_w && service_idle_w && cache_idle_w;
+  wire [9:0] mm;
+  wire lsu_idle_w, lsu_drained_w, physical_idle_w;
+  assign idle_o = lsu_idle_w && physical_idle_w;
+  assign drain_idle_o = lsu_drained_w && physical_idle_w;
   R64Lsu #(
+    .BIND_TRANSLATION_EMPTY_FLOW(BIND_TRANSLATION_EMPTY_FLOW),
+    .BIND_STORE_TRANSLATION(BIND_STORE_TRANSLATION),
     .EARLY_STORE(EARLY_STORE),
+    .RESPONSE_DESCRIPTOR_BYPASS(RESPONSE_DESCRIPTOR_BYPASS),
     .HEAD_AUTHORIZED_QUERY(HEAD_AUTHORIZED_QUERY),
+    .RESPONSE_FORWARD_QUERY(RESPONSE_FORWARD_QUERY),
     .PREPARED_CANCEL(PREPARED_CANCEL),
     .ENTRIES(ENTRIES),
     .INDEX_W(INDEX_W),
@@ -163,15 +164,26 @@ module R64LoadStore #(
     .store_done_error_o(store_done_error_o),
     .store_done_tval_o(store_done_tval_o),
     .mem_fast_store_o(mfast),
+    .mem_prepare_valid_o(prepare_valid_w),
+    .mem_prepare_id_o(prepare_id_w),
+    .mem_prepare_token_o(prepare_token_w),
+    .mem_prepare_addr_o(prepare_addr_w),
+    .mem_prepare_data_o(prepare_data_w),
+    .mem_prepare_size_o(prepare_size_w),
+    .mem_prepare_strb_o(prepare_strb_w),
+    .mem_prepare_amo_o(prepare_amo_w),
+    .mem_identity_o(physical_identity_w),
     .mem_store_rsp_valid_i(store_response_valid_w),
     .mem_store_rsp_ready_o(store_response_ready_w),
-    .mem_store_rsp_token_i(store_response_token_w[INDEX_W-1:0]),
+    .mem_store_rsp_token_i(store_response_token_w),
     .mem_store_rsp_error_i(store_response_error_w),
     .commit_fire_i(commit_fire_i),
     .commit_tag_i(commit_tag_i),
     .reserve_want_i(reserve_want_i),
     .reserve_fire_i(reserve_fire_i),
     .reserve_ready_o(reserve_ready_o),
+    .reserve_credit_o(reserve_credit_o),
+    .reserve_offer_o(reserve_offer_o),
     .reserve_slot_o(reserve_slot_o),
     .reserve_tag_i(reserve_tag_i),
     .reserve_func_i(reserve_func_i),
@@ -180,32 +192,34 @@ module R64LoadStore #(
     .in_ready_o(in_ready_o),
     .in_slot_i(in_slot_i),
     .in_tag_i(in_tag_i),
-    .in_uop_i(in_uop_i),
-    .in_operand_i(in_operand_i),
+    .in_command_i(in_command_i),
     .out_valid_o(out_valid_o),
     .out_request_o(out_request_o),
     .out_ready_i(out_ready_i),
     .out_tag_o(out_tag_o),
     .out_result_o(out_result_o),
+    .resolved_value_valid_o(resolved_value_valid_o),
+    .resolved_value_tag_o(resolved_value_tag_o),
+    .resolved_value_data_o(resolved_value_data_o),
     .reuse_block_o(reuse_block_o),
     .irrevocable_o(irrevocable_o),
     .idle_o(lsu_idle_w),
     .drain_idle_o(lsu_drained_w),
     .tr_valid_o(tr_valid_o),
     .tr_ready_i(tr_ready_i),
+    .tr_token_o(tr_token_o),
     .tr_vaddr_o(tr_vaddr_o),
     .tr_access_o(tr_access_o),
     .tr_ad_update_o(tr_ad_update_o),
     .tr_rsp_valid_i(tr_rsp_valid_i),
     .tr_rsp_ready_o(tr_rsp_ready_o),
+    .tr_rsp_token_i(tr_rsp_token_i),
     .tr_paddr_i(tr_paddr_i),
     .tr_class_i(tr_class_i),
     .tr_fault_i(tr_fault_i),
     .tr_needs_ad_i(tr_needs_ad_i),
     .tr_cause_i(tr_cause_i),
     .tr_request_protection_o(tr_request_protection_o),
-    .tr_owner_access_o(tr_owner_access_o),
-    .tr_owner_size_o(tr_owner_size_o),
     .mem_valid_o(mv),
     .mem_ready_i(mr),
     .mem_token_o(mt),
@@ -223,74 +237,30 @@ module R64LoadStore #(
     .mem_rsp_error_i(me),
     .mem_rsp_offset_i(moffset)
   );
-  R64MemorySplit #(
-    .TOKEN_W(INDEX_W)
-  ) split (
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .physical_idle_i(service_idle_w && cache_idle_w),
-    .idle_o(split_idle_w),
-    .in_fast_store_i(mfast),
-    .out_fast_store_o(sfast),
-    .in_valid_i(mv),
-    .in_ready_o(mr),
-    .in_token_i(mt),
-    .in_addr_i(ma),
-    .in_data_i(md),
-    .in_op_i(mo),
-    .in_cache_i(mcached),
-    .in_size_i(mz),
-    .in_strb_i(ms),
-    .in_amo_i(mm),
-    .rsp_valid_o(mcv),
-    .rsp_ready_i(mcr),
-    .rsp_token_o(mct),
-    .rsp_data_o(mcd),
-    .rsp_error_o(me),
-    .rsp_offset_o(moffset),
-    .out_valid_o(sv),
-    .out_request_o(service_request_w),
-    .out_ready_i(sr),
-    .out_token_o(st),
-    .out_addr_o(sa),
-    .out_data_o(sd),
-    .out_op_o(so),
-    .out_cache_o(scached),
-    .out_size_o(sz),
-    .out_strb_o(ss),
-    .out_amo_o(sm),
-    .mem_rsp_valid_i(scv),
-    .mem_rsp_ready_o(scr),
-    .mem_rsp_token_i(sct),
-    .mem_rsp_data_i(scd),
-    .mem_rsp_error_i(se)
-  );
-  R64MemoryService #(
-    .TOKEN_W(INDEX_W),
-    .AUX(AUX),
-    .SRC_W(SRC_W),
-    .CPU_REQUEST_HINTS(1)
-  ) service (
-    .cpu_fast_store_i(sfast),
-    .cache_fast_store_o(kfast),
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .cpu_valid_i(sv),
-    .cpu_request_i(service_request_w),
-    .cpu_ready_o(sr),
-    .cpu_token_i(st),
-    .cpu_addr_i(sa),
-    .cpu_data_i(sd),
-    .cpu_op_i(so),
-    .cpu_cache_i(scached),
-    .cpu_size_i(sz),
-    .cpu_strb_i(ss),
-    .cpu_amo_i(sm),
-    .cpu_rsp_valid_o(scv),
-    .cpu_rsp_ready_i(scr),
-    .cpu_rsp_token_o(sct),
-    .cpu_rsp_data_o(scd),
-    .cpu_rsp_error_o(se),
+  R64PhysicalMemory #(
+    .TOKEN_W(INDEX_W), .CACHE_SET_W(CACHE_SET_W), .AUX(AUX), .SRC_W(SRC_W),
+    .CPU_PREPARE_HINTS(EARLY_STORE), .PREPARE_ID_W(TAG_W+INDEX_W)
+  ) physical (
+    .cpu_prepare_valid_i(prepare_valid_w),
+    .cpu_prepare_id_i(prepare_id_w),
+    .cpu_prepare_token_i(prepare_token_w),
+    .cpu_prepare_addr_i(prepare_addr_w),
+    .cpu_prepare_data_i(prepare_data_w),
+    .cpu_prepare_size_i(prepare_size_w),
+    .cpu_prepare_strb_i(prepare_strb_w),
+    .cpu_prepare_amo_i(prepare_amo_w),
+    .cpu_identity_i(physical_identity_w),
+    .clk_i(clk_i), .rst_i(rst_i), .invalidate_i(invalidate_i),
+    .reservation_clear_i(flush_i), .idle_o(physical_idle_w),
+    .cpu_valid_i(mv), .cpu_ready_o(mr), .cpu_token_i(mt),
+    .cpu_addr_i(ma), .cpu_data_i(md), .cpu_op_i(mo), .cpu_cache_i(mcached),
+    .cpu_size_i(mz), .cpu_strb_i(ms), .cpu_amo_i(mm), .cpu_fast_store_i(mfast),
+    .cpu_rsp_valid_o(mcv), .cpu_rsp_ready_i(mcr), .cpu_rsp_token_o(mct),
+    .cpu_rsp_data_o(mcd), .cpu_rsp_error_o(me), .cpu_rsp_offset_o(moffset),
+    .cpu_store_rsp_valid_o(store_response_valid_w),
+    .cpu_store_rsp_ready_i(store_response_ready_w),
+    .cpu_store_rsp_token_o(store_response_token_w),
+    .cpu_store_rsp_error_o(store_response_error_w),
     .aux_valid_i(aux_valid_i),
     .aux_ready_o(aux_ready_o),
     .aux_addr_i(aux_addr_i),
@@ -305,55 +275,6 @@ module R64LoadStore #(
     .aux_rsp_data_o(aux_rsp_data_o),
     .aux_rsp_error_o(aux_rsp_error_o),
     .aux_rsp_compare_o(aux_rsp_compare_o),
-    .cache_valid_o(kv),
-    .cache_ready_i(kr),
-    .cache_token_o(kt),
-    .cache_addr_o(ka),
-    .cache_data_o(kd),
-    .cache_expected_o(kexpected),
-    .cache_op_o(ko),
-    .cache_cache_o(kcached),
-    .cache_size_o(kz),
-    .cache_strb_o(ks),
-    .cache_amo_o(km),
-    .cache_rsp_valid_i(kcv),
-    .cache_rsp_ready_o(kcr),
-    .cache_rsp_token_i(kct),
-    .cache_rsp_data_i(kcd),
-    .cache_rsp_error_i(ke),
-    .cache_rsp_compare_i(kcompare),
-    .idle_o(service_idle_w)
-  );
-  R64Dcache #(
-    .SET_W  (CACHE_SET_W),
-    .TOKEN_W(CT)
-  ) cache (
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .invalidate_i(invalidate_i),
-    .reservation_clear_i(flush_i),
-    .req_fast_store_i(kfast),
-    .store_rsp_valid_o(store_response_valid_w),
-    .store_rsp_ready_i(store_response_ready_w),
-    .store_rsp_token_o(store_response_token_w),
-    .store_rsp_error_o(store_response_error_w),
-    .req_valid_i(kv),
-    .req_ready_o(kr),
-    .req_token_i(kt),
-    .req_addr_i(ka),
-    .req_data_i(kd),
-    .req_expected_i(kexpected),
-    .req_op_i(ko),
-    .req_cache_i(kcached),
-    .req_size_i(kz),
-    .req_strb_i(ks),
-    .req_amo_i(km),
-    .rsp_valid_o(kcv),
-    .rsp_ready_i(kcr),
-    .rsp_token_o(kct),
-    .rsp_data_o(kcd),
-    .rsp_error_o(ke),
-    .rsp_compare_o(kcompare),
     .read_valid_o(read_valid_o),
     .read_ready_i(read_ready_i),
     .read_addr_o(read_addr_o),
@@ -374,14 +295,6 @@ module R64LoadStore #(
     .write_strb_o(write_strb_o),
     .write_rsp_valid_i(write_rsp_valid_i),
     .write_rsp_ready_o(write_rsp_ready_o),
-    .write_resp_i(write_resp_i),
-    .idle_o(cache_idle_w),
-    .mutation_o(unused_mutation_w),
-    .mutation_word_o(unused_mutation_word_w)
+    .write_resp_i(write_resp_i)
   );
-`ifdef R64_ASSERT
-  always @(posedge clk_i)
-    if (!rst_i && store_response_valid_w && store_response_token_w[CT-1:INDEX_W] != 0)
-      $fatal(1, "R64LoadStore auxiliary escaped CPU store completion");
-`endif
 endmodule

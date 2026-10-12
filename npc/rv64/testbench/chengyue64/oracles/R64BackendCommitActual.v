@@ -36,13 +36,14 @@ module R64BackendCommitActual #(parameter TAG_W=9,parameter ROB_W=5,parameter PR
   output [2*TAG_W-1:0] lsu_reserve_tag_o,
   output [15:0] lsu_reserve_func_o,output [9:0] lsu_reserve_amo_o,
   input [1:0] lsu_reserve_ready_i,input [2*LSQ_W-1:0] lsu_reserve_slot_i,
+  output [2*LSQ_W-1:0] lsu_reserve_slot_o,
   input [1:0] lsu_ready_i,output [1:0] lsu_fire_o,
-  output [2*TAG_W-1:0] lsu_tag_o,output [2*`R64_UOP_W-1:0] lsu_uop_o,
-  output [383:0] lsu_operand_o,output [2*LSQ_W-1:0] lsu_slot_o,
+  output [2*TAG_W-1:0] lsu_tag_o,output [2*`R64_MEM_CMD_W-1:0] lsu_command_o,
+  output [2*LSQ_W-1:0] lsu_slot_o,
   input fp_ready_i,output fp_fire_o,output [TAG_W-1:0] fp_tag_o,
-  output [`R64_UOP_W-1:0] fp_uop_o,output [191:0] fp_operand_o,
+  output [`R64_FP_CMD_W-1:0] fp_command_o,output [191:0] fp_operand_o,
   input serial_ready_i,output serial_fire_o,output [TAG_W-1:0] serial_tag_o,
-  output [`R64_UOP_W-1:0] serial_uop_o,output [191:0] serial_operand_o,
+  output [`R64_SERIAL_CMD_W-1:0] serial_command_o,
   // Result lanes: LSU0, LSU1, FP, serial. VALID/payload remain stable until
   // READY, except an explicit kill/flush cancellation by the external owner.
   // Narrow precise terminal for the irrevocable ordinary store at ROB head.
@@ -52,13 +53,18 @@ module R64BackendCommitActual #(parameter TAG_W=9,parameter ROB_W=5,parameter PR
   input [4*TAG_W-1:0] external_tag_i,
   input [4*`R64_RESULT_W-1:0] external_result_i
 );
- wire [1:0] serial_class_w;wire [1:0] retire_ready_w;wire second_allow_w;wire head_serial_w;wire head_exception_w;
- R64Backend #(.TAG_W(TAG_W),.ROB_W(ROB_W),.LSQ_W(LSQ_W),.PREDECODED(1),.PREPARED_NPC(1),.PRECONTROLLED(1)) dut(
+ wire [1:0] serial_class_w;wire [1:0] retire_ready_w;wire head_serial_w;wire head_exception_w;
+ wire resident_serial_candidate_dut;
+  R64Backend #(.TAG_W(TAG_W),.ROB_W(ROB_W),.LSQ_W(LSQ_W),.PREDECODED(1),.PREPARED_NPC(1),.PRECONTROLLED(1)) dut(
+    .serial_retire_candidate_o(resident_serial_candidate_dut),
+    .direction_invalidate_i(1'b0),.direction_train_valid_o(),.direction_train_pc_o(),.direction_train_taken_o(),
+    .pair_store_candidate_valid_o(),.pair_store_candidate_tag_o(),
+    .resolved_value_valid_i(2'b0), .resolved_value_tag_i(18'b0), .resolved_value_data_i(128'b0),
   .clk(clk),
   .rst(rst),
   .flush_i(flush_i|control_full_flush_o),
   .stop_i(stop_i|control_stop_o),
-  .serial_allow_i(serial_issue_allow_o),
+  .effect_i({serial_issue_allow_o,effect_allow_o,(rob_count_o!=0),head_tag_o}),
   .reuse_block_i(reuse_block_i),
   .fetch_valid_i(fetch_valid_i),
   .fetch_ready_o(fetch_ready_o),
@@ -73,7 +79,6 @@ module R64BackendCommitActual #(parameter TAG_W=9,parameter ROB_W=5,parameter PR
   .fetch_cause_i(fetch_cause_i),
   .fetch_tval_i(fetch_tval_i),
   .commit_ready_i(retire_ready_w),
-  .commit1_allow_i(second_allow_w),
   .commit_valid_o(commit_valid_o),.commit_serial_o(serial_class_w),
   .commit_tag_o(commit_tag_o),
   .commit_meta_o(commit_meta_o),
@@ -105,22 +110,21 @@ module R64BackendCommitActual #(parameter TAG_W=9,parameter ROB_W=5,parameter PR
   .lsu_reserve_amo_o(lsu_reserve_amo_o),
   .lsu_reserve_ready_i(lsu_reserve_ready_i),
   .lsu_reserve_slot_i(lsu_reserve_slot_i),
+  .lsu_reserve_slot_o(lsu_reserve_slot_o),
   .lsu_ready_i(lsu_ready_i),
   .lsu_fire_o(lsu_fire_o),
   .lsu_tag_o(lsu_tag_o),
-  .lsu_uop_o(lsu_uop_o),
-  .lsu_operand_o(lsu_operand_o),
+  .lsu_command_o(lsu_command_o),
   .lsu_slot_o(lsu_slot_o),
   .fp_ready_i(fp_ready_i),
   .fp_fire_o(fp_fire_o),
   .fp_tag_o(fp_tag_o),
-  .fp_uop_o(fp_uop_o),
+  .fp_command_o(fp_command_o),
   .fp_operand_o(fp_operand_o),
   .serial_ready_i(serial_ready_i),
   .serial_fire_o(serial_fire_o),
   .serial_tag_o(serial_tag_o),
-  .serial_uop_o(serial_uop_o),
-  .serial_operand_o(serial_operand_o),
+  .serial_command_o(serial_command_o),
   .store_done_valid_i(store_done_valid_i),
   .store_done_ready_o(store_done_ready_o),
   .store_done_tag_i(store_done_tag_i),
@@ -132,7 +136,8 @@ module R64BackendCommitActual #(parameter TAG_W=9,parameter ROB_W=5,parameter PR
   .external_result_i(external_result_i));
 
  R64Commit #(.HEAD_SERIAL_ISSUE(1),.HEAD_SERIAL_STOP(1),.HEAD_EXCEPTION_STOP(1),.HEAD_SERIAL_CLASS(1)) commit(
-  .clk_i(clk),.rst_i(rst),.rob_valid_i(commit_valid_o),.rob_serial_i(serial_class_w),.rob_ready_o(retire_ready_w),.commit1_allow_o(second_allow_w),
+    .serial_retire_candidate_i(resident_serial_candidate_dut),
+  .clk_i(clk),.rst_i(rst),.rob_valid_i(commit_valid_o),.rob_serial_i(serial_class_w),.rob_ready_o(retire_ready_w),
   .rob_tag_i(commit_tag_o),.rob_meta_i(commit_meta_o),.rob_data_i(commit_data_o),
   .rob_exception_i(commit_exception_o),.rob_cause_i(commit_cause_o),.rob_tval_i(commit_tval_o),
   .rob_rd_write_i(commit_rd_write_o),.rob_rd_fp_i(commit_rd_fp_o),.rob_fflags_i(commit_fflags_o),

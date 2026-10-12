@@ -1,0 +1,142 @@
+# Autonomous domain source sets. Each is an explicit dependency closure.
+# Shared encoding/arithmetic helpers contain no peer-domain state.
+# Included after filelist.mk; full-core simulation/synthesis use R64_RTL_SRCS.
+R64_FRONTEND_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/backend/R64CarryStages.v \
+  $(R64_RTL_ROOT)/backend/R64DecodeControl.v \
+  $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/frontend/R64Align.v \
+  $(R64_RTL_ROOT)/frontend/R64FetchAccess.v \
+  $(R64_RTL_ROOT)/frontend/R64FetchStream.v \
+  $(R64_RTL_ROOT)/frontend/R64Frontend.v \
+  $(R64_RTL_ROOT)/frontend/R64PacketParse.v \
+  $(R64_RTL_ROOT)/frontend/R64Predictor.v \
+  $(R64_RTL_ROOT)/frontend/R64Rvc.v \
+  $(R64_RTL_ROOT)/memory/R64FetchProtection.v \
+  $(R64_RTL_ROOT)/memory/R64FetchTranslation.v \
+  $(R64_RTL_ROOT)/memory/R64ICache.v \
+  $(R64_RTL_ROOT)/memory/R64PageWalk.v \
+  $(R64_RTL_ROOT)/memory/R64Pma.v \
+  $(R64_RTL_ROOT)/memory/R64PmaRange.v \
+  $(R64_RTL_ROOT)/memory/R64PmpCheck.v \
+  $(R64_RTL_ROOT)/memory/R64Tlb.v
+
+R64_EXECUTION_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/backend/R64Alu.v \
+  $(R64_RTL_ROOT)/backend/R64CarryStages.v \
+  $(R64_RTL_ROOT)/backend/R64Clmul.v \
+  $(R64_RTL_ROOT)/backend/R64Divide.v \
+  $(R64_RTL_ROOT)/backend/R64Execute.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionOwners.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionDomain.v \
+  $(R64_RTL_ROOT)/backend/R64FpReadPlan.v \
+  $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/backend/R64Issue.v \
+  $(R64_RTL_ROOT)/backend/R64Multiply.v \
+  $(R64_RTL_ROOT)/backend/R64RegRead.v \
+  $(R64_RTL_ROOT)/backend/R64Scoreboard.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuOrderSelect.v
+
+R64_FP_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/backend/R64CarryStages.v \
+  $(R64_RTL_ROOT)/backend/R64NumericOwner.v \
+  $(R64_RTL_ROOT)/backend/R64ProductTree.v \
+  $(R64_RTL_ROOT)/backend/R64WideAdd.v \
+  $(R64_RTL_ROOT)/fp/R64FpCompletion.v \
+  $(R64_RTL_ROOT)/fp/R64FpExecute.v \
+  $(R64_RTL_ROOT)/fp/R64FpFast.v \
+  $(R64_RTL_ROOT)/fp/R64FpFma.v \
+  $(R64_RTL_ROOT)/fp/R64FpLong.v \
+  $(R64_RTL_ROOT)/fp/R64FpOperand.v \
+  $(R64_RTL_ROOT)/fp/R64FpProductPipe.v \
+  $(R64_RTL_ROOT)/fp/R64FpRoundStages.v
+
+R64_CONTROL_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/control/R64Commit.v \
+  $(R64_RTL_ROOT)/control/R64MemoryEffectLease.v \
+  $(R64_RTL_ROOT)/control/R64Control.v \
+  $(R64_RTL_ROOT)/control/R64Counter.v \
+  $(R64_RTL_ROOT)/control/R64CounterNear.v \
+  $(R64_RTL_ROOT)/control/R64Csr.v \
+  $(R64_RTL_ROOT)/control/R64CsrDecode.v \
+  $(R64_RTL_ROOT)/control/R64Serial.v \
+  $(R64_RTL_ROOT)/control/R64TrapVector.v \
+  $(R64_RTL_ROOT)/control/R64Trigger.v \
+  $(R64_RTL_ROOT)/memory/R64PmpDecode.v
+
+R64_TRANSLATION_SRCS := \
+  $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/memory/R64DataProtection.v \
+  $(R64_RTL_ROOT)/memory/R64DataTranslation.v \
+  $(R64_RTL_ROOT)/memory/R64DataTranslationService.v \
+  $(R64_RTL_ROOT)/memory/R64PageWalk.v \
+  $(R64_RTL_ROOT)/memory/R64PmaRange.v \
+  $(R64_RTL_ROOT)/memory/R64Tlb.v \
+  $(R64_RTL_ROOT)/memory/R64Translation.v
+
+R64_PHYSICAL_SRCS := \
+  $(R64_RTL_ROOT)/lsu/R64Dcache.v \
+  $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
+  $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
+  $(R64_RTL_ROOT)/lsu/R64MemorySplit.v \
+  $(R64_RTL_ROOT)/lsu/R64PhysicalMemory.v
+
+R64_MEMORY_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/backend/R64WideAdd.v \
+  $(R64_RTL_ROOT)/lsu/R64Dcache.v \
+  $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
+  $(R64_RTL_ROOT)/lsu/R64LoadStore.v \
+  $(R64_RTL_ROOT)/lsu/R64Lsu.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuResponseIngress.v \
+  $(R64_RTL_ROOT)/lsu/R64ValueNoticeMerge.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuCompletionArbiter.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuCompletion.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuForwardByte.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuMetaRead.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuOrderSelect.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuRequestQueue.v \
+  $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
+  $(R64_RTL_ROOT)/lsu/R64MemorySplit.v \
+  $(R64_RTL_ROOT)/lsu/R64PhysicalMemory.v \
+  $(R64_RTL_ROOT)/memory/R64DataProtection.v \
+  $(R64_RTL_ROOT)/memory/R64DataTranslation.v \
+  $(R64_RTL_ROOT)/memory/R64DataTranslationService.v \
+  $(R64_RTL_ROOT)/memory/R64Memory.v \
+  $(R64_RTL_ROOT)/memory/R64PageWalk.v \
+  $(R64_RTL_ROOT)/memory/R64Pma.v \
+  $(R64_RTL_ROOT)/memory/R64PmaRange.v \
+  $(R64_RTL_ROOT)/memory/R64PmpCheck.v \
+  $(R64_RTL_ROOT)/memory/R64PtePort.v \
+  $(R64_RTL_ROOT)/memory/R64Tlb.v \
+  $(R64_RTL_ROOT)/memory/R64Translation.v
+
+R64_BACKEND_SRCS := \
+  $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
+  $(R64_RTL_ROOT)/backend/R64Alu.v \
+  $(R64_RTL_ROOT)/backend/R64Backend.v \
+  $(R64_RTL_ROOT)/backend/R64CarryStages.v \
+  $(R64_RTL_ROOT)/backend/R64Clmul.v \
+  $(R64_RTL_ROOT)/backend/R64Decode.v \
+  $(R64_RTL_ROOT)/backend/R64DecodeControl.v \
+  $(R64_RTL_ROOT)/backend/R64DecodeStage.v \
+  $(R64_RTL_ROOT)/backend/R64Divide.v \
+  $(R64_RTL_ROOT)/backend/R64Execute.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionOwners.v \
+  $(R64_RTL_ROOT)/backend/R64ExecutionDomain.v \
+  $(R64_RTL_ROOT)/backend/R64FpReadPlan.v \
+  $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
+  $(R64_RTL_ROOT)/backend/R64Issue.v \
+  $(R64_RTL_ROOT)/backend/R64Multiply.v \
+  $(R64_RTL_ROOT)/backend/R64RegRead.v \
+  $(R64_RTL_ROOT)/backend/R64Rename.v \
+  $(R64_RTL_ROOT)/backend/R64Rob.v \
+  $(R64_RTL_ROOT)/backend/R64Scoreboard.v \
+  $(R64_RTL_ROOT)/backend/R64Writeback.v \
+  $(R64_RTL_ROOT)/frontend/R64Rvc.v \
+  $(R64_RTL_ROOT)/lsu/R64LsuOrderSelect.v
