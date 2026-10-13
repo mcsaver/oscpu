@@ -1,93 +1,96 @@
 ---
-description: "本地 RV64 CPU Architect Agent 的语义路由。只有存在开放的跨流水/事务/架构状态设计决策，并能形成 correctness 与 CPI/PPA 可证伪闭环时才选择；classifier 仅为可选辅助。"
+description: "本地 RV64 CPU Architect 的架构专注路由：用户明确要求架构优化或存在有证据的开放结构选择时调用；独立取证、架构设计、RTL 实现分工，不直接向 Architect 输入 RTL。"
 applyTo: "npc/rv64/design/arch/**,scripts/cpu_architect_*.py,.codex/agents/cpu-architect.toml,.github/agents/cpu-architect.agent.md"
 ---
 
-# CPU Architect 语义路由与验证边界
+# CPU Architect 语义路由与职责边界
 
-本文件帮助选择 `cpu_architect` 的职责，不建立启动许可。分类看开放的工程决策及其语义深度，不看 CPU
-关键词、文件数量、修改行数或“优化”字样。用户/父任务给出的目标与 ownership 足以完成角色选择。
+本文件帮助主 agent 选择和组织 `cpu_architect`，不建立启动许可。分类看用户目标与开放的工程决策，
+不看关键词、文件数量或 classifier PASS。Architect 只读架构材料和有来源的精简证据摘要，只做架构分析、
+设计及范围内的文档修改；实现事实取证和 RTL 实现由独立角色负责。
 
-`.github/ai-env/contracts/cpu-architect-routing-v1.json` 和下面的命令只用于歧义任务、路由规则开发或回归：
-
-```bash
-python3 scripts/cpu_architect_route.py classify --input <task-packet.json>
-```
-
-不要求普通任务生成 task packet 或保存 classifier receipt。命令输出是 advisory，不能授予、撤销或阻止
-用户/父任务已放入范围的安全本地 inspect、edit、build、test、collect 与 analyze。
-
-## 1. 语义职责
+## 1. 触发与职责
 
 | route | 适用语义 | 默认 owner |
 | --- | --- | --- |
-| `ARCHITECT` | 开放的微架构结构决策、跨流水/事务生命周期变换或 correctness+CPI/PPA 取舍 | `cpu_architect` |
-| `EXPLORER` | 根因、transaction、owner 或周期边界仍未知，以事实发现为主 | built-in explorer / `npc` |
-| `WORKER` | 方案已经确定，执行局部 RTL、TB、脚本或工具实现 | worker / 对应 domain agent |
-| `REVIEWER` | 候选已存在，只审查不变量、证据边界或正式 promotion | 独立 reviewer |
+| `ARCHITECT` | 用户明确要求本地 CPU 架构优化，或已有事实表明存在开放的流水/事务生命周期/资源拓扑/架构状态取舍 | `cpu_architect` |
+| `EXPLORER` | 根因、owner、周期边界或资源竞争仍未知，需要实现事实 | built-in explorer / 对应 domain evidence 角色 |
+| `WORKER` | 方案已明确，执行 RTL、TB、脚本或工具实现与验证 | worker / 对应 domain agent |
+| `REVIEWER` | 候选已存在，审查不变量、证据边界或正式 promotion | 独立 reviewer |
 | `CLARIFY` | 缺少无法从仓库发现、且会实质改变目标或授权的信息 | 主 agent |
-| `NON_ARCH` | 文档、环境、CI、报表、普通软件、状态汇报或概念解释 | 普通 agent |
+| `NON_ARCH` | 普通文档、环境、CI、报表、软件、状态或概念解释 | 普通 agent |
 
-选择 `ARCHITECT` 时应同时看到以下语义：
+用户明确要求架构优化时，主 agent 将设计工作交给 Architect，缺失事实可在同一授权内委派取证。
+主 agent 自行发现架构需求时，应有具体结构选择，例如跨级周期边界、事务恢复责任、共享资源拓扑或
+commit/precise trap/memory ordering 可见性。单纯“CoreMark 慢”或“timing FAIL”先取证，不能直接假定
+需要重构；门控时钟过载、工具配置和局部已定位 bug 通常由对应角色处理。
 
-1. 对象是当前工作区的本地 RV64 CPU spec、production RTL、testbench 或性能/EDA 证据。
-2. 存在尚未决定的结构选择，而不是已经批准的机械实现。
-3. 触及跨 module transaction、backpressure/recovery/lifecycle、流水周期边界、共享资源拓扑，或 commit、
-   precise trap、CSR/FENCE、memory ordering、redirect、architectural visibility 等架构不变量。
-4. acceptance criteria 包含 correctness，并至少包含 CPI、timing、area、power 或可量化 complexity 一项。
-5. 有本地事实支持一个可证伪的候选与 retain/rollback 实验；不足部分可以在同一授权范围内继续定向探索。
-6. 架构级编辑位于用户/父任务给出的变更范围内；classifier 不提供这项授权。
+方案已定转给 worker；只审现有候选转给 reviewer。仅讨论架构不启动 RTL 实现；用户已授权端到端优化时，
+主 agent 在方案明确后接续 worker/验证，不新增人工批准、receipt 或阶段 gate。
+架构相关文档设计属于 Architect；纯格式、命名、registry/schema/view 维护仍由普通角色处理。
 
-若主要工作仍是定位根因，优先 `EXPLORER`；若 Architect 在进行中发现一个局部事实缺口，可以直接做安全、
-定向的读取、仿真或计数收集，不需要停下来取得新 receipt。方案已经固定时切给 `WORKER`；只裁决现有候选
-时使用 `REVIEWER`。
+## 2. 主 agent 如何派发
 
-## 2. 本地证据与搜索范围
+为 Architect 创建干净的上下文。调用接口支持时使用 `fork_turns="none"`，仅传入：
 
-先从 `npc/rv64/ARCHITECTURE.md` 或有界 registry query 定位当前 owner、production filelist、elaboration、
-dynamic、mapped 与 STA/PPA 边界，再读取直接相关的 spec/RTL/TB。通用大核结构只能提供搜索维度，不能替代
-当前核事实。
+- 用户目标、可观察 acceptance criteria、实际 worktree、约束和允许的变更范围；
+- 必要工作区规则及相关架构切片；
+- 精简证据摘要、已知未知项和本轮待决定的问题。
 
-可探索 frontend、rename/dispatch、scheduler/issue、execution/bypass、LSQ/cache/MMU/interconnect、
-writeback/commit/trap/control 与 physical cone。结论按问题绑定到 source/spec、wave/assertion、counter、
-仿真或 EDA 报告；复杂场景可建立 Architecture IR，简单有界切片可直接用时序图、表格或文字说明。
+不要完整继承 RTL 调试历史，不转发整段源码、代码截图、原始波形或大日志。若上下文已受大量实现材料
+占用，应重建架构会话并传递必要摘要；口头要求忽略旧内容不等于清空上下文。无法控制继承时，说明这一
+限制，不宣称已经隔离。该分工是行为和上下文约束，不是文件系统硬沙箱。
 
-以下任务不因接近 CPU 而启动 Architect：README/格式/命名、普通 lint、无开放取舍的单点 bug、单个 TB 或
-报表解析器、EDA 安装/CI 故障、registry/schema/view 维护、重复运行既有命令并汇总结果、只读状态和概念解释。
-一行 `commit_valid` 若改变 precise trap 可见性仍可能是架构决策；跨二十个文件的纯重命名仍是 `WORKER`。
+## 3. 架构输入与事实取证
 
-## 3. 最小充分验证
+Architect 从 `npc/rv64/ARCHITECTURE.md`、相关 spec/协议/拓扑/状态图和设计决策进入；可读
+`vsrc/` 中的 `PROTOCOLS.md`、`TOPOLOGY.md`，不要按目录一刀切。有界 registry query 仅限已知返回
+架构元数据的结果。混有 RTL 代码或原始日志的文档先由取证角色提炼。
 
-候选至少提供机制→观测→指标的因果链、竞争解释、预测、反证条件、保持的不变量与回滚点。correctness 与
-至少一个可测指标都必须有直接证据；PPA 结论不能由 RTL 仿真代替，CPI 结论不能由 compile PASS 代替。
+Architect 不直接读取或修改 RTL、TB、综合网表、波形、原始仿真/EDA 日志，不自行运行实现构建或测量；
+搜索与脚本输出也不得绕过这一边界。必要的架构图、规格和实现契约可在既定范围内编辑。
+源码和实际行为仍是真源，架构文档不能未经核实就被视作当前实现。
 
-A/B 保持相同的相关 workload、config、tool/version、corner/constraints、seed/thread 与测量口径，并明确
-baseline/candidate source 差异。普通切片只记录支撑比较的相关身份，不强制完整 source manifest。
+发现影响决策的事实缺口时，主 agent 或 Architect 委派独立 built-in explorer / domain evidence 角色，
+围绕具体问题读取源码、报告或执行必要定向检查。回传只包含所需架构事实及来源指针，例如：
 
-确定性输入、命令和 oracle 默认执行一次。随机、并发、已知 flaky、未固定 seed/thread、variable-PPA 噪声、
-机器异常或用户明确要求时才重复，并说明原因、次数、阈值和停止条件。A/B、正负向 oracle、不同 corner/
-config、mutation 或抽象层是互补证据，不是机械复验。
+- 当前实现/设计意图/候选方案的区分，相关版本、配置、工况和 workload；
+- 周期、延迟、启动间隔/吞吐、容量、资源竞争及 owner/recovery/可见性；
+- 支持结论的简短观测与适用边界，测量事实、推断和 `UNKNOWN` 分开。
 
-始终保持 ready/valid、backpressure、owner/epoch、cancel/flush、无丢失/重复、progress、precise trap、CSR/
-FENCE、memory ordering 与 architectural visibility 等受影响不变量。不得通过降低频率目标、删除约束、缩减
-workload、放宽 checker 或功能退化制造收益。
+不要求固定 schema、完整 source manifest 或逐条 hash。Architect 不沿源码/波形/报告指针打开原始材料，
+有疑问继续向取证角色提问，不让代理转发实现代码。未知项会影响选择时，明确假设、反证条件和需补证据；
+不能从通用 CPU 例子补全当前实现。
 
-## 4. Ordinary、promotion 与 formal research
+## 4. 架构交付与验证
 
-- **ordinary architecture task**：无需 classifier receipt、固定 YAML 启动包、逐实验 Architecture IR/content
-  manifest、Grounded Experience Loop 或固定字段最终报告。以满足 acceptance criteria 的最小证据闭环为准。
-- **formal Architecture/Pareto promotion**：显式绑定真实 baseline/candidate source/source set、production
-  filelist/elaboration、workload/config、tool/version、corner/constraints 和原始 wave/counter/EDA provenance；
-  由独立 reviewer 复核身份、反例与 PASS/GAP，不机械重跑确定性命令。
+架构候选至少说明机制→观测→指标的因果链、竞争解释、周期/资源/事务变化、预测、反证与回滚条件，
+并给出接口行为、state owner、冲突优先级和验证目标等实现契约。无需把信号名或 RTL 改法写进设计。
+
+架构阶段给出计划和收益假设；实际实现与执行由 worker/domain agent 负责。验证后才能依据返回摘要声称
+收益，必须分清计划、已实现与已验证。correctness 与至少一个目标指标都要有对应实际证据，不能用仿真
+替代 STA、用 compile PASS 替代 CPI，或用不合格功耗结果作签核结论。
+
+A/B 保持相关 workload、config、tool/version、corner/constraints、seed/thread 和测量口径可比，明确
+baseline/candidate 差异与限制。确定性检查默认一次；随机、flaky、PPA 噪声、机器异常或用户明确要求时
+才按原因决定重复。不同 corner/config、负向 oracle、mutation 与抽象层是互补证据，不是机械复验。
+
+保持 ready/valid、backpressure、owner/epoch、cancel/flush、无丢失/重复、progress、precise trap、CSR/
+FENCE、memory ordering 和 architectural visibility 等受影响不变量。不得通过降低频率目标、删约束、
+缩减 workload、放宽 checker 或功能退化制造收益。
+
+## 5. 可选正式流程与 classifier
+
+- **ordinary architecture task**：无需 classifier receipt、固定 YAML 启动包、逐实验 IR/content manifest、
+  Grounded Experience Loop 或固定字段最终报告。按用户目标取得最小充分证据。
+- **formal Architecture/Pareto promotion**：由实现/取证角色保留 baseline/candidate source、production
+  filelist/elaboration、workload/config、tool/version、corner/constraints 和原始证据 provenance；独立
+  reviewer 复核身份、反例与 PASS/GAP。Architect 仍只接收摘要，不兼任最终审批者。
 - **formal-research/learning**：仅在用户或任务明确 opt-in 时启用 CapabilityGraph、ExperienceRecord、
-  Meta-Critic、KnowledgeGap、prediction calibration 和 unseen exam；这些记录不能反向成为普通工程许可门。
+  Meta-Critic、KnowledgeGap、prediction calibration 和 unseen exam，且不解除本角色的输入边界。
 
-## 5. 可选 classifier 的兼容语义
-
-机器 JSON 保留现有字段和六路 taxonomy，以兼容 `scripts/cpu_architect_route.py` 及其测试。其中
-`architect_hard_gates` 是旧接口名，表示 classifier 使用的语义信号，不是 agent 权限 gate；
-`architecture_change_authorized` 只描述父任务现有范围，不会由 classifier 生成授权。
-
-典型判断：已确认跨生命周期 critical cone 且要用 TB/CPI/STA 比较结构候选是 `ARCHITECT`；“CoreMark 慢”
-但根因未知是 `EXPLORER`；按已批准方案实现寄存器是 `WORKER`；审查已有 Pareto 候选是 `REVIEWER`；修改
-trace parser 或 CI timeout 是 `WORKER/NON_ARCH`。
+`.github/ai-env/contracts/cpu-architect-routing-v1.json` 与
+`python3 scripts/cpu_architect_route.py classify --input <task-packet.json>` 仅用于歧义任务、规则开发或回归。
+机器 JSON 保留六路 taxonomy 和兼容字段；`architect_hard_gates` 是旧接口名，表示辅助分类信号，
+`architecture_change_authorized` 描述已有任务范围。它们不生成授权，也不能阻止用户已明确要求的架构讨论
+或同一授权内安全本地 inspect/edit/build/test/collect/analyze；实际执行仍按上述角色分工。

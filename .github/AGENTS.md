@@ -122,9 +122,15 @@ memory 只保存稳定、跨会话可复用的事实；task-run 只在上述专�
 
 - 普通任务只读取直接相关源码、spec、README 和 instruction。需要历史事实时才使用
   scripts/github_index_db.py brief；历史 task-run 查询可用 runs/evidence 子命令。
-- 本地 RV64 全局架构任务按需查询 npc/rv64/ARCHITECTURE.md 或 architecture_registry.py 的有界切片。
-  只有存在开放的跨流水、跨事务生命周期结构取舍时才启动 CPU Architect；分类器可辅助判断但不构成
-  许可门。局部 RTL、已定位 bug、验证、工具、文档和 registry 维护留给对应 worker/reviewer。
+- 用户明确要求本地 RV64 架构优化，或主 agent 根据证据识别出开放的流水、事务生命周期、资源或架构状态
+  取舍时，按 cpu-architect-routing.instructions.md 委派 CPU Architect。只知道“慢/时序失败”时先定向取证；
+  分类器可辅助判断但不构成许可门。Architect 只读架构规格、协议、拓扑和精简证据，只做架构设计，
+  不读写 RTL/TB/网表，不接收原始实现日志；实现事实由独立 explorer/domain 角色核实并摘要回传。
+  从 npc/rv64/ARCHITECTURE.md 或有界架构 registry 切片进入；vsrc 中的 PROTOCOLS.md/TOPOLOGY.md
+  仍是可读架构材料。以干净上下文启动 Architect，工具支持时用 fork_turns="none"，只传必要规则、
+  目标/约束、架构切片和有来源的事实摘要，不继承 RTL 调试历史。详见上述角色路由规则。
+  本职责分工不限制其他角色在授权范围内读取实现、构建或验证。仅架构任务交付方案；端到端任务由主 agent
+  继续派发 worker 实现和验证，不增加人工审批。局部 RTL、已定位 bug、工具和 registry 维护留给对应角色。
 - npc/single 或 npc/soc 的设计意图、历史约束或后端差异会影响判断时，按需读取对应
   design/study/README.md；当前源码、正式 spec、testbench 和实际行为仍是真源。修改 ysyxSoC ABI、地址图
   或生成链时读取 ysyxSoC/spec/cpu-interface.md 和直接相关模块说明。
