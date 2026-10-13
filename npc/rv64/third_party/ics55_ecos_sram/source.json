@@ -1,0 +1,21 @@
+{
+  "upstream": "https://github.com/openecos-projects/ics55_ecos_sram",
+  "compiler": "https://factory.openecos.com/ip/sram",
+  "release": "sram-v1-a1b502196b0de5d3defa0844d5420f54facc16bac3641e18e9cfdf26cfcffa3c",
+  "asset": "ics55_ecos_sram_256x128_m4_ww.tar.gz",
+  "asset_sha256": "fcb0e59179a291897823bcb2a4b08a97df02d9d3ee272def230ca14817747aff",
+  "generated_config": {
+    "words": 256,
+    "bits": 128,
+    "mux": 4,
+    "vt": 0,
+    "lowPower": 0,
+    "redundancy": 0,
+    "wordWrite": 1,
+    "busFormat": 1,
+    "ring": "ringless",
+    "corner": "TT1P2V25CCTYP"
+  },
+  "files": "Original extracted vendor files are unmodified; simulation adapter is maintained separately.",
+  "physical_scope": "Release includes LEF and Liberty; no GDS is provided in this archive."
+}

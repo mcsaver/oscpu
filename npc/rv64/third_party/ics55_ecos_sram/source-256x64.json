@@ -1,0 +1,20 @@
+{
+  "upstream": "https://github.com/openecos-projects/ics55_ecos_sram",
+  "compiler": "https://factory.openecos.com/ip/sram",
+  "release": "sram-v1-a4b9c850e27f56dd9de987c70417816e0cad4e1ad3c8c14578becd984f8a3df6",
+  "asset": "ics55_ecos_sram_256x64_m4.tar.gz",
+  "asset_sha256": "f340d07b4cfa0aede7050136d001475fe36e48d9b788838d7521d48f09b3a24d",
+  "generated_config": {
+    "words": 256,
+    "bits": 64,
+    "mux": 4,
+    "vt": 0,
+    "lowPower": 0,
+    "redundancy": 0,
+    "wordWrite": 0,
+    "busFormat": 1,
+    "ring": "ringless",
+    "corner": "TT1P2V25CCTYP"
+  },
+  "files": "Original vendor files kept unmodified; simulation cycle view maintained separately."
+}
