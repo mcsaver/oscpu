@@ -3,7 +3,8 @@
 // Real ResponseIngress -> Completion -> WB transport and execution-domain
 // pipeline. The lifecycle fixture independently checks full tags/destinations;
 // only canonical WB writes values. No speculative data is injected into RR.
-module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
+module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1, parameter NOTICE_Q=0,
+  parameter TEST_NAME="tb_r64_rr_complete_admit_chain");
   localparam ENABLE_RESOLVED=1, ENABLE_TOKEN=1;
   localparam U=`R64_UOP_W, R=`R64_RESULT_W, T=9, S=7;
   reg clk=0; always #5 clk=~clk;
@@ -94,7 +95,7 @@ module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
       end
     end
   end
-  R64ExecutionDomain #(.ALU_TOKEN_BYPASS(ENABLE_TOKEN),.LOAD_COMPLETION_PROMISE(1),.LOAD_RESOLVED_VALUE(ENABLE_RESOLVED),
+  R64ExecutionDomain #(.ALU_TOKEN_BYPASS(ENABLE_TOKEN),.LOAD_COMPLETION_PROMISE(1),.LOAD_RESOLVED_VALUE(ENABLE_RESOLVED),.LOAD_VALUE_NOTICE_Q(NOTICE_Q),
     .RR_COMPLETE_ADMIT(RR_COMPLETE_ADMIT),.MEM_TERMINAL_CURRENT(1),.DIRECT_MEM_BIND(1)) dut(
     .batch_apply_i(1'b0),.batch_greclaim_i(64'b0),.batch_freclaim_i(64'b0),
 
@@ -222,7 +223,7 @@ module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
       check(got[dependent]==value,"dependent consumed wrong returned value");
       check(wb_cycle[producer]-response_cycle[producer]==3,"canonical WB edge changed");
       check(capture_cycle[producer]-response_cycle[producer]==2,"transport capture edge changed");
-      check(execute_cycle[dependent]-response_cycle[producer]==(RR_COMPLETE_ADMIT?1:2),
+      check(execute_cycle[dependent]-response_cycle[producer]==((RR_COMPLETE_ADMIT?1:2)+NOTICE_Q),
             "response-to-dependent Execute latency");
       check(pending_at_issue[dependent]==1,"pending classification");
       $display("LOAD_RETURN_TAIL producer=%0d dependent=%0d response=%0d capture=%0d wb=%0d iq=%0d execute=%0d gap=%0d",
@@ -251,7 +252,7 @@ module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
       $display("RR_COMPLETE_GAP enabled=%0d producer=%0d consumer=%0d response=%0d execute=%0d gap=%0d",
         RR_COMPLETE_ADMIT,producer,id,response_cycle[producer],execute_cycle[id],
         execute_cycle[id]-response_cycle[producer]);
-      check(execute_cycle[id]-response_cycle[producer]==(RR_COMPLETE_ADMIT?1:2),
+      check(execute_cycle[id]-response_cycle[producer]==((RR_COMPLETE_ADMIT?1:2)+NOTICE_Q),
             "actual raw accepted value to Execute gap");
     end
   endtask
@@ -320,7 +321,7 @@ module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
     repeat(5)tick();before_direct=directactual;
     offer(2,0,0,2,60,0);await_done(3);
     check(got[3]==110&&directactual==before_direct,"PRF-ready was treated as complete current value");
-    check(execute_cycle[3]-response_cycle[2]==2,"partial values changed fallback latency");
+    check(execute_cycle[3]-response_cycle[2]==(2+NOTICE_Q),"partial values changed fallback latency");
     // Real accepted response does not steal the blocked canonical CQ owner.
     clean();load_owner(1,32,3,0,0);consumer(3,34,32);repeat(8)tick();
     allow_cq=0;offer(1,1,400,0,0,0);gap(3,1);repeat(5)tick();
@@ -347,8 +348,8 @@ module tb_r64_rr_complete_admit_chain #(parameter RR_COMPLETE_ADMIT=1);
     if(RR_COMPLETE_ADMIT)check(directactual>10,"direct route coverage absent");
     else check(directactual==0,"disabled direct route accepted");
     check(fallback>0&&directeligible>0,"eligibility/fallback coverage absent");
-    $display("[PASS] tb_r64_rr_complete_admit_chain enabled=%0d checks=%0d eligible=%0d actual=%0d fallback=%0d raw_Ingress_CQ_WB_Execute=1",
-      RR_COMPLETE_ADMIT,checks,directeligible,directactual,fallback);$finish;
+    $display("[PASS] %0s enabled=%0d notice_q=%0d checks=%0d eligible=%0d actual=%0d fallback=%0d raw_Ingress_CQ_WB_Execute=1",
+      TEST_NAME,RR_COMPLETE_ADMIT,NOTICE_Q,checks,directeligible,directactual,fallback);$finish;
   end
   initial begin #200000;$fatal(1,"complete admit chain timeout");end
 endmodule

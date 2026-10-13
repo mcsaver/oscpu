@@ -4,32 +4,41 @@
 [core-version.mk](core-version.mk)。主线 RTL 直接列在 [vsrc/filelist.mk](vsrc/filelist.mk)，
 按功能保存在 `vsrc/` 的各子目录；模块连接和参数以源码为准。
 
-## 2026-10-13 实验基线与并行设计
+## 2026-10-13 实现与多轮评估
 
-当前实验实现已提交为 `e44dac90b`：55 nm ICS55 + ECOS SRAM，TT 1.2 V / 25°C，
-目标 500 MHz / 2 ns。ICache 使用 2 个真实 256×128 SRAM 宏，DCache 使用 4 个真实
-256×64 掩码 SRAM 宏；DCache 寄存状态信用和数据保护寄存边界已合入。
-[保护边界与上一批结果](design/arch/memory-protection-boundary-20261012.md)记录完整程序和时序取舍。
+当前实验目标为 55 nm ICS55 + ECOS SRAM、TT 1.2 V / 25°C、500 MHz / 2 ns，
+保留原 0.05 ns uncertainty。ICache 使用 2 个真实 256×128 SRAM 宏，
+DCache 使用 4 个真实 256×64 掩码 SRAM 宏；寄存状态信用与数据保护边界已合入。
+[上一批保护边界](design/arch/memory-protection-boundary-20261012.md)对应已测基线 e44dac90b。
 
-显式 clock buffer 实验的 setup / hold WNS 为 −3.226368427 / −0.313464463 ns，
-脉宽 / 最小周期 slack 为 +0.549876153 / +0.408300072 ns，**500 MHz 仍 FAIL**。
-完整 CoreMark10 / Dhrystone10000 周期为 4,223,831 / 5,792,104；
-相对保护边界前分别增加 5.1583% / 1.76485%，尚未证明运行时间加速。
-下文更早日期的测量均属于对应历史基线，不能与此实验点混用。
+当前默认采用 **T1：两路最终 load 公告全包 Q**，在 current owner 认证前整体登记 valid/full-tag/data，
+共 148 bit，无完成 owner/ready/ack；规范 CQ/WB 与 WB/history/PRF 回退合同保持。
+实际 mapped 已确认整包 FF 及 raw notice→IQ/RR 目标断链。
+完整 CoreMark10 / Dhrystone10000 为 4,423,886 / 6,033,084 cycles，
+相对上一已测基线增加 4.7363% / 4.1605%；系统 10 场景与 7 个 CPI=0.5 双发射热窗口通过。
 
-本次用户要求面积降为次要因素，两位 agent 仅做架构设计，不读取 RTL；
-设计完成后由新的独立 agent 评估。新方案尚无实现或综合收益，按以下文档跟踪：
+同口径 clock-buffer STA 的 setup / hold 为 −2.549148798 / −0.313464463 ns，
+pulse / period 为 +0.549876153 / +0.408300072 ns，最终 flat 映射面积 2,415,687.980301 µm²。
+setup 较基线改善 0.677219629 ns，但 **500 MHz 仍 FAIL**；新 worst 已转到保护/访存选择、
+跨 bank ready 至 DCache overlay 数据快照。当前仍是 pre-layout ideal-clock 口径，无合格 Fmax 或实测功耗结论。
 
+第二轮 **T1+T2-min** 实际关闭三个 RR direct 选项，复用每 lane 1 ingress + 2 terminal，
+已验证 IQ current source→operand/shift 的第二段断链。完整程序为 4,616,448 / 6,418,541 cycles，
+相对 T1 再增加 4.3528% / 6.3891%；全局四项 slack 与 T1 相同，面积 2,399,191.500301 µm²。
+因此 T2 留作可复用实验点，**当前默认三个 RR direct 选项仍开启**；未扩两 capsule，
+T3/P1/P2/P3 仍属条件候选，没有借本轮文档变成现有实现。
+
+- [本批实现、完整测量、保留裁决与清理](design/arch/timing-implementation-evaluation-20261013.md)
 - [时序导向多轮设计](design/arch/timing-architecture-rounds-20261013.md)
 - [性能导向多轮设计](design/arch/performance-architecture-rounds-20261013.md)
-- [独立架构评估与实验顺序](design/arch/parallel-architecture-review-20261013.md)
+- [设计阶段独立评估与条件实验顺序](design/arch/parallel-architecture-review-20261013.md)
 
-独立评估已完成一轮定向修订及复审：首轮推荐登记最终 load 公告（T1），
-T2/T3/P1/P2 保持条件候选，DCache 读副本 P3 在完整程序 bank 冲突证据出现前不进入首批。
-联合计划 J1–J8 分别控制切分、等待位置、容量和带宽变量；这是后续实验顺序，不是新实测收益。
-
-综合和仿真每轮在必要取证完成后只保留结果及小型复现输入，使用
-[结果清理入口](syn/README.md)；原始大网表和仿真编译产物不进入 Git。
+双路架构设计与新上下文独立评估已在本批产生合同纠错价值，有条件地纳入
+[CPU Architect 路由](../../.github/instructions/cpu-architect-routing.instructions.md)；
+架构 agent 仍不读 RTL，实现和取证由独立角色执行。没有单 agent 对照，不声称量化效率提升。
+每轮在必要分析完成后只保留结果、关键诊断及小复现输入，
+使用[清理入口](syn/README.md)；本批大网表和仿真编译产物均已清理。
+下文更早测量只描述对应历史点，不能与当前 T1 混用。
 
 ## 系统边界
 

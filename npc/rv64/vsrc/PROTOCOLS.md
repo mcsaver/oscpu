@@ -308,6 +308,15 @@ R64ValueNoticeMerge 优先保留原完成仲裁的 occupied candidate，当前 k
 补充失败只丢失提前观察机会，原 raw ingress、CQ 和 WB owner 继续提供后续完成；不新增重试或确认。
 公告不清 LSQ、不消费完成、不写 PRF、不设置 ROB done；规范完成继续沿原握手独立发生。
 
+LOAD_VALUE_NOTICE_Q=1 时，ExecutionDomain 在认证之前将两路 valid、full tag、data64 整包登记，
+resident 与 early 来源统一经过同一边界；invalid 周期的 payload 也只来自 Q，不恢复 raw 旁路。
+每 lane 每拍可采样一条，不增加 ready/ack、完成 owner 或 CQ/WB 信用依赖。reset/local fullflush 清 valid；
+选择性取消、birth/reuse 与 WB 终结由使用时的当前完整身份继续认证，不能使用上拍 preg-only 授权。
+被取消、过期或覆盖的公告只丢失提前供值机会；IQ 的规范 WB 唤醒、PRF 写入及 RR 的 WB/arrival history
+继续提供合法回退。已经由旧 owner 捕获的合法数值仍归旧 owner，同沿 transfer/refill 必须分别处理身份。
+此选项为 ICS55/ECOS TT 500 MHz 实验的流水切分，不是 SRAM 宏接口要求，也不证明目标频率已满足。
+Core 默认启用，Backend/ExecutionDomain 独立模块默认关闭；顶层参数可保留同源关闭对照。
+
 ExecutionOwners 用完整 tag 和当前 birth 的 ordinary integer load 类型、非零目的 GPR 认证公告。
 WB transport 实际捕获也可发布 load scheduling promise；这只改变调度资格，不等同于可读 PRF。
 IQ 的真实 ready、promise 和当拍已认证真值命中分别处理；凭后两者进入 RR 的源必须携 pending，

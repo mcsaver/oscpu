@@ -3,7 +3,8 @@
 // Real ResponseIngress -> Completion -> WB transport and execution-domain
 // pipeline. The lifecycle fixture independently checks full tags/destinations;
 // only canonical WB writes values. No speculative data is injected into RR.
-module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABLE_TOKEN=0);
+module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABLE_TOKEN=0, parameter NOTICE_Q=0,
+  parameter TEST_NAME="tb_r64_load_resolved_value");
   localparam U=`R64_UOP_W, R=`R64_RESULT_W, T=9, S=7;
   reg clk=0; always #5 clk=~clk;
   reg rst=1;
@@ -91,11 +92,45 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
       end
     end
   end
-  R64ExecutionDomain #(.ALU_TOKEN_BYPASS(ENABLE_TOKEN),.LOAD_COMPLETION_PROMISE(1),.LOAD_RESOLVED_VALUE(ENABLE_RESOLVED)) dut(
+  // Replay an independently transported successful producer value exactly on
+  // its canonical WB edge to exercise a notice that becomes stale after Q.
+  reg [1:0] aligned_notice=0;
+  wire [1:0] wb_notice_valid={
+    wb_write[1] && raw_wb_tag[T+:T]==9'd1,
+    wb_write[0] && raw_wb_tag[0+:T]==9'd1};
+  wire aligned_wb=(aligned_notice!=0) && (wb_notice_valid!=0);
+  wire [1:0] notice_valid=aligned_wb ? wb_notice_valid :
+      (aligned_notice==1 ? 2'b0 : resolved_valid);
+  wire [17:0] notice_tag=aligned_wb ? raw_wb_tag : selected_tag;
+  wire [127:0] notice_data=aligned_wb ? wb_data : {selected_data[R+:64],selected_data[0+:64]};
+  integer expired_q_crossings=0;
+  integer crossing_window=-1;
+  reg [1:0] crossing_valid;
+  reg [17:0] crossing_tag;
+  reg [127:0] crossing_data;
+  always @(posedge clk) begin
+    if(NOTICE_Q && aligned_wb && !rst) begin
+      crossing_valid=wb_notice_valid;crossing_tag=raw_wb_tag;crossing_data=wb_data;
+      if(crossing_window==0)
+        check((dut.issue_fire_w[0] && dut.issue_tag_w[0+:T]==3) ||
+              (dut.issue_fire_w[1] && dut.issue_tag_w[T+:T]==3),"WB edge lacks actual RR admission");
+      if(crossing_window==1)check(birth[0] && birth_tag[0+:T]==3,"WB edge lacks consumer birth");
+      if(crossing_window==2)
+        check((dut.registers.read_select_w[0] && dut.registers.ingress_tag_q[0]==3) ||
+              (dut.registers.read_select_w[1] && dut.registers.ingress_tag_q[1]==3),"WB edge lacks first RR read");
+      #1;
+      check(dut.load_notice_valid_w==crossing_valid &&
+            dut.load_notice_tag_w==crossing_tag &&
+            dut.load_notice_data_w==crossing_data,"WB-aligned notice packet missing from Q");
+      check(dut.resolved_valid_w==0,"completed lease accepted delayed notice");
+      expired_q_crossings=expired_q_crossings+1;
+    end
+  end
+  R64ExecutionDomain #(.ALU_TOKEN_BYPASS(ENABLE_TOKEN),.LOAD_COMPLETION_PROMISE(1),.LOAD_RESOLVED_VALUE(ENABLE_RESOLVED),.LOAD_VALUE_NOTICE_Q(NOTICE_Q)) dut(
     .batch_apply_i(1'b0),.batch_greclaim_i(64'b0),.batch_freclaim_i(64'b0),
 
-    .resolved_value_valid_i(resolved_valid), .resolved_value_tag_i(selected_tag),
-    .resolved_value_data_i({selected_data[R+:64],selected_data[0+:64]}),
+    .resolved_value_valid_i(notice_valid), .resolved_value_tag_i(notice_tag),
+    .resolved_value_data_i(notice_data),
     .clk(clk),.rst(rst),.recovery_i(recovery),.serial_allow_i(1'b1),
     .head_slot_i(5'b0),.head_tag_i(9'b0),.barrier_slot_i(5'b0),.barrier_valid_i(1'b0),
     .serial_active_i(32'b0),.serial_release_i(32'b0),
@@ -144,7 +179,7 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
         if(dut.resolved_valid_w[l]) resolved_notices=resolved_notices+1;
         if(dut.issue_fire_w[l]) begin
           issue_cycle[dut.issue_tag_w[l*T+:T]]=cycle;
-          if(dut.issue_tag_w[l*T+:T]==3 && resolved_valid!=0)current_issues=current_issues+1;
+          if(dut.issue_tag_w[l*T+:T]==3 && dut.resolved_valid_w!=0)current_issues=current_issues+1;
           pending_at_issue[dut.issue_tag_w[l*T+:T]]=dut.issue_pending_w[l*3+:3];
         end
         if((dut.read_valid_w[l]||dut.read_local_alu_valid_w[l])&&dut.execute_ready_w[l])
@@ -159,7 +194,7 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
   endtask
   task clean;
     begin
-      rst=1;birth=0;response_valid=0;recovery=0;mem_ready=3;allow_cq=1;allow_wb=1;notice_enable=1;tick();rst=0;tick();
+      rst=1;birth=0;response_valid=0;recovery=0;aligned_notice=0;mem_ready=3;allow_cq=1;allow_wb=1;notice_enable=1;tick();rst=0;tick();
       for(integer n=0;n<512;n=n+1) begin
         response_cycle[n]=-1;capture_cycle[n]=-1;wb_cycle[n]=-1;
         issue_cycle[n]=-1;execute_cycle[n]=-1;mem_count[n]=0;done_count[n]=0;
@@ -207,7 +242,7 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
       check(got[dependent]==value,"dependent consumed wrong returned value");
       check(wb_cycle[producer]-response_cycle[producer]==3,"canonical WB edge changed");
       check(capture_cycle[producer]-response_cycle[producer]==2,"transport capture edge changed");
-      check(execute_cycle[dependent]-response_cycle[producer]==(ENABLE_RESOLVED?3:5),
+      check(execute_cycle[dependent]-response_cycle[producer]==(ENABLE_RESOLVED?(3+NOTICE_Q):5),
             "response-to-dependent Execute latency");
       check(pending_at_issue[dependent]==1,"pending classification");
       $display("LOAD_RETURN_TAIL producer=%0d dependent=%0d response=%0d capture=%0d wb=%0d iq=%0d execute=%0d gap=%0d",
@@ -242,7 +277,7 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
     repeat(8)begin tick();check(source_take==0&&cq_fire==0,"notice consumed blocked completion");end
     if(ENABLE_RESOLVED)begin
       check(execute_cycle[3]>=0&&got[3]==401,"CQ pressure blocked genuine value execution");
-      check(execute_cycle[3]-response_cycle[1]==3,"CQ-independent execution latency");
+      check(execute_cycle[3]-response_cycle[1]==(3+NOTICE_Q),"CQ-independent execution latency");
     end else check(execute_cycle[3]<0,"disabled notice bypassed canonical capture");
     check(wb_cycle[1]<0,"notice changed canonical completion edge");
     allow_cq=1;await_done(1);await_done(3);check(got[3]==401,"CQ drain changed value");
@@ -281,10 +316,52 @@ module tb_r64_load_resolved_value #(parameter ENABLE_RESOLVED=1, parameter ENABL
       offer(1,1,900,0,0,kind==0);repeat(8)tick();
       check(resolved_notices==before_notice,"ineligible result became resolved integer load");
     end
+    if(NOTICE_Q)begin
+      for(integer window=0;window<4;window=window+1)begin
+        clean();crossing_window=window;load_owner(1,32,3,0,0);repeat(8)tick();
+        // mode 1 retains only the WB-edge announcement; mode 2 also lets a
+        // prior resident notice place the consumer at its first RR read.
+        aligned_notice=(window==2)?2:1;
+        if(window==3)begin
+          mem_ready=0;
+          for(integer k=2;k<7;k=k+1)begin
+            u=0;u[`R64_U_FUNC]=8'h23;
+            birth_one(9'(k),`R64_C_MEM,0,0,0,0,0,u);
+          end
+          repeat(8)tick();consumer(7,34,32);repeat(4)tick();
+        end else if(window!=1)begin consumer(3,34,32);repeat(4)tick();end
+        offer(1,1,64'd1100+64'(window),0,0,0);
+        if(window==1)begin
+          n=0;while(wb_notice_valid==0 && n<20)begin tick();n=n+1;end
+          check(wb_notice_valid!=0,"birth/WB crossing not reached");
+          consumer(3,34,32);
+        end
+        if(window==3)begin
+          repeat(8)tick();check(execute_cycle[7]<0,"blocked RR escaped");
+          held=0;for(integer l=0;l<2;l=l+1)
+            if(dut.registers.ingress_valid_q[l] && dut.registers.ingress_tag_q[l]==7)begin
+              held=held+1;
+              check(!dut.registers.ingress_late_pending_q[l][0] &&
+                    dut.registers.ingress_late_resolved_q[l][0] &&
+                    dut.registers.ingress_late_data_q[l][0+:64]==1103,
+                    "blocked ingress failed to save one-shot WB history");
+            end
+          check(held==1 && pending_at_issue[7]==1,"pending/history consumer missing from ingress");
+          mem_ready=3;await_done(7);check(got[7]==1104,"blocked history canonical fallback wrong");
+        end else begin
+          await_done(3);check(got[3]==(64'd1101+64'(window)),"expired Q canonical fallback wrong");
+          if(window==0)check(issue_cycle[3]==wb_cycle[1] && pending_at_issue[3]==1,"pending WB/admission crossing not reached");
+          if(window==2)check(issue_cycle[3]+1==wb_cycle[1] && pending_at_issue[3]==1,"pending WB/first-read crossing not reached");
+        end
+        check(done_count[1]==1,"expired notice duplicated canonical producer completion");
+      end
+      check(expired_q_crossings==4,"expired Q/WB coverage missing");
+      $display("NOTICE_Q_CANONICAL_FALLBACK crossings=%0d old_IQ_admission_birth_first_read_blocked=1",expired_q_crossings);
+    end
     if(ENABLE_RESOLVED)check(current_issues>=3&&resolved_notices>=10,"current-hit coverage");
     else check(resolved_notices==0,"feature-off owner query leaked");
-    $display("[PASS] tb_r64_load_resolved_value enable=%0d checks=%0d resolved=%0d current_issues=%0d",
-             ENABLE_RESOLVED,checks,resolved_notices,current_issues);$finish;
+    $display("[PASS] %0s enable=%0d notice_q=%0d checks=%0d resolved=%0d current_issues=%0d",
+             TEST_NAME,ENABLE_RESOLVED,NOTICE_Q,checks,resolved_notices,current_issues);$finish;
   end
   initial begin #200000;$fatal(1,"load resolved value timeout");end
 endmodule

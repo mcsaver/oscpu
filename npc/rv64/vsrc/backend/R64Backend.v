@@ -13,6 +13,7 @@ module R64Backend #(
   parameter EARLY_ALU_WAKE = 1,
   parameter LOAD_COMPLETION_PROMISE = 1,
   parameter LOAD_RESOLVED_VALUE = 0,
+  parameter LOAD_VALUE_NOTICE_Q = 0,
   parameter WB_DEFER_REQUEST = 0,
   parameter WB_REQUEST_HINTS = 0,
   parameter RR_ALU_BYPASS = 1,
@@ -498,7 +499,8 @@ module R64Backend #(
     .INIT_CURRENT_READY(INIT_CURRENT_READY),
     .RR_ALU_BYPASS(RR_ALU_BYPASS), .ISSUE_SLOTS(ISSUE_SLOTS),
     .LOAD_COMPLETION_PROMISE(LOAD_COMPLETION_PROMISE),
-    .LOAD_RESOLVED_VALUE(LOAD_RESOLVED_VALUE)
+    .LOAD_RESOLVED_VALUE(LOAD_RESOLVED_VALUE),
+    .LOAD_VALUE_NOTICE_Q(LOAD_VALUE_NOTICE_Q)
   ) execution (
     .batch_apply_i(batch_rollback_apply_w),.batch_greclaim_i(batch_greclaim_w),
     .batch_freclaim_i(batch_freclaim_w),

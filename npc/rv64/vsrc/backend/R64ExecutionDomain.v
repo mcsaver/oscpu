@@ -5,7 +5,8 @@
 module R64ExecutionDomain #(
   parameter TAG_W=9, ROB_W=5, LSQ_W=5,
   parameter DIRECT_MEM_BIND=0, EARLY_ALU_WAKE=1, LOAD_COMPLETION_PROMISE=1,
-  parameter LOAD_RESOLVED_VALUE=0, MEM_TERMINAL_CURRENT=0, RR_COMPLETE_ADMIT=0,
+  parameter LOAD_RESOLVED_VALUE=0, LOAD_VALUE_NOTICE_Q=0,
+  parameter MEM_TERMINAL_CURRENT=0, RR_COMPLETE_ADMIT=0,
   parameter RR_ALU_BYPASS=1, ALU_TOKEN_BYPASS=0, ISSUE_SLOTS=16,
   parameter RR_ADMIT_GPR_READ=0, INIT_CURRENT_READY=0, RR_COMPLETE_BRANCH_ADMIT=0,
   parameter BATCH_SUFFIX_ROLLBACK=0
@@ -86,6 +87,34 @@ module R64ExecutionDomain #(
   wire cancel_active_i=recovery_local_w[N];
   wire [N-1:0] cancel_candidates_i=recovery_local_w[N-1:0];
   wire [N-1:0] kill_mask_i=cancel_candidates_i & {N{cancel_active_i}};
+  // This boundary targets the ICS55/ECOS TT 25 C, 500 MHz experiment.
+  // Non-owning load-value announcements cross this boundary as one packet.
+  // Sampling never waits for IQ/RR/CQ/WB credit. The current full-tag lease is
+  // checked by owners after Q; a missed or expired notice uses canonical WB/PRF.
+  // Payload is sampled even when invalid, so no current raw payload can bypass Q.
+  wire [1:0] load_notice_valid_w;
+  wire [2*TAG_W-1:0] load_notice_tag_w;
+  wire [127:0] load_notice_data_w;
+  generate
+    if (LOAD_VALUE_NOTICE_Q != 0) begin : gen_load_notice_q
+      reg [1:0] valid_q;
+      reg [2*TAG_W-1:0] tag_q;
+      reg [127:0] data_q;
+      always @(posedge clk) begin
+        tag_q <= resolved_value_tag_i;
+        data_q <= resolved_value_data_i;
+        if (rst || flush_i) valid_q <= 0;
+        else valid_q <= resolved_value_valid_i;
+      end
+      assign load_notice_valid_w=valid_q;
+      assign load_notice_tag_w=tag_q;
+      assign load_notice_data_w=data_q;
+    end else begin : gen_load_notice_current
+      assign load_notice_valid_w=resolved_value_valid_i;
+      assign load_notice_tag_w=resolved_value_tag_i;
+      assign load_notice_data_w=resolved_value_data_i;
+    end
+  endgenerate
   genvar l, service_lane;
   wire [2*U-1:0] lsu_uop_w;
   wire [383:0] lsu_operand_w;
@@ -264,7 +293,7 @@ module R64ExecutionDomain #(
     .out_operand_o(read_operand_w),
     .out_gpr_dst_o(read_dst_w),
     .resolved_value_valid_i(resolved_valid_w), .resolved_value_preg_i(resolved_preg_w),
-    .resolved_value_data_i(resolved_value_data_i),
+    .resolved_value_data_i(load_notice_data_w),
     .alu_bypass_resident_i(raw_alu_bypass_valid_w),
     .alu_bypass_valid_i(alu_bypass_valid_w),
     .alu_bypass_preg_i(alu_bypass_preg_w),
@@ -377,9 +406,9 @@ module R64ExecutionDomain #(
     .wb_accept_i(wb_accept_i),.wb_tag_i(wb_tag_i),
     .query_valid_i(fast_query_valid_w),.query_tag_i(fast_query_tag_w),
     .query_preg_i(fast_query_preg_w),.query_accept_o(fast_accept_w),
-    .load_capture_i({resolved_value_valid_i & {2{LOAD_RESOLVED_VALUE != 0}},
+    .load_capture_i({load_notice_valid_w & {2{LOAD_RESOLVED_VALUE != 0}},
                      load_capture_i & {2{LOAD_COMPLETION_PROMISE != 0}}}),
-    .load_tag_i({resolved_value_tag_i,load_capture_tag_i}),
+    .load_tag_i({load_notice_tag_w,load_capture_tag_i}),
     .load_promise_o({resolved_valid_w,load_promise_w}),
     .load_preg_o({resolved_preg_w,load_preg_w})
   );

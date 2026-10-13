@@ -5,6 +5,7 @@ TESTS ?= tb_r64_dual_retire_candidate tb_r64_dual_retire_lease tb_r64_lsu_error_
 TESTS += tb_r64_bind_translation_flow tb_r64_bind_translation_service tb_r64_direction_backend tb_r64_direction_frontend_snapshot tb_r64_direction_pipeline tb_r64_direction_predictor tb_r64_predictor_capacity tb_r64_direction_capacity
 TESTS += tb_r64_batch_rollback tb_r64_batch_backend tb_r64_ftb_capacity tb_r64_ftb_frontend
 TESTS += tb_r64_serial_retire_candidate
+TESTS += tb_r64_load_notice_q_transport tb_r64_load_notice_q_chain tb_r64_load_notice_q_identity
 TESTS += tb_r64_protection_registered
 TEST_ARGS_tb_r64_lsu := +prepared-capture
 TEST_ARGS_tb_r64_dcache_amo_pipe := +late-invalidate
@@ -409,3 +410,7 @@ $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp: modules/tb_r64_serial_re
 serial-retire-candidate-matrix: $(BUILD_DIR)/tb_r64_serial_retire_candidate.pass $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp
 	timeout 60 $(VVP) $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.vvp > $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.log 2>&1
 	rg -F '[PASS] tb_r64_serial_retire_candidate HEAD_CLASS=0 ' $(BUILD_DIR)/tb_r64_serial_retire_candidate_class0.log
+
+# Registered-announcement wrappers reuse the production transport/execute fixtures.
+$(BUILD_DIR)/tb_r64_load_notice_q_transport.vvp: modules/tb_r64_load_resolved_value.sv
+$(BUILD_DIR)/tb_r64_load_notice_q_chain.vvp: modules/tb_r64_rr_complete_admit_chain.sv
