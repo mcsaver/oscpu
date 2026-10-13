@@ -4,14 +4,39 @@
 [core-version.mk](core-version.mk)。主线 RTL 直接列在 [vsrc/filelist.mk](vsrc/filelist.mk)，
 按功能保存在 `vsrc/` 的各子目录；模块连接和参数以源码为准。
 
-## 2026-10-13 实现与多轮评估
+## 2026-10-13 Memory 续轮（当前）
+
+当前默认为 **T1 + M-R**：保留两路 load 公告全包 Q，另将 DCache refill 维护写的容量查询
+改为本次 R owner/beat 自身 key 的旧 FIFO Q。原 B/R 仲裁、字节更新、error/poison 排空及副作用边界
+保持完整；未增加固定 hit 流水拍。详见[本批多轮实测报告](design/arch/memory-implementation-evaluation-20261013.md)。
+
+系统 10/10、七个双发射热窗与完整 CoreMark10/Dhrystone10000 通过，周期仍为
+4,423,886 / 6,033,084，分别与 T1 完全相同。同约束 clock-buffer setup 改善
+0.263203859 ns，达到 −2.285944939 ns；flat area 为 2,416,852.780301 µm²。
+
+在同一 M-R 映射上，逐端点真实延迟修复使完整负 hold 数为 0，最终 hold 为 +0.000625146 ns，
+pulse/period 为 +0.549876153 / +0.408300072 ns；setup 保持 −2.285944939 ns，
+修复后 flat area 为 2,423,057.580301 µm²。这是附加的网表物理实验结果，非 RTL 新流水级。
+500 MHz / 2 ns 总判定仍 FAIL；hold 仅约 0.625 ps 余量，仍限于 TT 1.2 V / 25°C
+布局前模型，没有合格 Fmax、布局后时序或实测功耗结论。
+
+后续 M-R+M-S 单独关闭普通 read empty-flow。完整 CoreMark / Dhrystone 周期增加
+5.44458% / 7.13066%；系统与局部验证通过。同约束 clock-buffer setup 为 −1.966506362 ns，
+比 M-R 再改善 0.319438577 ns，仍未通过 500 MHz；flat area 为 2,416,641.660301 µm²。
+独立架构评估据此维持 M-R 为生产默认，M-S 保留为已测取舍候选。
+该参数变化未合入生产；本批没有补偿其周期代价的已实现设计。
+普通 read 入 Service Q 的早期 kill 已有直接驻留、恰一次接受、无 WB 排空观测；
+prepared 当前控制继续保留，且已成为新 worst 的 Service 中段；后续取舍应针对该实测边界。
+M-R 的额外 hold 修复结果不能代入 M-S。
+
+## 2026-10-13 T1/T2 实现评估（前批历史）
 
 当前实验目标为 55 nm ICS55 + ECOS SRAM、TT 1.2 V / 25°C、500 MHz / 2 ns，
 保留原 0.05 ns uncertainty。ICache 使用 2 个真实 256×128 SRAM 宏，
 DCache 使用 4 个真实 256×64 掩码 SRAM 宏；寄存状态信用与数据保护边界已合入。
 [上一批保护边界](design/arch/memory-protection-boundary-20261012.md)对应已测基线 e44dac90b。
 
-当前默认采用 **T1：两路最终 load 公告全包 Q**，在 current owner 认证前整体登记 valid/full-tag/data，
+当批默认采用 **T1：两路最终 load 公告全包 Q**，在 current owner 认证前整体登记 valid/full-tag/data，
 共 148 bit，无完成 owner/ready/ack；规范 CQ/WB 与 WB/history/PRF 回退合同保持。
 实际 mapped 已确认整包 FF 及 raw notice→IQ/RR 目标断链。
 完整 CoreMark10 / Dhrystone10000 为 4,423,886 / 6,033,084 cycles，
@@ -20,12 +45,12 @@ DCache 使用 4 个真实 256×64 掩码 SRAM 宏；寄存状态信用与数据�
 同口径 clock-buffer STA 的 setup / hold 为 −2.549148798 / −0.313464463 ns，
 pulse / period 为 +0.549876153 / +0.408300072 ns，最终 flat 映射面积 2,415,687.980301 µm²。
 setup 较基线改善 0.677219629 ns，但 **500 MHz 仍 FAIL**；新 worst 已转到保护/访存选择、
-跨 bank ready 至 DCache overlay 数据快照。当前仍是 pre-layout ideal-clock 口径，无合格 Fmax 或实测功耗结论。
+跨 bank ready 至 DCache overlay 数据快照。当批仍是 pre-layout ideal-clock 口径，无合格 Fmax 或实测功耗结论。
 
 第二轮 **T1+T2-min** 实际关闭三个 RR direct 选项，复用每 lane 1 ingress + 2 terminal，
 已验证 IQ current source→operand/shift 的第二段断链。完整程序为 4,616,448 / 6,418,541 cycles，
 相对 T1 再增加 4.3528% / 6.3891%；全局四项 slack 与 T1 相同，面积 2,399,191.500301 µm²。
-因此 T2 留作可复用实验点，**当前默认三个 RR direct 选项仍开启**；未扩两 capsule，
+因此 T2 留作可复用实验点，**当批默认三个 RR direct 选项仍开启**；未扩两 capsule，
 T3/P1/P2/P3 仍属条件候选，没有借本轮文档变成现有实现。
 
 - [本批实现、完整测量、保留裁决与清理](design/arch/timing-implementation-evaluation-20261013.md)
@@ -38,7 +63,7 @@ T3/P1/P2/P3 仍属条件候选，没有借本轮文档变成现有实现。
 架构 agent 仍不读 RTL，实现和取证由独立角色执行。没有单 agent 对照，不声称量化效率提升。
 每轮在必要分析完成后只保留结果、关键诊断及小复现输入，
 使用[清理入口](syn/README.md)；本批大网表和仿真编译产物均已清理。
-下文更早测量只描述对应历史点，不能与当前 T1 混用。
+下文更早测量只描述对应历史点，不能与本批当前 M-R 测量混用。
 
 ## 系统边界
 
@@ -292,7 +317,7 @@ LSU完成改为固定payload槽，AXI读请求采用两描述符Q信用。恢复
 [DiffTest 文档](difftest/README.md)说明逐条提交的 PC/GPR/FPR 检查，
 以及当拍提交和 trap 处理后的 CSR 比较；[系统仿真](sim/README.md)
 说明 Linux、设备与 NPU 的运行边界。[综合与 STA](syn/README.md)说明真实网表、约束和时序判定。
-理想吞吐目标为 CPI 0.5，当前 1 ns / 1 GHz 时序尚未闭合；局部测试、短程序和布局前报告
+理想吞吐目标为 CPI 0.5，当前 2 ns / 500 MHz 时序尚未闭合；局部测试、短程序和布局前报告
 不能代替完整系统验证或物理签核。
 
 ## 历史资料
