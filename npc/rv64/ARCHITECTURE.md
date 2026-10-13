@@ -4,6 +4,33 @@
 [core-version.mk](core-version.mk)。主线 RTL 直接列在 [vsrc/filelist.mk](vsrc/filelist.mk)，
 按功能保存在 `vsrc/` 的各子目录；模块连接和参数以源码为准。
 
+## 2026-10-13 实验基线与并行设计
+
+当前实验实现已提交为 `e44dac90b`：55 nm ICS55 + ECOS SRAM，TT 1.2 V / 25°C，
+目标 500 MHz / 2 ns。ICache 使用 2 个真实 256×128 SRAM 宏，DCache 使用 4 个真实
+256×64 掩码 SRAM 宏；DCache 寄存状态信用和数据保护寄存边界已合入。
+[保护边界与上一批结果](design/arch/memory-protection-boundary-20261012.md)记录完整程序和时序取舍。
+
+显式 clock buffer 实验的 setup / hold WNS 为 −3.226368427 / −0.313464463 ns，
+脉宽 / 最小周期 slack 为 +0.549876153 / +0.408300072 ns，**500 MHz 仍 FAIL**。
+完整 CoreMark10 / Dhrystone10000 周期为 4,223,831 / 5,792,104；
+相对保护边界前分别增加 5.1583% / 1.76485%，尚未证明运行时间加速。
+下文更早日期的测量均属于对应历史基线，不能与此实验点混用。
+
+本次用户要求面积降为次要因素，两位 agent 仅做架构设计，不读取 RTL；
+设计完成后由新的独立 agent 评估。新方案尚无实现或综合收益，按以下文档跟踪：
+
+- [时序导向多轮设计](design/arch/timing-architecture-rounds-20261013.md)
+- [性能导向多轮设计](design/arch/performance-architecture-rounds-20261013.md)
+- [独立架构评估与实验顺序](design/arch/parallel-architecture-review-20261013.md)
+
+独立评估已完成一轮定向修订及复审：首轮推荐登记最终 load 公告（T1），
+T2/T3/P1/P2 保持条件候选，DCache 读副本 P3 在完整程序 bank 冲突证据出现前不进入首批。
+联合计划 J1–J8 分别控制切分、等待位置、容量和带宽变量；这是后续实验顺序，不是新实测收益。
+
+综合和仿真每轮在必要取证完成后只保留结果及小型复现输入，使用
+[结果清理入口](syn/README.md)；原始大网表和仿真编译产物不进入 Git。
+
 ## 系统边界
 
 | 层次 | 实现 | 职责 |
