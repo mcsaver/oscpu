@@ -82,7 +82,7 @@ module R64Dcache #(
   reg [TAG_W-1:0] tag0_q[0:SETS-1], tag1_q[0:SETS-1];
   reg [SETS-1:0] valid0_q, valid1_q, lru_q;
   // ECOS55 SRAM adaptation: each bank owns two real single-port macros.
-  wire [1:0] data_read_ready_w, data_write_ready_w, data_idle_w, data_forward_w, store_credit_w;
+  wire [1:0] data_read_ready_w, data_write_ready_w, data_idle_w, data_forward_w, store_credit_w, refill_credit_w;
   reg [1:0] stage_valid_q;
   reg [63:0] address_q[0:1], data_q[0:1], expected_q[0:1];
   reg [TOKEN_W-1:0] token_q[0:1];
@@ -240,7 +240,7 @@ module R64Dcache #(
       !write_poison_w && !invalidate_i;
   // ECOS55 SRAM adaptation: bank/key/way are retained B-owner facts (the
   // earliest BRESP uses registered lookup tag/valid). Only the Q-only probe
-  // qualifies B; live data_write_ready_w remains a refill-port decision.
+  // qualifies B; refill separately queries its own retained owner key.
   wire store_update_credit_w = !store_update_need_w || store_credit_w[write_owner_w];
   wire store_write_w = write_response_fire_w && write_resp_i == 0 && write_hit_w &&
       !write_poison_w && !invalidate_i;
@@ -271,8 +271,10 @@ module R64Dcache #(
   assign read_addr_o = allocate_q ? {owner_address_w[63:6], 6'b0} : owner_address_w;
   assign read_len_o = allocate_q ? 8'd7 : 8'd0;
   assign read_size_o = allocate_q ? 3'd3 : size_q[owner_q];
+  // ECOS55 500 MHz experiment: R capacity depends on FIFO Q and the slow
+  // owner key, never current lookup/drain or the B-selected data write key.
   assign beat_ready_o = state_q == REFILL && !rst_i && !fill_port_block_w &&
-      (!allocate_q || data_write_ready_w[beat_q[0]]);
+      (!allocate_q || refill_credit_w[beat_q[0]]);
   // Registered WRITE owners retain priority. Admission is independent of
   // both port-ready inputs; each accepted channel is recorded separately.
   assign write_valid_o = ((state_q == WRITE && !command_sent_q) || direct_write_offer_w) && !rst_i;
@@ -405,6 +407,8 @@ module R64Dcache #(
         .write_i(data_write_w[g]), .write_ready_o(data_write_ready_w[g]),
         .probe_way_i(write_way_w), .probe_addr_i(store_index_w),
         .probe_ready_o(store_credit_w[g]),
+        .refill_probe_way_i(way_q), .refill_probe_addr_i(fill_index_w),
+        .refill_probe_ready_o(refill_credit_w[g]),
         .write_way_i(data_way_w[g]), .write_addr_i(data_index_w[g]),
         .write_data_i(data_write_value_w[g]), .write_mask_i(data_write_mask_w[g]),
         .idle_o(data_idle_w[g]), .forward_o(data_forward_w[g])

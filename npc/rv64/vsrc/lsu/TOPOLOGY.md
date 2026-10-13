@@ -495,20 +495,26 @@ fast store在真实B有cache FIFO信用和空终端holder时接受该B。空hold
 写都只占一个宏写边沿；生产实现无RMW、无64bit闲置上半阵列、无数据复制来伪造多口。
 tag/valid/LRU保留小型FF结构，数据宏无reset。
 
-每bank共享两项按{way,index}合并的FIFO，成功B与接受的refill beat才建立逻辑写。
-相同key合并mask且新字节优先。ECOS55优化第1轮的B信用仅依赖已登记FIFO
-valid/head/key及已登记B owner的bank/way/index：占用head始终禁止B合并，
+每bank共享两项按{way,index}合并的FIFO，相同key合并mask且新字节优先。
+2026-10-13 ECOS55 / 500MHz维护写信用优化使R/B分别按各自owner的key查询旧FIFO Q：
+B使用已登记B owner的bank/way/index，R使用原slow owner的bank/way及fill_index。
+两类信用均仅依赖已登记FIFO valid/head/key与各自key；占用head始终禁止合并，
 即使另一槽空闲也不建立重复key；非head同key可合并，无重复key且真实空槽可分配。
-B信用不借同沿drain释放的槽，也不与包含当前lookup/drain的通用write-ready相与。
-R仍按通用信用在实际宏写边沿禁止head合并。B/fire优先于竞争同写入口的R，
-只有B valid而未fire时不阻挡R。leaf接受caller已握手的逻辑写事件，B Q信用足以保证
-其落点；生产断言核对这个蕴含关系，禁止二次以live ready撤销已经接受的B写。
-失败B、poison和invalidate不产生cache store更新。
+R信用不借B key或B选择后的data key，不读取当前lookup/drain，不借同沿drain释放的槽，
+也不寄存可在owner改变后兑现的旧许可。B Q信用原规则保持。
+
+原维护写竞争谓词成立时，同bank实际B fire才优先于R；仅有B valid而未fire不阻挡R，
+不同bank的R/B可并行；失败或不需要更新cache的B保持原分类。
+leaf接受caller已握手的逻辑写事件，独立Q信用保证其落点；生产断言保留该蕴含关系，
+禁止二次以live ready撤销已接受写。成功B才更新未poison且未invalidate的驻留store字节。
+原REFILL且allocate的真实R fire仍建立维护FIFO写，包括error beat或已poison owner；
+不因error/poison新增跳过维护写或额外等待，line有效发布与错误/取消终态仍由原owner合同决定。
 
 tail同key合并可以与old head实际drain同沿发生，晋升后的tail成为新的冻结head。
-四次读额度不因新R或合并而重置；持续head-key B在最多剩余四次读授权、一次drain
-以及下一拍Q信用可见后取得本地进度。减少head合并可能增加真实宏写或B等待，
-无冲突load和空B终端直通均未固定加拍；实际CPI和PPA由主agent的同源整核测量判定。
+四次读额度不因新R或合并而重置；持续head-key R或B在最多剩余四次读授权、一次drain
+以及下一拍Q信用可见后获得本地写入机会，该保证不代替外部返回或owner终端信用。
+减少head合并可能增加真实宏写或R/B等待；固定hit路径无新增拍数，
+无冲突load接受到命中返回仍为一拍，空B终端保持直通；实际CPI和PPA由同源整核测量判定。
 
 lookup同时读本bank两个way，宏Q直接承担原一拍同步读边界。
 lookup launch边沿快照此前FIFO字节和同沿新接受写字节，新字节优先。

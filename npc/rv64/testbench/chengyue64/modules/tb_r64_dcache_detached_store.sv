@@ -102,9 +102,29 @@ module tb_r64_dcache_detached_store;
   reg [63:0] memory  [0:2047];
   reg [63:0] expected[  0:63];
   reg [63:0] live = 0, expect_error = 0, expect_compare = 0;
+  reg c6_active=0,c6_error=0,c6_poison=0,c6_injected=0;
+  integer c6_blocked=0,c6_error_blocked=0,c6_poison_q_blocked=0,c6_invalidate_blocked=0;
+  integer c6_accepted=0,c6_error_written=0,c6_poison_written=0,c6_macro_checks=0;
+  reg [63:0] c6_words[0:7];
+  reg [7:0] c6_beat_seen=0;
   reg force_read_error = 0, force_write_error = 0, random_stall = 1;
   reg [31:0] rng = 32'h39b4e921;
   reg reading = 0, readerror = 0;
+  // The R producer advances only after the previous sampled handshake.
+  // Current br may already describe the next beat after cache Q updates.
+  reg read_accepted_q = 0;
+  reg held_read_q = 0;
+  reg [66:0] held_read_payload_q = 0;
+  always @(posedge clk) begin
+    read_accepted_q <= !rst && bv && br;
+    if (rst) held_read_q = 0;
+    else begin
+      if (held_read_q && (!bv || {bd, be, bl} !== held_read_payload_q))
+        $fatal(1, "external R producer changed held valid/payload");
+      held_read_q = bv && !br;
+      held_read_payload_q = {bd, be, bl};
+    end
+  end
   reg read_pause = 0;
   reg [63:0] done = 0;
   integer readindex = 0, readleft = 0, readbeat = 0;
@@ -125,12 +145,13 @@ module tb_r64_dcache_detached_store;
     if (!rst) begin
       rng = {rng[30:0], rng[31] ^ rng[21] ^ rng[1] ^ rng[0]};
       rsp_ready = (random_stall ? {rng[3] | rng[4], rng[5] | rng[6]} : 2'b11) & ~response_hold;
-      if (!bv || br) begin
+      if (!bv || read_accepted_q) begin
         bv = reading && !read_pause && (!random_stall || rng[7]);
         bd = memory[readindex];
         be = readerror && readbeat == 1 ? 2'b10 : 0;
         // Single beat errors must also be observable.
         if (readerror && readleft == 1) be = 2;
+        if(c6_active)be=(c6_error && readbeat==2)?2:0;
         bl = readleft == 1;
       end
     end
@@ -304,6 +325,28 @@ module tb_r64_dcache_detached_store;
       if(rsp_valid[z]&&rsp_ready[z])returned[rsp_token[z*6+:6]]=int'($time/10);
     end
   end
+  // Observe only legal interface traffic; no force/deposit or internal state
+  // drive. Every accepted refill beat must reach its physical macro after drain.
+  always @(posedge clk) if(!rst && c6_active)begin
+    if(bv && dut.state_q==2 && dut.allocate_q && dut.owner_address_w==64'h308)begin
+      if(!dut.refill_credit_w[dut.beat_q[0]])begin
+        c6_blocked=c6_blocked+1;
+        if(be!=0)c6_error_blocked=c6_error_blocked+1;
+        if(dut.poison_q)c6_poison_q_blocked=c6_poison_q_blocked+1;
+        if(invalidate)c6_invalidate_blocked=c6_invalidate_blocked+1;
+      end
+      if(br)begin
+        if(c6_beat_seen[dut.beat_q])$fatal(1,"C6 duplicate accepted refill beat");
+        if(dut.way_q!==0 || !dut.fill_write_w ||
+           !dut.data_write_w[dut.beat_q[0]])
+          $fatal(1,"C6 error/poison beat skipped allocated maintenance write");
+        c6_beat_seen[dut.beat_q]=1;c6_words[dut.beat_q]=bd;
+        c6_accepted=c6_accepted+1;
+        if(be!=0)c6_error_written=c6_error_written+1;
+        if(dut.poison_q||invalidate)c6_poison_written=c6_poison_written+1;
+      end
+    end
+  end
   function automatic integer mi(input [63:0] a);
     mi=int'((a>>3)&2047);
   endfunction
@@ -364,6 +407,49 @@ module tb_r64_dcache_detached_store;
     random_stall=0;
     for(n=0;n<2048;n=n+1)memory[n]=64'h3456000000000000+64'(n);
     repeat(4)@(negedge clk);#1;rst=0;
+    if($test$plusargs("c6-error")||$test$plusargs("c6-poison"))begin
+      c6_error=$test$plusargs("c6-error");c6_poison=!c6_error;
+      warm(64'h100);warm(64'h200);begin_store(64'h100,0);
+      read_pause=1;launch(11,64'h308,0,0,0,255,c6_error);
+      while(dut.state_q!=2)begin @(negedge clk);#1;end
+      @(negedge clk);#1;
+      c6_active=1;read_pause=0;write_pause=0;bdelay=3;fast_ready=0;
+      for(integer tick=0;tick<40;tick=tick+1)begin
+        req_valid=1;req_addr=64'h200;req_op=0;req_cache=3;
+        req_token=12'(16+(tick%8));fast_store=0;
+        expected[16+(tick%8)]=memory[mi(64'h200)];
+        expect_error[16+(tick%8)]=0;expect_compare[16+(tick%8)]=0;
+        // Invalidation is an external legal event. It clears cached residency,
+        // so stop hot offers once injected; already accepted owners still drain.
+        if(c6_injected)begin req_valid=0;invalidate=0;end
+        if(c6_poison && !c6_injected && bv && !dut.refill_credit_w[dut.beat_q[0]])begin
+          invalidate=1;c6_injected=1;req_valid=0;
+        end
+        @(posedge clk);
+        @(negedge clk);#1;
+      end
+      req_valid=0;invalidate=0;fast_ready=1;drain();
+      while(!idle)begin @(negedge clk);#1;end
+      if(!done[11] || c6_accepted!=8 || c6_beat_seen!=8'hff || c6_blocked==0)
+        $fatal(1,"C6 missing backpressure/drain/terminal blocked=%0d beats=%0d seen=%h",c6_blocked,c6_accepted,c6_beat_seen);
+      if(c6_error && (c6_error_blocked==0 || c6_error_written!=1))
+        $fatal(1,"C6 error beat credit cross absent blocked=%0d written=%0d",c6_error_blocked,c6_error_written);
+      // This covers invalidation of an already credit-blocked beat, then
+      // poison-Q recovery. Stable poison_q && no-credit remains diagnostic.
+      if(c6_poison && (!c6_injected || c6_invalidate_blocked==0 || c6_poison_written==0))
+        $fatal(1,"C6 poisoned held-beat cross absent invalidateblocked=%0d written=%0d",c6_invalidate_blocked,c6_poison_written);
+      for(integer x=0;x<4;x=x+1)begin
+        if(dut.g_data_bank[0].data.g_way[0].g_ecos.macro.memory_q[8'h30+x]!==c6_words[2*x] ||
+           dut.g_data_bank[1].data.g_way[0].g_ecos.macro.memory_q[8'h30+x]!==c6_words[2*x+1])
+          $fatal(1,"C6 accepted error/poison bytes did not reach physical macro word=%0d",x);
+        c6_macro_checks=c6_macro_checks+2;
+      end
+      if(dut.valid0_q[12] || dut.valid1_q[12])$fatal(1,"C6 error/poison refill installed valid line");
+      if(accepts!=returns || live!=0 || fast_b_pending)$fatal(1,"C6 owner conservation");
+      $display("[PASS] tb_r64_dcache_detached_store c6 error=%0d poison=%0d blocked=%0d error_blocked=%0d poison_q_blocked=%0d invalidate_blocked=%0d accepted_beats=%0d error_written=%0d poison_written=%0d macro_checks=%0d accepted=%0d returned=%0d",
+        c6_error,c6_poison,c6_blocked,c6_error_blocked,c6_poison_q_blocked,c6_invalidate_blocked,c6_accepted,c6_error_written,c6_poison_written,c6_macro_checks,accepts,returns);
+      $finish;
+    end
     if($test$plusargs("fifo-held-b"))begin
       // Three independent owners share bank0: a held fast-store terminal,
       // an other-bank miss refilling alternating banks, and continuous hot

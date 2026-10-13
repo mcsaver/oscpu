@@ -18,6 +18,9 @@ module R64DcacheData #(
   input probe_way_i,
   input [ADDR_W-1:0] probe_addr_i,
   output probe_ready_o,
+  input refill_probe_way_i,
+  input [ADDR_W-1:0] refill_probe_addr_i,
+  output refill_probe_ready_o,
   input write_way_i,
   input [ADDR_W-1:0] write_addr_i,
   input [63:0] write_data_i,
@@ -60,6 +63,15 @@ module R64DcacheData #(
   };
   assign probe_ready_o = !rst_i && ((|probe_match_w) ?
       probe_match_w[1] != head_q : valid_q != 2'b11);
+  // ECOS55 500 MHz experiment: refill has an independent owner key.
+  // Use only the old FIFO state; neither lookup/drain nor a B-selected key
+  // may grant its write. This is present capacity, not a retained permit.
+  wire [1:0] refill_probe_match_w = {
+    valid_q[1] && way_q[1] == refill_probe_way_i && index_q[1] == refill_probe_addr_i,
+    valid_q[0] && way_q[0] == refill_probe_way_i && index_q[0] == refill_probe_addr_i
+  };
+  assign refill_probe_ready_o = !rst_i && ((|refill_probe_match_w) ?
+      refill_probe_match_w[1] != head_q : valid_q != 2'b11);
   assign idle_o = !dirty_w;
 
   wire [63:0] macro_data_w[0:1];
