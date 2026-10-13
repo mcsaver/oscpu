@@ -241,3 +241,58 @@ period/pulse 检查及原时钟传播语义，不因插 buffer 改写约束。
 
 该目标只做 pre-layout pin-capacitance 负载修复，没有布线寄生或物理 CTS。
 脉宽或电容改善不能替代 full-core setup/hold，也不构成 500MHz/postroute 签核。
+
+## ECOS SRAM 输入 hold 的有界网表实验
+
+[repair_ecos_macro_hold.py](repair_ecos_macro_hold.py) 是独立、显式启用的 mapped 网表工具，
+用于本轮 ECOS 工艺库 SRAM 的所选非时钟输入 hold 修复。它不改变旧
+[repair_input_hold.py](repair_input_hold.py) 的独立输入路径合同，也不改变 RTL、SDC 或时钟树。
+输入必须是待评估当前网表对应的完整负 hold 报告；可通过已有
+`STA_HOLD_PATHS=/absolute/path/negative-hold.json` 接口从 OpenSTA 导出。
+
+```sh
+python3 npc/rv64/syn/repair_ecos_macro_hold.py \
+  --netlist /absolute/path/clock-parent/R64CoreTop.sta.v \
+  --checks /absolute/path/clock-parent/negative-hold.json \
+  --liberty /absolute/path/ics55_LLSC_H7CL_typ_tt_1p2_25_nldm.lib \
+  --liberty /absolute/path/ics55_ecos_sram_256x128_m4_ww_tt1p2v25cctyp.lib \
+  --liberty /absolute/path/ics55_ecos_sram_256x64_m4_tt1p2v25cctyp.lib \
+  --macro-cell ics55_ecos_sram_256x128_m4_ww \
+  --buffer DLY4X2H7L --stages 3 \
+  --output /absolute/path/new-hold-round/R64CoreTop.sta.v \
+  --manifest /absolute/path/new-hold-round/cell-changes.json
+```
+
+默认首试为每个所选负 hold D 位的 sink branch 插入 3 级实际 H7CL `DLY4X2H7L`，
+每条链新增面积 8.4 µm²；这只是实验候选，不预先宣称满足 hold。
+`--macro-cell` 必须显式指定，可重复。`--macro-pin` 可重复，未指定时只选择 D；
+显式参数给出本轮完整选择，例如
+`--macro-pin D --macro-pin A --macro-pin WEB --macro-pin GWEB --macro-pin CEB`。
+仅允许这五种非时钟输入；拒绝 CLK、输出和未知名称。
+`--stages` 默认为 3，适用于未单独覆盖的 pin。可重复 `--pin-stages PIN=N`
+为已选 pin 指定 1..8 级，例如保留 D=3、控制和地址/掩码使用 1 级：
+`--stages 3 --pin-stages A=1 --pin-stages WEB=1 --pin-stages GWEB=1 --pin-stages CEB=1`。
+拒绝未知或未选择 pin、越界级数及同一 pin 的冲突重复；同值重复幂等。
+已选合法 pin 没有负 hold endpoint 时保持 no-op。manifest 记录默认值、覆盖值、
+有效 per-pin 配置，以及每个实际 endpoint 的级数与链长。
+D 仍必须是 `memory_write` 且 `clocked_on: CLK` 的输入 bus；全部目标 pin/bit
+必须具有实际 Liberty 中关联 CLK 的 hold timing。A、D、WEB 展开实际 bus 位序，
+GWEB、CEB 按标量处理。256×128 整字写宏没有 WEB 端口，256×64 bit-write 宏有
+WEB[63:0]；混合选择允许这种差异，但每个请求 pin 至少存在于一个所选宏，
+报告若声称缺少该端口的宏有该 endpoint 则拒绝。
+工具展开 Liberty bus type 与网表 concat、位选择、部分选择，校验当前报告的 cell/pin/net 与
+FF 或顶层 input launch，以及整个数据路径连接和各路径 net 的单 driver；
+拒绝过期端点、宽度错误、不支持表达式和 source net 不匹配。
+同一端点的重复 rise/fall 报告只插一条链；未选择的其他负 hold 端点保留在 manifest 中。
+不会因一个端点改善而隐藏全局剩余违例。
+
+插入后对**每个原 cell 的每个 pin bit**收缩仅本工具添加的非反相 delay 链并比较，
+同时要求只有所选 sink 接入新链、其余源文本完全一致。manifest 保留选择参数、所选端点、
+逐级连接、实际库面积及输入/输出身份。
+该连接证明不等于时序收敛。必须用原三份 Liberty、原 SDC 和原 clock semantics 重跑
+mapped check/stat、全局 setup/hold、最小脉宽/周期及适用的电气检查；保留失败诊断。
+工具拒绝覆盖父网表或重复使用已插链的父网表。本批 `hold-tool/run-hold-round.py`
+同样接受可重复 `--macro-pin`（默认 D）与 `--pin-stages`，透传并核对级数配置；
+必须从同一已完成 clock parent 选择 fresh child；
+原 round 输出及其冻结 source hashes 保持不变。
+本地测试：`python3 -m unittest discover -s npc/rv64/syn -p 'test_repair_*hold.py' -v`。
