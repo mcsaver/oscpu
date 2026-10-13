@@ -110,6 +110,7 @@ set SYNTH_STA_FLATTEN_EXPORT_ENABLED [env_flag_enabled $SYNTH_STA_FLATTEN_EXPORT
 set SYNTH_STAGE_SCC_ENABLED [env_flag_enabled $SYNTH_STAGE_SCC]
 
 set LIBS [concat {*}[lmap lib $LIB_FILES {concat "-liberty" $lib}]]
+set REPORT_LIBS [concat {*}[lmap lib $ALL_LIB_FILES {concat "-liberty" $lib}]]
 set EXCLUDE_CELLS [concat {*}[lmap cell $DONT_USE_CELLS {concat "-dont_use" $cell}]]
 set VERILOG_INCLUDE_ARGS [concat {*}[lmap dir $VERILOG_INCLUDE_DIRS {concat "-I$dir"}]]
 set VERILOG_DEFINE_ARGS [concat {*}[lmap define $VERILOG_DEFINES {concat "-D$define"}]]
@@ -480,19 +481,19 @@ splitnets -format __v -ports
 opt_clean -purge
 
 # load liberty file before checking
-foreach l $LIB_FILES { read_liberty -lib $l }
+foreach l $ALL_LIB_FILES { read_liberty -lib $l }
 
 # reports
 # A mapped check that only prints diagnostics can silently leave $mul/$mux and
 # other generic cells.  -assert makes any unmapped cell a non-zero Yosys exit.
 tee -o $RESULT_DIR/synth_check.txt check -mapped -assert
-tee -o $RESULT_DIR/synth_stat.txt stat {*}$LIBS
+tee -o $RESULT_DIR/synth_stat.txt stat {*}$REPORT_LIBS
 if {$SYNTH_COMPOSITE_CENSUS_JSON ne ""} {
   if {[file pathtype $SYNTH_COMPOSITE_CENSUS_JSON] ne "absolute"} {
     error "SYNTH_COMPOSITE_CENSUS_JSON must be absolute"
   }
   file mkdir [file dirname $SYNTH_COMPOSITE_CENSUS_JSON]
-  tee -o $SYNTH_COMPOSITE_CENSUS_JSON stat -json {*}$LIBS
+  tee -o $SYNTH_COMPOSITE_CENSUS_JSON stat -json {*}$REPORT_LIBS
 }
 if {$SYNTH_COMPOSITE_DESIGN_JSON ne ""} {
   if {[file pathtype $SYNTH_COMPOSITE_DESIGN_JSON] ne "absolute"} {

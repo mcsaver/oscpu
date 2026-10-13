@@ -36,6 +36,11 @@ module tb_r64_dcache_detached_store;
   wire [5:0] fast_token;
   reg fast_ready = 1;
   reg bvalid = 0;
+  // Delay external B presentation when aligning B with a selected read edge.
+  // Consumer backpressure alone no longer delays a real B accepted by the
+  // elastic terminal. The separate +fifo-held-b case exercises that holder.
+  reg align_b_delivery=0;
+  wire bus_bvalid=bvalid && (!align_b_delivery || fast_ready);
   reg [1:0] bresp = 0;
   wire idle, mutation;
   wire [60:0] mutationword;
@@ -87,7 +92,7 @@ module tb_r64_dcache_detached_store;
     .write_data_ready_i(wdready),
     .write_data_o(wd),
     .write_strb_o(ws),
-    .write_rsp_valid_i(bvalid),
+    .write_rsp_valid_i(bus_bvalid),
     .write_rsp_ready_o(bready),
     .write_resp_i(bresp),
     .idle_o(idle),
@@ -168,7 +173,7 @@ module tb_r64_dcache_detached_store;
             if (writestrb[j]) memory[writeindex][8*j+:8] = writedata[8*j+:8];
         end
       end
-      if (bvalid && bready) begin
+      if (bus_bvalid && bready) begin
         bvalid <= 0;
         awseen = 0;
         wseen  = 0;
@@ -251,6 +256,8 @@ module tb_r64_dcache_detached_store;
   reg [63:0] write_address=0;
   reg [1:0] held_valid=0;
   reg [71:0] held_payload[0:1];
+  reg fast_b_pending=0, fast_b_seen=0;
+  reg [5:0] fast_b_owner=0;
   reg held_fast=0;
   reg [6:0] held_fast_payload=0;
   always @(posedge clk) if(!rst) begin
@@ -260,16 +267,26 @@ module tb_r64_dcache_detached_store;
         $fatal(1,"mutation did not preserve detached store address");
       mutation_checks=mutation_checks+1;
     end
+    if(req_valid[0]&&req_ready[0]&&fast_store[0])begin
+      if(fast_b_pending)$fatal(1,"second fast store reused pending B owner");
+      fast_b_pending=1;fast_b_seen=0;fast_b_owner=req_token[5:0];
+    end
+    if(bus_bvalid&&bready&&fast_b_pending)begin
+      if(fast_b_seen)$fatal(1,"fast store accepted B twice");
+      fast_b_seen=1;
+    end
     if(fast_valid&&fast_ready)begin
-      if(!bvalid||!bready)$fatal(1,"store completed before actual B");
+      if(!fast_b_pending||!fast_b_seen||fast_token!==fast_b_owner)
+        $fatal(1,"store completed without its previously accepted real B");
+      fast_b_pending=0;fast_b_seen=0;
       bcycle=int'($time/10);
     end
     if(held_fast && (!fast_valid || {fast_token,fast_error}!==held_fast_payload))
       $fatal(1,"backpressured detached B changed token/error");
     held_fast=fast_valid&&!fast_ready;
     held_fast_payload={fast_token,fast_error};
-    if(bvalid&&bready&&(|dut.hit_response_take_w))simultaneous_hit_b=simultaneous_hit_b+1;
-    if(bvalid&&bready&&(|dut.take_w))simultaneous_take_b=simultaneous_take_b+1;
+    if(bus_bvalid&&bready&&(|dut.hit_response_take_w))simultaneous_hit_b=simultaneous_hit_b+1;
+    if(bus_bvalid&&bready&&(|dut.take_w))simultaneous_take_b=simultaneous_take_b+1;
     if(bv&&dut.fill_port_block_w)begin
       if(br)$fatal(1,"B/refill collision accepted twice");
       blocked_read_beats=blocked_read_beats+1;
@@ -328,7 +345,7 @@ module tb_r64_dcache_detached_store;
   endtask
   task automatic pause_b_valid;
     begin
-      fast_ready=0;release_b();
+      align_b_delivery=1;fast_ready=0;release_b();
       while(!bvalid)begin @(negedge clk);#1;end
     end
   endtask
@@ -347,6 +364,35 @@ module tb_r64_dcache_detached_store;
     random_stall=0;
     for(n=0;n<2048;n=n+1)memory[n]=64'h3456000000000000+64'(n);
     repeat(4)@(negedge clk);#1;rst=0;
+    if($test$plusargs("fifo-held-b"))begin
+      // Three independent owners share bank0: a held fast-store terminal,
+      // an other-bank miss refilling alternating banks, and continuous hot
+      // reads. Refill can consume the credit that first offered B used.
+      warm(64'h100);warm(64'h200);begin_store(64'h100,0);
+      read_pause=1;launch(11,64'h308,0,0,0,255,0);
+      while(dut.state_q!=2)begin @(negedge clk);#1;end
+      @(negedge clk);#1;
+      read_pause=0;write_pause=0;bdelay=3;fast_ready=0;
+      for(integer tick=0;tick<40;tick=tick+1)begin
+        req_valid=1;req_addr=64'h200;req_op=0;req_cache=3;
+        req_token=12'(16+(tick%8));fast_store=0;
+        expected[16+(tick%8)]=memory[mi(64'h200)];
+        expect_error[16+(tick%8)]=0;expect_compare[16+(tick%8)]=0;
+        @(posedge clk);
+        @(negedge clk);#1;
+      end
+      req_valid=0;
+      if(!fast_valid||fast_token!=10||done[10]||!done[11])
+        $fatal(1,"held FIFO B terminal or independent miss lost");
+      if(!fast_b_seen||!dut.store_active_q)
+        $fatal(1,"real B receipt did not retain its unconsumed terminal owner");
+      fast_ready=1;drain();warm(64'h100);
+      if(mutation_checks!=1||fast_b_pending||accepts!=returns)
+        $fatal(1,"held B duplicated side effect or terminal");
+      $display("[PASS] tb_r64_dcache_detached_store fifo_held_b accepted=%0d returned=%0d mutation=%0d",
+               accepts,returns,mutation_checks);
+      $finish;
+    end
     // The real Dhrystone bank/set pair: destination set61 versus source set15.
     // Both A/B runs hold B for exactly the same number of clock edges.
     for(bank=0;bank<2;bank=bank+1)begin

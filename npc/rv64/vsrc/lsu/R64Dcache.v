@@ -74,12 +74,15 @@ module R64Dcache #(
   reg [TOKEN_W-1:0] store_token_q;
   reg [7:0] store_strb_q;
   reg store_fast_q;
+  // ECOS55 SRAM adaptation: accept a credited real B once, then retain its
+  // terminal if the consumer stalls. FIFO maintenance cannot retract VALID.
+  reg fast_b_valid_q, fast_b_error_q;
+  reg [TOKEN_W-1:0] fast_b_token_q;
   wire store_detached_w = FAST_STORE_DETACH != 0 && store_fast_q;
   reg [TAG_W-1:0] tag0_q[0:SETS-1], tag1_q[0:SETS-1];
   reg [SETS-1:0] valid0_q, valid1_q, lru_q;
-  // Separate arrays express real bank ports, without replicated data RAM.
-  reg [63:0] bank00_q[0:WORDS-1], bank01_q[0:WORDS-1];
-  reg [63:0] bank10_q[0:WORDS-1], bank11_q[0:WORDS-1];
+  // ECOS55 SRAM adaptation: each bank owns two real single-port macros.
+  wire [1:0] data_read_ready_w, data_write_ready_w, data_idle_w, data_forward_w, store_credit_w;
   reg [1:0] stage_valid_q;
   reg [63:0] address_q[0:1], data_q[0:1], expected_q[0:1];
   reg [TOKEN_W-1:0] token_q[0:1];
@@ -88,7 +91,7 @@ module R64Dcache #(
   reg [2:0] size_q[0:1];
   reg [7:0] strb_q[0:1];
   reg [4:0] amo_q [0:1];
-  reg [63:0] rd0_q[0:1], rd1_q[0:1];
+  wire [63:0] rd0_q[0:1], rd1_q[0:1];
   reg [TAG_W-1:0] tagrd0_q[0:1], tagrd1_q[0:1];
   reg [1:0] vrd0_q, vrd1_q;
   reg [1:0] out_valid_q, out_error_q, out_compare_q;
@@ -136,7 +139,7 @@ module R64Dcache #(
       assign rsp_compare_o[g] = out_valid_q[g] && out_compare_q[g];
     end
   endgenerate
-  wire [1:0] available_w = ~stage_valid_q | hit_complete_w;
+  wire [1:0] available_w = (~stage_valid_q | hit_complete_w) & data_read_ready_w;
   wire special_wait_w =
       (stage_valid_q[0] && op_q[0] != 0 &&
        !((store_overlap_w && owner_q == 0) || (store_active_q && store_bank_q == 0))) ||
@@ -165,7 +168,7 @@ module R64Dcache #(
     req_ready_o = 0;
     if (!rst_i && !invalidate_i && !special_wait_w) begin
       if (state_q == IDLE && !store_active_q) begin
-        if (req_op_i[1:0] != 0) req_ready_o[0] = empty_w;
+        if (req_op_i[1:0] != 0) req_ready_o[0] = empty_w && data_read_ready_w[bank0_w];
         else req_ready_o[0] = available_w[bank0_w];
         if (req_op_i[3:2] == 0 && !(req_valid_i[0] && req_op_i[1:0] != 0))
           req_ready_o[1] = available_w[bank1_w] &&
@@ -187,6 +190,7 @@ module R64Dcache #(
   // packet. Keep the same acceptance edge without that unrelated ready cone.
   wire direct_store_w = req_valid_i[0] && !rst_i && !invalidate_i &&
       !special_wait_w && state_q == IDLE && !store_active_q && empty_w &&
+      data_read_ready_w[bank0_w] &&
       req_op_i[1:0] == 1 && req_cache_i[0];
   wire direct_write_offer_w = STORE_COMMAND_EMPTY_FLOW != 0 && direct_store_w &&
       state_q != WRITE;
@@ -218,8 +222,8 @@ module R64Dcache #(
   wire [SET_W+1:0] word_index_w = {set_w, owner_address_w[5:4]};
   wire [SET_W+1:0] fill_index_w = {set_w, beat_q[2:1]};
   wire cache_hit_w = resident_w[owner_q];
-  // Exactly one byte-enabled write port and one synchronous read port per
-  // physical data bank/way. Refill and successful write-through share it.
+  // Logical byte writes enter a credited FIFO. Real ECOS55 ports arbitrate
+  // lookup against queued masked writes on each physical bank.
   wire write_owner_w = store_active_q ? store_bank_q : owner_q;
   wire [63:0] write_owner_address_w = store_active_q ? store_address_q : owner_address_w;
   wire [7:0] write_mask_w = store_active_q ? store_strb_q : strb_q[owner_q];
@@ -232,6 +236,12 @@ module R64Dcache #(
   wire write_poison_w = store_active_q ? store_poison_q : poison_q;
   wire [63:0] write_value_w = store_active_q ? store_data_q : new_q;
   wire [SET_W+1:0] store_index_w = {write_owner_address_w[6+:SET_W], write_owner_address_w[5:4]};
+  wire store_update_need_w = write_rsp_valid_i && write_resp_i == 0 && write_hit_w &&
+      !write_poison_w && !invalidate_i;
+  // ECOS55 SRAM adaptation: bank/key/way are retained B-owner facts (the
+  // earliest BRESP uses registered lookup tag/valid). Only the Q-only probe
+  // qualifies B; live data_write_ready_w remains a refill-port decision.
+  wire store_update_credit_w = !store_update_need_w || store_credit_w[write_owner_w];
   wire store_write_w = write_response_fire_w && write_resp_i == 0 && write_hit_w &&
       !write_poison_w && !invalidate_i;
   // B owns its cache update port. A colliding R beat stays in the read
@@ -248,17 +258,21 @@ module R64Dcache #(
       wire fill_w = fill_write_w && beat_q[0] == g;
       wire store_w = store_write_w && write_owner_w == g;
       assign data_write_w[g] = fill_w || store_w;
-      assign data_way_w[g] = fill_w ? way_q : write_way_w;
-      assign data_index_w[g] = fill_w ? fill_index_w : store_index_w;
-      assign data_write_value_w[g] = fill_w ? beat_data_i : write_value_w;
-      assign data_write_mask_w[g] = fill_w ? 8'hff : write_mask_w;
+      // Query FIFO credit before either R or B fires, without feeding its
+      // ready result back into the selected key. B has the existing priority.
+      wire select_store_w = store_write_w && write_owner_w == g;
+      assign data_way_w[g] = select_store_w ? write_way_w : way_q;
+      assign data_index_w[g] = select_store_w ? store_index_w : fill_index_w;
+      assign data_write_value_w[g] = select_store_w ? write_value_w : beat_data_i;
+      assign data_write_mask_w[g] = select_store_w ? write_mask_w : 8'hff;
     end
   endgenerate
   assign read_valid_o = state_q == READ && !rst_i;
   assign read_addr_o = allocate_q ? {owner_address_w[63:6], 6'b0} : owner_address_w;
   assign read_len_o = allocate_q ? 8'd7 : 8'd0;
   assign read_size_o = allocate_q ? 3'd3 : size_q[owner_q];
-  assign beat_ready_o = state_q == REFILL && !rst_i && !fill_port_block_w;
+  assign beat_ready_o = state_q == REFILL && !rst_i && !fill_port_block_w &&
+      (!allocate_q || data_write_ready_w[beat_q[0]]);
   // Registered WRITE owners retain priority. Admission is independent of
   // both port-ready inputs; each accepted channel is recorded separately.
   assign write_valid_o = ((state_q == WRITE && !command_sent_q) || direct_write_offer_w) && !rst_i;
@@ -267,23 +281,28 @@ module R64Dcache #(
   assign write_size_o = direct_write_offer_w ? req_size_i[2:0] : size_q[owner_q];
   assign write_data_o = direct_write_offer_w ? req_data_i[63:0] : new_q;
   assign write_strb_o = direct_write_offer_w ? req_strb_i[7:0] : strb_q[owner_q];
-  assign write_rsp_ready_o = !rst_i && (
-      store_active_q ? (store_fast_q ? store_rsp_ready_i : output_free_w[store_bank_q]
-          ) : (state_q == BRESP && (!fast_store_q[owner_q] || store_rsp_ready_i)));
+  assign write_rsp_ready_o = !rst_i && !fast_b_valid_q && store_update_credit_w && (
+      store_active_q ? (store_fast_q || output_free_w[store_bank_q]) :
+          state_q == BRESP);
   wire write_response_fire_w = write_rsp_valid_i && write_rsp_ready_o;
+  wire write_completion_fire_w =
+      (write_response_fire_w && (!write_fast_w || store_rsp_ready_i)) ||
+      (fast_b_valid_q && store_rsp_ready_i);
+  wire terminal_error_w = fast_b_valid_q ? fast_b_error_q : write_resp_i != 0;
   wire write_channels_complete_w = state_q == WRITE &&
       (command_sent_q || write_ready_i) && (data_sent_q || write_data_ready_i);
   // If both ports accepted the input packet, BRESP first exposes its freshly
   // registered lookup owner to the earliest legal B. Only an unconsumed owner
   // may migrate to storeQ; lookup hit/way cannot be sampled at input acceptance.
-  wire detach_store_w = SPLIT_STORE_OWNER != 0 && op_q[owner_q] == 1 &&
+  wire detach_store_w = !write_completion_fire_w && SPLIT_STORE_OWNER != 0 && op_q[owner_q] == 1 &&
       cache_q[owner_q] && (write_channels_complete_w ||
       (STORE_COMMAND_EMPTY_FLOW != 0 && state_q == BRESP && !write_response_fire_w));
-  assign store_rsp_valid_o = (store_active_q || state_q == BRESP) && write_fast_w &&
-      write_rsp_valid_i && !rst_i;
-  assign store_rsp_token_o = write_token_w;
-  assign store_rsp_error_o = write_resp_i != 0;
-  assign idle_o = state_q == IDLE && empty_w && !store_active_q;
+  assign store_rsp_valid_o = !rst_i && (fast_b_valid_q ||
+      ((store_active_q || state_q == BRESP) && write_fast_w &&
+       write_rsp_valid_i && store_update_credit_w));
+  assign store_rsp_token_o = fast_b_valid_q ? fast_b_token_q : write_token_w;
+  assign store_rsp_error_o = terminal_error_w;
+  assign idle_o = state_q == IDLE && empty_w && !store_active_q && (&data_idle_w);
   assign mutation_o = write_response_fire_w && write_resp_i == 0;
   assign mutation_word_o = write_owner_address_w[63:3];
   wire unused_last_w = beat_last_i;
@@ -374,78 +393,22 @@ module R64Dcache #(
       end
     end
   endgenerate
-  // Each bank accepts the original single physical write event into a
-  // one-cycle write buffer. A lookup sees that pending write through byte
-  // forwarding, so tag install, B completion and all request timing stay exact.
-  // Groups retain different histories and therefore have distinct payload Qs:
-  // each bit drives at most 32 rows x 2 ways, not all 256 rows x 2 ways.
-  localparam WRITE_ROWS = WORDS < 32 ? WORDS : 32, WRITE_GROUPS = WORDS / WRITE_ROWS;
-  reg [1:0] pending_write_q, pending_way_q;
-  reg [SET_W+1:0] pending_index_q[0:1];
-  reg [7:0] pending_mask_q[0:1];
-  reg [63:0] pending_data_q[0:1];
-  wire [63:0] lookup_data0_w[0:1], lookup_data1_w[0:1];
-  genvar wb, wg, wr, by;
+  // ECOS55 SRAM adaptation: two entries per bank absorb actual successful
+  // B/refill events. The leaf forwards accepted bytes until its macro write,
+  // and owns the unchanged one-edge synchronous lookup result.
   generate
-    for (wb = 0; wb < 2; wb = wb + 1) begin : g_write_bank
-      always @(posedge clk_i) begin
-        if (rst_i) pending_write_q[wb] <= 0;
-        else pending_write_q[wb] <= data_write_w[wb];
-        if (data_write_w[wb]) begin
-          pending_way_q[wb]   <= data_way_w[wb];
-          pending_index_q[wb] <= data_index_w[wb];
-          pending_mask_q[wb]  <= data_write_mask_w[wb];
-          pending_data_q[wb]  <= data_write_value_w[wb];
-        end
-      end
-      wire [63:0] raw0_w, raw1_w;
-      if (wb == 0) begin : g_low
-        assign raw0_w = bank00_q[lookup_index_w[wb]];
-        assign raw1_w = bank01_q[lookup_index_w[wb]];
-      end else begin : g_high
-        assign raw0_w = bank10_q[lookup_index_w[wb]];
-        assign raw1_w = bank11_q[lookup_index_w[wb]];
-      end
-      wire pending_hit_w = pending_write_q[wb] && pending_index_q[wb] == lookup_index_w[wb];
-      for (by = 0; by < 8; by = by + 1) begin : g_forward
-        wire forward_w = pending_hit_w && pending_mask_q[wb][by];
-        assign lookup_data0_w[wb][by*8+:8] = forward_w && !pending_way_q[wb] ?
-            pending_data_q[wb][by*8+:8] : raw0_w[by*8+:8];
-        assign lookup_data1_w[wb][by*8+:8] = forward_w && pending_way_q[wb] ?
-            pending_data_q[wb][by*8+:8] : raw1_w[by*8+:8];
-      end
-      for (wg = 0; wg < WRITE_GROUPS; wg = wg + 1) begin : g_group
-        reg [63:0] payload_q;
-        wire select_w = data_index_w[wb] / WRITE_ROWS == wg;
-        always @(posedge clk_i)
-          if (data_write_w[wb] && select_w)
-            payload_q <= data_write_value_w[wb];
-        for (wr = 0; wr < WRITE_ROWS; wr = wr + 1) begin : g_row
-          localparam [SET_W+1:0] ROW = wg * WRITE_ROWS + wr;
-          wire write_w = pending_write_q[wb] && pending_index_q[wb] == ROW;
-          for (by = 0; by < 8; by = by + 1) begin : g_byte
-            if (wb == 0) begin : g_low
-              always @(posedge clk_i)
-                if (!rst_i && write_w && pending_mask_q[wb][by]) begin
-                  if (!pending_way_q[wb]) bank00_q[ROW][by*8+:8] <= payload_q[by*8+:8];
-                  else bank01_q[ROW][by*8+:8] <= payload_q[by*8+:8];
-                end
-            end else begin : g_high
-              always @(posedge clk_i)
-                if (!rst_i && write_w && pending_mask_q[wb][by]) begin
-                  if (!pending_way_q[wb]) bank10_q[ROW][by*8+:8] <= payload_q[by*8+:8];
-                  else bank11_q[ROW][by*8+:8] <= payload_q[by*8+:8];
-                end
-            end
-          end
-        end
-`ifdef R64_ASSERT
-        always @(posedge clk_i)
-          if (!rst_i && pending_write_q[wb] && pending_index_q[wb] / WRITE_ROWS == wg &&
-              payload_q !== pending_data_q[wb])
-            $fatal(1, "DCache grouped write payload lost the accepted bank owner");
-`endif
-      end
+    for (g = 0; g < 2; g = g + 1) begin : g_data_bank
+      R64DcacheData #(.ADDR_W(SET_W+2), .WORDS(WORDS)) data (
+        .clk_i(clk_i), .rst_i(rst_i),
+        .read_i(lookup_read_w[g]), .read_ready_o(data_read_ready_w[g]),
+        .read_addr_i(lookup_index_w[g]), .read_data0_o(rd0_q[g]), .read_data1_o(rd1_q[g]),
+        .write_i(data_write_w[g]), .write_ready_o(data_write_ready_w[g]),
+        .probe_way_i(write_way_w), .probe_addr_i(store_index_w),
+        .probe_ready_o(store_credit_w[g]),
+        .write_way_i(data_way_w[g]), .write_addr_i(data_index_w[g]),
+        .write_data_i(data_write_value_w[g]), .write_mask_i(data_write_mask_w[g]),
+        .idle_o(data_idle_w[g]), .forward_o(data_forward_w[g])
+      );
     end
   endgenerate
   integer b;
@@ -467,7 +430,7 @@ module R64Dcache #(
       // A held second-bank miss must observe the first owner's newly installed
       // tag/data; otherwise the same line could be allocated in both ways.
       assign lookup_read_w[g] = bank_take_w[g] ||
-          (state_q == DELIVER && stage_valid_q[g] && owner_q != g);
+          (state_q == DELIVER && stage_valid_q[g] && owner_q != g && data_read_ready_w[g]);
       assign lookup_set_w[g] = (state_q == IDLE || hit_overlap_w) ? input_set_w[g] :
           address_q[g][6+:SET_W];
       assign lookup_index_w[g] = (state_q == IDLE || hit_overlap_w) ?
@@ -480,6 +443,9 @@ module R64Dcache #(
       reservation_addr_q <= 0;
       reservation_size_q <= 0;
       store_active_q <= 0;
+      fast_b_valid_q <= 0;
+      fast_b_error_q <= 0;
+      fast_b_token_q <= 0;
       store_bank_q <= 0;
       store_way_q <= 0;
       store_hit_q <= 0;
@@ -505,6 +471,12 @@ module R64Dcache #(
       vrd1_q <= 0;
       cache_q <= 0;
     end else begin
+      if (fast_b_valid_q && store_rsp_ready_i) fast_b_valid_q <= 0;
+      if (write_response_fire_w && write_fast_w && !store_rsp_ready_i) begin
+        fast_b_valid_q <= 1;
+        fast_b_token_q <= write_token_w;
+        fast_b_error_q <= write_resp_i != 0;
+      end
       for (b = 0; b < 2; b = b + 1) begin
         if (out_valid_q[b] && rsp_ready_i[b]) out_valid_q[b] <= 0;
         if (hit_complete_w[b]) begin
@@ -537,8 +509,6 @@ module R64Dcache #(
         tagrd1_q[b] <= tag1_q[lookup_set_w[b]];
         vrd0_q[b] <= valid0_q[lookup_set_w[b]];
         vrd1_q[b] <= valid1_q[lookup_set_w[b]];
-        rd0_q[b] <= lookup_data0_w[b];
-        rd1_q[b] <= lookup_data1_w[b];
       end
       // Candidate payload may change only while there is no slow owner.
       // A true start is an IDLE edge, so it captures the exact selected packet.
@@ -663,7 +633,7 @@ module R64Dcache #(
           stage_valid_q[owner_q] <= 0;
         state_q <= IDLE;
       end
-      if (write_response_fire_w) begin
+      if (write_completion_fire_w) begin
         if (store_active_q) begin
           store_active_q <= 0;
           // A fully detached bank may already own an unrelated load. B
@@ -673,18 +643,19 @@ module R64Dcache #(
             out_valid_q[store_bank_q] <= 1;
             out_token_q[store_bank_q] <= store_token_q;
             out_data_q[store_bank_q] <= 0;
-            out_error_q[store_bank_q] <= write_resp_i != 0;
+            out_error_q[store_bank_q] <= terminal_error_w;
             out_compare_q[store_bank_q] <= 0;
           end
         end else begin
-          error_q <= write_resp_i != 0;
+          error_q <= terminal_error_w;
           if (fast_store_q[owner_q]) begin
             stage_valid_q[owner_q] <= 0;
             state_q <= IDLE;
           end else state_q <= DELIVER;
         end
       end
-      if (state_q == DELIVER && output_free_w[owner_q]) begin
+      if (state_q == DELIVER && output_free_w[owner_q] &&
+          (!stage_valid_q[!owner_q] || data_read_ready_w[!owner_q])) begin
         stage_valid_q[owner_q] <= 0;
         out_valid_q[owner_q] <= 1;
         out_token_q[owner_q] <= token_q[owner_q];
@@ -724,6 +695,12 @@ module R64Dcache #(
       end
       if (direct_write_offer_w && (state_q != IDLE || store_active_q || !empty_w))
         $fatal(1, "Dcache direct write lacks exclusive accepted store owner");
+      if (store_write_w && !data_write_ready_w[write_owner_w])
+        $fatal(1, "Dcache B Q-credit did not guarantee its accepted FIFO write");
+      if (fast_b_valid_q && (!write_fast_w || !(store_active_q || state_q == BRESP)))
+        $fatal(1, "Dcache fast B terminal lost its retained owner");
+      if (fast_b_valid_q && write_rsp_ready_o)
+        $fatal(1, "Dcache accepted B twice for a held terminal");
       if (detach_store_w && (write_response_fire_w || store_active_q))
         $fatal(1, "Dcache store descriptor duplicated a completed owner");
       if (store_active_q && !store_detached_w &&

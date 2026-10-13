@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 module tb_r64_icache_hit_flow;
+  parameter SET_W=6;
+  localparam [63:0] CONFLICT_STRIDE = 64'd1 << (SET_W+6);
   parameter FLOW=1;
   reg [7:0] qmask=0;
   wire [7:0] out_mask;
@@ -18,7 +20,7 @@ module tb_r64_icache_hit_flow;
   reg [63:0] bd = 0;
   reg [ 1:0] bp = 0;
   R64ICache #(
-    .SET_W(2), .HIT_RESPONSE_EMPTY_FLOW(FLOW)
+    .SET_W(SET_W), .HIT_RESPONSE_EMPTY_FLOW(FLOW)
   ) dut (
     clk,
     rst,
@@ -161,17 +163,17 @@ module tb_r64_icache_hit_flow;
   initial begin
     repeat (3) @(negedge clk);
     rst = 0;
-    for (n = 0; n < 32; n = n + 1) request(64'h80000000 + n * 16, 0, 0);
+    for (n = 0; n < 32; n = n + 1) request(64'h80000000 + (n % 16) * 16 + (n / 16) * CONFLICT_STRIDE, 0, 0);
     if (fills != 8) $fatal(1, "warmup expected eight lines, got %d", fills);
     before_fills = fills;
     random_stall = 0;
     measure_hot=1;
-    // After warmup, all 32 sectors fit exactly. No input/output wait is permitted.
+    // After warmup, 32 sectors fill both ways of the first four sets. No input/output wait is permitted.
     @(negedge clk);
     qv = 1;
     qfault = 0;
     for (n = 0; n < 160; n = n + 1) begin
-      qa = 64'h80000000 + (n % 32) * 16;
+      qa = 64'h80000000 + (n % 16) * 16 + ((n % 32) / 16) * CONFLICT_STRIDE;
       @(posedge clk);
       if (!qr) $fatal(1, "hot hit input bubble");
       @(negedge clk);
@@ -187,9 +189,9 @@ module tb_r64_icache_hit_flow;
     if (fills != before_fills) $fatal(1, "translation fault issued bus traffic");
 
     // Failed replacement overwrites data RAM but must never retain the old tag.
-    // Addresses 0x000, 0x100, and 0x200 map to the same two-way set.
+    // Three CONFLICT_STRIDE-spaced lines map to the same two-way set.
     error_beat = 3;
-    request(64'h80000200, 0, 0);
+    request((64'h80000000 + 2 * CONFLICT_STRIDE), 0, 0);
     error_beat   = -1;
     before_fills = fills;
     request(64'h80000000, 0, 0);
@@ -199,7 +201,7 @@ module tb_r64_icache_hit_flow;
     // then require a new fill on the next access to its line.
     @(negedge clk);
     qv = 1;
-    qa = 64'h80000400;
+    qa = (64'h80000000 + 4 * CONFLICT_STRIDE);
     @(posedge clk);
     while (!qr) @(posedge clk);
     @(negedge clk);
@@ -211,26 +213,26 @@ module tb_r64_icache_hit_flow;
     while (head < tail) @(negedge clk);
     before_fills = fills;
     gen = 1;
-    request(64'h80000400, 0, 0);
+    request((64'h80000000 + 4 * CONFLICT_STRIDE), 0, 0);
     if (fills != before_fills + 1) $fatal(1, "invalidated refill resurrected line");
-    request(64'h80000410, 0, 0);
+    request((64'h80000010 + 4 * CONFLICT_STRIDE), 0, 0);
     if (fills != before_fills + 1) $fatal(1, "filled neighbor sector missed");
     // Noncacheable fetches must bypass a preexisting hit, never fill or corrupt it.
     before_fills = fills;
     uncached = 1;
     gen = 2;
-    request(64'h80000410, 0, 0);
-    request(64'h80000410, 0, 0);
+    request((64'h80000010 + 4 * CONFLICT_STRIDE), 0, 0);
+    request((64'h80000010 + 4 * CONFLICT_STRIDE), 0, 0);
     if (fills != before_fills + 2) $fatal(1, "uncached fetch hit or allocated");
     uncached = 0;
     gen = 1;
-    request(64'h80000410, 0, 0);
+    request((64'h80000010 + 4 * CONFLICT_STRIDE), 0, 0);
     if (fills != before_fills + 2) $fatal(1, "uncached fetch destroyed resident line");
     if (errors != 2 || responses != 201)
       $fatal(1, "coverage responses=%d errors=%d", responses, errors);
     // Partial-PMP mask remains paired with the held numerical packet across
     // invalidation. The blocked empty-flow response must reside in original Q.
-    @(negedge clk);qmask=8'h81;qa=64'h80000410;qv=1;rr=0;
+    @(negedge clk);qmask=8'h81;qa=(64'h80000010 + 4 * CONFLICT_STRIDE);qv=1;rr=0;
     @(posedge clk);while(!qr)@(posedge clk);
     @(negedge clk);qv=0;while(!rv)@(negedge clk);
     held_packet={rd,rf,rc,out_mask};
@@ -242,6 +244,7 @@ module tb_r64_icache_hit_flow;
     invalidate=0;rr=1;
     while(head<tail)@(negedge clk);
     if(responses!=202 || errors!=2)$fatal(1,"held packet owner conservation");
+    $display("ICACHE_GEOMETRY set_w=%0d ecos_ways=%0d",SET_W,SET_W==6?2:0);
     $display("[PASS] tb_r64_icache_hit_flow");
     $display(
         "COVERAGE responses=%0d fills=%0d faults=%0d hot_II1_cycles=160 invalidate_during_fill=1",

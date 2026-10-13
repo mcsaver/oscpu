@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 module tb_r64_dcache_hit_flow;
   parameter FLOW=1;
+  parameter CACHE_SET_W=2;
   reg measure_hit=0, force_rsp_hold=0;
   reg clk = 0;
   always #5 clk = ~clk;
@@ -35,7 +36,7 @@ module tb_r64_dcache_hit_flow;
   wire idle, mutation;
   wire [60:0] mutationword;
   R64Dcache #(
-    .SET_W(2), .HIT_RESPONSE_EMPTY_FLOW(FLOW)
+    .SET_W(CACHE_SET_W), .HIT_RESPONSE_EMPTY_FLOW(FLOW)
   ) dut (
     .clk_i(clk),
     .rst_i(rst),
@@ -431,17 +432,17 @@ module tb_r64_dcache_hit_flow;
     @(negedge clk); invalidate = 1;
     @(negedge clk); invalidate = 0;
     command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
-    command(256, 0, 1, 0, 0, memory[32], 255, 0, 3, 0, 0);
+    command(64'(1 << (CACHE_SET_W+6)), 0, 1, 0, 0, memory[1 << (CACHE_SET_W+3)], 255, 0, 3, 0, 0);
     command(64, 0, 1, 0, 0, memory[8], 255, 0, 3, 0, 0);
     if (!dut.valid1_q[0] || dut.tag1_q[0] != 1 || dut.way_q != 0)
       $fatal(1, "way1 store fixture did not leave a different old slow-owner way");
-    command(256, 1, 1, 64'h1234deadbeef5678, 0, 0, 255, 0, 3, 0, 0);
-    command(256, 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
+    command(64'(1 << (CACHE_SET_W+6)), 1, 1, 64'h1234deadbeef5678, 0, 0, 255, 0, 3, 0, 0);
+    command(64'(1 << (CACHE_SET_W+6)), 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
     command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
     force_write_error = 1;
-    command(256, 1, 1, 64'hbad, 0, 0, 255, 0, 3, 1, 0);
+    command(64'(1 << (CACHE_SET_W+6)), 1, 1, 64'hbad, 0, 0, 255, 0, 3, 1, 0);
     force_write_error = 0;
-    command(256, 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
+    command(64'(1 << (CACHE_SET_W+6)), 0, 1, 0, 0, 64'h1234deadbeef5678, 255, 0, 3, 0, 0);
     command(0, 0, 1, 0, 0, memory[0], 255, 0, 3, 0, 0);
     if (live != 0 || accepts != returns || writecmds != 47)
       $fatal(1, "transaction accounting %0d/%0d writes%0d", accepts, returns, writecmds);

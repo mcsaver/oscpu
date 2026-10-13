@@ -67,6 +67,8 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/memory/R64Translation.v \
   $(R64_RTL_ROOT)/memory/R64FetchTranslation.v \
   $(R64_RTL_ROOT)/memory/R64DataTranslation.v \
+  $(R64_RTL_ROOT)/../sim/vsrc/ics55_ecos_sram_256x128_m4_ww.v \
+  $(R64_RTL_ROOT)/memory/R64ICacheData.v \
   $(R64_RTL_ROOT)/memory/R64ICache.v \
   $(R64_RTL_ROOT)/bus/R64AxiRead.v \
   $(R64_RTL_ROOT)/bus/R64AxiWrite.v \
@@ -82,6 +84,8 @@ R64_RTL_SRCS := \
   $(R64_RTL_ROOT)/lsu/R64LsuCompletion.v \
   $(R64_RTL_ROOT)/lsu/R64Lsu.v \
   $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
+  $(R64_RTL_ROOT)/../sim/vsrc/ics55_ecos_sram_256x64_m4.v \
+  $(R64_RTL_ROOT)/lsu/R64DcacheData.v \
   $(R64_RTL_ROOT)/lsu/R64Dcache.v \
   $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
   $(R64_RTL_ROOT)/lsu/R64MemorySplit.v \

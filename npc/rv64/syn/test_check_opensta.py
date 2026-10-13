@@ -12,7 +12,8 @@ CHECKER = Path(__file__).with_name("check_opensta.py")
 
 class OpenStaDecision(unittest.TestCase):
     def run_case(self, setup=0.10, hold=0.01, *, missing=None,
-                 uncertainty=True, warning=False, global_setup=None, check_type="check"):
+                 uncertainty=True, warning=False, global_setup=None, check_type="check",
+                 period_slack=0.10, pulse_slack=0.01, missing_clock=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rows = []
@@ -31,6 +32,14 @@ class OpenStaDecision(unittest.TestCase):
                 ("Warning 1: no clock\n" if warning else "") +
                 f"worst slack max {setup if global_setup is None else global_setup:.9f}\n"
                 f"worst slack min {hold:.9f}\n")
+            for name, value in [("min-period", period_slack), ("min-pulse-width", pulse_slack)]:
+                if missing_clock and name == "min-period":
+                    continue
+                text = "" if value is None else (
+                    f"Pin Period Min Period Slack\n------------------\n"
+                    f"ram/CLK 1.000000000 1.000000000 {value:.9f} "
+                    f"({'VIOLATED' if value < 0 else 'MET'})\n")
+                (root/f"opensta-{name}.rpt").write_text(text)
             result = root/"result.json"
             run = subprocess.run([sys.executable, str(CHECKER),
                                   "--paths", str(root/"paths.json"),
@@ -88,6 +97,18 @@ class OpenStaDecision(unittest.TestCase):
         self.assertTrue(result is None or result["status"] == "FAIL")
         # An omitted path beyond the known print interval remains invalid.
         code, result = self.run_case(setup=-3.012, global_setup=-3.014)
+        self.assertNotEqual(code, 0)
+        self.assertIsNone(result)
+
+    def test_memory_clock_limits_participate_in_verdict(self):
+        for args in [dict(period_slack=-0.5917), dict(pulse_slack=-0.01)]:
+            code, result = self.run_case(**args)
+            self.assertNotEqual(code, 0)
+            self.assertEqual(result["status"], "FAIL")
+        code, result = self.run_case(period_slack=None, pulse_slack=None)
+        self.assertEqual(code, 0)
+        self.assertIsNone(result["clock_constraints"]["min-period"]["worst_slack_ns"])
+        code, result = self.run_case(missing_clock=True)
         self.assertNotEqual(code, 0)
         self.assertIsNone(result)
 

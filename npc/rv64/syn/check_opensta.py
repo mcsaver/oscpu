@@ -11,6 +11,7 @@ p.add_argument("--paths", type=Path, required=True)
 p.add_argument("--report", type=Path, required=True)
 p.add_argument("--log", type=Path, required=True)
 p.add_argument("--output", type=Path, required=True)
+p.add_argument("--clock-checks-dir", type=Path, help="Defaults to the path-report directory")
 p.add_argument("--uncertainty", type=float, default=0.05)
 a = p.parse_args()
 log = a.log.read_text()
@@ -27,6 +28,34 @@ for row in raw:
     paths.append(dict(endpoint=row["endpoint"], startpoint=row["startpoint"],
                       group=row["path_group"], check_type=row["type"], delay_type=row["path_type"],
                       slack_ns=row["slack"] * 1e9))
+# Native reports may be empty when no library cell defines this constraint.
+# Missing or malformed reports cannot silently drop SRAM clock restrictions.
+clock_checks = {}
+clock_dir = a.clock_checks_dir or a.paths.parent
+number = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
+clock_row = re.compile(r"^\s*(.+?)\s+(" + number + r")\s+(" + number +
+                       r")\s+(" + number + r")\s+\((MET|VIOLATED)\)\s*$")
+for kind in ("min-period", "min-pulse-width"):
+    report = clock_dir / f"opensta-{kind}.rpt"
+    if not report.is_file():
+        raise SystemExit(f"Missing native clock constraint report: {report}")
+    checks = []
+    for line in report.read_text().splitlines():
+        match = clock_row.match(line)
+        if match:
+            pin, first, second, slack, verdict = match.groups()
+            values = [float(first), float(second), float(slack)]
+            if not all(math.isfinite(value) for value in values):
+                raise SystemExit("Non-finite native clock constraint")
+            if (values[2] < 0) != (verdict == "VIOLATED"):
+                raise SystemExit("Native clock constraint verdict disagrees with slack")
+            checks.append(dict(pin=pin, slack_ns=values[2], status=verdict))
+        elif re.search(r"\((MET|VIOLATED)\)", line):
+            raise SystemExit("Malformed native clock constraint row")
+        elif line.strip() and not (line.lstrip().startswith(("Required", "Actual", "Min", "Pin", "-"))):
+            raise SystemExit("Unexpected native clock constraint report content")
+    clock_checks[kind] = dict(report=str(report.resolve()), checks=checks,
+                             worst_slack_ns=min((row["slack_ns"] for row in checks), default=None))
 setup = [x for x in paths if x["delay_type"] == "max"]
 hold = [x for x in paths if x["delay_type"] == "min"]
 if not setup or not hold:
@@ -63,13 +92,15 @@ for kind, worst in [("max", worst_setup), ("min", worst_hold)]:
 # Rounding tolerance only checks inventory consistency. It never grants
 # slack: both engine values and the JSON paths must themselves be nonnegative.
 passed = (worst_setup["slack_ns"] >= 0 and worst_hold["slack_ns"] >= 0
-          and global_slack["max"] >= 0 and global_slack["min"] >= 0)
+          and global_slack["max"] >= 0 and global_slack["min"] >= 0
+          and all(check["worst_slack_ns"] is None or check["worst_slack_ns"] >= 0
+                  for check in clock_checks.values()))
 result = dict(status="PASS" if passed else "FAIL", engine="OpenSTA",
               worst_setup=worst_setup, worst_hold=worst_hold,
-              required_uncertainty_ns=a.uncertainty,
+              required_uncertainty_ns=a.uncertainty, clock_constraints=clock_checks,
               global_setup_slack_ns=global_slack["max"], global_hold_slack_ns=global_slack["min"],
               report=str(a.report.resolve()),
-              scope="pre-layout mapped STA; real Liberty ICG checks included; no extracted interconnect")
+              scope="pre-layout mapped STA; real Liberty ICG and memory clock checks included; no extracted interconnect")
 a.output.write_text(json.dumps(result, indent=2) + "\n")
 print(f"[{result['status']}] mapped timing: setup {worst_setup['slack_ns']:+.4f} ns, hold {worst_hold['slack_ns']:+.4f} ns")
 raise SystemExit(0 if passed else 1)

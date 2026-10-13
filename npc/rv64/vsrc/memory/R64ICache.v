@@ -42,8 +42,8 @@ module R64ICache #(
   reg [1:0] state_q;
   reg [SETS-1:0] valid0_q, valid1_q, lru_q;
   reg [TAG_W-1:0] tag0_q[0:SETS-1], tag1_q[0:SETS-1];
-  // Separate inferred synchronous memories; only fill writes touch payload.
-  reg [127:0] data0_q[0:SETS*4-1], data1_q[0:SETS*4-1];
+  // Each way has one synchronous data port. LOOKUP reads and FILL writes
+  // are exclusive; the production 256x128 geometry uses a real ECOS macro.
   // One explicit overflow owner preserves a newly accepted request when
   // invalidation or response backpressure prevents replacing the old lookup.
   // Empty Q credit accepts one request independently of hit/READY. Normal
@@ -115,7 +115,7 @@ module R64ICache #(
   reg [7:0] request_mask_q, response_mask_q;
   reg v0_q, v1_q;
   reg [TAG_W-1:0] t0_q, t1_q;
-  reg [127:0] d0_q, d1_q;
+  wire [127:0] d0_q, d1_q;
   reg response_valid_q, response_fault_q;
   reg [127:0] response_data_q;
   reg [  4:0] response_cause_q;
@@ -169,6 +169,17 @@ module R64ICache #(
   wire [SET_W+1:0] fill_sector_w = {set_w, beat_q[2:1]};
   wire fill_bad_w = fill_error_q || (beat_resp_i != 0);
   wire [127:0] fill_data_w = {beat_data_i, low_beat_q};
+  wire data_write_w = !rst_i && beat_fire_w && beat_q[0] && !uncached_q;
+  R64ICacheData #(.ADDR_W(SET_W+2), .WORDS(SETS*4)) data_way0 (
+    .clk_i(clk_i), .read_i(lookup_ready_w), .read_addr_i(request_sector_w),
+    .write_i(data_write_w && !victim_q), .write_addr_i(fill_sector_w),
+    .write_data_i(fill_data_w), .read_data_o(d0_q)
+  );
+  R64ICacheData #(.ADDR_W(SET_W+2), .WORDS(SETS*4)) data_way1 (
+    .clk_i(clk_i), .read_i(lookup_ready_w), .read_addr_i(request_sector_w),
+    .write_i(data_write_w && victim_q), .write_addr_i(fill_sector_w),
+    .write_data_i(fill_data_w), .read_data_o(d1_q)
+  );
 
   // Prepare only while the old lookup can leave. Input VALID and reset
   // publish ownership independently of the tag/data read payload. The public
@@ -177,8 +188,6 @@ module R64ICache #(
     if (lookup_ready_w) begin
       t0_q <= tag0_q[request_set_w];
       t1_q <= tag1_q[request_set_w];
-      d0_q <= data0_q[request_sector_w];
-      d1_q <= data1_q[request_sector_w];
     end
 
   always @(posedge clk_i) begin
@@ -243,10 +252,6 @@ module R64ICache #(
           low_beat_q <= beat_data_i;
           beat_q <= beat_q + 1'b1;
           if (beat_q[0]) begin
-            if (!uncached_q) begin
-              if (victim_q) data1_q[fill_sector_w] <= fill_data_w;
-              else data0_q[fill_sector_w] <= fill_data_w;
-            end
             if (uncached_q || beat_q[2:1] == address_q[5:4]) fill_result_q <= fill_data_w;
           end
           if (last_beat_w) begin

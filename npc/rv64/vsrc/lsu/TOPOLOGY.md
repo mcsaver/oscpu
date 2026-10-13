@@ -54,7 +54,7 @@ LSU持有指令/顺序身份；翻译与物理服务只回显opaque token，sour
 | [R64LsuCompletion.v](R64LsuCompletion.v) | 双lane各两固定槽，共四结果；支持稀疏第二输入、Q空位预写、head选择和WB需求 |
 | [R64MemorySplit.v](R64MemorySplit.v) | unit.physical.split；对齐双lane旁路、非对齐单owner逐byte序列 |
 | [R64MemoryService.v](R64MemoryService.v) | unit.physical.service；CPU/aux选择、异bank配对、请求队列、source返回路由与每aux独立busy/response |
-| [R64Dcache.v](R64Dcache.v)、[R64DcacheAmoParts.v](R64DcacheAmoParts.v) | unit.physical.cache及arithmetic_parts；bank查找、单慢事务、独立普通store B owner、原子运算与pending write |
+| [R64Dcache.v](R64Dcache.v)、[R64DcacheAmoParts.v](R64DcacheAmoParts.v) | unit.physical.cache及arithmetic_parts；bank查找、单慢事务、独立普通store B owner、原子运算与ECOS55 SRAM adapter |
 | [R64LsuSelect.v](R64LsuSelect.v)、[R64LsuYoungestByte.v](R64LsuYoungestByte.v) | 兼容/历史helper，仍在主filelist且有独立测试；当前R64Lsu未实例化，不能计入生产拓扑 |
 
 ## 2. 核心外围连接与物理访存拓扑
@@ -392,7 +392,7 @@ LSQ 在普通 load 被选择、成功翻译直入、或 prepared 授权时已经
 | Dcache lookup / response | 每bank1个lookup和1个response，共2+2 | 物理token、请求与返回数据 | bank命中完成或唯一慢owner排空 |
 | Dcache主慢事务owner | 全局1个 | miss/refill/write/atomic状态 | 完整响应；普通cached store交出AW/W后可转交独立B owner |
 | Dcache普通store B owner | 1个 | bank、way、hit、poison、store数据；bank stage保持token和mask | 真实B且对应完成信用允许 |
-| Dcache待写状态 | 每bank1项，共2项 | way、word index、mask、全字数据；分组payload Q | 下一拍落阵列，期间同址查询逐byte转发 |
+| Dcache待写状态 | 每bank2项，共4项 | way、word index、mask、64bit数据、oldest位 | 合并同key；实际宏写前逐byte转发，队满背压真实R/B |
 
 普通load descriptor的93bit字段：slot5 + PA64 + func8 + mask8 + AMO5 + class2 + misaligned1；不保存store data。
 prepared/query/physical_hold使用通用157bit格式，在上述字段之外保留store data64；普通descriptor展开时该字段补0。
@@ -420,8 +420,8 @@ flowchart TB
   FAST["fast store B → LSU store_done"]
   SB["[Q] 普通cached store独立B owner"]
   WP["每bank R/B真实写事件仲裁"]
-  PEND["[Q] 1拍待写 + 每32行payload分组"]
-  ARRAY["四份原bank/way数据阵列"]
+  PEND["[Q] 每bank两项合并FIFO"]
+  ARRAY["四颗256×64 ECOS SRAM"]
 
   IN --> ROUTE
   ROUTE --> B0 --> H0 -->|"普通load命中"| O0
@@ -461,9 +461,9 @@ flowchart TB
 | bank选择 | PA[3] |
 | set索引 / tag | PA[11:6] / PA[63:12] |
 | 每个bank/way的word索引 | {PA[11:6], PA[5:4]}，8bit |
-| data阵列 | bank00、bank01、bank10、bank11，各256×64bit |
+| data阵列 | 4颗真实 `ics55_ecos_sram_256x64_m4`，每bank/way各256×64bit |
 | tag阵列 | 2个way，各64×52bit，另valid与LRU |
-| 端口结构 | 每bank/way单同步读、单byte-enable写；tag每way双读单写 |
+| 端口结构 | 每bank/way单1RW、逐bit低有效WEB；byte mask展开为8bit许可；tag每way双读单写FF |
 | 对齐load命中能力 | 两个不同bank的load可每拍接受；同bank有冲突 |
 | miss/write并发 | 主read/refill owner + 普通cached store B owner；受限异bank、异set普通cached读可重叠；额外miss在bank stage等候 |
 | 写策略 | write-through，普通store miss不分配；成功B后更新已驻留word |
@@ -479,15 +479,58 @@ LR reservation、SC最终检查、CAS/AMO排他性均在这个物理owner内维�
 绕过 Service/Split 的宽返回队列。非对齐 store、IO、LR/SC/AMO仍走普通返回链。
 所有写的真实外部结果仍由 B 决定。
 
-整合版把逻辑写入与大阵列落盘分开：原来的真实R/B仲裁事件先进入每bank的一拍待写状态，
-下一拍再按word/way/byte写原数据阵列。每组32行保存独立的64bit payload历史，
-每个数据位最多驱动32行×2way；同址lookup用全局pending数据按byte覆盖阵列旧值。
-因此成功B、refill install、load返回的原有边沿保持，物理阵列写延后一拍由转发补齐。
-连续写使用上一拍payload落阵列，同时捕获下一拍payload；失败B不会产生待写事件。
+fast store在真实B有cache FIFO信用和空终端holder时接受该B。空holder且consumer ready时
+仍在同拍直通；consumer背压时把token/error保存在一项弹性终端holder，后续FIFO信用变化
+不能撤回已经发布的VALID。已经接受的B只产生一次mutation和cache逻辑写，holder占用时
+禁止再接B。原store descriptor/BRESP owner保留到终端实际被消费；早期BRESP owner可在
+未完成时迁移到原storeQ以继续独立读取，但不是释放身份。invalidate不能撤销已接受终端。
+定向 `tb_r64_dcache_detached_store +fifo-held-b` 同时保持B终端背压、另一bank的miss/refill和
+目标bank连续hot lookup。恢复修复前B握手的反事实在原VALID保持checker失败，最终版本
+39次接受/39次完成且mutation=1；同拍B/new request、B/hit和held read检查保持有效。
 
-同bank的R/B真实写事件仍以B为先，只在发生实际冲突的那一拍阻塞R；不会在等待B期间预约整个bank写口。
-invalidate清valid并poison在途owner，待写数据不能重新建立valid；reset清pending valid。
-该结构源于历史STA定位到的Dcache写数据512扇出路径；测量范围与缺失历史报告在文末说明。
+
+
+**ECOS55 SRAM adaptation**：可综合数据阵列由 [R64DcacheData.v](R64DcacheData.v)
+显式例化每bank两颗256×64单1RW宏。逐byte mask展开为低有效64bit WEB，full/partial
+写都只占一个宏写边沿；生产实现无RMW、无64bit闲置上半阵列、无数据复制来伪造多口。
+tag/valid/LRU保留小型FF结构，数据宏无reset。
+
+每bank共享两项按{way,index}合并的FIFO，成功B与接受的refill beat才建立逻辑写。
+相同key合并mask且新字节优先。ECOS55优化第1轮的B信用仅依赖已登记FIFO
+valid/head/key及已登记B owner的bank/way/index：占用head始终禁止B合并，
+即使另一槽空闲也不建立重复key；非head同key可合并，无重复key且真实空槽可分配。
+B信用不借同沿drain释放的槽，也不与包含当前lookup/drain的通用write-ready相与。
+R仍按通用信用在实际宏写边沿禁止head合并。B/fire优先于竞争同写入口的R，
+只有B valid而未fire时不阻挡R。leaf接受caller已握手的逻辑写事件，B Q信用足以保证
+其落点；生产断言核对这个蕴含关系，禁止二次以live ready撤销已经接受的B写。
+失败B、poison和invalidate不产生cache store更新。
+
+tail同key合并可以与old head实际drain同沿发生，晋升后的tail成为新的冻结head。
+四次读额度不因新R或合并而重置；持续head-key B在最多剩余四次读授权、一次drain
+以及下一拍Q信用可见后取得本地进度。减少head合并可能增加真实宏写或B等待，
+无冲突load和空B终端直通均未固定加拍；实际CPI和PPA由主agent的同源整核测量判定。
+
+lookup同时读本bank两个way，宏Q直接承担原一拍同步读边界。
+lookup launch边沿快照此前FIFO字节和同沿新接受写字节，新字节优先。
+后续后台宏写会改变Q（未写bit保持旧Q，不能当作被写row的完整值），因此第一次后台访问前
+保存已有lookup结果到held Q；已发起lookup的字节版本不受后来写入影响。
+DELIVER刷新另一bank保留的lookup也要取得真实宏读grant后才能结束。
+有效line可以有尚未落宏但已在FIFO中的字节，查询由前推保证完整可见。
+
+仲裁每bank独立。clean steady-hit可每bank每拍一读，两bank共两读，接受到命中返回仍为一拍。
+dirty存在时最多连续授予四次真正lookup，再为oldest做一次masked write；
+空闲读拍立即写。持续读写竞争必有有限单bank维护停顿，不能宣称无限1R1W吞吐。
+invalidate清valid并poison在途owner，FIFO继续排空且不能建立valid；reset清FIFO有效位及cache valid。
+idle包含FIFO已空，以反映真实后台维护结束。
+
+直接验证入口：
+`python3 npc/rv64/testbench/chengyue64/scripts/test_ecos_sram_256x64_cycle.py`
+验证2883次原厂bit-mask/Q行为；
+`python3 npc/rv64/testbench/chengyue64/scripts/test_dcache_ecos_data.py`
+以独立逐byte逻辑oracle对cycle view和原厂core分别运行同一18000拍激励。
+原有Dcache、hit_flow、command_flow、detached_store、overlap、store_overlap、split_owner、
+write_buffer、amo_pipe，以及相邻LSU/Service定向验证继续使用真实filelist。
+这些功能测试不能代替整核DiffTest、程序周期、综合宏计数或同源500MHz STA。
 
 
 ## 8. 控制、信用与所有权网络
@@ -575,7 +618,7 @@ canonical row及其完整ROB tag在此之前持续阻止复用。响应断言验
 | LSU-09 普通 store 完成；`R64Lsu.v` 的 `store_done_*` | 独立1项 terminal：tag9+error1+tval64+valid1，接收 PhysicalMemory经Service路由的真实B结果后送ROB 专用 store_done 端口；不走 LSU-07/08。 | 成功不可逆 owner 保留到退休；错误保留精确异常。完整 tag 认证；commit/flush 与外部 effect 的互斥仍由真实控制合同保证。不能把 enqueue/AW/W 当作成功 B。 | 单终端容量已知；store_done→ROB/retire 延迟与占用瓶颈 UNKNOWN。 |
 | LSU-10 非对齐序列；`R64MemorySplit.v` | 1个慢 owner：state2、token5、address/store/gather 各64、step/last各3等；IDLE→SEND→WAIT→DONE。对齐路径不在这里强加寄存拍。 | 对齐请求可双 lane 旁路；未对齐按 byte 顺序发出并聚合响应。输入预选 request 仅准备 Service 选择；真实 VALID/READY 才建立 owner，pending split 不得借提示创建新 CPU owner。 | 1慢 owner；与错误终止相关的分片数及额外周期 UNKNOWN。 |
 | LSU-11 CPU/PTW 物理服务；`R64MemoryService.v` | 请求2 lane×2槽，payload219=212+token5+source2；aux3路各1个 busy owner/返回 holder，返回data64+error+compare。 | CPU/aux 组合配对与bank判定→请求槽Q→Dcache；token的source负责回包分流。真实 enqueue 才更新 owner/轮转，空槽可预写。没有通过 ROB kill 撤销已接受 PTE/CPU物理请求的端口。 | 最大双 request 接受不等于所有组合都双发；CPU/PTW仲裁等待、same-bank冲突、返回队头阻塞 UNKNOWN。 |
-| LSU-12 Dcache lookup/慢事务/写阵列；`R64Dcache.v` | 见第7节：8KiB、2way、2bank，各 bank 1 lookup+1 response；主慢 owner1+普通cached store B owner1；每bank1项pending write。对 Service token 为7位（slot5+source2）。 | 命中、慢 owner、store B、R/B 写口与 pending 数据转发是不同边界。成功 B 后更新驻留字节，失败不写；invalidate poison不能撤销 AXI。pending write 是已有一拍结构，不是新候选。 | 原始阵列位数/容量已知；实际每类hit/miss延迟、miss并发受限损失、分bank冲突、宏/SRAM替换后的PPA UNKNOWN。 |
+| LSU-12 Dcache lookup/慢事务/写阵列；`R64Dcache.v` | 见第7节：8KiB、2way、2bank，各 bank 1 lookup+1 response；主慢 owner1+普通cached store B owner1+fast B终端holder1；每bank2项合并写FIFO。对 Service token 为7位（slot5+source2）。 | 命中、慢 owner、store B、R/B 写口与 pending 数据转发是不同边界。成功 B 后更新驻留字节，失败不写；invalidate poison不能撤销 AXI。ECOS55 adapter以真实单口仲裁和FIFO替代旧1R1W数组。 | 原始阵列位数/容量已知；实际每类hit/miss延迟、miss并发受限损失、分bank冲突、宏/SRAM替换后的PPA UNKNOWN。 |
 
 当前共享队列 `R64LsuRequestQueue` 已使用 Q 空槽 payload 预写、独立 valid 发布以及 ROB slot one-hot 引用保护，
 当前Completion与Ingress独立拥有不同阶段，文末历史候选不代表当前结构。取消网络仍必须覆盖 full-tag 存续与 ROB slot 复用；
@@ -592,7 +635,7 @@ canonical row及其完整ROB tag在此之前持续阻止复用。响应断言验
 | Ingress / 仲裁 / CQ / WB需求 | [Ingress TB](../../testbench/chengyue64/modules/tb_r64_lsu_response_ingress.sv)、[仲裁oracle](../../testbench/chengyue64/modules/tb_r64_lsu_event_count.sv)、[CQ payload](../../testbench/chengyue64/modules/tb_r64_completion_payload.sv)、[CQ合同](../../testbench/chengyue64/modules/tb_r64_lsu_completion.sv)、[WB request](../../testbench/chengyue64/modules/tb_r64_lsu_wb_request.sv)、[ingress用例](../../testbench/chengyue64/modules/tb_r64_lsu_response_ingress_cases.svh) | 两级延迟、连续双接收、事务scoreboard、occupied/live隔离、稀疏第二结果、固定槽/完整tag保持与取消；片段由tb_r64_lsu包含 |
 | LSU与物理服务 | [tb_r64_lsu](../../testbench/chengyue64/modules/tb_r64_lsu.sv)、[tb_r64_lsu_network](../../testbench/chengyue64/modules/tb_r64_lsu_network.sv)、[tb_r64_lsu_coupled](../../testbench/chengyue64/modules/tb_r64_lsu_coupled.sv) | drain/错误/背压、转发与真实Service/Dcache、窄store完成 |
 | 非对齐 / CPU与PTE配对 | [tb_r64_lsu_misaligned](../../testbench/chengyue64/modules/tb_r64_lsu_misaligned.sv)、[tb_r64_memory_service](../../testbench/chengyue64/modules/tb_r64_memory_service.sv)、[tb_r64_lsu_memory](../../testbench/chengyue64/modules/tb_r64_lsu_memory.sv) | 分片错误offset、部分store可见、辅助source、coherent compare-and-OR |
-| Cache并发 / pending write | [tb_r64_dcache](../../testbench/chengyue64/modules/tb_r64_dcache.sv)、[tb_r64_dcache_overlap](../../testbench/chengyue64/modules/tb_r64_dcache_overlap.sv)、[tb_r64_dcache_split_owner](../../testbench/chengyue64/modules/tb_r64_dcache_split_owner.sv)、[tb_r64_dcache_write_buffer](../../testbench/chengyue64/modules/tb_r64_dcache_write_buffer.sv) | 异bank hit-under-miss、独立B owner、R/B真实写冲突、延后一拍写入及转发 |
+| Cache并发 / pending write | [tb_r64_dcache](../../testbench/chengyue64/modules/tb_r64_dcache.sv)、[tb_r64_dcache_overlap](../../testbench/chengyue64/modules/tb_r64_dcache_overlap.sv)、[tb_r64_dcache_split_owner](../../testbench/chengyue64/modules/tb_r64_dcache_split_owner.sv)、[tb_r64_dcache_write_buffer](../../testbench/chengyue64/modules/tb_r64_dcache_write_buffer.sv) | 异bank hit-under-miss、独立B owner、R/B真实写冲突、实际宏写前的排队/合并/转发 |
 
 运行方式见[验证平台](../../testbench/chengyue64/README.md)。LOAD_PROFILE实现位于
 [R64LoadCompletionProfile.svh](../../sim/vsrc/R64LoadCompletionProfile.svh)，记录部分普通load响应→CQ→ROB的

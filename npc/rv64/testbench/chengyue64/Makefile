@@ -5,6 +5,7 @@ TESTS ?= tb_r64_dual_retire_candidate tb_r64_dual_retire_lease tb_r64_lsu_error_
 TESTS += tb_r64_bind_translation_flow tb_r64_bind_translation_service tb_r64_direction_backend tb_r64_direction_frontend_snapshot tb_r64_direction_pipeline tb_r64_direction_predictor tb_r64_predictor_capacity tb_r64_direction_capacity
 TESTS += tb_r64_batch_rollback tb_r64_batch_backend tb_r64_ftb_capacity tb_r64_ftb_frontend
 TESTS += tb_r64_serial_retire_candidate
+TESTS += tb_r64_protection_registered
 TEST_ARGS_tb_r64_lsu := +prepared-capture
 TEST_ARGS_tb_r64_dcache_amo_pipe := +late-invalidate
 TEST_ORACLES := oracles/R64RenameReference.v oracles/R64RenameWithScoreboard.v oracles/R64TranslationTokenEcho.v oracles/R64LsuTranslationOwners.v oracles/R64BackendWantsReference.v oracles/R64RegReadReference.v oracles/R64LsuCompletionReference.v oracles/R64PredictorReference.v oracles/R64ExecuteReference.v oracles/R64BackendCommitActual.v oracles/R64BackendCommitReference.v oracles/R64BackendReference.v oracles/R64RobReference.v oracles/R64ICacheReference.v oracles/R64AlignMapBaseline.v oracles/R64TranslationBaseline.v oracles/R64DecodeReference.v oracles/legacy/OooRvcDecompressor.v oracles/legacy/DecodeUnit.v oracles/legacy/OooFpDecode.v oracles/R64CsrBaseline.v oracles/R64AxiPlatformBaseline.v

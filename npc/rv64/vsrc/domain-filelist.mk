@@ -15,6 +15,8 @@ R64_FRONTEND_SRCS := \
   $(R64_RTL_ROOT)/frontend/R64Rvc.v \
   $(R64_RTL_ROOT)/memory/R64FetchProtection.v \
   $(R64_RTL_ROOT)/memory/R64FetchTranslation.v \
+  $(R64_RTL_ROOT)/../sim/vsrc/ics55_ecos_sram_256x128_m4_ww.v \
+  $(R64_RTL_ROOT)/memory/R64ICacheData.v \
   $(R64_RTL_ROOT)/memory/R64ICache.v \
   $(R64_RTL_ROOT)/memory/R64PageWalk.v \
   $(R64_RTL_ROOT)/memory/R64Pma.v \
@@ -79,6 +81,8 @@ R64_TRANSLATION_SRCS := \
   $(R64_RTL_ROOT)/memory/R64Translation.v
 
 R64_PHYSICAL_SRCS := \
+  $(R64_RTL_ROOT)/../sim/vsrc/ics55_ecos_sram_256x64_m4.v \
+  $(R64_RTL_ROOT)/lsu/R64DcacheData.v \
   $(R64_RTL_ROOT)/lsu/R64Dcache.v \
   $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
   $(R64_RTL_ROOT)/lsu/R64MemoryService.v \
@@ -86,9 +90,11 @@ R64_PHYSICAL_SRCS := \
   $(R64_RTL_ROOT)/lsu/R64PhysicalMemory.v
 
 R64_MEMORY_SRCS := \
+  $(R64_RTL_ROOT)/../sim/vsrc/ics55_ecos_sram_256x64_m4.v \
   $(R64_RTL_ROOT)/common/R64RecoveryInbox.v \
   $(R64_RTL_ROOT)/backend/R64FreeSelect.v \
   $(R64_RTL_ROOT)/backend/R64WideAdd.v \
+  $(R64_RTL_ROOT)/lsu/R64DcacheData.v \
   $(R64_RTL_ROOT)/lsu/R64Dcache.v \
   $(R64_RTL_ROOT)/lsu/R64DcacheAmoParts.v \
   $(R64_RTL_ROOT)/lsu/R64LoadStore.v \

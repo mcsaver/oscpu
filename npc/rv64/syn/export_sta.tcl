@@ -7,12 +7,13 @@ set DESIGN [lindex $argv 2]
 set PDK [lindex $argv 3]
 source scripts/common.tcl
 read_verilog $MAPPED
-foreach lib $LIB_FILES { read_liberty -lib $lib }
+foreach lib $ALL_LIB_FILES { read_liberty -lib $lib }
+set REPORT_LIBS [concat {*}[lmap lib $ALL_LIB_FILES {concat "-liberty" $lib}]]
 hierarchy -check -top $DESIGN
 flatten -noscopeinfo
 yosys rename -hide w:*
 opt_clean -purge
 splitnets -format __v -ports
-tee -o [file join [file dirname $OUTPUT] sta_area.txt] stat -liberty [lindex $LIB_FILES 0]
+tee -o [file join [file dirname $OUTPUT] sta_area.txt] stat {*}$REPORT_LIBS
 tee -o [file join [file dirname $OUTPUT] sta_check.txt] check -mapped -assert
 write_verilog -noattr -noexpr -nohex -nodec -simple-lhs $OUTPUT

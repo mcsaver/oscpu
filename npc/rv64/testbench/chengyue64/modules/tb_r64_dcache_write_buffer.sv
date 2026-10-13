@@ -248,8 +248,7 @@ module tb_r64_dcache_write_buffer;
   always @(posedge clk)
     if (!rst) begin
       for (integer bank_check = 0; bank_check < 2; bank_check = bank_check + 1)
-      if (dut.lookup_read_w[bank_check] && dut.pending_write_q[bank_check] &&
-          dut.pending_index_q[bank_check] == dut.lookup_index_w[bank_check])
+      if (dut.data_forward_w[bank_check])
         pending_hits = pending_hits + 1;
       if (bv && dut.fill_port_block_w) begin
         collisions = collisions + 1;
@@ -262,14 +261,15 @@ module tb_r64_dcache_write_buffer;
     for (n = 0; n < 2048; n = n + 1) memory[n] = 64'h1234000000000000 + n;
     repeat (4) @(negedge clk);
     rst = 0;
-    // Hold a real B, present a same-bank load, then release B. The load must
+    // Hold B generation, present a same-bank load, then release B. The load must
     // enter on the following edge while the byte-masked write is still pending.
     for (store_bank = 0; store_bank < 2; store_bank = store_bank + 1) begin
       store_addr = 64'h100 + 64'(store_bank * 8);
       command(store_addr, 0, 1, 0, 0, memory[store_addr>>3], 255, 0, 3, 0, 0);
       @(negedge clk);
       #1;
-      fast_ready = 0;
+      fast_ready = 1;
+      write_pause = 1;
       fast_store = 1;
       req_valid = 1;
       req_addr = {64'd0, store_addr};
@@ -286,7 +286,7 @@ module tb_r64_dcache_write_buffer;
       @(negedge clk);
       #1;
       req_valid = 0;
-      while (!bvalid) @(negedge clk);
+      while (!awseen || !wseen) @(negedge clk);
       @(negedge clk);
       #1;
       req_valid = 1;
@@ -294,7 +294,11 @@ module tb_r64_dcache_write_buffer;
       req_op = 0;
       fast_store = 0;
       expected[11] = memory[store_addr>>3];
+      for(integer byte_lane=0;byte_lane<8;byte_lane=byte_lane+1)
+        if(req_strb[byte_lane])
+          expected[11][byte_lane*8+:8]=req_data[byte_lane*8+:8];
       fast_ready = 1;
+      write_pause = 0;
       do @(posedge clk); while (!req_ready[0]);
       @(negedge clk);
       #1;

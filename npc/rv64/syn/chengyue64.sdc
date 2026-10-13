@@ -3,7 +3,7 @@
 if {![info exists r64_data_input_names]} {
   error "Run prepare_sdc.py to enumerate the actual mapped data inputs."
 }
-set clock_period 1.0
+set clock_period 2.0
 if {[info exists env(CLK_FREQ_MHZ)]} {
   set clock_period [expr 1000.0 / $::env(CLK_FREQ_MHZ)]
 }

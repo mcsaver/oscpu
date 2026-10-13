@@ -8,3 +8,9 @@ set EXTRA_LIB_FILES [list]
 if {[info exists env(EXTRA_LIB_FILES)]} {
   set EXTRA_LIB_FILES $::env(EXTRA_LIB_FILES)
 }
+
+# Macro views are link/area/timing inputs, not ABC mapping candidates.
+foreach lib $EXTRA_LIB_FILES {
+  if {![file isfile $lib]} { error "Extra Liberty file does not exist: $lib" }
+}
+set ALL_LIB_FILES [concat $LIB_FILES $EXTRA_LIB_FILES]

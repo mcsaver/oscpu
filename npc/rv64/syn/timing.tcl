@@ -6,7 +6,7 @@ set PDK [lindex $argv 3]
 source scripts/common.tcl
 set_design_workspace [file dirname $NETLIST_V]
 read_netlist $NETLIST_V
-read_liberty $LIB_FILES
+read_liberty $ALL_LIB_FILES
 link_design $DESIGN
 read_sdc $SDC_FILE
 report_timing -max_path 10

@@ -67,16 +67,19 @@ module R64DataProtection #(
   reg [3:0] protection_q;
   reg base_fault_q, needs_ad_q, pmp_enabled_q, no_match_fault_q;
   reg [15:0] overlap_q, deny_q;
-  // Held owner takes priority over a new complete protection outcome.
-  wire [15:0] effective_overlap_w = valid_q ? overlap_q : overlap_w;
-  wire [15:0] effective_deny_w = valid_q ? deny_q : deny_w;
+  // ECOS55 timing adaptation: registered mode exposes only holder facts,
+  // including invalid payload, so raw PMP cannot reach downstream prewrite.
+  // Empty-flow mode retains the existing direct result and held-owner priority.
+  wire use_holder_w = EMPTY_FLOW == 0 || valid_q;
+  wire [15:0] effective_overlap_w = use_holder_w ? overlap_q : overlap_w;
+  wire [15:0] effective_deny_w = use_holder_w ? deny_q : deny_w;
   wire [1:0] request_class_w = (pma_class_w == 2 || req_pbmt_i == 2) ?
       2'd2 : ((pma_class_w == 1 || req_pbmt_i == 1) ? 2'd1 : 2'd0);
   wire [4:0] request_cause_w = req_fault_i ? req_cause_i : (req_protection_i[3] ? 5'd7 : 5'd5);
   wire request_base_fault_w = req_fault_i || pma_fault_w || ((|access_w) && req_last_i[64]);
-  wire effective_base_fault_w = valid_q ? base_fault_q : request_base_fault_w;
-  wire effective_pmp_enabled_w = valid_q ? pmp_enabled_q : (|access_w);
-  wire effective_no_match_fault_w = valid_q ? no_match_fault_q : (req_priv_i != 3);
+  wire effective_base_fault_w = use_holder_w ? base_fault_q : request_base_fault_w;
+  wire effective_pmp_enabled_w = use_holder_w ? pmp_enabled_q : (|access_w);
+  wire effective_no_match_fault_w = use_holder_w ? no_match_fault_q : (req_priv_i != 3);
   wire [15:0] selected_deny_w;
   generate
     for (entry = 0; entry < 16; entry = entry + 1) begin : g_priority
@@ -93,11 +96,11 @@ module R64DataProtection #(
   assign req_ready_o = !rst_i && (!valid_q || rsp_ready_i);
   wire direct_w = EMPTY_FLOW != 0 && !valid_q && req_valid_i;
   assign rsp_valid_o = (valid_q || direct_w) && !rst_i;
-  assign rsp_paddr_o = valid_q ? pa_q : req_paddr_i;
-  assign rsp_class_o = valid_q ? class_q : request_class_w;
-  assign rsp_cause_o = valid_q ? cause_q : request_cause_w;
-  assign rsp_needs_ad_o = valid_q ? needs_ad_q : req_needs_ad_i;
-  assign rsp_protection_o = valid_q ? protection_q : req_protection_i;
+  assign rsp_paddr_o = use_holder_w ? pa_q : req_paddr_i;
+  assign rsp_class_o = use_holder_w ? class_q : request_class_w;
+  assign rsp_cause_o = use_holder_w ? cause_q : request_cause_w;
+  assign rsp_needs_ad_o = use_holder_w ? needs_ad_q : req_needs_ad_i;
+  assign rsp_protection_o = use_holder_w ? protection_q : req_protection_i;
   assign rsp_fault_o = effective_base_fault_w ||
       (effective_pmp_enabled_w && ((|selected_deny_w) ||
                                   (!(|effective_overlap_w) && effective_no_match_fault_w)));

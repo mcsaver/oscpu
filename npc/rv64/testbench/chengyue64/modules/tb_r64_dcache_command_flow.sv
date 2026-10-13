@@ -368,7 +368,7 @@ module tb_r64_dcache_command_flow;
       fast_ready=0;
       offer(64'h3e00,64'habc123fed6540987,1,1,1,8'h36,0,6'd8);
       repeat(2)@(negedge clk);
-      if(!bvalid||!fast_valid||!dut.store_active_q)$fatal(1,"held earliest B did not migrate");
+      if((!bvalid&&!dut.fast_b_valid_q)||!fast_valid||!dut.store_active_q)$fatal(1,"held earliest B did not migrate");
       offer(64'h3c40,0,0,1,0,8'hff,0,6'd9);
       while(!done[9])@(negedge clk);
       if(done[8]||!fast_valid||fast_token!=8)$fatal(1,"bank reuse lost held B");

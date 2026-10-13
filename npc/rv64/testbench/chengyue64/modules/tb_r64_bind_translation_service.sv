@@ -2,7 +2,7 @@
 `include "R64Protocol.vh"
 // Actual LSU and translation/protection/token endpoint. Only physical memory
 // and page-table storage are independent test endpoints.
-module tb_r64_bind_translation_service #(parameter FLOW=1,STORE_HOT=1);
+module tb_r64_bind_translation_service #(parameter FLOW=1,STORE_HOT=1,PROTECTION_LATENCY=2);
   localparam N=12,I=4,C=`R64_MEM_CMD_W,R=`R64_RESULT_W;
   reg clk=0;always #5 clk=~clk;
   reg rst=1,flush=0;
@@ -194,14 +194,14 @@ module tb_r64_bind_translation_service #(parameter FLOW=1,STORE_HOT=1);
     reset_phase;physical_enable=3;allocate(1,0,1,3,0);start_cycle=cycles+1;
     bind_pair(1,0,1,64'h80000008,0,3,0);await_response(slots[0],1);await_output;
     check(accept_edge[slots[0]]-start_cycle==(FLOW?0:1),"bare load accept latency");
-    check(response_edge[slots[0]]-accept_edge[slots[0]]==1,"Bare endpoint gained an unregistered terminal");
+    check(response_edge[slots[0]]-accept_edge[slots[0]]==PROTECTION_LATENCY,"Bare endpoint exact protection latency");
     $display("BIND_SERVICE load_accept=%0d protected_response=%0d complete_value=%h",
       accept_edge[slots[0]]-start_cycle,response_edge[slots[0]]-start_cycle,last_value);
 
     reset_phase;allocate(1,0,1,8'h23,0);start_cycle=cycles+1;
     bind_pair(1,0,1,64'h80000010,0,8'h23,0);await_response(slots[0],1);
     check(accept_edge[slots[0]]-start_cycle==(STORE_HOT?(FLOW?0:1):2),"bare store accept latency");
-    check(response_edge[slots[0]]-accept_edge[slots[0]]==1&&!lsu.effect_q[slots[0]],"bare store terminal or authority");
+    check(response_edge[slots[0]]-accept_edge[slots[0]]==PROTECTION_LATENCY&&!lsu.effect_q[slots[0]],"bare store terminal or authority");
     $display("BIND_SERVICE store_accept=%0d protected_response=%0d",
       accept_edge[slots[0]]-start_cycle,response_edge[slots[0]]-start_cycle);
 
@@ -243,19 +243,24 @@ module tb_r64_bind_translation_service #(parameter FLOW=1,STORE_HOT=1);
     check(accepts[slots[0]]==2,"AD replay accepted more than one owner per phase");
     $display("BIND_SERVICE Sv39_store_needsAD=1 head_replay=1 walks=%0d cas=%0d",walks,cas_count);
 
-    reset_phase;rsp_enable=0;allocate(1,0,1,3,0);bind_pair(1,0,1,64'h80000040,0,3,0);
+    // A real cancelled LSU token keeps the protection facts captured before
+    // the PMP change, and retains its canonical owner until terminal fire.
+    reset_phase;rsp_enable=0;privilege=1;pmp_active=1;
+    pmp_lower[0+:56]=56'h80000000;pmp_upper[0+:56]=56'h80000fff;pmp_permission=1;
+    allocate(1,0,1,3,0);bind_pair(1,0,1,64'h80000040,0,3,0);
     repeat(5)tick;check(service_rsp!=0&&accepts[slots[0]]==1,"held service terminal fixture");
-    kill=1;tick;kill=0;repeat(3)tick;
+    pmp_permission=0;kill=1;tick;kill=0;repeat(3)tick;
+    check(service_rsp!=0&&(fault&service_rsp)==0,"held killed token resampled changed PMP");
     check(reuse[0]&&!idle&&!service_idle,"accepted killed token released before actual response drain");
     rsp_enable=3;await_response(slots[0],1);repeat(5)tick;
     check(idle&&service_idle&&reuse==0&&outputs==0,"killed token did not drain exactly once");
-    physical_enable=3;allocate(1,9'h20,1,3,0);bind_pair(1,9'h20,1,64'h80000048,0,3,0);
+    pmp_permission=1;physical_enable=3;allocate(1,9'h20,1,3,0);bind_pair(1,9'h20,1,64'h80000048,0,3,0);
     await_output;check(idle&&service_idle,"fulltag reuse failed after drain");
 
     reset_phase;rsp_enable=0;allocate(1,0,1,3,0);bind_pair(1,0,1,64'h80000050,0,3,0);
     repeat(4)tick;flush=1;tick;flush=0;check(reuse[0]&&!idle,"flush lost accepted token");
     rsp_enable=3;await_response(slots[0],1);repeat(5)tick;check(idle&&outputs==0,"flushed translation published");
-    $display("[PASS] tb_r64_bind_translation_service FLOW=%0d STORE_HOT=%0d checks=%0d realBare_Sv39_PMP_fallback_kill_flush_fulltag",
+    $display("[PASS] tb_r64_bind_translation_service FLOW=%0d STORE_HOT=%0d checks=%0d realBare_Sv39_PMP_fallback_kill_flush_fulltag_heldPMPcancel",
       FLOW,STORE_HOT,checks);$finish;
   end
   initial begin #50000;$fatal(1,"bind service timeout");end

@@ -99,9 +99,12 @@ module R64DataTranslationService #(
         .mem_error_i(mem_error_i[g]),
         .mem_compare_ok_i(mem_compare_ok_i[g])
       );
-      // Generic translation overflow and protection READY preserve terminals under arbitrary backpressure.
+      // ECOS55 timing adaptation: reuse the protection holder to separate PMP
+      // range facts from LSU payload/qualification, with same-edge pop/push II=1.
+      // Generic translation overflow preserves terminals under backpressure.
       R64DataProtection #(
-        .PMA_PREPARED(1)
+        .PMA_PREPARED(1),
+        .EMPTY_FLOW  (0)
       ) protection (
         .req_pma_class_i(raw_pma_class[g*2+:2]),
         .req_pma_fault_i(raw_pma_fault[g]),
